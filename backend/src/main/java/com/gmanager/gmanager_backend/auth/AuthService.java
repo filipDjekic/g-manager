@@ -37,7 +37,7 @@ public class AuthService {
         user.setName(request.name().trim());
         user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(request.password()));
-        user.setRole(Role.USER);
+        user.setRole(Role.CUSTOMER);
         User saved = userRepository.save(user);
         return toAuthResponse(saved);
     }
@@ -50,13 +50,14 @@ public class AuthService {
             throw new UnauthorizedException("Invalid email or password");
         }
         User user = userRepository.findByEmail(email).orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
+        if (!user.isActive()) throw new UnauthorizedException("Account is deactivated");
         return toAuthResponse(user);
     }
 
     private AuthResponse toAuthResponse(User user) {
         return new AuthResponse(
                 jwtService.generateToken(user),
-                new AuthResponse.UserResponse(user.getId(), user.getName(), user.getEmail(), user.getRole())
+                new AuthResponse.UserResponse(user.getId(), user.getName(), user.getEmail(), user.getRole(), user.isActive())
         );
     }
 }

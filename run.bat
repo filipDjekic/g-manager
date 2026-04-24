@@ -1,44 +1,33 @@
 @echo off
-title G-Manager Launcher
+SET BACKEND_PATH=backend
+SET FRONTEND_PATH=g-manager
+SET JAR_NAME=gmanager-backend-0.0.1-SNAPSHOT.jar
+SET FRONTEND_URL=http://localhost:5173
 
-echo ==============================
-echo BUILD BACKEND
-echo ==============================
-
-cd backend
-
+echo [1/4] Pakovanje backenda...
+cd %BACKEND_PATH%
 call mvnw.cmd clean package -DskipTests
-
-if %errorlevel% neq 0 (
-    echo Backend build FAILED
+if %ERRORLEVEL% NEQ 0 (
+    echo [GRESKA] Backend build nije uspeo!
     pause
-    exit /b
+    exit /b %ERRORLEVEL%
 )
 
-echo ==============================
-echo START BACKEND
-echo ==============================
+echo [2/4] Pokretanje backenda u novom prozoru...
+start "Backend - GManager" cmd /k java -jar target\%JAR_NAME%
 
-start "G-Manager Backend" cmd /k java -jar target\gmanager-backend-0.0.1-SNAPSHOT.jar
+echo Cekanje da se backend inicijalizuje (10 sekundi)...
+timeout /t 10 /nobreak
 
-timeout /t 5
+echo [3/4] Pokretanje frontenda...
+cd ..\%FRONTEND_PATH%
+start "Frontend - React/Vite" cmd /k npm run dev
 
-echo ==============================
-echo START FRONTEND
-echo ==============================
+echo Cekanje da se frontend pokrene (5 sekundi)...
+timeout /t 5 /nobreak
 
-cd ..\g-manager
+echo [4/4] Otvaranje browsera...
+start "" "C:\Program Files\Mozilla Firefox\firefox.exe" %FRONTEND_URL%
 
-call npm install
-
-start "G-Manager Frontend" cmd /k npm run dev
-
-timeout /t 5
-
-echo ==============================
-echo OPEN BROWSER
-echo ==============================
-
-start "" "C:\Program Files\Mozilla Firefox\firefox.exe" http://localhost:5173
-
-exit
+echo SVE JE POKRENUTO!
+pause
