@@ -1,9 +1,15 @@
 package com.gmanager.gmanager_backend.user;
 
+import com.gmanager.gmanager_backend.organization.Organization;
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.Instant;
 
 @Entity
+@Getter
+@Setter
 @Table(name = "users")
 public class User {
     @Id
@@ -29,16 +35,10 @@ public class User {
     @Column(name = "updated_at", nullable = false, insertable = false)
     private Instant updatedAt;
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
-    public String getPasswordHash() { return passwordHash; }
-    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
-    public Role getRole() { return role; }
-    public void setRole(Role role) { this.role = role; }
-    public Instant getCreatedAt() { return createdAt; }
-    public Instant getUpdatedAt() { return updatedAt; }
+    @Column(nullable = false)
+    private boolean active = true;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;
 }
