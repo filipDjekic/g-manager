@@ -54,6 +54,7 @@ public class User {
         Instant now = Instant.now();
         this.createdAt = now;
         this.updatedAt = now;
+
         if (this.version == null) {
             this.version = 0L;
         }
@@ -62,6 +63,23 @@ public class User {
     @PreUpdate
     void preUpdate() {
         this.updatedAt = Instant.now();
+    }
+
+    public void updateProfile(String name) {
+        this.name = name;
+    }
+
+    public void updateManagedData(String name, UserRole role) {
+        this.name = name;
+        this.role = role;
+    }
+
+    public void changeRole(UserRole role) {
+        this.role = role;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
     }
 
     public Long getId() {
