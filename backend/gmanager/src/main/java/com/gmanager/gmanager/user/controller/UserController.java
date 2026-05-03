@@ -1,5 +1,7 @@
 package com.gmanager.gmanager.user.controller;
 
+import com.gmanager.gmanager.security.authorization.IsAuthenticatedUser;
+import com.gmanager.gmanager.security.authorization.IsOwnerOrAdmin;
 import com.gmanager.gmanager.security.user.SecurityUser;
 import com.gmanager.gmanager.user.dto.*;
 import com.gmanager.gmanager.user.service.UserService;
@@ -12,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/users")
+@IsAuthenticatedUser
 public class UserController {
 
     private final UserService userService;
@@ -34,6 +37,7 @@ public class UserController {
     }
 
     @GetMapping
+    @IsOwnerOrAdmin
     public Page<UserResponse> getUsers(
             @AuthenticationPrincipal SecurityUser currentUser,
             @PageableDefault(size = 20, sort = "createdAt") Pageable pageable
@@ -42,6 +46,7 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
+    @IsOwnerOrAdmin
     public UserResponse getUserById(
             @AuthenticationPrincipal SecurityUser currentUser,
             @PathVariable Long id
@@ -50,6 +55,7 @@ public class UserController {
     }
 
     @PostMapping
+    @IsOwnerOrAdmin
     public UserResponse createUser(
             @AuthenticationPrincipal SecurityUser currentUser,
             @Valid @RequestBody CreateUserRequest request
@@ -58,6 +64,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
+    @IsOwnerOrAdmin
     public UserResponse updateUser(
             @AuthenticationPrincipal SecurityUser currentUser,
             @PathVariable Long id,
@@ -67,6 +74,7 @@ public class UserController {
     }
 
     @PatchMapping("/{id}/role")
+    @IsOwnerOrAdmin
     public UserResponse updateRole(
             @AuthenticationPrincipal SecurityUser currentUser,
             @PathVariable Long id,
@@ -76,6 +84,7 @@ public class UserController {
     }
 
     @PatchMapping("/{id}/status")
+    @IsOwnerOrAdmin
     public UserResponse updateStatus(
             @AuthenticationPrincipal SecurityUser currentUser,
             @PathVariable Long id,
@@ -85,6 +94,7 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
+    @IsOwnerOrAdmin
     public void deactivateUser(
             @AuthenticationPrincipal SecurityUser currentUser,
             @PathVariable Long id
