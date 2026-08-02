@@ -6,7 +6,7 @@ import com.game_manager.gm.order.OrderStatus;
 import com.game_manager.gm.reservation.Reservation;
 import com.game_manager.gm.reservation.ReservationRepository;
 import com.game_manager.gm.reservation.ReservationStatus;
-import com.game_manager.gm.user.Role;
+import com.game_manager.gm.common.security.Role;
 import com.game_manager.gm.user.User;
 import com.game_manager.gm.user.UserRepository;
 import java.math.BigDecimal;

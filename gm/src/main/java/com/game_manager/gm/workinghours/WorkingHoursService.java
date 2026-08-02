@@ -1,9 +1,10 @@
 package com.game_manager.gm.workinghours;
 
 import com.game_manager.gm.common.error.ApplicationException;
-import com.game_manager.gm.security.AuthenticatedUser;
-import com.game_manager.gm.security.CurrentUserProvider;
-import com.game_manager.gm.user.Role;
+import com.game_manager.gm.common.config.GManagerProperties;
+import com.game_manager.gm.common.security.AuthenticatedUser;
+import com.game_manager.gm.common.security.CurrentUserProvider;
+import com.game_manager.gm.common.security.Role;
 import com.game_manager.gm.workinghours.dto.UpdateWorkingHoursRequest;
 import com.game_manager.gm.workinghours.dto.WorkingHoursExceptionRequest;
 import com.game_manager.gm.workinghours.dto.WorkingHoursExceptionResponse;
@@ -18,7 +19,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,9 +29,7 @@ public class WorkingHoursService {
     private final WorkingHoursRepository workingHoursRepository;
     private final WorkingHoursExceptionRepository exceptionRepository;
     private final CurrentUserProvider currentUserProvider;
-
-    @Value("${app.business-zone}")
-    private ZoneId businessZone;
+    private final GManagerProperties properties;
 
     @Transactional(readOnly = true)
     public List<WorkingHoursResponse> list() {
@@ -64,7 +62,8 @@ public class WorkingHoursService {
     public List<WorkingHoursExceptionResponse> listExceptions() {
         currentUserProvider.requireCurrentUser();
         return exceptionRepository
-                .findAllByDateGreaterThanEqualOrderByDateAsc(LocalDate.now(businessZone))
+                .findAllByDateGreaterThanEqualOrderByDateAsc(
+                        LocalDate.now(properties.businessZone()))
                 .stream().map(WorkingHoursExceptionResponse::from).toList();
     }
 
@@ -112,6 +111,7 @@ public class WorkingHoursService {
         if (startTime == null || endTime == null || !endTime.isAfter(startTime)) {
             throw new ApplicationException(HttpStatus.BAD_REQUEST, "Reservation interval is not valid");
         }
+        ZoneId businessZone = properties.businessZone();
         ZonedDateTime localStart = startTime.atZone(businessZone);
         LocalDate localDate = localStart.toLocalDate();
         Shift today = shiftFor(localDate);
@@ -131,10 +131,11 @@ public class WorkingHoursService {
     }
 
     public ZoneId getBusinessZone() {
-        return businessZone;
+        return properties.businessZone();
     }
 
     private Shift shiftFor(LocalDate date) {
+        ZoneId businessZone = properties.businessZone();
         WorkingHoursException exception = exceptionRepository.findByDate(date).orElse(null);
         if (exception != null && exception.isFullDayClosed()) {
             return null;
@@ -165,7 +166,7 @@ public class WorkingHoursService {
     }
 
     private void validateException(WorkingHoursExceptionRequest request) {
-        if (!request.date().isAfter(LocalDate.now(businessZone))) {
+        if (!request.date().isAfter(LocalDate.now(properties.businessZone()))) {
             throw new ApplicationException(
                     HttpStatus.BAD_REQUEST, "Exception date must be in the future");
         }

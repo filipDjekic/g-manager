@@ -1,6 +1,6 @@
 package com.game_manager.gm.user.dto;
 
-import com.game_manager.gm.user.Role;
+import com.game_manager.gm.common.security.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

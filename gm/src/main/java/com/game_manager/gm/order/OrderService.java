@@ -5,13 +5,14 @@ import com.game_manager.gm.catalog.CatalogService;
 import com.game_manager.gm.catalog.ItemType;
 import com.game_manager.gm.common.dto.PageResponse;
 import com.game_manager.gm.common.error.ApplicationException;
+import com.game_manager.gm.common.config.GManagerProperties;
 import com.game_manager.gm.order.dto.CreateOrderRequest;
 import com.game_manager.gm.order.dto.OrderItemRequest;
 import com.game_manager.gm.order.dto.OrderResponse;
 import com.game_manager.gm.order.dto.UpdateOrderStatusRequest;
-import com.game_manager.gm.security.AuthenticatedUser;
-import com.game_manager.gm.security.CurrentUserProvider;
-import com.game_manager.gm.user.Role;
+import com.game_manager.gm.common.security.AuthenticatedUser;
+import com.game_manager.gm.common.security.CurrentUserProvider;
+import com.game_manager.gm.common.security.Role;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -20,7 +21,6 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -38,9 +38,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final CatalogService catalogService;
     private final CurrentUserProvider currentUserProvider;
-
-    @Value("${app.business-zone:Europe/Belgrade}")
-    private ZoneId businessZone;
+    private final GManagerProperties properties;
 
     @Transactional
     public OrderResponse create(CreateOrderRequest request) {
@@ -121,6 +119,7 @@ public class OrderService {
         } catch (IllegalArgumentException exception) {
             throw new ApplicationException(HttpStatus.BAD_REQUEST, "Unsupported sort direction");
         }
+        ZoneId businessZone = properties.businessZone();
         Instant fromInstant = from == null ? null : from.atStartOfDay(businessZone).toInstant();
         Instant toInstant = to == null ? null : to.plusDays(1).atStartOfDay(businessZone).toInstant();
         Specification<Order> specification = (root, query, builder) -> builder.conjunction();

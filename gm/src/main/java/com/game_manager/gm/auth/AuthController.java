@@ -4,11 +4,11 @@ import com.game_manager.gm.auth.dto.AuthResponse;
 import com.game_manager.gm.auth.dto.LoginRequest;
 import com.game_manager.gm.auth.dto.RegisterRequest;
 import com.game_manager.gm.auth.dto.RegistrationResponse;
+import com.game_manager.gm.common.config.GManagerProperties;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -33,13 +33,12 @@ public class AuthController {
     public AuthController(
             AuthService authService,
             RateLimitService rateLimitService,
-            @Value("${app.jwt.secure-cookie:true}") boolean secureCookie,
-            @Value("${app.jwt.refresh-token-days:14}") long refreshTokenDays
+            GManagerProperties properties
     ) {
         this.authService = authService;
         this.rateLimitService = rateLimitService;
-        this.secureCookie = secureCookie;
-        this.refreshTtl = Duration.ofDays(refreshTokenDays);
+        this.secureCookie = properties.jwt().secureCookie();
+        this.refreshTtl = Duration.ofDays(properties.jwt().refreshTokenDays());
     }
 
     @PostMapping("/register")

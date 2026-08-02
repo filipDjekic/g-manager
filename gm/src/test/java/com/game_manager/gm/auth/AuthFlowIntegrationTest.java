@@ -1,5 +1,6 @@
 package com.game_manager.gm.auth;
 
+import com.game_manager.gm.common.config.GManagerProperties;
 import com.game_manager.gm.user.User;
 import com.game_manager.gm.user.UserRepository;
 import jakarta.servlet.http.Cookie;
@@ -130,7 +131,20 @@ class AuthFlowIntegrationTest {
         String email = "owner-" + UUID.randomUUID() + "@example.com";
         String password = "OwnerPass1!";
         InitialOwnerProvisioner provisioner = new InitialOwnerProvisioner(
-                userRepository, passwordEncoder, email, password, "System Owner"
+                userRepository,
+                passwordEncoder,
+                new GManagerProperties(
+                        java.time.ZoneId.of("Europe/Belgrade"),
+                        java.util.List.of("http://localhost:5173"),
+                        new GManagerProperties.Storage(
+                                java.nio.file.Path.of("target/test-uploads")),
+                        new GManagerProperties.Idempotency(24, "0 0 3 * * *"),
+                        new GManagerProperties.Reservations(60),
+                        new GManagerProperties.Jwt(
+                                "test-only-secret-with-at-least-32-bytes",
+                                15, 14, false),
+                        new GManagerProperties.InitialOwner(
+                                "System Owner", email, password))
         );
 
         provisioner.run(null);

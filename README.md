@@ -12,7 +12,18 @@ Preduslovi:
 
 Od čistog checkout-a:
 
-1. U korenu repozitorijuma pokrenuti MySQL:
+1. U korenu repozitorijuma napraviti lokalni `.env`. Root `.env.example` se
+   namerno ne održava: lokalni `.env` je već standard projekta i ignorisan je
+   kroz `.gitignore`. Minimalni sadržaj je:
+
+   ```dotenv
+   JWT_SECRET=<nasumična-development-vrednost-od-najmanje-32-UTF-8-bajta>
+   ```
+
+   Ostale podržane promenljive i njihove local podrazumevane vrednosti navedene
+   su u tabeli ispod. Ne koristiti development vrednosti u produkciji.
+
+2. U korenu repozitorijuma pokrenuti MySQL:
 
    ```bash
    docker compose up -d mysql
@@ -21,7 +32,7 @@ Od čistog checkout-a:
    Compose kreira bazu `gmanager` i lokalnog korisnika iz
    `docker-compose.yml`. Nije potrebno ručno kreirati tabele.
 
-2. Pokrenuti backend. Kada profil nije eksplicitno naveden, `local` je
+3. Pokrenuti backend. Kada profil nije eksplicitno naveden, `local` je
    podrazumevani profil:
 
    PowerShell:
@@ -38,7 +49,7 @@ Od čistog checkout-a:
    ./mvnw spring-boot:run
    ```
 
-3. U drugom terminalu instalirati frontend isključivo iz lock fajla i
+4. U drugom terminalu instalirati frontend isključivo iz lock fajla i
    pokrenuti Vite:
 
    ```bash
@@ -54,7 +65,8 @@ Backend je dostupan na `http://localhost:8080`, health provera na
 
 Backend koristi Flyway migracije i validira šemu pri startu. Podrazumevane lokalne
 vrednosti odgovaraju `docker-compose.yml`; za druga okruženja koristiti promenljive
-iz `.env.example`. Poslovna vremenska zona je eksplicitno `Europe/Belgrade`, dok se
+iz lokalnog `.env` fajla. Poslovna vremenska zona je eksplicitno
+`Europe/Belgrade`, dok se
 timestamp vrednosti čuvaju i obrađuju u UTC.
 
 Profil `local` preko Spring Config Data automatski učitava `.env` iz korena
@@ -101,6 +113,33 @@ postavljaju `INITIAL_OWNER_EMAIL`, `INITIAL_OWNER_PASSWORD` i
 Lokalni HTTP razvoj koristi `COOKIE_SECURE=false`. U HTTPS okruženjima ova vrednost
 mora biti `true`, što je i podrazumevana backend vrednost.
 
+## Environment ugovor
+
+| Promenljiva | Local podrazumevano | Production |
+|---|---|---|
+| `JWT_SECRET` | Obavezna u `.env`, najmanje 32 UTF-8 bajta | Obavezna spoljna tajna |
+| `DB_URL` | `jdbc:mysql://localhost:3306/gmanager?...` | Obavezna deployment vrednost |
+| `DB_USERNAME` | `gmanager` | Obavezna deployment vrednost |
+| `DB_PASSWORD` | `gmanager` | Obavezna deployment tajna |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Eksplicitna HTTPS allow-lista |
+| `COOKIE_SECURE` | `false` kroz local profil | Mora biti `true` |
+| `BUSINESS_TIME_ZONE` | `Europe/Belgrade` | Eksplicitno po deploymentu |
+| `UPLOAD_ROOT` | `data/uploads` | Trajan, backupovan storage path |
+| `CANCELLATION_CUTOFF_MINUTES` | `60` | Opciono poslovno podešavanje |
+| `INITIAL_OWNER_EMAIL` | Prazno, provisioning isključen | Samo za kontrolisan bootstrap |
+| `INITIAL_OWNER_PASSWORD` | Prazno, provisioning isključen | Obavezna tajna kada se bootstrap koristi |
+| `INITIAL_OWNER_NAME` | `Initial Owner` | Opciono |
+
+Spring `local` profil automatski učitava root `.env`; `test` profil koristi
+izolovane H2 i JWT vrednosti; `prod` profil ne uvozi `.env`. IntelliJ ne zahteva
+dodatnu environment konfiguraciju kada je working directory koren
+repozitorijuma ili `gm/`.
+
+Sve `app.*` vrednosti se vezuju kroz validirani typed configuration contract.
+Aplikacija namerno prekida startup sa binding/validation greškom kada je
+poslovna zona, CORS lista, storage, idempotency, reservation, JWT ili inicijalni
+OWNER bootstrap neispravno podešen.
+
 ## Auth API
 
 - `POST /api/v1/auth/register` — kreira isključivo CUSTOMER nalog, vraća `201`.
@@ -115,6 +154,9 @@ refresh sesije korisnika.
 
 ## Provere
 
+- Sve backend i frontend provere iz korena:
+  - Windows/PowerShell: `.\scripts\verify.cmd`
+  - Bash: `./scripts/verify.sh`
 - Backend clean test/build: `cd gm && ./mvnw clean verify`
 - Frontend instalacija: `cd frontend/g-manager && npm ci`
 - Frontend typecheck: `npm run typecheck`

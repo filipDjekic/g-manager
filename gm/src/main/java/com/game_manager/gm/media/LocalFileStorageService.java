@@ -1,7 +1,7 @@
 package com.game_manager.gm.media;
 
+import com.game_manager.gm.common.config.GManagerProperties;
 import com.game_manager.gm.common.error.ApplicationException;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -17,8 +17,9 @@ public class LocalFileStorageService implements FileStorageService {
     private static final long MAX_SIZE = 5L * 1024 * 1024;
     private final Path avatarRoot;
 
-    public LocalFileStorageService(@Value("${app.storage.local-root:data/uploads}") String root) {
-        this.avatarRoot = Path.of(root).toAbsolutePath().normalize().resolve("avatars");
+    public LocalFileStorageService(GManagerProperties properties) {
+        this.avatarRoot = properties.storage().localRoot()
+                .toAbsolutePath().normalize().resolve("avatars");
     }
 
     @Override
