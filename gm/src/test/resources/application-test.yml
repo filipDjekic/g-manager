@@ -1,0 +1,22 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:gmanager;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+logging:
+  level:
+    root: WARN
+
+app:
+  storage:
+    local-root: target/test-uploads
+  jwt:
+    secret: test-only-secret-with-at-least-32-bytes
+    secure-cookie: false
