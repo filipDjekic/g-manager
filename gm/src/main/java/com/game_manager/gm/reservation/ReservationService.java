@@ -5,12 +5,13 @@ import com.game_manager.gm.catalog.CatalogService;
 import com.game_manager.gm.catalog.ItemType;
 import com.game_manager.gm.common.dto.PageResponse;
 import com.game_manager.gm.common.error.ApplicationException;
+import com.game_manager.gm.common.config.GManagerProperties;
 import com.game_manager.gm.reservation.dto.ChangeReservationStatusRequest;
 import com.game_manager.gm.reservation.dto.CreateReservationRequest;
 import com.game_manager.gm.reservation.dto.ReservationResponse;
-import com.game_manager.gm.security.AuthenticatedUser;
-import com.game_manager.gm.security.CurrentUserProvider;
-import com.game_manager.gm.user.Role;
+import com.game_manager.gm.common.security.AuthenticatedUser;
+import com.game_manager.gm.common.security.CurrentUserProvider;
+import com.game_manager.gm.common.security.Role;
 import com.game_manager.gm.user.User;
 import com.game_manager.gm.user.UserRepository;
 import com.game_manager.gm.workinghours.WorkingHoursService;
@@ -22,7 +23,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -44,9 +44,7 @@ public class ReservationService {
     private final CatalogService catalogService;
     private final WorkingHoursService workingHoursService;
     private final CurrentUserProvider currentUserProvider;
-
-    @Value("${app.reservations.cancellation-cutoff-minutes:60}")
-    private long cancellationCutoffMinutes;
+    private final GManagerProperties properties;
 
     @Transactional
     public ReservationResponse create(CreateReservationRequest request) {
@@ -161,7 +159,8 @@ public class ReservationService {
                 && reservation.getStatus() == ReservationStatus.CONFIRMED
                 && !Instant.now().isBefore(
                         reservation.getStartTime().minus(
-                                cancellationCutoffMinutes, ChronoUnit.MINUTES))) {
+                                properties.reservations().cancellationCutoffMinutes(),
+                                ChronoUnit.MINUTES))) {
             throw new ApplicationException(
                     HttpStatus.CONFLICT, "It is too late to cancel this reservation");
         }

@@ -18,5 +18,19 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+    rules: {
+      'no-restricted-imports': ['error', {
+        paths: [{
+          name: 'axios',
+          message: 'Raw Axios access belongs in src/api. Import a feature API client instead.',
+        }],
+      }],
+    },
+  },
+  {
+    files: ['src/api/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
   },
 ])

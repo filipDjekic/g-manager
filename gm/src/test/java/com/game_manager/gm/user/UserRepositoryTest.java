@@ -1,5 +1,6 @@
 package com.game_manager.gm.user;
 
+import com.game_manager.gm.common.security.Role;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;

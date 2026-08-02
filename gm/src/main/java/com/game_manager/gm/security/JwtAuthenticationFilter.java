@@ -1,5 +1,6 @@
 package com.game_manager.gm.security;
 
+import com.game_manager.gm.common.security.AuthenticatedUser;
 import com.game_manager.gm.user.User;
 import com.game_manager.gm.user.UserRepository;
 import io.jsonwebtoken.JwtException;

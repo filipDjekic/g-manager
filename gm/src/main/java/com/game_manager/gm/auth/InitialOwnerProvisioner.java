@@ -1,9 +1,9 @@
 package com.game_manager.gm.auth;
 
-import com.game_manager.gm.user.Role;
+import com.game_manager.gm.common.config.GManagerProperties;
+import com.game_manager.gm.common.security.Role;
 import com.game_manager.gm.user.User;
 import com.game_manager.gm.user.UserRepository;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -21,15 +21,13 @@ public class InitialOwnerProvisioner implements ApplicationRunner {
     public InitialOwnerProvisioner(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
-            @Value("${app.initial-owner.email:}") String email,
-            @Value("${app.initial-owner.password:}") String password,
-            @Value("${app.initial-owner.name:Initial Owner}") String name
+            GManagerProperties properties
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
-        this.email = email.trim().toLowerCase();
-        this.password = password;
-        this.name = name;
+        this.email = properties.initialOwner().email().trim().toLowerCase();
+        this.password = properties.initialOwner().password();
+        this.name = properties.initialOwner().name();
     }
 
     @Override

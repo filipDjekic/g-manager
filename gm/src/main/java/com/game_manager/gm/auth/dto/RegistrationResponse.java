@@ -1,6 +1,6 @@
 package com.game_manager.gm.auth.dto;
 
-import com.game_manager.gm.user.Role;
+import com.game_manager.gm.common.security.Role;
 
 import java.util.UUID;
 

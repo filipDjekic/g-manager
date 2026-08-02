@@ -1,6 +1,4 @@
-package com.game_manager.gm.security;
-
-import com.game_manager.gm.user.Role;
+package com.game_manager.gm.common.security;
 
 import java.util.UUID;
 

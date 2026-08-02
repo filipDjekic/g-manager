@@ -1,5 +1,6 @@
 package com.game_manager.gm.user;
 
+import com.game_manager.gm.common.security.Role;
 import org.springframework.data.jpa.domain.Specification;
 
 public final class UserSpecifications {

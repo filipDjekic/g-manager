@@ -3,7 +3,7 @@ package com.game_manager.gm.reservation;
 import com.game_manager.gm.catalog.CatalogItem;
 import com.game_manager.gm.catalog.CatalogRepository;
 import com.game_manager.gm.catalog.ItemType;
-import com.game_manager.gm.user.Role;
+import com.game_manager.gm.common.security.Role;
 import com.game_manager.gm.user.User;
 import com.game_manager.gm.user.UserRepository;
 import com.game_manager.gm.workinghours.WorkingHours;

@@ -1,10 +1,10 @@
 package com.game_manager.gm.idempotency;
 
+import com.game_manager.gm.common.config.GManagerProperties;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,9 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class IdempotencyReservationWriter {
     private final IdempotencyRepository repository;
-
-    @Value("${app.idempotency.ttl-hours:24}")
-    private long ttlHours;
+    private final GManagerProperties properties;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void insert(String key, String endpoint, String requestHash) {
@@ -27,7 +25,8 @@ public class IdempotencyReservationWriter {
         entity.setRequestHash(requestHash);
         entity.setStatus(IdempotencyStatus.IN_PROGRESS);
         entity.setCreatedAt(now);
-        entity.setExpiresAt(now.plus(ttlHours, ChronoUnit.HOURS));
+        entity.setExpiresAt(now.plus(
+                properties.idempotency().ttlHours(), ChronoUnit.HOURS));
         repository.saveAndFlush(entity);
     }
 }

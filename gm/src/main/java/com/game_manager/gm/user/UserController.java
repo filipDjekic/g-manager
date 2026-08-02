@@ -1,6 +1,7 @@
 package com.game_manager.gm.user;
 
 import com.game_manager.gm.common.dto.PageResponse;
+import com.game_manager.gm.common.security.Role;
 import com.game_manager.gm.user.dto.ChangePasswordRequest;
 import com.game_manager.gm.user.dto.CreateUserRequest;
 import com.game_manager.gm.user.dto.UpdateProfileRequest;

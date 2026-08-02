@@ -6,11 +6,11 @@ import com.game_manager.gm.auth.dto.RegisterRequest;
 import com.game_manager.gm.auth.dto.RegistrationResponse;
 import com.game_manager.gm.auth.dto.UserSummary;
 import com.game_manager.gm.common.error.ApplicationException;
+import com.game_manager.gm.common.config.GManagerProperties;
 import com.game_manager.gm.security.JwtService;
-import com.game_manager.gm.user.Role;
+import com.game_manager.gm.common.security.Role;
 import com.game_manager.gm.user.User;
 import com.game_manager.gm.user.UserRepository;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -44,14 +44,14 @@ public class AuthService {
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
             RefreshTokenRevocationService revocationService,
-            @Value("${app.jwt.refresh-token-days:14}") long refreshTokenDays
+            GManagerProperties properties
     ) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.revocationService = revocationService;
-        this.refreshTtl = Duration.ofDays(refreshTokenDays);
+        this.refreshTtl = Duration.ofDays(properties.jwt().refreshTokenDays());
     }
 
     @Transactional

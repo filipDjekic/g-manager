@@ -1,7 +1,7 @@
 package com.game_manager.gm.workinghours;
 
 import com.game_manager.gm.common.error.ApplicationException;
-import com.game_manager.gm.user.Role;
+import com.game_manager.gm.common.security.Role;
 import com.game_manager.gm.user.User;
 import com.game_manager.gm.user.UserRepository;
 import java.time.DayOfWeek;

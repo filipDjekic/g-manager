@@ -2,7 +2,7 @@ package com.game_manager.gm.auth;
 
 import com.game_manager.gm.common.error.ApiErrorFactory;
 import com.game_manager.gm.common.error.ApplicationException;
-import com.game_manager.gm.security.AuthenticatedUser;
+import com.game_manager.gm.common.security.AuthenticatedUser;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

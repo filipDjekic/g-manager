@@ -1,6 +1,7 @@
 package com.game_manager.gm.user;
 
 import com.game_manager.gm.common.entity.BaseEntity;
+import com.game_manager.gm.common.security.Role;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

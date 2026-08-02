@@ -1,6 +1,7 @@
 package com.game_manager.gm.security;
 
 import com.game_manager.gm.common.error.ApiErrorFactory;
+import com.game_manager.gm.common.config.GManagerProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -15,7 +16,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import tools.jackson.databind.ObjectMapper;
 
@@ -24,18 +24,18 @@ public class SecurityConfig {
     private final ApiErrorFactory apiErrorFactory;
     private final ObjectMapper objectMapper;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    private final String corsAllowedOrigins;
+    private final GManagerProperties properties;
 
     public SecurityConfig(
             ApiErrorFactory apiErrorFactory,
             ObjectMapper objectMapper,
             JwtAuthenticationFilter jwtAuthenticationFilter,
-            @Value("${app.cors-allowed-origins}") String corsAllowedOrigins
+            GManagerProperties properties
     ) {
         this.apiErrorFactory = apiErrorFactory;
         this.objectMapper = objectMapper;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-        this.corsAllowedOrigins = corsAllowedOrigins;
+        this.properties = properties;
     }
 
     @Bean
@@ -101,8 +101,7 @@ public class SecurityConfig {
 
     private CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(java.util.Arrays.stream(corsAllowedOrigins.split(","))
-                .map(String::trim).filter(value -> !value.isBlank()).toList());
+        configuration.setAllowedOrigins(properties.corsAllowedOrigins());
         configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(java.util.List.of("Authorization", "Content-Type", "Idempotency-Key", "X-Request-Id"));
         configuration.setExposedHeaders(java.util.List.of("X-Request-Id"));

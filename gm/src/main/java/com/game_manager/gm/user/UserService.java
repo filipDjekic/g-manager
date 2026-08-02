@@ -1,11 +1,12 @@
 package com.game_manager.gm.user;
 
-import com.game_manager.gm.auth.RefreshTokenRevocationService;
 import com.game_manager.gm.common.dto.PageResponse;
 import com.game_manager.gm.common.error.ApplicationException;
+import com.game_manager.gm.common.security.AuthenticatedUser;
+import com.game_manager.gm.common.security.CurrentUserProvider;
+import com.game_manager.gm.common.security.Role;
+import com.game_manager.gm.common.security.SessionRevocationPort;
 import com.game_manager.gm.media.FileStorageService;
-import com.game_manager.gm.security.AuthenticatedUser;
-import com.game_manager.gm.security.CurrentUserProvider;
 import com.game_manager.gm.user.dto.ChangePasswordRequest;
 import com.game_manager.gm.user.dto.CreateUserRequest;
 import com.game_manager.gm.user.dto.UpdateProfileRequest;
@@ -34,7 +35,7 @@ public class UserService {
     private final CurrentUserProvider currentUserProvider;
     private final PasswordEncoder passwordEncoder;
     private final FileStorageService fileStorageService;
-    private final RefreshTokenRevocationService refreshTokenRevocationService;
+    private final SessionRevocationPort refreshTokenRevocationService;
 
     @Transactional(readOnly = true)
     public UserResponse getCurrentUser() {
