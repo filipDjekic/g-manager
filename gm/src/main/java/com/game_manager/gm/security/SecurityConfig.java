@@ -1,0 +1,125 @@
+package com.game_manager.gm.security;
+
+import com.game_manager.gm.common.error.ApiErrorFactory;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import tools.jackson.databind.ObjectMapper;
+
+@Configuration
+public class SecurityConfig {
+    private final ApiErrorFactory apiErrorFactory;
+    private final ObjectMapper objectMapper;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final String corsAllowedOrigins;
+
+    public SecurityConfig(
+            ApiErrorFactory apiErrorFactory,
+            ObjectMapper objectMapper,
+            JwtAuthenticationFilter jwtAuthenticationFilter,
+            @Value("${app.cors-allowed-origins}") String corsAllowedOrigins
+    ) {
+        this.apiErrorFactory = apiErrorFactory;
+        this.objectMapper = objectMapper;
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.corsAllowedOrigins = corsAllowedOrigins;
+    }
+
+    @Bean
+    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        return http
+                .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, exception) ->
+                                writeError(request, response, HttpStatus.UNAUTHORIZED, "Authentication is required"))
+                        .accessDeniedHandler((request, response, exception) ->
+                                writeError(request, response, HttpStatus.FORBIDDEN, "Access is denied")))
+                .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers("/actuator/health").permitAll()
+                        .requestMatchers("/actuator/metrics/**").hasAnyRole("OWNER", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/media/**").permitAll()
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/v1/auth/register",
+                                "/api/v1/auth/login",
+                                "/api/v1/auth/refresh",
+                                "/api/v1/auth/logout").permitAll()
+                        .requestMatchers("/api/v1/users/me/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/users/employees").authenticated()
+                        .requestMatchers("/api/v1/users/**").hasAnyRole("OWNER", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/catalog/**").authenticated()
+                        .requestMatchers("/api/v1/catalog/**").hasAnyRole("OWNER", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/working-hours/**").authenticated()
+                        .requestMatchers("/api/v1/working-hours/**").hasAnyRole("OWNER", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/reservations").hasRole("CUSTOMER")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/reservations/me").hasRole("CUSTOMER")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/reservations").hasAnyRole("EMPLOYEE", "ADMIN", "OWNER")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/reservations/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/orders").hasRole("CUSTOMER")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/orders/me").hasRole("CUSTOMER")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/orders").hasAnyRole("EMPLOYEE", "ADMIN", "OWNER")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/orders/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/dashboard/summary").hasAnyRole("OWNER", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/dashboard/today").hasAnyRole("EMPLOYEE", "ADMIN", "OWNER")
+                        .anyRequest().denyAll())
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .headers(headers -> headers
+                        .contentTypeOptions(contentType -> {})
+                        .frameOptions(frame -> frame.deny())
+                        .referrerPolicy(referrer -> referrer.policy(
+                                org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
+                        .permissionsPolicyHeader(permissions ->
+                                permissions.policy("camera=(), microphone=(), geolocation=()")))
+                .build();
+    }
+
+    @Bean
+    PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    FilterRegistrationBean<JwtAuthenticationFilter> jwtFilterRegistration(JwtAuthenticationFilter filter) {
+        FilterRegistrationBean<JwtAuthenticationFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    private CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(java.util.Arrays.stream(corsAllowedOrigins.split(","))
+                .map(String::trim).filter(value -> !value.isBlank()).toList());
+        configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(java.util.List.of("Authorization", "Content-Type", "Idempotency-Key", "X-Request-Id"));
+        configuration.setExposedHeaders(java.util.List.of("X-Request-Id"));
+        configuration.setAllowCredentials(true);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/**", configuration);
+        return source;
+    }
+
+    private void writeError(
+            jakarta.servlet.http.HttpServletRequest request,
+            jakarta.servlet.http.HttpServletResponse response,
+            HttpStatus status,
+            String message
+    ) throws java.io.IOException {
+        response.setStatus(status.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        objectMapper.writeValue(response.getOutputStream(), apiErrorFactory.create(status, message, request));
+    }
+}

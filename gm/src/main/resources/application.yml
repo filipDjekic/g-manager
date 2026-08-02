@@ -1,0 +1,57 @@
+spring:
+  application:
+    name: gm
+  profiles:
+    default: local
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/gmanager?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:gmanager}
+    password: ${DB_PASSWORD:gmanager}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
+server:
+  error:
+    include-message: never
+    include-stacktrace: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+app:
+  business-zone: ${BUSINESS_TIME_ZONE:Europe/Belgrade}
+  cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  storage:
+    local-root: ${UPLOAD_ROOT:data/uploads}
+  idempotency:
+    ttl-hours: 24
+    cleanup-cron: "0 0 3 * * *"
+  reservations:
+    cancellation-cutoff-minutes: ${CANCELLATION_CUTOFF_MINUTES:60}
+  jwt:
+    secret: ${JWT_SECRET}
+    access-token-minutes: 15
+    refresh-token-days: 14
+    secure-cookie: ${COOKIE_SECURE:true}
+  initial-owner:
+    name: ${INITIAL_OWNER_NAME:Initial Owner}
+    email: ${INITIAL_OWNER_EMAIL:}
+    password: ${INITIAL_OWNER_PASSWORD:}

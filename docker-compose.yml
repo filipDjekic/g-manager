@@ -1,0 +1,21 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: gmanager
+      MYSQL_USER: gmanager
+      MYSQL_PASSWORD: gmanager
+      MYSQL_ROOT_PASSWORD: local-root-only
+      TZ: UTC
+    ports:
+      - "3306:3306"
+    volumes:
+      - gmanager_mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-ugmanager", "-pgmanager"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  gmanager_mysql:
