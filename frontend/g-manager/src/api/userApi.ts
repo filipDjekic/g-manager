@@ -18,6 +18,11 @@ export const userApi = {
   create: (request: CreateUserRequest) =>
     apiClient.post<UserResponse>('/users', request).then(({ data }) => data),
   deactivate: (id: string) => apiClient.patch<void>(`/users/${id}/deactivate`),
+  deleted: (page = 0, size = 20) =>
+    apiClient.get<PageResponse<UserResponse>>('/users/deleted', { params: { page, size } })
+      .then(({ data }) => data),
+  remove: (id: string, reason: string) => apiClient.delete<void>(`/users/${id}`, { data: { reason } }),
+  restore: (id: string) => apiClient.post<UserResponse>(`/users/${id}/restore`).then(({ data }) => data),
   employees: () =>
     apiClient.get<PageResponse<UserResponse>>('/users/employees', {
       params: { page: 0, size: 100 },

@@ -32,6 +32,7 @@ export function AppShell() {
           {hasCapability(user, 'RESERVATION_READ_ALL') && <NavLink to="/reservations">Rezervacije</NavLink>}
           {hasCapability(user, 'ORDER_READ_ALL') && <NavLink to="/orders">Narudžbine</NavLink>}
           {hasCapability(user, 'USER_LIST') && <NavLink to="/users">Korisnici</NavLink>}
+          {hasCapability(user, 'AUDIT_READ') && <NavLink to="/audit">Audit</NavLink>}
         </nav>
         <div>
           <span>{user?.name} · {user?.role}</span>

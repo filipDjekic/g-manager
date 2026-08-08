@@ -39,4 +39,12 @@ public final class CatalogSpecifications {
                     : builder.lessThanOrEqualTo(root.get("price"), maxPrice);
         };
     }
+
+    public static Specification<CatalogItem> notDeleted() {
+        return (root, query, builder) -> builder.isNull(root.get("deletedAt"));
+    }
+
+    public static Specification<CatalogItem> deleted() {
+        return (root, query, builder) -> builder.isNotNull(root.get("deletedAt"));
+    }
 }

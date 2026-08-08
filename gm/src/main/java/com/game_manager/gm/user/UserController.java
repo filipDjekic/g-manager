@@ -6,12 +6,14 @@ import com.game_manager.gm.user.dto.ChangePasswordRequest;
 import com.game_manager.gm.user.dto.CreateUserRequest;
 import com.game_manager.gm.user.dto.UpdateProfileRequest;
 import com.game_manager.gm.user.dto.UserResponse;
+import com.game_manager.gm.common.dto.DeletionReasonRequest;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -75,5 +77,22 @@ public class UserController {
     public ResponseEntity<Void> deactivateUser(@PathVariable UUID id) {
         userService.deactivateUser(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteUser(@PathVariable UUID id,
+            @Valid @RequestBody DeletionReasonRequest request) {
+        userService.deleteUser(id, request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/restore")
+    public UserResponse restoreUser(@PathVariable UUID id) { return userService.restoreUser(id); }
+
+    @GetMapping("/deleted")
+    public PageResponse<UserResponse> listDeletedUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return userService.listDeletedUsers(page, size);
     }
 }

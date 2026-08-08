@@ -34,6 +34,13 @@ export const catalogApi = {
     apiClient.patch<CatalogItem>(`/catalog/${item.id}/activate`, undefined, {
       params: { version: item.version },
     }).then(({ data }) => data),
+  deleted: (page = 0, size = 20) =>
+    apiClient.get<PageResponse<CatalogItem>>('/catalog/deleted', { params: { page, size } })
+      .then(({ data }) => data),
+  remove: (id: string, reason: string) =>
+    apiClient.delete<void>(`/catalog/${id}`, { data: { reason } }),
+  restore: (id: string) =>
+    apiClient.post<CatalogItem>(`/catalog/${id}/restore`).then(({ data }) => data),
   uploadImage: (item: CatalogItem, image: File) => {
     const form = new FormData()
     form.append('image', image)

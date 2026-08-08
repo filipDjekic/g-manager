@@ -35,14 +35,18 @@ public final class RolePermissions {
                 Permission.DASHBOARD_OPERATIONAL));
         permissions.put(Role.ADMIN, immutableWithProfile(
                 Permission.USER_LIST, Permission.USER_CREATE, Permission.USER_DEACTIVATE,
-                Permission.CATALOG_MANAGE, Permission.WORKING_HOURS_MANAGE,
+                Permission.USER_DELETE, Permission.USER_RESTORE,
+                Permission.CATALOG_MANAGE, Permission.CATALOG_DELETE, Permission.CATALOG_RESTORE,
+                Permission.AUDIT_READ, Permission.WORKING_HOURS_MANAGE,
                 Permission.RESERVATION_READ_ALL, Permission.RESERVATION_CHANGE_STATUS,
                 Permission.ORDER_READ_ALL, Permission.ORDER_CHANGE_STATUS,
                 Permission.DASHBOARD_SUMMARY, Permission.DASHBOARD_OPERATIONAL,
                 Permission.METRICS_READ));
         permissions.put(Role.OWNER, immutableWithProfile(
                 Permission.USER_LIST, Permission.USER_CREATE, Permission.USER_DEACTIVATE,
-                Permission.CATALOG_MANAGE, Permission.WORKING_HOURS_MANAGE,
+                Permission.USER_DELETE, Permission.USER_RESTORE,
+                Permission.CATALOG_MANAGE, Permission.CATALOG_DELETE, Permission.CATALOG_RESTORE,
+                Permission.AUDIT_READ, Permission.WORKING_HOURS_MANAGE,
                 Permission.RESERVATION_READ_ALL, Permission.RESERVATION_CHANGE_STATUS,
                 Permission.ORDER_READ_ALL, Permission.ORDER_CHANGE_STATUS,
                 Permission.DASHBOARD_SUMMARY, Permission.DASHBOARD_OPERATIONAL,

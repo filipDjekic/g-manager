@@ -22,6 +22,7 @@ export function CatalogPage() {
   const [page, setPage] = useState(0)
   const [type, setType] = useState<ItemType | ''>('')
   const [active, setActive] = useState('')
+  const [showDeleted, setShowDeleted] = useState(false)
   const [search, setSearch] = useState('')
   const [minPrice, setMinPrice] = useState('')
   const [maxPrice, setMaxPrice] = useState('')
@@ -30,7 +31,7 @@ export function CatalogPage() {
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
-    const data = await catalogApi.list({
+    const data = showDeleted ? await catalogApi.deleted(page, 20) : await catalogApi.list({
       page,
       size: 20,
       type: type || undefined,
@@ -42,10 +43,10 @@ export function CatalogPage() {
       direction: 'ASC',
     })
     setResult(data)
-  }, [active, management, maxPrice, minPrice, page, search, type])
+  }, [active, management, maxPrice, minPrice, page, search, showDeleted, type])
 
   useEffect(() => {
-    void catalogApi.list({
+    void (showDeleted ? catalogApi.deleted(page, 20) : catalogApi.list({
       page,
       size: 20,
       type: type || undefined,
@@ -55,9 +56,9 @@ export function CatalogPage() {
       maxPrice: maxPrice === '' ? undefined : Number(maxPrice),
       sort: 'name',
       direction: 'ASC',
-    }).then(setResult).catch((cause) =>
+    })).then(setResult).catch((cause) =>
       setError(apiErrorMessage(cause, 'Katalog nije moguće učitati.')))
-  }, [active, management, maxPrice, minPrice, page, search, type])
+  }, [active, management, maxPrice, minPrice, page, search, showDeleted, type])
 
   function startEdit(item: CatalogItem) {
     setEditing(item)
@@ -115,6 +116,19 @@ export function CatalogPage() {
     }
   }
 
+  async function remove(item: CatalogItem) {
+    const reason = window.prompt(`Razlog brisanja “${item.name}”:`)?.trim()
+    if (!reason) return
+    try { await catalogApi.remove(item.id, reason); await load() }
+    catch (cause) { setError(apiErrorMessage(cause, 'Stavku nije moguće obrisati.')) }
+  }
+
+  async function restore(item: CatalogItem) {
+    if (!window.confirm(`Vratiti “${item.name}”?`)) return
+    try { await catalogApi.restore(item.id); await load() }
+    catch (cause) { setError(apiErrorMessage(cause, 'Stavku nije moguće vratiti.')) }
+  }
+
   async function uploadImage(item: CatalogItem, image?: File) {
     if (!image) return
     try {
@@ -129,8 +143,10 @@ export function CatalogPage() {
     <main className="workspace">
       <div className="page-heading">
         <div><p className="eyebrow">Ponuda</p><h1>Katalog</h1></div>
+        {hasCapability(user, 'CATALOG_RESTORE') && <button type="button" className="secondary-button"
+          onClick={() => { setShowDeleted(!showDeleted); setPage(0) }}>{showDeleted ? 'Aktivne stavke' : 'Obrisane stavke'}</button>}
       </div>
-      <form className="filter-bar" onSubmit={(event) => { event.preventDefault(); setPage(0); void load() }}>
+      {!showDeleted && <form className="filter-bar" onSubmit={(event) => { event.preventDefault(); setPage(0); void load() }}>
         <label>Pretraga<input value={search} onChange={(event) => setSearch(event.target.value)} /></label>
         <label>Tip<select value={type} onChange={(event) => { setType(event.target.value as ItemType | ''); setPage(0) }}>
           <option value="">Svi</option><option value="PRODUCT">Proizvodi</option><option value="SERVICE">Usluge</option>
@@ -141,9 +157,9 @@ export function CatalogPage() {
           <option value="">Svi</option><option value="true">Aktivni</option><option value="false">Neaktivni</option>
         </select></label>}
         <button type="submit">Primeni</button>
-      </form>
+      </form>}
       {error && <p className="error-banner" role="alert">{error}</p>}
-      {management && <form className="panel catalog-form" onSubmit={submit}>
+      {management && !showDeleted && <form className="panel catalog-form" onSubmit={submit}>
         <h2>{editing ? 'Izmeni stavku' : 'Nova stavka'}</h2>
         <label>Naziv<input maxLength={150} required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
         <label>Tip<select value={form.type} onChange={(event) => {
@@ -171,10 +187,13 @@ export function CatalogPage() {
                 : <Link className="button-link" to="/my-reservations">Zakaži termin</Link>}
             </div>}
             {management && <div className="card-actions">
+              {showDeleted ? <button type="button" onClick={() => void restore(item)}>Vrati</button> : <>
               <button type="button" onClick={() => startEdit(item)}>Izmeni</button>
               {item.active && <button className="danger-button" type="button" onClick={() => void deactivate(item)}>Deaktiviraj</button>}
               {!item.active && <button type="button" onClick={() => void activate(item)}>Aktiviraj</button>}
+              {hasCapability(user, 'CATALOG_DELETE') && <button className="danger-button" type="button" onClick={() => void remove(item)}>Obriši</button>}
               <label className="file-control">Slika<input type="file" accept="image/png,image/jpeg" onChange={(event) => void uploadImage(item, event.target.files?.[0])} /></label>
+              </>}
             </div>}
           </div>
         </article>)}
