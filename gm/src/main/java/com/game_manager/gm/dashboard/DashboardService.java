@@ -21,6 +21,7 @@ import java.util.EnumMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +35,7 @@ public class DashboardService {
     private final GManagerProperties properties;
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('DASHBOARD_SUMMARY')")
     public DashboardSummaryResponse summary(LocalDate from, LocalDate to) {
         AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
         if (actor.role() != Role.OWNER && actor.role() != Role.ADMIN) {
@@ -57,6 +59,7 @@ public class DashboardService {
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('DASHBOARD_OPERATIONAL')")
     public DashboardTodayResponse today() {
         AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
         if (actor.role() == Role.CUSTOMER) {

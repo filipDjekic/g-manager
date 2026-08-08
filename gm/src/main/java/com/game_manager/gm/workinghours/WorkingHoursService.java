@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +33,7 @@ public class WorkingHoursService {
     private final GManagerProperties properties;
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('WORKING_HOURS_READ')")
     public List<WorkingHoursResponse> list() {
         currentUserProvider.requireCurrentUser();
         return workingHoursRepository.findAll().stream()
@@ -41,6 +43,7 @@ public class WorkingHoursService {
     }
 
     @Transactional
+    @PreAuthorize("hasAuthority('WORKING_HOURS_MANAGE')")
     public WorkingHoursResponse update(
             DayOfWeek dayOfWeek, UpdateWorkingHoursRequest request) {
         requireManagement();
@@ -59,6 +62,7 @@ public class WorkingHoursService {
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('WORKING_HOURS_READ')")
     public List<WorkingHoursExceptionResponse> listExceptions() {
         currentUserProvider.requireCurrentUser();
         return exceptionRepository
@@ -68,6 +72,7 @@ public class WorkingHoursService {
     }
 
     @Transactional
+    @PreAuthorize("hasAuthority('WORKING_HOURS_MANAGE')")
     public WorkingHoursExceptionResponse createException(WorkingHoursExceptionRequest request) {
         requireManagement();
         validateException(request);
@@ -81,6 +86,7 @@ public class WorkingHoursService {
     }
 
     @Transactional
+    @PreAuthorize("hasAuthority('WORKING_HOURS_MANAGE')")
     public WorkingHoursExceptionResponse updateException(
             UUID id, WorkingHoursExceptionRequest request) {
         requireManagement();
@@ -98,6 +104,7 @@ public class WorkingHoursService {
     }
 
     @Transactional
+    @PreAuthorize("hasAuthority('WORKING_HOURS_MANAGE')")
     public void deleteException(UUID id, long version) {
         requireManagement();
         WorkingHoursException exception = requireException(id);

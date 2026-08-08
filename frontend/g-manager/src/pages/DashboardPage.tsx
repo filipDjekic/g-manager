@@ -6,6 +6,7 @@ import {
 import { apiErrorMessage } from '../api/client'
 import { dashboardApi } from '../api/dashboardApi'
 import { useAuthStore } from '../auth/authStore'
+import { hasCapability } from '../auth/capabilities'
 import { currentBusinessMonth } from '../dashboard/dateRange'
 import type { DashboardSummary, DashboardToday } from '../types/dashboard.types'
 import type { ReservationStatus } from '../types/reservation.types'
@@ -19,8 +20,8 @@ const statusColors: Record<ReservationStatus, string> = {
 }
 
 export function DashboardPage() {
-  const role = useAuthStore((state) => state.user?.role)
-  const management = role === 'OWNER' || role === 'ADMIN'
+  const user = useAuthStore((state) => state.user)
+  const management = hasCapability(user, 'DASHBOARD_SUMMARY')
   const initialRange = useMemo(() => currentBusinessMonth(), [])
   const [from, setFrom] = useState(initialRange.from)
   const [to, setTo] = useState(initialRange.to)

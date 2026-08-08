@@ -15,6 +15,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import java.util.List;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -27,11 +28,14 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException exception, HttpServletRequest request) {
-        String message = exception.getBindingResult().getFieldErrors().stream()
-                .findFirst()
-                .map(error -> error.getField() + ": " + error.getDefaultMessage())
-                .orElse("Request validation failed");
-        return response(HttpStatus.BAD_REQUEST, message, request);
+        List<ApiFieldError> fieldErrors = exception.getBindingResult().getFieldErrors().stream()
+                .map(error -> new ApiFieldError(
+                        error.getField(),
+                        error.getDefaultMessage() == null ? "Invalid value" : error.getDefaultMessage()))
+                .distinct()
+                .toList();
+        return response(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_ERROR,
+                "Request validation failed", fieldErrors, request);
     }
 
     @ExceptionHandler(ApplicationException.class)
@@ -88,5 +92,15 @@ public class GlobalExceptionHandler {
 
     private ResponseEntity<ApiError> response(HttpStatus status, String message, HttpServletRequest request) {
         return ResponseEntity.status(status).body(apiErrorFactory.create(status, message, request));
+    }
+
+    private ResponseEntity<ApiError> response(
+            HttpStatus status,
+            ErrorCode code,
+            String message,
+            List<ApiFieldError> fieldErrors,
+            HttpServletRequest request) {
+        return ResponseEntity.status(status)
+                .body(apiErrorFactory.create(status, code, message, fieldErrors, request));
     }
 }

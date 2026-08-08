@@ -43,7 +43,9 @@ class SecurityFoundationIntegrationTest {
                 .andExpect(jsonPath("$.error").value("Unauthorized"))
                 .andExpect(jsonPath("$.message").value("Authentication is required"))
                 .andExpect(jsonPath("$.path").value("/api/v1/not-yet-defined"))
-                .andExpect(jsonPath("$.requestId", matchesPattern("[0-9a-f-]{36}")));
+                .andExpect(jsonPath("$.requestId", matchesPattern("[0-9a-f-]{36}")))
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+                .andExpect(jsonPath("$.fieldErrors").isArray());
     }
 
     @Test

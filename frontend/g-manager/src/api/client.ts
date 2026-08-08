@@ -72,3 +72,7 @@ export function apiErrorMessage(error: unknown, fallback: string): string {
   }
   return fallback
 }
+
+export function apiErrorDetails(error: unknown): ApiError | undefined {
+  return axios.isAxiosError<ApiError>(error) ? error.response?.data : undefined
+}

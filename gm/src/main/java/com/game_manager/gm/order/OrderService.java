@@ -4,6 +4,7 @@ import com.game_manager.gm.catalog.CatalogItem;
 import com.game_manager.gm.catalog.CatalogService;
 import com.game_manager.gm.catalog.ItemType;
 import com.game_manager.gm.common.dto.PageResponse;
+import com.game_manager.gm.common.config.PageRequestFactory;
 import com.game_manager.gm.common.error.ApplicationException;
 import com.game_manager.gm.common.config.GManagerProperties;
 import com.game_manager.gm.order.dto.CreateOrderRequest;
@@ -22,10 +23,9 @@ import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,8 +39,11 @@ public class OrderService {
     private final CatalogService catalogService;
     private final CurrentUserProvider currentUserProvider;
     private final GManagerProperties properties;
+    private final PageRequestFactory pageRequestFactory;
+    private final OrderAuthorizationPolicy authorizationPolicy;
 
     @Transactional
+    @PreAuthorize("hasAuthority('ORDER_CREATE')")
     public OrderResponse create(CreateOrderRequest request) {
         AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
         if (actor.role() != Role.CUSTOMER) {
@@ -72,6 +75,7 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('ORDER_READ_OWN')")
     public PageResponse<OrderResponse> listMine(
             OrderStatus status, LocalDate from, LocalDate to,
             int page, int size, String sort, String direction) {
@@ -83,6 +87,7 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('ORDER_READ_ALL')")
     public PageResponse<OrderResponse> listAll(
             UUID handledBy, OrderStatus status, LocalDate from, LocalDate to,
             int page, int size, String sort, String direction) {
@@ -94,13 +99,14 @@ public class OrderService {
     }
 
     @Transactional
+    @PreAuthorize("hasAuthority('ORDER_CHANGE_STATUS')")
     public OrderResponse changeStatus(UUID id, UpdateOrderStatusRequest request) {
         AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND, "Order not found"));
         requireVersion(order, request.version());
         validateTransition(order.getStatus(), request.status());
-        authorize(actor, order, request.status());
+        authorizationPolicy.requireTransition(actor, order, request.status());
         if (order.getStatus() == OrderStatus.CREATED && request.status() == OrderStatus.IN_PROGRESS) {
             order.setHandledBy(actor.id());
         }
@@ -111,14 +117,7 @@ public class OrderService {
     private PageResponse<OrderResponse> listInternal(
             UUID customerId, UUID handledBy, OrderStatus status, LocalDate from, LocalDate to,
             int page, int size, String sort, String direction) {
-        validatePage(page, size, sort, from, to);
-        int effectiveSize = Math.min(size, 100);
-        Sort.Direction sortDirection;
-        try {
-            sortDirection = Sort.Direction.fromString(direction);
-        } catch (IllegalArgumentException exception) {
-            throw new ApplicationException(HttpStatus.BAD_REQUEST, "Unsupported sort direction");
-        }
+        validateDateRange(from, to);
         ZoneId businessZone = properties.businessZone();
         Instant fromInstant = from == null ? null : from.atStartOfDay(businessZone).toInstant();
         Instant toInstant = to == null ? null : to.plusDays(1).atStartOfDay(businessZone).toInstant();
@@ -130,32 +129,10 @@ public class OrderService {
                 .and(OrderSpecifications.createdFrom(fromInstant))
                 .and(OrderSpecifications.createdBefore(toInstant));
         Page<OrderResponse> result = orderRepository
-                .findAll(specification, PageRequest.of(
-                        page, effectiveSize, Sort.by(sortDirection, sort)))
+                .findAll(specification,
+                        pageRequestFactory.create(page, size, sort, direction, ALLOWED_SORTS))
                 .map(OrderResponse::from);
         return PageResponse.from(result);
-    }
-
-    private static void authorize(AuthenticatedUser actor, Order order, OrderStatus target) {
-        boolean management = actor.role() == Role.ADMIN || actor.role() == Role.OWNER;
-        boolean employee = actor.role() == Role.EMPLOYEE;
-        boolean handler = employee && actor.id().equals(order.getHandledBy());
-        boolean customerOwner = actor.role() == Role.CUSTOMER
-                && actor.id().equals(order.getCustomerId());
-        boolean permitted = switch (target) {
-            case IN_PROGRESS -> employee || management;
-            case READY, COMPLETED -> handler || management;
-            case CANCELLED -> switch (order.getStatus()) {
-                case CREATED -> customerOwner || employee || management;
-                case IN_PROGRESS -> handler || management;
-                case READY -> management;
-                case COMPLETED, CANCELLED -> false;
-            };
-            case CREATED -> false;
-        };
-        if (!permitted) {
-            throw new ApplicationException(HttpStatus.FORBIDDEN, "This order action is not permitted");
-        }
     }
 
     private static void validateTransition(OrderStatus current, OrderStatus target) {
@@ -184,14 +161,7 @@ public class OrderService {
         }
     }
 
-    private static void validatePage(
-            int page, int size, String sort, LocalDate from, LocalDate to) {
-        if (page < 0 || size < 1) {
-            throw new ApplicationException(HttpStatus.BAD_REQUEST, "Pagination is not valid");
-        }
-        if (!ALLOWED_SORTS.contains(sort)) {
-            throw new ApplicationException(HttpStatus.BAD_REQUEST, "Unsupported sort field");
-        }
+    private static void validateDateRange(LocalDate from, LocalDate to) {
         if (from != null && to != null && from.isAfter(to)) {
             throw new ApplicationException(HttpStatus.BAD_REQUEST, "Date range is not valid");
         }

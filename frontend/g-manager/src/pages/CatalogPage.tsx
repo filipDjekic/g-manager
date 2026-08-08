@@ -4,6 +4,7 @@ import { apiErrorMessage } from '../api/client'
 import { catalogApi } from '../api/catalogApi'
 import { catalogItemSchema } from '../catalog/catalogSchema'
 import { useAuthStore } from '../auth/authStore'
+import { hasCapability } from '../auth/capabilities'
 import type { PageResponse } from '../types/api.types'
 import type { CatalogItem, CatalogItemInput, ItemType } from '../types/catalog.types'
 
@@ -15,8 +16,8 @@ const emptyForm: CatalogItemInput = {
 }
 
 export function CatalogPage() {
-  const role = useAuthStore((state) => state.user?.role)
-  const management = role === 'OWNER' || role === 'ADMIN'
+  const user = useAuthStore((state) => state.user)
+  const management = hasCapability(user, 'CATALOG_MANAGE')
   const [result, setResult] = useState<PageResponse<CatalogItem> | null>(null)
   const [page, setPage] = useState(0)
   const [type, setType] = useState<ItemType | ''>('')
@@ -164,7 +165,7 @@ export function CatalogPage() {
             <p>{item.description || 'Bez opisa.'}</p>
             {item.durationMinutes && <span>{item.durationMinutes} min</span>}
             {!item.active && <span className="status-badge">Neaktivno</span>}
-            {role === 'CUSTOMER' && item.active && <div className="card-actions">
+            {hasCapability(user, 'ORDER_CREATE') && item.active && <div className="card-actions">
               {item.type === 'PRODUCT'
                 ? <Link className="button-link" to="/my-orders">Dodaj u korpu</Link>
                 : <Link className="button-link" to="/my-reservations">Zakaži termin</Link>}

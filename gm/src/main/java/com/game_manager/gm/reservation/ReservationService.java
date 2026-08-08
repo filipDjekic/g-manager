@@ -4,6 +4,7 @@ import com.game_manager.gm.catalog.CatalogItem;
 import com.game_manager.gm.catalog.CatalogService;
 import com.game_manager.gm.catalog.ItemType;
 import com.game_manager.gm.common.dto.PageResponse;
+import com.game_manager.gm.common.config.PageRequestFactory;
 import com.game_manager.gm.common.error.ApplicationException;
 import com.game_manager.gm.common.config.GManagerProperties;
 import com.game_manager.gm.reservation.dto.ChangeReservationStatusRequest;
@@ -24,10 +25,9 @@ import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,8 +45,11 @@ public class ReservationService {
     private final WorkingHoursService workingHoursService;
     private final CurrentUserProvider currentUserProvider;
     private final GManagerProperties properties;
+    private final PageRequestFactory pageRequestFactory;
+    private final ReservationAuthorizationPolicy authorizationPolicy;
 
     @Transactional
+    @PreAuthorize("hasAuthority('RESERVATION_CREATE')")
     public ReservationResponse create(CreateReservationRequest request) {
         AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
         if (actor.role() != Role.CUSTOMER) {
@@ -91,6 +94,7 @@ public class ReservationService {
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('RESERVATION_READ_OWN')")
     public PageResponse<ReservationResponse> listMine(
             ReservationStatus status,
             LocalDate from,
@@ -107,6 +111,7 @@ public class ReservationService {
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('RESERVATION_READ_ALL')")
     public PageResponse<ReservationResponse> listAll(
             UUID employeeId,
             ReservationStatus status,
@@ -127,6 +132,7 @@ public class ReservationService {
     }
 
     @Transactional
+    @PreAuthorize("hasAuthority('RESERVATION_CHANGE_STATUS')")
     public ReservationResponse changeStatus(
             UUID id, ChangeReservationStatusRequest request) {
         AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
@@ -134,7 +140,7 @@ public class ReservationService {
                 .orElseThrow(() -> new ApplicationException(
                         HttpStatus.NOT_FOUND, "Reservation not found"));
         requireVersion(reservation, request.version());
-        authorizeTransition(actor, reservation, request.status());
+        authorizationPolicy.requireTransition(actor, reservation, request.status());
         validateTransition(reservation, request.status(), actor);
 
         if (request.status() == ReservationStatus.CONFIRMED) {
@@ -182,14 +188,7 @@ public class ReservationService {
             int size,
             String sort,
             String direction) {
-        validatePage(page, size, sort, from, to);
-        int effectiveSize = Math.min(size, 100);
-        Sort.Direction sortDirection;
-        try {
-            sortDirection = Sort.Direction.fromString(direction);
-        } catch (IllegalArgumentException exception) {
-            throw new ApplicationException(HttpStatus.BAD_REQUEST, "Unsupported sort direction");
-        }
+        validateDateRange(from, to);
         ZoneId zone = workingHoursService.getBusinessZone();
         Instant fromInstant = from == null ? null : from.atStartOfDay(zone).toInstant();
         Instant toInstant = to == null ? null : to.plusDays(1).atStartOfDay(zone).toInstant();
@@ -205,7 +204,7 @@ public class ReservationService {
         Page<ReservationResponse> result = reservationRepository
                 .findAll(
                         specification,
-                        PageRequest.of(page, effectiveSize, Sort.by(sortDirection, sort)))
+                        pageRequestFactory.create(page, size, sort, direction, ALLOWED_SORTS))
                 .map(ReservationResponse::from);
         return PageResponse.from(result);
     }
@@ -217,24 +216,6 @@ public class ReservationService {
                 .isEmpty()) {
             throw new ApplicationException(
                     HttpStatus.CONFLICT, "Employee is unavailable at this time");
-        }
-    }
-
-    private static void authorizeTransition(
-            AuthenticatedUser actor, Reservation reservation, ReservationStatus target) {
-        boolean management = actor.role() == Role.ADMIN || actor.role() == Role.OWNER;
-        boolean employeeOwner =
-                actor.role() == Role.EMPLOYEE && actor.id().equals(reservation.getEmployeeId());
-        boolean customerOwner =
-                actor.role() == Role.CUSTOMER && actor.id().equals(reservation.getCustomerId());
-        boolean permitted = switch (target) {
-            case CONFIRMED, REJECTED, COMPLETED -> management || employeeOwner;
-            case CANCELLED -> management || customerOwner;
-            case PENDING -> false;
-        };
-        if (!permitted) {
-            throw new ApplicationException(
-                    HttpStatus.FORBIDDEN, "This reservation action is not permitted");
         }
     }
 
@@ -255,14 +236,7 @@ public class ReservationService {
         }
     }
 
-    private static void validatePage(
-            int page, int size, String sort, LocalDate from, LocalDate to) {
-        if (page < 0 || size < 1) {
-            throw new ApplicationException(HttpStatus.BAD_REQUEST, "Pagination is not valid");
-        }
-        if (!ALLOWED_SORTS.contains(sort)) {
-            throw new ApplicationException(HttpStatus.BAD_REQUEST, "Unsupported sort field");
-        }
+    private static void validateDateRange(LocalDate from, LocalDate to) {
         if (from != null && to != null && from.isAfter(to)) {
             throw new ApplicationException(HttpStatus.BAD_REQUEST, "Date range is not valid");
         }

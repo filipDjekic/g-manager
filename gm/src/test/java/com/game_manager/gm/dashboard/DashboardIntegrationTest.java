@@ -1,5 +1,8 @@
 package com.game_manager.gm.dashboard;
 
+import com.game_manager.gm.catalog.CatalogItem;
+import com.game_manager.gm.catalog.CatalogRepository;
+import com.game_manager.gm.catalog.ItemType;
 import com.game_manager.gm.order.Order;
 import com.game_manager.gm.order.OrderRepository;
 import com.game_manager.gm.order.OrderStatus;
@@ -43,6 +46,7 @@ class DashboardIntegrationTest {
     @Autowired private UserRepository userRepository;
     @Autowired private ReservationRepository reservationRepository;
     @Autowired private OrderRepository orderRepository;
+    @Autowired private CatalogRepository catalogRepository;
     @Autowired private PasswordEncoder passwordEncoder;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -132,11 +136,21 @@ class DashboardIntegrationTest {
         Reservation reservation = new Reservation();
         reservation.setCustomerId(customer.getId());
         reservation.setEmployeeId(employee.getId());
-        reservation.setServiceId(UUID.randomUUID());
+        reservation.setServiceId(createService().getId());
         reservation.setStartTime(Instant.now().plus(1, ChronoUnit.HOURS));
         reservation.setEndTime(Instant.now().plus(2, ChronoUnit.HOURS));
         reservation.setStatus(status);
         return reservationRepository.saveAndFlush(reservation);
+    }
+
+    private CatalogItem createService() {
+        CatalogItem service = new CatalogItem();
+        service.setName("Dashboard service " + UUID.randomUUID());
+        service.setType(ItemType.SERVICE);
+        service.setPrice(new BigDecimal("100.00"));
+        service.setDurationMinutes(60);
+        service.setActive(true);
+        return catalogRepository.saveAndFlush(service);
     }
 
     private Order createOrder(

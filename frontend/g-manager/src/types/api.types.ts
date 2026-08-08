@@ -5,6 +5,13 @@ export interface ApiError {
   message: string
   path: string
   requestId: string
+  code?: string
+  fieldErrors?: ApiFieldError[]
+}
+
+export interface ApiFieldError {
+  field: string
+  message: string
 }
 
 export interface PageResponse<T> {
