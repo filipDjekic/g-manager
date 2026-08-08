@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { authApi } from '../api/authApi'
+import { hasCapability } from '../auth/capabilities'
 import { useAuthStore } from '../auth/authStore'
 
 export function AppShell() {
@@ -22,17 +23,14 @@ export function AppShell() {
       <header>
         <nav><NavLink to="/">G-Manager</NavLink><NavLink to="/profile">Profil</NavLink>
           <NavLink to="/catalog">Katalog</NavLink>
-          {(user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'EMPLOYEE')
-            && <NavLink to="/dashboard">Dashboard</NavLink>}
-          {(user?.role === 'OWNER' || user?.role === 'ADMIN') && <NavLink to="/employees">Zaposleni</NavLink>}
-          {(user?.role === 'OWNER' || user?.role === 'ADMIN') && <NavLink to="/settings">Radno vreme</NavLink>}
-          {user?.role === 'CUSTOMER' && <NavLink to="/my-reservations">Moji termini</NavLink>}
-          {user?.role === 'CUSTOMER' && <NavLink to="/my-orders">Moje narudžbine</NavLink>}
-          {(user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'EMPLOYEE')
-            && <NavLink to="/reservations">Rezervacije</NavLink>}
-          {(user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'EMPLOYEE')
-            && <NavLink to="/orders">Narudžbine</NavLink>}
-          {user?.role === 'OWNER' && <NavLink to="/users">Korisnici</NavLink>}
+          {hasCapability(user, 'DASHBOARD_OPERATIONAL') && <NavLink to="/dashboard">Dashboard</NavLink>}
+          {hasCapability(user, 'USER_LIST') && <NavLink to="/employees">Zaposleni</NavLink>}
+          {hasCapability(user, 'WORKING_HOURS_MANAGE') && <NavLink to="/settings">Radno vreme</NavLink>}
+          {hasCapability(user, 'RESERVATION_READ_OWN') && <NavLink to="/my-reservations">Moji termini</NavLink>}
+          {hasCapability(user, 'ORDER_READ_OWN') && <NavLink to="/my-orders">Moje narudžbine</NavLink>}
+          {hasCapability(user, 'RESERVATION_READ_ALL') && <NavLink to="/reservations">Rezervacije</NavLink>}
+          {hasCapability(user, 'ORDER_READ_ALL') && <NavLink to="/orders">Narudžbine</NavLink>}
+          {hasCapability(user, 'USER_LIST') && <NavLink to="/users">Korisnici</NavLink>}
         </nav>
         <div>
           <span>{user?.name} · {user?.role}</span>

@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { authApi } from '../api/authApi'
 import { apiErrorMessage } from '../api/client'
 import { registerSchema } from '../auth/schemas'
+import { applyApiFieldErrors } from '../common/applyApiFieldErrors'
 
 type RegisterValues = z.infer<typeof registerSchema>
 
@@ -20,6 +21,7 @@ export function RegisterPage() {
       await authApi.register(values)
       navigate('/login', { replace: true, state: { registered: true } })
     } catch (error) {
+      applyApiFieldErrors(error, form.setError, form.setFocus)
       setServerError(apiErrorMessage(error, 'Registracija trenutno nije dostupna.'))
     }
   })

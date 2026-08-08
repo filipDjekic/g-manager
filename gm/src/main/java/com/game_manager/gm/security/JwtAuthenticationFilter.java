@@ -1,6 +1,7 @@
 package com.game_manager.gm.security;
 
 import com.game_manager.gm.common.security.AuthenticatedUser;
+import com.game_manager.gm.common.security.RolePermissions;
 import com.game_manager.gm.user.User;
 import com.game_manager.gm.user.UserRepository;
 import io.jsonwebtoken.JwtException;
@@ -15,7 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.List;
+import java.util.stream.Stream;
 import java.util.UUID;
 
 @Component
@@ -46,10 +47,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 return;
             }
             AuthenticatedUser principal = new AuthenticatedUser(user.getId(), user.getEmail(), user.getRole());
+            var authorities = Stream.concat(
+                            Stream.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())),
+                            RolePermissions.forRole(user.getRole()).stream()
+                                    .map(permission -> new SimpleGrantedAuthority(permission.name())))
+                    .toList();
             var authentication = new UsernamePasswordAuthenticationToken(
                     principal,
                     null,
-                    List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
+                    authorities
             );
             SecurityContextHolder.getContext().setAuthentication(authentication);
         } catch (JwtException | IllegalArgumentException ignored) {

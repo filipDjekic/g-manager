@@ -1,4 +1,4 @@
-import type { Role } from './auth.types'
+import type { Permission, Role } from './auth.types'
 
 export interface UserResponse {
   id: string
@@ -10,6 +10,7 @@ export interface UserResponse {
   createdAt: string
   updatedAt: string
   version: number
+  permissions: Permission[]
 }
 
 export interface CreateUserRequest {

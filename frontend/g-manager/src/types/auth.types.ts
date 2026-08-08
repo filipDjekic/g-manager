@@ -1,4 +1,13 @@
 export type Role = 'OWNER' | 'ADMIN' | 'EMPLOYEE' | 'CUSTOMER'
+export type Permission =
+  | 'PROFILE_READ' | 'PROFILE_UPDATE' | 'EMPLOYEE_LIST'
+  | 'USER_LIST' | 'USER_CREATE' | 'USER_DEACTIVATE'
+  | 'CATALOG_READ' | 'CATALOG_MANAGE'
+  | 'WORKING_HOURS_READ' | 'WORKING_HOURS_MANAGE'
+  | 'RESERVATION_CREATE' | 'RESERVATION_READ_OWN' | 'RESERVATION_READ_ALL'
+  | 'RESERVATION_CHANGE_STATUS'
+  | 'ORDER_CREATE' | 'ORDER_READ_OWN' | 'ORDER_READ_ALL' | 'ORDER_CHANGE_STATUS'
+  | 'DASHBOARD_SUMMARY' | 'DASHBOARD_OPERATIONAL' | 'METRICS_READ'
 
 export interface AuthUser {
   id: string
@@ -7,6 +16,7 @@ export interface AuthUser {
   role: Role
   active: boolean
   avatarUrl?: string | null
+  permissions?: Permission[]
 }
 
 export interface AuthResponse {

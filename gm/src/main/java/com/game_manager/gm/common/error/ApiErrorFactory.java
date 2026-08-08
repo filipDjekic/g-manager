@@ -5,18 +5,30 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.List;
 
 @Component
 public class ApiErrorFactory {
 
     public ApiError create(HttpStatus status, String message, HttpServletRequest request) {
+        return create(status, ErrorCode.from(status), message, List.of(), request);
+    }
+
+    public ApiError create(
+            HttpStatus status,
+            ErrorCode code,
+            String message,
+            List<ApiFieldError> fieldErrors,
+            HttpServletRequest request) {
         return new ApiError(
                 Instant.now(),
                 status.value(),
                 status.getReasonPhrase(),
                 message,
                 request.getRequestURI(),
-                requestId(request)
+                requestId(request),
+                code.name(),
+                List.copyOf(fieldErrors)
         );
     }
 

@@ -7,6 +7,7 @@ import { authApi } from '../api/authApi'
 import { apiErrorMessage } from '../api/client'
 import { loginSchema } from '../auth/schemas'
 import { useAuthStore } from '../auth/authStore'
+import { applyApiFieldErrors } from '../common/applyApiFieldErrors'
 
 type LoginValues = z.infer<typeof loginSchema>
 
@@ -28,6 +29,7 @@ export function LoginPage() {
       const from = (location.state as { from?: string } | null)?.from
       navigate(from && from !== '/login' ? from : '/', { replace: true })
     } catch (error) {
+      applyApiFieldErrors(error, form.setError, form.setFocus)
       setServerError(apiErrorMessage(error, 'Prijava trenutno nije dostupna.'))
     }
   })

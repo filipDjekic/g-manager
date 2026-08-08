@@ -1,6 +1,7 @@
 package com.game_manager.gm.user;
 
 import com.game_manager.gm.common.dto.PageResponse;
+import com.game_manager.gm.common.config.PageRequestFactory;
 import com.game_manager.gm.common.error.ApplicationException;
 import com.game_manager.gm.common.security.AuthenticatedUser;
 import com.game_manager.gm.common.security.CurrentUserProvider;
@@ -16,11 +17,11 @@ import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -36,13 +37,17 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final FileStorageService fileStorageService;
     private final SessionRevocationPort refreshTokenRevocationService;
+    private final PageRequestFactory pageRequestFactory;
+    private final UserAuthorizationPolicy authorizationPolicy;
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('PROFILE_READ')")
     public UserResponse getCurrentUser() {
         return UserResponse.from(requireCurrentUser());
     }
 
     @Transactional
+    @PreAuthorize("hasAuthority('PROFILE_UPDATE')")
     public UserResponse updateCurrentUser(UpdateProfileRequest request) {
         User user = requireCurrentUser();
         user.setName(request.name().trim());
@@ -50,6 +55,7 @@ public class UserService {
     }
 
     @Transactional
+    @PreAuthorize("hasAuthority('PROFILE_UPDATE')")
     public void changePassword(ChangePasswordRequest request) {
         User user = requireCurrentUser();
         if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
@@ -65,6 +71,7 @@ public class UserService {
     }
 
     @Transactional
+    @PreAuthorize("hasAuthority('PROFILE_UPDATE')")
     public UserResponse uploadAvatar(MultipartFile avatar) {
         User user = requireCurrentUser();
         user.setAvatarUrl(fileStorageService.storeAvatar(avatar));
@@ -72,10 +79,11 @@ public class UserService {
     }
 
     @Transactional
+    @PreAuthorize("hasAuthority('USER_CREATE')")
     public UserResponse createUser(CreateUserRequest request) {
         AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
         requireManagementRole(actor.role());
-        validateCreatableRole(actor.role(), request.role());
+        authorizationPolicy.requireCreatableRole(actor, request.role());
         String email = request.email().trim().toLowerCase(Locale.ROOT);
         if (userRepository.existsByEmailIgnoreCase(email)) {
             throw new ApplicationException(HttpStatus.CONFLICT, "Email is already in use");
@@ -91,27 +99,11 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('USER_LIST')")
     public PageResponse<UserResponse> listUsers(
             Role role, Boolean active, int page, int size, String sort, String direction) {
         AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
         requireManagementRole(actor.role());
-        if (page < 0) {
-            throw new ApplicationException(HttpStatus.BAD_REQUEST, "Page must not be negative");
-        }
-        if (size < 1) {
-            throw new ApplicationException(HttpStatus.BAD_REQUEST, "Size must be positive");
-        }
-        if (!ALLOWED_SORTS.contains(sort)) {
-            throw new ApplicationException(HttpStatus.BAD_REQUEST, "Unsupported sort field");
-        }
-
-        Sort.Direction sortDirection;
-        try {
-            sortDirection = Sort.Direction.fromString(direction);
-        } catch (IllegalArgumentException exception) {
-            throw new ApplicationException(HttpStatus.BAD_REQUEST, "Unsupported sort direction");
-        }
-
         Specification<User> specification = (root, query, builder) -> builder.conjunction();
         if (actor.role() == Role.ADMIN) {
             specification = specification.and(UserSpecifications.adminVisibleOnly(true));
@@ -123,36 +115,32 @@ public class UserService {
             specification = specification.and(UserSpecifications.isActive(active));
         }
         Page<UserResponse> result = userRepository
-                .findAll(specification, PageRequest.of(
-                        page, Math.min(size, 100), Sort.by(sortDirection, sort)))
+                .findAll(specification,
+                        pageRequestFactory.create(page, size, sort, direction, ALLOWED_SORTS))
                 .map(UserResponse::from);
         return PageResponse.from(result);
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('EMPLOYEE_LIST')")
     public PageResponse<UserResponse> listActiveEmployees(int page, int size) {
         currentUserProvider.requireCurrentUser();
-        if (page < 0 || size < 1) {
-            throw new ApplicationException(HttpStatus.BAD_REQUEST, "Pagination is not valid");
-        }
         Specification<User> specification = UserSpecifications.hasRole(Role.EMPLOYEE)
                 .and(UserSpecifications.isActive(true));
         return PageResponse.from(userRepository
-                .findAll(specification, PageRequest.of(
-                        page, Math.min(size, 100), Sort.by("name").ascending()))
+                .findAll(specification,
+                        pageRequestFactory.create(page, size, Sort.by("name").ascending()))
                 .map(UserResponse::from));
     }
 
     @Transactional
+    @PreAuthorize("hasAuthority('USER_DEACTIVATE')")
     public void deactivateUser(UUID targetId) {
         AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
         requireManagementRole(actor.role());
-        if (actor.id().equals(targetId)) {
-            throw new ApplicationException(HttpStatus.CONFLICT, "You cannot deactivate your own account");
-        }
         User target = userRepository.findById(targetId)
                 .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND, "User not found"));
-        validateDeactivation(actor.role(), target.getRole());
+        authorizationPolicy.requireDeactivation(actor, target);
         if (!target.isActive()) {
             return;
         }
@@ -177,21 +165,4 @@ public class UserService {
         }
     }
 
-    private static void validateCreatableRole(Role actorRole, Role targetRole) {
-        boolean permitted = actorRole == Role.OWNER
-                ? targetRole == Role.ADMIN || targetRole == Role.EMPLOYEE
-                : targetRole == Role.EMPLOYEE;
-        if (!permitted) {
-            throw new ApplicationException(HttpStatus.FORBIDDEN, "The requested role cannot be created");
-        }
-    }
-
-    private static void validateDeactivation(Role actorRole, Role targetRole) {
-        boolean permitted = actorRole == Role.OWNER
-                ? targetRole != Role.OWNER
-                : targetRole == Role.EMPLOYEE;
-        if (!permitted) {
-            throw new ApplicationException(HttpStatus.FORBIDDEN, "The requested user cannot be deactivated");
-        }
-    }
 }

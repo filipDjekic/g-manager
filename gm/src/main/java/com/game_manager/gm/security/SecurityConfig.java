@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -20,6 +21,7 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import tools.jackson.databind.ObjectMapper;
 
 @Configuration
+@EnableMethodSecurity
 public class SecurityConfig {
     private final ApiErrorFactory apiErrorFactory;
     private final ObjectMapper objectMapper;
@@ -51,30 +53,38 @@ public class SecurityConfig {
                                 writeError(request, response, HttpStatus.FORBIDDEN, "Access is denied")))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/actuator/health").permitAll()
-                        .requestMatchers("/actuator/metrics/**").hasAnyRole("OWNER", "ADMIN")
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        .requestMatchers("/actuator/metrics/**").hasAuthority("METRICS_READ")
                         .requestMatchers(HttpMethod.GET, "/media/**").permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 "/api/v1/auth/register",
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/refresh",
                                 "/api/v1/auth/logout").permitAll()
-                        .requestMatchers("/api/v1/users/me/**").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/users/employees").authenticated()
-                        .requestMatchers("/api/v1/users/**").hasAnyRole("OWNER", "ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/catalog/**").authenticated()
-                        .requestMatchers("/api/v1/catalog/**").hasAnyRole("OWNER", "ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/working-hours/**").authenticated()
-                        .requestMatchers("/api/v1/working-hours/**").hasAnyRole("OWNER", "ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/v1/reservations").hasRole("CUSTOMER")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/reservations/me").hasRole("CUSTOMER")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/reservations").hasAnyRole("EMPLOYEE", "ADMIN", "OWNER")
-                        .requestMatchers(HttpMethod.PATCH, "/api/v1/reservations/**").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/orders").hasRole("CUSTOMER")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/orders/me").hasRole("CUSTOMER")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/orders").hasAnyRole("EMPLOYEE", "ADMIN", "OWNER")
-                        .requestMatchers(HttpMethod.PATCH, "/api/v1/orders/**").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/dashboard/summary").hasAnyRole("OWNER", "ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/dashboard/today").hasAnyRole("EMPLOYEE", "ADMIN", "OWNER")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/users/me").hasAuthority("PROFILE_READ")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/users/me", "/api/v1/users/me/password")
+                            .hasAuthority("PROFILE_UPDATE")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/users/me/avatar").hasAuthority("PROFILE_UPDATE")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/users/employees").hasAuthority("EMPLOYEE_LIST")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/users").hasAuthority("USER_LIST")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/users").hasAuthority("USER_CREATE")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/users/*/deactivate").hasAuthority("USER_DEACTIVATE")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/catalog/**").hasAuthority("CATALOG_READ")
+                        .requestMatchers("/api/v1/catalog/**").hasAuthority("CATALOG_MANAGE")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/working-hours/**").hasAuthority("WORKING_HOURS_READ")
+                        .requestMatchers("/api/v1/working-hours/**").hasAuthority("WORKING_HOURS_MANAGE")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/reservations").hasAuthority("RESERVATION_CREATE")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/reservations/me").hasAuthority("RESERVATION_READ_OWN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/reservations").hasAuthority("RESERVATION_READ_ALL")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/reservations/*/status")
+                            .hasAuthority("RESERVATION_CHANGE_STATUS")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/orders").hasAuthority("ORDER_CREATE")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/orders/me").hasAuthority("ORDER_READ_OWN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/orders").hasAuthority("ORDER_READ_ALL")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/orders/*/status")
+                            .hasAuthority("ORDER_CHANGE_STATUS")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/dashboard/summary").hasAuthority("DASHBOARD_SUMMARY")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/dashboard/today").hasAuthority("DASHBOARD_OPERATIONAL")
                         .anyRequest().denyAll())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .headers(headers -> headers

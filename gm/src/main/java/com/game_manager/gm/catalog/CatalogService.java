@@ -1,6 +1,7 @@
 package com.game_manager.gm.catalog;
 
 import com.game_manager.gm.common.dto.PageResponse;
+import com.game_manager.gm.common.config.PageRequestFactory;
 import com.game_manager.gm.common.error.ApplicationException;
 import com.game_manager.gm.media.FileStorageService;
 import com.game_manager.gm.common.security.AuthenticatedUser;
@@ -14,10 +15,9 @@ import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -30,8 +30,10 @@ public class CatalogService {
     private final CatalogRepository catalogRepository;
     private final CurrentUserProvider currentUserProvider;
     private final FileStorageService fileStorageService;
+    private final PageRequestFactory pageRequestFactory;
 
     @Transactional
+    @PreAuthorize("hasAuthority('CATALOG_MANAGE')")
     public CatalogItemResponse create(CreateCatalogItemRequest request) {
         requireManagement();
         validateType(request.type(), request.durationMinutes());
@@ -46,6 +48,7 @@ public class CatalogService {
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('CATALOG_READ')")
     public PageResponse<CatalogItemResponse> list(
             ItemType type,
             Boolean active,
@@ -57,15 +60,7 @@ public class CatalogService {
             String sort,
             String direction) {
         AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
-        validatePagination(page, size, sort);
-        int effectiveSize = Math.min(size, 100);
         validatePriceRange(minPrice, maxPrice);
-        Sort.Direction sortDirection;
-        try {
-            sortDirection = Sort.Direction.fromString(direction);
-        } catch (IllegalArgumentException exception) {
-            throw new ApplicationException(HttpStatus.BAD_REQUEST, "Unsupported sort direction");
-        }
 
         Boolean effectiveActive = isManagement(actor.role()) ? active : Boolean.TRUE;
         Specification<CatalogItem> specification =
@@ -76,12 +71,14 @@ public class CatalogService {
                 .and(CatalogSpecifications.nameContains(search))
                 .and(CatalogSpecifications.priceBetween(minPrice, maxPrice));
         Page<CatalogItemResponse> result = catalogRepository
-                .findAll(specification, PageRequest.of(page, effectiveSize, Sort.by(sortDirection, sort)))
+                .findAll(specification,
+                        pageRequestFactory.create(page, size, sort, direction, ALLOWED_SORTS))
                 .map(CatalogItemResponse::from);
         return PageResponse.from(result);
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('CATALOG_READ')")
     public CatalogItemResponse get(UUID id) {
         CatalogItem item = requireItem(id);
         Role role = currentUserProvider.requireCurrentUser().role();
@@ -92,6 +89,7 @@ public class CatalogService {
     }
 
     @Transactional
+    @PreAuthorize("hasAuthority('CATALOG_MANAGE')")
     public CatalogItemResponse update(UUID id, UpdateCatalogItemRequest request) {
         requireManagement();
         CatalogItem item = requireItem(id);
@@ -127,6 +125,7 @@ public class CatalogService {
     }
 
     @Transactional
+    @PreAuthorize("hasAuthority('CATALOG_MANAGE')")
     public CatalogItemResponse deactivate(UUID id, long version) {
         requireManagement();
         CatalogItem item = requireItem(id);
@@ -136,6 +135,7 @@ public class CatalogService {
     }
 
     @Transactional
+    @PreAuthorize("hasAuthority('CATALOG_MANAGE')")
     public CatalogItemResponse activate(UUID id, long version) {
         requireManagement();
         CatalogItem item = requireItem(id);
@@ -145,6 +145,7 @@ public class CatalogService {
     }
 
     @Transactional
+    @PreAuthorize("hasAuthority('CATALOG_MANAGE')")
     public CatalogItemResponse uploadImage(UUID id, long version, MultipartFile image) {
         requireManagement();
         CatalogItem item = requireItem(id);
@@ -189,18 +190,6 @@ public class CatalogService {
                     type == ItemType.SERVICE
                             ? "Services require a positive duration"
                             : "Products cannot have a duration");
-        }
-    }
-
-    private static void validatePagination(int page, int size, String sort) {
-        if (page < 0) {
-            throw new ApplicationException(HttpStatus.BAD_REQUEST, "Page must not be negative");
-        }
-        if (size < 1) {
-            throw new ApplicationException(HttpStatus.BAD_REQUEST, "Size must be positive");
-        }
-        if (!ALLOWED_SORTS.contains(sort)) {
-            throw new ApplicationException(HttpStatus.BAD_REQUEST, "Unsupported sort field");
         }
     }
 
