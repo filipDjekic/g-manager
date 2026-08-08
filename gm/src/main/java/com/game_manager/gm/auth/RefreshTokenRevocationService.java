@@ -20,4 +20,9 @@ public class RefreshTokenRevocationService implements SessionRevocationPort {
     public void revokeAllSessions(UUID userId) {
         repository.revokeAllByUserId(userId);
     }
+
+    @Transactional
+    public void revokeAllSessionsInCurrentTransaction(UUID userId) {
+        repository.revokeAllByUserId(userId);
+    }
 }

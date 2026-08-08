@@ -61,6 +61,10 @@ public class SecurityConfig {
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/refresh",
                                 "/api/v1/auth/logout").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/auth/sessions", "/api/v1/auth/security-events")
+                            .hasAuthority("PROFILE_READ")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/auth/sessions", "/api/v1/auth/sessions/*")
+                            .hasAuthority("PROFILE_UPDATE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/users/me").hasAuthority("PROFILE_READ")
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/users/me", "/api/v1/users/me/password")
                             .hasAuthority("PROFILE_UPDATE")

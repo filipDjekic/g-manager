@@ -35,6 +35,7 @@ function App() {
           <Route element={<AppShell />}>
             <Route element={<CapabilityGuard anyOf={['PROFILE_READ']} />}>
               <Route index element={<SessionPage />} />
+              <Route path="sessions" element={<SessionPage />} />
               <Route path="profile" element={<ProfilePage />} />
               <Route path="catalog" element={<CatalogPage />} />
             </Route>
