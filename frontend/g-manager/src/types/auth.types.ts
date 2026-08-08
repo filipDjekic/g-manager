@@ -42,3 +42,23 @@ export interface RegistrationResponse {
   email: string
   role: 'CUSTOMER'
 }
+
+export interface SessionInfo {
+  id: string
+  deviceLabel: string
+  userAgentSummary: string
+  createdAt: string
+  lastSeenAt: string
+  expiresAt: string
+  current: boolean
+}
+
+export type SecurityEventType =
+  | 'LOGIN_SUCCESS' | 'LOGIN_FAILURE' | 'TOKEN_REFRESH' | 'TOKEN_REUSE'
+  | 'SESSION_REVOKED' | 'ALL_SESSIONS_REVOKED' | 'LOGOUT'
+
+export interface SecurityEventInfo {
+  type: SecurityEventType
+  deviceLabel: string
+  occurredAt: string
+}

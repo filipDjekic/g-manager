@@ -100,6 +100,14 @@ th { color: #a7c5ba; }
 .reservation-row p { margin: .3rem 0; color: #a7c5ba; }
 .status-badge.neutral { color: #d1fae5; background: #1d382f; }
 .reservation-filters { grid-template-columns: repeat(3, minmax(150px, 1fr)); }
+.session-list { display: grid; gap: 1rem; }
+.session-card { grid-template-columns: minmax(14rem, 1fr) minmax(14rem, 1fr) auto; align-items: center; }
+.session-card.current { border-color: #34d399; }
+.session-card > div { display: flex; align-items: center; flex-wrap: wrap; gap: .7rem; }
+.session-card p { margin: 0; color: #a7c5ba; }
+.security-history { margin-top: 3rem; }
+.dialog-backdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 1rem; background: rgb(0 0 0 / 72%); }
+.confirm-dialog { width: min(30rem, 100%); }
 
 @media (max-width: 620px) {
   .app-shell header, .app-shell header div, .app-shell nav { align-items: flex-start; flex-direction: column; }
@@ -112,4 +120,5 @@ th { color: #a7c5ba; }
   .exception-row { flex-direction: column; }
   .booking-grid { grid-template-columns: 1fr; }
   .reservation-row, .reservation-row.management { grid-template-columns: 1fr; }
+  .session-card { grid-template-columns: 1fr; }
 }

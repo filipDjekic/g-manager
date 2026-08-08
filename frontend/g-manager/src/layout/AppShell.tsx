@@ -22,6 +22,7 @@ export function AppShell() {
     <div className="app-shell">
       <header>
         <nav><NavLink to="/">G-Manager</NavLink><NavLink to="/profile">Profil</NavLink>
+          <NavLink to="/sessions">Sesije</NavLink>
           <NavLink to="/catalog">Katalog</NavLink>
           {hasCapability(user, 'DASHBOARD_OPERATIONAL') && <NavLink to="/dashboard">Dashboard</NavLink>}
           {hasCapability(user, 'USER_LIST') && <NavLink to="/employees">Zaposleni</NavLink>}
