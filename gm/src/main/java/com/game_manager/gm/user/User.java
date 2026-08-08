@@ -11,6 +11,10 @@ import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.Getter;
+import java.time.Instant;
+import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Getter
 @Setter
@@ -37,4 +41,29 @@ public class User extends BaseEntity {
 
     @Column(name = "avatar_url", length = 500)
     private String avatarUrl;
+
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "deleted_by", length = 36)
+    private UUID deletedBy;
+
+    @Column(name = "deletion_reason", length = 500)
+    private String deletionReason;
+
+    public User(String name, String email, String passwordHash, Role role, boolean active, String avatarUrl) {
+        this.name = name; this.email = email; this.passwordHash = passwordHash;
+        this.role = role; this.active = active; this.avatarUrl = avatarUrl;
+    }
+
+    public boolean isDeleted() { return deletedAt != null; }
+
+    public void softDelete(UUID actorId, String reason, Instant now) {
+        deletedAt = now; deletedBy = actorId; deletionReason = reason.trim(); active = false;
+    }
+
+    public void restore() {
+        deletedAt = null; deletedBy = null; deletionReason = null;
+    }
 }

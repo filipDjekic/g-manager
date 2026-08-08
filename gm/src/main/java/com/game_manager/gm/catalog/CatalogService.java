@@ -10,6 +10,12 @@ import com.game_manager.gm.common.security.Role;
 import com.game_manager.gm.catalog.dto.CatalogItemResponse;
 import com.game_manager.gm.catalog.dto.CreateCatalogItemRequest;
 import com.game_manager.gm.catalog.dto.UpdateCatalogItemRequest;
+import com.game_manager.gm.audit.AuditVisibility;
+import com.game_manager.gm.audit.AuditWriter;
+import com.game_manager.gm.common.dto.DeletionReasonRequest;
+import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.math.BigDecimal;
 import java.util.Set;
 import java.util.UUID;
@@ -31,6 +37,7 @@ public class CatalogService {
     private final CurrentUserProvider currentUserProvider;
     private final FileStorageService fileStorageService;
     private final PageRequestFactory pageRequestFactory;
+    private final AuditWriter auditWriter;
 
     @Transactional
     @PreAuthorize("hasAuthority('CATALOG_MANAGE')")
@@ -44,7 +51,10 @@ public class CatalogService {
         item.setPrice(request.price());
         item.setDurationMinutes(request.durationMinutes());
         item.setActive(true);
-        return CatalogItemResponse.from(catalogRepository.saveAndFlush(item));
+        CatalogItem saved = catalogRepository.saveAndFlush(item);
+        auditWriter.write("CATALOG_CREATED", "CATALOG_ITEM", saved.getId(), null,
+                auditData(saved), null, AuditVisibility.MANAGEMENT);
+        return CatalogItemResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
@@ -66,6 +76,7 @@ public class CatalogService {
         Specification<CatalogItem> specification =
                 (root, query, builder) -> builder.conjunction();
         specification = specification
+                .and(CatalogSpecifications.notDeleted())
                 .and(CatalogSpecifications.hasType(type))
                 .and(CatalogSpecifications.isActive(effectiveActive))
                 .and(CatalogSpecifications.nameContains(search))
@@ -94,6 +105,7 @@ public class CatalogService {
         requireManagement();
         CatalogItem item = requireItem(id);
         requireVersion(item, request.version());
+        Map<String, Object> before = auditData(item);
 
         ItemType candidateType = request.type() == null ? item.getType() : request.type();
         Integer candidateDuration;
@@ -121,7 +133,10 @@ public class CatalogService {
             item.setPrice(request.price());
         }
         item.setDurationMinutes(candidateDuration);
-        return CatalogItemResponse.from(catalogRepository.saveAndFlush(item));
+        CatalogItem saved = catalogRepository.saveAndFlush(item);
+        auditWriter.write("CATALOG_UPDATED", "CATALOG_ITEM", id, before,
+                auditData(saved), null, AuditVisibility.MANAGEMENT);
+        return CatalogItemResponse.from(saved);
     }
 
     @Transactional
@@ -130,8 +145,12 @@ public class CatalogService {
         requireManagement();
         CatalogItem item = requireItem(id);
         requireVersion(item, version);
+        boolean previous = item.isActive();
         item.setActive(false);
-        return CatalogItemResponse.from(catalogRepository.saveAndFlush(item));
+        CatalogItem saved = catalogRepository.saveAndFlush(item);
+        auditWriter.write("CATALOG_DEACTIVATED", "CATALOG_ITEM", id,
+                Map.of("active", previous), Map.of("active", false), null, AuditVisibility.MANAGEMENT);
+        return CatalogItemResponse.from(saved);
     }
 
     @Transactional
@@ -140,8 +159,12 @@ public class CatalogService {
         requireManagement();
         CatalogItem item = requireItem(id);
         requireVersion(item, version);
+        boolean previous = item.isActive();
         item.setActive(true);
-        return CatalogItemResponse.from(catalogRepository.saveAndFlush(item));
+        CatalogItem saved = catalogRepository.saveAndFlush(item);
+        auditWriter.write("CATALOG_ACTIVATED", "CATALOG_ITEM", id,
+                Map.of("active", previous), Map.of("active", true), null, AuditVisibility.MANAGEMENT);
+        return CatalogItemResponse.from(saved);
     }
 
     @Transactional
@@ -150,8 +173,48 @@ public class CatalogService {
         requireManagement();
         CatalogItem item = requireItem(id);
         requireVersion(item, version);
+        boolean hadImage = item.getImageUrl() != null;
         item.setImageUrl(fileStorageService.storeCatalogImage(image));
-        return CatalogItemResponse.from(catalogRepository.saveAndFlush(item));
+        CatalogItem saved = catalogRepository.saveAndFlush(item);
+        auditWriter.write("CATALOG_IMAGE_UPDATED", "CATALOG_ITEM", id,
+                Map.of("imagePresent", hadImage), Map.of("imagePresent", true), null,
+                AuditVisibility.MANAGEMENT);
+        return CatalogItemResponse.from(saved);
+    }
+
+    @Transactional
+    @PreAuthorize("hasAuthority('CATALOG_DELETE')")
+    public void delete(UUID id, DeletionReasonRequest request) {
+        AuthenticatedUser actor = requireManagement();
+        CatalogItem item = requireItem(id);
+        Map<String, Object> before = auditData(item);
+        item.softDelete(actor.id(), request.reason(), Instant.now());
+        catalogRepository.save(item);
+        auditWriter.write("CATALOG_DELETED", "CATALOG_ITEM", id, before,
+                Map.of("deleted", true), request.reason(), AuditVisibility.MANAGEMENT);
+    }
+
+    @Transactional
+    @PreAuthorize("hasAuthority('CATALOG_RESTORE')")
+    public CatalogItemResponse restore(UUID id) {
+        requireManagement();
+        CatalogItem item = catalogRepository.findDeletedById(id)
+                .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND, "Deleted catalog item not found"));
+        String reason = item.getDeletionReason();
+        item.restore();
+        CatalogItem saved = catalogRepository.save(item);
+        auditWriter.write("CATALOG_RESTORED", "CATALOG_ITEM", id, Map.of("deleted", true),
+                auditData(saved), reason, AuditVisibility.MANAGEMENT);
+        return CatalogItemResponse.from(saved);
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('CATALOG_RESTORE')")
+    public PageResponse<CatalogItemResponse> listDeleted(int page, int size) {
+        requireManagement();
+        return PageResponse.from(catalogRepository.findAll(CatalogSpecifications.deleted(),
+                pageRequestFactory.create(page, size, org.springframework.data.domain.Sort.by("deletedAt").descending()))
+                .map(CatalogItemResponse::from));
     }
 
     @Transactional(readOnly = true)
@@ -210,5 +273,14 @@ public class CatalogService {
 
     private static String normalizeDescription(String description) {
         return description == null || description.isBlank() ? null : description.trim();
+    }
+
+    private static Map<String, Object> auditData(CatalogItem item) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("name", item.getName()); data.put("description", item.getDescription());
+        data.put("type", item.getType().name()); data.put("price", item.getPrice());
+        data.put("durationMinutes", item.getDurationMinutes()); data.put("active", item.isActive());
+        data.put("imagePresent", item.getImageUrl() != null);
+        return data;
     }
 }

@@ -5,6 +5,8 @@ import com.game_manager.gm.common.config.GManagerProperties;
 import com.game_manager.gm.common.security.AuthenticatedUser;
 import com.game_manager.gm.common.security.CurrentUserProvider;
 import com.game_manager.gm.common.security.Role;
+import com.game_manager.gm.audit.AuditVisibility;
+import com.game_manager.gm.audit.AuditWriter;
 import com.game_manager.gm.workinghours.dto.UpdateWorkingHoursRequest;
 import com.game_manager.gm.workinghours.dto.WorkingHoursExceptionRequest;
 import com.game_manager.gm.workinghours.dto.WorkingHoursExceptionResponse;
@@ -31,6 +33,7 @@ public class WorkingHoursService {
     private final WorkingHoursExceptionRepository exceptionRepository;
     private final CurrentUserProvider currentUserProvider;
     private final GManagerProperties properties;
+    private final AuditWriter auditWriter;
 
     @Transactional(readOnly = true)
     @PreAuthorize("hasAuthority('WORKING_HOURS_READ')")
@@ -55,10 +58,15 @@ public class WorkingHoursService {
                     return created;
                 });
         requireVersionIfProvided(hours, request.version());
+        java.util.Map<String, Object> before = hours.getId() == null ? null : hoursAuditData(hours);
         hours.setOpenTime(request.openTime());
         hours.setCloseTime(request.closeTime());
         hours.setActive(request.active());
-        return WorkingHoursResponse.from(workingHoursRepository.saveAndFlush(hours));
+        WorkingHours saved = workingHoursRepository.saveAndFlush(hours);
+        auditWriter.write("WORKING_HOURS_UPDATED", "WORKING_HOURS", saved.getId(), before,
+                hoursAuditData(saved),
+                null, AuditVisibility.MANAGEMENT);
+        return WorkingHoursResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
@@ -82,7 +90,10 @@ public class WorkingHoursService {
         }
         WorkingHoursException exception = new WorkingHoursException();
         apply(exception, request);
-        return WorkingHoursExceptionResponse.from(exceptionRepository.saveAndFlush(exception));
+        WorkingHoursException saved = exceptionRepository.saveAndFlush(exception);
+        auditWriter.write("WORKING_HOURS_EXCEPTION_CREATED", "WORKING_HOURS_EXCEPTION", saved.getId(),
+                null, exceptionAuditData(saved), null, AuditVisibility.MANAGEMENT);
+        return WorkingHoursExceptionResponse.from(saved);
     }
 
     @Transactional
@@ -99,8 +110,12 @@ public class WorkingHoursService {
                     throw new ApplicationException(
                             HttpStatus.CONFLICT, "An exception already exists for this date");
                 });
+        java.util.Map<String, Object> before = exceptionAuditData(exception);
         apply(exception, request);
-        return WorkingHoursExceptionResponse.from(exceptionRepository.saveAndFlush(exception));
+        WorkingHoursException saved = exceptionRepository.saveAndFlush(exception);
+        auditWriter.write("WORKING_HOURS_EXCEPTION_UPDATED", "WORKING_HOURS_EXCEPTION", saved.getId(),
+                before, exceptionAuditData(saved), null, AuditVisibility.MANAGEMENT);
+        return WorkingHoursExceptionResponse.from(saved);
     }
 
     @Transactional
@@ -111,6 +126,8 @@ public class WorkingHoursService {
         requireVersion(exception.getVersion(), version);
         exceptionRepository.delete(exception);
         exceptionRepository.flush();
+        auditWriter.write("WORKING_HOURS_EXCEPTION_DELETED", "WORKING_HOURS_EXCEPTION", id,
+                exceptionAuditData(exception), null, "Explicit deletion", AuditVisibility.MANAGEMENT);
     }
 
     @Transactional(readOnly = true)
@@ -237,6 +254,22 @@ public class WorkingHoursService {
             throw new ApplicationException(
                     HttpStatus.CONFLICT, "Resource was changed; refresh and try again");
         }
+    }
+
+    private static java.util.Map<String, Object> exceptionAuditData(WorkingHoursException value) {
+        java.util.Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("date", value.getDate());
+        data.put("description", value.getDescription());
+        data.put("fullDayClosed", value.isFullDayClosed());
+        data.put("overrideOpenTime", value.getOverrideOpenTime());
+        data.put("overrideCloseTime", value.getOverrideCloseTime());
+        return data;
+    }
+
+    private static java.util.Map<String, Object> hoursAuditData(WorkingHours value) {
+        return java.util.Map.of("dayOfWeek", value.getDayOfWeek().name(), "active", value.isActive(),
+                "openTime", String.valueOf(value.getOpenTime()),
+                "closeTime", String.valueOf(value.getCloseTime()));
     }
 
     private record Shift(Instant open, Instant close, boolean spansMidnight) {

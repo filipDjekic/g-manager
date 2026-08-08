@@ -11,10 +11,20 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificationExecutor<User> {
-    Optional<User> findByEmailIgnoreCase(String email);
+    @Query("select u from User u where lower(u.email) = lower(:email) and u.deletedAt is null")
+    Optional<User> findByEmailIgnoreCase(@Param("email") String email);
     boolean existsByEmailIgnoreCase(String email);
+    boolean existsByEmailIgnoreCaseAndDeletedAtIsNull(String email);
+    boolean existsByEmailIgnoreCaseAndIdNotAndDeletedAtIsNull(String email, UUID id);
+
+    @Override
+    @Query("select u from User u where u.id = :id and u.deletedAt is null")
+    Optional<User> findById(@Param("id") UUID id);
+
+    @Query("select u from User u where u.id = :id and u.deletedAt is not null")
+    Optional<User> findDeletedById(@Param("id") UUID id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select u from User u where u.id = :id")
+    @Query("select u from User u where u.id = :id and u.deletedAt is null")
     Optional<User> findByIdForUpdate(@Param("id") UUID id);
 }

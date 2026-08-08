@@ -19,4 +19,12 @@ public final class UserSpecifications {
                 ? root.get("role").in(Role.EMPLOYEE)
                 : null;
     }
+
+    public static Specification<User> notDeleted() {
+        return (root, query, builder) -> builder.isNull(root.get("deletedAt"));
+    }
+
+    public static Specification<User> deleted() {
+        return (root, query, builder) -> builder.isNotNull(root.get("deletedAt"));
+    }
 }

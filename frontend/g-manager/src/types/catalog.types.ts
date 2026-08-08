@@ -12,6 +12,9 @@ export interface CatalogItem {
   createdAt: string
   updatedAt: string
   version: number
+  deletedAt: string | null
+  deletedBy: string | null
+  deletionReason: string | null
 }
 
 export interface CatalogItemInput {

@@ -15,6 +15,7 @@ import { MyReservationsPage } from './pages/MyReservationsPage'
 import { ReservationsPage } from './pages/ReservationsPage'
 import { MyOrdersPage } from './pages/MyOrdersPage'
 import { OrdersPage } from './pages/OrdersPage'
+import { AuditPage } from './pages/AuditPage'
 import './App.css'
 
 const DashboardPage = lazy(() =>
@@ -60,6 +61,9 @@ function App() {
             </Route>
             <Route element={<CapabilityGuard anyOf={['USER_LIST']} />}>
               <Route path="users" element={<UserManagementPage />} />
+            </Route>
+            <Route element={<CapabilityGuard anyOf={['AUDIT_READ']} />}>
+              <Route path="audit" element={<AuditPage />} />
             </Route>
           </Route>
         </Route>

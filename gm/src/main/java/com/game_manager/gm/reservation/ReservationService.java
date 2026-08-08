@@ -13,6 +13,8 @@ import com.game_manager.gm.reservation.dto.ReservationResponse;
 import com.game_manager.gm.common.security.AuthenticatedUser;
 import com.game_manager.gm.common.security.CurrentUserProvider;
 import com.game_manager.gm.common.security.Role;
+import com.game_manager.gm.audit.AuditVisibility;
+import com.game_manager.gm.audit.AuditWriter;
 import com.game_manager.gm.user.User;
 import com.game_manager.gm.user.UserRepository;
 import com.game_manager.gm.workinghours.WorkingHoursService;
@@ -47,6 +49,7 @@ public class ReservationService {
     private final GManagerProperties properties;
     private final PageRequestFactory pageRequestFactory;
     private final ReservationAuthorizationPolicy authorizationPolicy;
+    private final AuditWriter auditWriter;
 
     @Transactional
     @PreAuthorize("hasAuthority('RESERVATION_CREATE')")
@@ -141,6 +144,7 @@ public class ReservationService {
                         HttpStatus.NOT_FOUND, "Reservation not found"));
         requireVersion(reservation, request.version());
         authorizationPolicy.requireTransition(actor, reservation, request.status());
+        ReservationStatus previousStatus = reservation.getStatus();
         validateTransition(reservation, request.status(), actor);
 
         if (request.status() == ReservationStatus.CONFIRMED) {
@@ -175,7 +179,11 @@ public class ReservationService {
         if (request.note() != null) {
             reservation.setNote(normalizeNote(request.note()));
         }
-        return ReservationResponse.from(reservationRepository.saveAndFlush(reservation));
+        Reservation saved = reservationRepository.saveAndFlush(reservation);
+        auditWriter.write("RESERVATION_STATUS_CHANGED", "RESERVATION", id,
+                java.util.Map.of("status", previousStatus.name()),
+                java.util.Map.of("status", saved.getStatus().name()), null, AuditVisibility.MANAGEMENT);
+        return ReservationResponse.from(saved);
     }
 
     private PageResponse<ReservationResponse> listInternal(

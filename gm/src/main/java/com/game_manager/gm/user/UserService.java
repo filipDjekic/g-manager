@@ -12,6 +12,11 @@ import com.game_manager.gm.user.dto.ChangePasswordRequest;
 import com.game_manager.gm.user.dto.CreateUserRequest;
 import com.game_manager.gm.user.dto.UpdateProfileRequest;
 import com.game_manager.gm.user.dto.UserResponse;
+import com.game_manager.gm.audit.AuditVisibility;
+import com.game_manager.gm.audit.AuditWriter;
+import com.game_manager.gm.common.dto.DeletionReasonRequest;
+import java.time.Instant;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
@@ -39,6 +44,7 @@ public class UserService {
     private final SessionRevocationPort refreshTokenRevocationService;
     private final PageRequestFactory pageRequestFactory;
     private final UserAuthorizationPolicy authorizationPolicy;
+    private final AuditWriter auditWriter;
 
     @Transactional(readOnly = true)
     @PreAuthorize("hasAuthority('PROFILE_READ')")
@@ -50,8 +56,12 @@ public class UserService {
     @PreAuthorize("hasAuthority('PROFILE_UPDATE')")
     public UserResponse updateCurrentUser(UpdateProfileRequest request) {
         User user = requireCurrentUser();
+        String previousName = user.getName();
         user.setName(request.name().trim());
-        return UserResponse.from(userRepository.save(user));
+        User saved = userRepository.save(user);
+        auditWriter.write("USER_PROFILE_UPDATED", "USER", saved.getId(),
+                Map.of("name", previousName), Map.of("name", saved.getName()), null, visibility(saved));
+        return UserResponse.from(saved);
     }
 
     @Transactional
@@ -68,14 +78,21 @@ public class UserService {
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         userRepository.save(user);
         refreshTokenRevocationService.revokeAllSessions(user.getId());
+        auditWriter.write("USER_PASSWORD_CHANGED", "USER", user.getId(),
+                Map.of("password", "[REDACTED]"), Map.of("password", "[REDACTED]"),
+                "All refresh sessions revoked", visibility(user));
     }
 
     @Transactional
     @PreAuthorize("hasAuthority('PROFILE_UPDATE')")
     public UserResponse uploadAvatar(MultipartFile avatar) {
         User user = requireCurrentUser();
+        boolean hadAvatar = user.getAvatarUrl() != null;
         user.setAvatarUrl(fileStorageService.storeAvatar(avatar));
-        return UserResponse.from(userRepository.save(user));
+        User saved = userRepository.save(user);
+        auditWriter.write("USER_AVATAR_UPDATED", "USER", saved.getId(),
+                Map.of("avatarPresent", hadAvatar), Map.of("avatarPresent", true), null, visibility(saved));
+        return UserResponse.from(saved);
     }
 
     @Transactional
@@ -95,7 +112,10 @@ public class UserService {
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setRole(request.role());
         user.setActive(true);
-        return UserResponse.from(userRepository.save(user));
+        User saved = userRepository.save(user);
+        auditWriter.write("USER_CREATED", "USER", saved.getId(), null, userAuditData(saved),
+                null, visibility(saved));
+        return UserResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
@@ -104,7 +124,7 @@ public class UserService {
             Role role, Boolean active, int page, int size, String sort, String direction) {
         AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
         requireManagementRole(actor.role());
-        Specification<User> specification = (root, query, builder) -> builder.conjunction();
+        Specification<User> specification = UserSpecifications.notDeleted();
         if (actor.role() == Role.ADMIN) {
             specification = specification.and(UserSpecifications.adminVisibleOnly(true));
         }
@@ -126,7 +146,7 @@ public class UserService {
     public PageResponse<UserResponse> listActiveEmployees(int page, int size) {
         currentUserProvider.requireCurrentUser();
         Specification<User> specification = UserSpecifications.hasRole(Role.EMPLOYEE)
-                .and(UserSpecifications.isActive(true));
+                .and(UserSpecifications.isActive(true)).and(UserSpecifications.notDeleted());
         return PageResponse.from(userRepository
                 .findAll(specification,
                         pageRequestFactory.create(page, size, Sort.by("name").ascending()))
@@ -147,6 +167,52 @@ public class UserService {
         target.setActive(false);
         userRepository.save(target);
         refreshTokenRevocationService.revokeAllSessions(targetId);
+        auditWriter.write("USER_DEACTIVATED", "USER", targetId,
+                Map.of("active", true), Map.of("active", false), null, visibility(target));
+    }
+
+    @Transactional
+    @PreAuthorize("hasAuthority('USER_DELETE')")
+    public void deleteUser(UUID targetId, DeletionReasonRequest request) {
+        AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
+        User target = userRepository.findById(targetId)
+                .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND, "User not found"));
+        authorizationPolicy.requireDeactivation(actor, target);
+        Map<String, Object> before = userAuditData(target);
+        target.softDelete(actor.id(), request.reason(), Instant.now());
+        userRepository.save(target);
+        refreshTokenRevocationService.revokeAllSessions(targetId);
+        auditWriter.write("USER_DELETED", "USER", targetId, before,
+                Map.of("deleted", true), request.reason(), visibility(target));
+    }
+
+    @Transactional
+    @PreAuthorize("hasAuthority('USER_RESTORE')")
+    public UserResponse restoreUser(UUID targetId) {
+        AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
+        User target = userRepository.findDeletedById(targetId)
+                .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND, "Deleted user not found"));
+        authorizationPolicy.requireDeactivation(actor, target);
+        if (userRepository.existsByEmailIgnoreCaseAndIdNotAndDeletedAtIsNull(target.getEmail(), targetId)) {
+            throw new ApplicationException(HttpStatus.CONFLICT, "Email is already used by an active account");
+        }
+        String reason = target.getDeletionReason();
+        target.restore();
+        User saved = userRepository.save(target);
+        auditWriter.write("USER_RESTORED", "USER", targetId, Map.of("deleted", true),
+                userAuditData(saved), reason, visibility(saved));
+        return UserResponse.from(saved);
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('USER_RESTORE')")
+    public PageResponse<UserResponse> listDeletedUsers(int page, int size) {
+        AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
+        Specification<User> spec = UserSpecifications.deleted();
+        if (actor.role() == Role.ADMIN) spec = spec.and(UserSpecifications.adminVisibleOnly(true));
+        return PageResponse.from(userRepository.findAll(spec,
+                pageRequestFactory.create(page, size, Sort.by("deletedAt").descending()))
+                .map(UserResponse::from));
     }
 
     private User requireCurrentUser() {
@@ -163,6 +229,15 @@ public class UserService {
         if (role != Role.OWNER && role != Role.ADMIN) {
             throw new ApplicationException(HttpStatus.FORBIDDEN, "User management is not permitted");
         }
+    }
+
+    private static Map<String, Object> userAuditData(User user) {
+        return Map.of("name", user.getName(), "email", user.getEmail(),
+                "role", user.getRole().name(), "active", user.isActive());
+    }
+
+    private static AuditVisibility visibility(User user) {
+        return user.getRole() == Role.OWNER ? AuditVisibility.OWNER_ONLY : AuditVisibility.MANAGEMENT;
     }
 
 }

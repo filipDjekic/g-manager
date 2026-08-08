@@ -12,12 +12,6 @@ SET session_id = id,
     last_seen_at = created_at
 WHERE session_id IS NULL;
 
-ALTER TABLE refresh_tokens MODIFY session_id CHAR(36) NOT NULL;
-ALTER TABLE refresh_tokens MODIFY device_label VARCHAR(100) NOT NULL;
-ALTER TABLE refresh_tokens MODIFY user_agent_summary VARCHAR(160) NOT NULL;
-ALTER TABLE refresh_tokens MODIFY ip_hash VARCHAR(64) NOT NULL;
-ALTER TABLE refresh_tokens MODIFY last_seen_at TIMESTAMP(6) NOT NULL;
-
 CREATE INDEX idx_refresh_tokens_user_last_seen ON refresh_tokens (user_id, last_seen_at);
 CREATE INDEX idx_refresh_tokens_session ON refresh_tokens (session_id);
 

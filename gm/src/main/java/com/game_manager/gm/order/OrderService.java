@@ -14,6 +14,8 @@ import com.game_manager.gm.order.dto.UpdateOrderStatusRequest;
 import com.game_manager.gm.common.security.AuthenticatedUser;
 import com.game_manager.gm.common.security.CurrentUserProvider;
 import com.game_manager.gm.common.security.Role;
+import com.game_manager.gm.audit.AuditVisibility;
+import com.game_manager.gm.audit.AuditWriter;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -41,6 +43,7 @@ public class OrderService {
     private final GManagerProperties properties;
     private final PageRequestFactory pageRequestFactory;
     private final OrderAuthorizationPolicy authorizationPolicy;
+    private final AuditWriter auditWriter;
 
     @Transactional
     @PreAuthorize("hasAuthority('ORDER_CREATE')")
@@ -107,11 +110,16 @@ public class OrderService {
         requireVersion(order, request.version());
         validateTransition(order.getStatus(), request.status());
         authorizationPolicy.requireTransition(actor, order, request.status());
+        OrderStatus previousStatus = order.getStatus();
         if (order.getStatus() == OrderStatus.CREATED && request.status() == OrderStatus.IN_PROGRESS) {
             order.setHandledBy(actor.id());
         }
         order.setStatus(request.status());
-        return OrderResponse.from(orderRepository.saveAndFlush(order));
+        Order saved = orderRepository.saveAndFlush(order);
+        auditWriter.write("ORDER_STATUS_CHANGED", "ORDER", id,
+                java.util.Map.of("status", previousStatus.name()),
+                java.util.Map.of("status", saved.getStatus().name()), null, AuditVisibility.MANAGEMENT);
+        return OrderResponse.from(saved);
     }
 
     private PageResponse<OrderResponse> listInternal(

@@ -11,6 +11,9 @@ export interface UserResponse {
   updatedAt: string
   version: number
   permissions: Permission[]
+  deletedAt: string | null
+  deletedBy: string | null
+  deletionReason: string | null
 }
 
 export interface CreateUserRequest {

@@ -17,12 +17,16 @@ public record CatalogItemResponse(
         String imageUrl,
         Instant createdAt,
         Instant updatedAt,
-        Long version
+        Long version,
+        Instant deletedAt,
+        UUID deletedBy,
+        String deletionReason
 ) {
     public static CatalogItemResponse from(CatalogItem item) {
         return new CatalogItemResponse(
                 item.getId(), item.getName(), item.getDescription(), item.getType(), item.getPrice(),
                 item.getDurationMinutes(), item.isActive(), item.getImageUrl(),
-                item.getCreatedAt(), item.getUpdatedAt(), item.getVersion());
+                item.getCreatedAt(), item.getUpdatedAt(), item.getVersion(), item.getDeletedAt(),
+                item.getDeletedBy(), item.getDeletionReason());
     }
 }

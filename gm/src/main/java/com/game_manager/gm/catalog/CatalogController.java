@@ -4,6 +4,7 @@ import com.game_manager.gm.catalog.dto.CatalogItemResponse;
 import com.game_manager.gm.catalog.dto.CreateCatalogItemRequest;
 import com.game_manager.gm.catalog.dto.UpdateCatalogItemRequest;
 import com.game_manager.gm.common.dto.PageResponse;
+import com.game_manager.gm.common.dto.DeletionReasonRequest;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -11,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -76,5 +78,22 @@ public class CatalogController {
             @RequestParam long version,
             @RequestParam("image") MultipartFile image) {
         return catalogService.uploadImage(id, version, image);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable UUID id,
+            @Valid @RequestBody DeletionReasonRequest request) {
+        catalogService.delete(id, request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/restore")
+    public CatalogItemResponse restore(@PathVariable UUID id) { return catalogService.restore(id); }
+
+    @GetMapping("/deleted")
+    public PageResponse<CatalogItemResponse> listDeleted(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return catalogService.listDeleted(page, size);
     }
 }

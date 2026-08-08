@@ -29,8 +29,6 @@ export function SessionPage() {
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
-    setIsLoading(true)
-    setError('')
     try {
       const [sessionData, eventData] = await Promise.all([
         authApi.sessions(), authApi.securityEvents(),
@@ -44,7 +42,12 @@ export function SessionPage() {
     }
   }, [])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    void Promise.all([authApi.sessions(), authApi.securityEvents()])
+      .then(([sessionData, eventData]) => { setSessions(sessionData); setEvents(eventData) })
+      .catch((requestError) => setError(apiErrorMessage(requestError, 'Sesije trenutno nisu dostupne.')))
+      .finally(() => setIsLoading(false))
+  }, [])
 
   async function revoke(session: SessionInfo) {
     setPendingId(session.id)

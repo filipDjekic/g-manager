@@ -108,6 +108,9 @@ th { color: #a7c5ba; }
 .security-history { margin-top: 3rem; }
 .dialog-backdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 1rem; background: rgb(0 0 0 / 72%); }
 .confirm-dialog { width: min(30rem, 100%); }
+.audit-filters { grid-template-columns: repeat(6, minmax(10rem, 1fr)); }
+.audit-detail { width: min(48rem, 100%); max-height: 90vh; overflow: auto; }
+.audit-detail pre { overflow: auto; padding: .8rem; border-radius: .6rem; background: #07110e; color: #a7f3d0; }
 
 @media (max-width: 620px) {
   .app-shell header, .app-shell header div, .app-shell nav { align-items: flex-start; flex-direction: column; }
