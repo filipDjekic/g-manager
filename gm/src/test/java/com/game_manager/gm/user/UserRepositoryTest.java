@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.test.context.ActiveProfiles;
+import testsupport.EntityFixtures;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -17,12 +18,7 @@ class UserRepositoryTest {
 
     @Test
     void persistsAuditAndVersionAndLooksUpEmailCaseInsensitively() {
-        User user = new User();
-        user.setName("Stage One");
-        user.setEmail("stage.one@example.com");
-        user.setPasswordHash("not-a-real-password-hash");
-        user.setRole(Role.CUSTOMER);
-        user.setActive(true);
+        User user = EntityFixtures.activeUser(Role.CUSTOMER, "stage.one");
 
         User saved = repository.saveAndFlush(user);
 
@@ -30,6 +26,6 @@ class UserRepositoryTest {
         assertThat(saved.getCreatedAt()).isNotNull();
         assertThat(saved.getUpdatedAt()).isNotNull();
         assertThat(saved.getVersion()).isZero();
-        assertThat(repository.findByEmailIgnoreCase("STAGE.ONE@EXAMPLE.COM")).contains(saved);
+        assertThat(repository.findByEmailIgnoreCase("STAGE.ONE@EXAMPLE.TEST")).contains(saved);
     }
 }

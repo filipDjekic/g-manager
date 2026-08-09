@@ -10,7 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class GlobalExceptionHandlerTest {
     private final GlobalExceptionHandler handler =
-            new GlobalExceptionHandler(new ApiErrorFactory());
+            new GlobalExceptionHandler(new ApiErrorFactory(java.time.Clock.systemUTC()));
 
     @Test
     void unexpectedFailuresReturnGenericResponseWithoutInternalDetails() {

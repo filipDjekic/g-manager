@@ -3,6 +3,7 @@ package com.game_manager.gm.idempotency;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import java.time.Instant;
+import java.time.Clock;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -17,6 +18,7 @@ public class IdempotencyService {
     private final IdempotencyRepository repository;
     private final IdempotencyReservationWriter writer;
     private final MeterRegistry meterRegistry;
+    private final Clock clock;
 
     public ReservationResult reserve(UUID principalId, String key, String endpoint, String requestHash) {
         ReservationResult result;
@@ -55,7 +57,7 @@ public class IdempotencyService {
     @Scheduled(cron = "${app.idempotency.cleanup-cron:0 0 3 * * *}")
     @Transactional
     public void cleanupExpired() {
-        repository.deleteCompletedByExpiresAtBefore(Instant.now());
+        repository.deleteCompletedByExpiresAtBefore(clock.instant());
     }
 
     private IdempotencyKey owned(UUID principalId, String key, String endpoint, UUID processingToken) {

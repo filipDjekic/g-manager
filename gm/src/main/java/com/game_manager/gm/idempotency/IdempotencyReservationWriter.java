@@ -2,6 +2,7 @@ package com.game_manager.gm.idempotency;
 
 import com.game_manager.gm.common.config.GManagerProperties;
 import java.time.Instant;
+import java.time.Clock;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -14,10 +15,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class IdempotencyReservationWriter {
     private final IdempotencyRepository repository;
     private final GManagerProperties properties;
+    private final Clock clock;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public UUID insert(UUID principalId, String key, String endpoint, String requestHash) {
-        Instant now = Instant.now();
+        Instant now = clock.instant();
         UUID processingToken = UUID.randomUUID();
         IdempotencyKey entity = new IdempotencyKey();
         entity.setId(UUID.randomUUID());
@@ -39,7 +41,7 @@ public class IdempotencyReservationWriter {
     public IdempotencyService.ReservationResult resolveExisting(
             UUID principalId, String key, String endpoint, String requestHash) {
         IdempotencyKey existing = repository.findScopedForUpdate(principalId, key, endpoint).orElseThrow();
-        Instant now = Instant.now();
+        Instant now = clock.instant();
         if (existing.getStatus() == IdempotencyStatus.COMPLETED && existing.getExpiresAt().isAfter(now)) {
             if (!existing.getRequestHash().equals(requestHash)) {
                 return IdempotencyService.ReservationResult.differentHash();
