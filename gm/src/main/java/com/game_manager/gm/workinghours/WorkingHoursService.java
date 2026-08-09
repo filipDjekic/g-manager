@@ -12,6 +12,7 @@ import com.game_manager.gm.workinghours.dto.WorkingHoursExceptionRequest;
 import com.game_manager.gm.workinghours.dto.WorkingHoursExceptionResponse;
 import com.game_manager.gm.workinghours.dto.WorkingHoursResponse;
 import java.time.DayOfWeek;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -34,6 +35,7 @@ public class WorkingHoursService {
     private final CurrentUserProvider currentUserProvider;
     private final GManagerProperties properties;
     private final AuditWriter auditWriter;
+    private final Clock clock;
 
     @Transactional(readOnly = true)
     @PreAuthorize("hasAuthority('WORKING_HOURS_READ')")
@@ -75,7 +77,7 @@ public class WorkingHoursService {
         currentUserProvider.requireCurrentUser();
         return exceptionRepository
                 .findAllByDateGreaterThanEqualOrderByDateAsc(
-                        LocalDate.now(properties.businessZone()))
+                        LocalDate.now(clock.withZone(properties.businessZone())))
                 .stream().map(WorkingHoursExceptionResponse::from).toList();
     }
 
@@ -190,7 +192,7 @@ public class WorkingHoursService {
     }
 
     private void validateException(WorkingHoursExceptionRequest request) {
-        if (!request.date().isAfter(LocalDate.now(properties.businessZone()))) {
+        if (!request.date().isAfter(LocalDate.now(clock.withZone(properties.businessZone())))) {
             throw new ApplicationException(
                     HttpStatus.BAD_REQUEST, "Exception date must be in the future");
         }

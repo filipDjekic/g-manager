@@ -19,6 +19,7 @@ import com.game_manager.gm.user.User;
 import com.game_manager.gm.user.UserRepository;
 import com.game_manager.gm.workinghours.WorkingHoursService;
 import java.time.Instant;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
@@ -50,6 +51,7 @@ public class ReservationService {
     private final PageRequestFactory pageRequestFactory;
     private final ReservationAuthorizationPolicy authorizationPolicy;
     private final AuditWriter auditWriter;
+    private final Clock clock;
 
     @Transactional
     @PreAuthorize("hasAuthority('RESERVATION_CREATE')")
@@ -59,7 +61,7 @@ public class ReservationService {
             throw new ApplicationException(
                     HttpStatus.FORBIDDEN, "Only customers can create reservations");
         }
-        if (!request.startTime().isAfter(Instant.now())) {
+        if (!request.startTime().isAfter(clock.instant())) {
             throw new ApplicationException(
                     HttpStatus.BAD_REQUEST, "Reservation must be in the future");
         }
@@ -154,20 +156,20 @@ public class ReservationService {
             ensureAvailable(
                     reservation.getEmployeeId(), reservation.getStartTime(),
                     reservation.getEndTime(), reservation.getId());
-            if (!reservation.getStartTime().isAfter(Instant.now())) {
+            if (!reservation.getStartTime().isAfter(clock.instant())) {
                 throw new ApplicationException(
                         HttpStatus.CONFLICT, "Past reservations cannot be confirmed");
             }
         }
         if (request.status() == ReservationStatus.COMPLETED
-                && Instant.now().isBefore(reservation.getEndTime())) {
+                && clock.instant().isBefore(reservation.getEndTime())) {
             throw new ApplicationException(
                     HttpStatus.CONFLICT, "Reservation has not ended yet");
         }
         if (request.status() == ReservationStatus.CANCELLED
                 && actor.role() == Role.CUSTOMER
                 && reservation.getStatus() == ReservationStatus.CONFIRMED
-                && !Instant.now().isBefore(
+                && !clock.instant().isBefore(
                         reservation.getStartTime().minus(
                                 properties.reservations().cancellationCutoffMinutes(),
                                 ChronoUnit.MINUTES))) {
