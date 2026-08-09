@@ -23,6 +23,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -55,6 +56,7 @@ class OrderIntegrationTest {
                         .header("Idempotency-Key", key)
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated())
+                .andExpect(header().string("Idempotency-Replayed", "false"))
                 .andExpect(jsonPath("$.status").value("CREATED"))
                 .andExpect(jsonPath("$.totalPrice").value(398.75))
                 .andExpect(jsonPath("$.items[0].unitPrice").value(125.50))
@@ -66,6 +68,7 @@ class OrderIntegrationTest {
                         .header("Idempotency-Key", key)
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated())
+                .andExpect(header().string("Idempotency-Replayed", "true"))
                 .andExpect(jsonPath("$.id").value(id));
         assertThat(orderRepository.count()).isEqualTo(countBefore + 1);
 
@@ -75,6 +78,16 @@ class OrderIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(createBody(first.getId(), 1, second.getId(), 1)))
                 .andExpect(status().isConflict());
+
+        User secondCustomer = createUser(Role.CUSTOMER);
+        String secondToken = login(secondCustomer);
+        mockMvc.perform(post("/api/v1/orders")
+                        .header("Authorization", bearer(secondToken))
+                        .header("Idempotency-Key", key)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(org.hamcrest.Matchers.not(id)));
+        assertThat(orderRepository.count()).isEqualTo(countBefore + 2);
     }
 
     @Test

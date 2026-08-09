@@ -138,7 +138,7 @@ class AuthFlowIntegrationTest {
                         java.util.List.of("http://localhost:5173"),
                         new GManagerProperties.Storage(
                                 java.nio.file.Path.of("target/test-uploads")),
-                        new GManagerProperties.Idempotency(24, "0 0 3 * * *"),
+                new GManagerProperties.Idempotency(24, "0 0 3 * * *", 120),
                         new GManagerProperties.Reservations(60),
                         new GManagerProperties.Jwt(
                                 "test-only-secret-with-at-least-32-bytes",

@@ -17,6 +17,7 @@ class GManagerPropertiesValidationTest {
                             "app.storage.local-root=target/test-uploads",
                             "app.idempotency.ttl-hours=24",
                             "app.idempotency.cleanup-cron=0 0 3 * * *",
+                            "app.idempotency.in-progress-timeout-seconds=120",
                             "app.reservations.cancellation-cutoff-minutes=60",
                             "app.jwt.access-token-minutes=15",
                             "app.jwt.refresh-token-days=14",

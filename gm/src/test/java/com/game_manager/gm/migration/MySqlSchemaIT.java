@@ -67,14 +67,14 @@ class MySqlSchemaIT {
         cleanSchema();
         Flyway.configure()
                 .dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
-                .target(MigrationVersion.fromVersion("7"))
+                .target(MigrationVersion.fromVersion("10"))
                 .load()
                 .migrate();
 
-        assertThat(currentVersion()).isEqualTo("7");
+        assertThat(currentVersion()).isEqualTo("10");
         flyway.migrate();
 
-        assertThat(currentVersion()).isEqualTo("8");
+        assertThat(currentVersion()).isEqualTo("11");
         log.info("MySQL V7-to-latest migration completed in {} ms", elapsedMillis(startedAt));
     }
 
@@ -84,7 +84,7 @@ class MySqlSchemaIT {
         long startedAt = System.nanoTime();
         cleanSchema();
         assertThat(flyway.migrate().success).isTrue();
-        assertThat(currentVersion()).isEqualTo("8");
+        assertThat(currentVersion()).isEqualTo("11");
         assertThat(entityManagerFactory.getMetamodel().getEntities()).isNotEmpty();
         log.info("MySQL empty-to-latest migration completed in {} ms", elapsedMillis(startedAt));
     }
@@ -103,6 +103,8 @@ class MySqlSchemaIT {
                 .contains("idx_reservation_employee_time", "idx_reservation_status_time");
         assertThat(indexNames("orders"))
                 .contains("idx_orders_customer_created", "idx_orders_status_created");
+        assertThat(indexNames("idempotency_keys"))
+                .contains("uk_idempotency_principal_key_endpoint", "idx_idempotency_status_lease");
 
         Map<String, Object> plan = jdbc.queryForMap(
                 "EXPLAIN SELECT * FROM reservations WHERE employee_id = ? AND status = ? "

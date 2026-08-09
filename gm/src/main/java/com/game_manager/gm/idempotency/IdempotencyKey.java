@@ -19,8 +19,8 @@ import org.hibernate.type.SqlTypes;
 @Table(
         name = "idempotency_keys",
         uniqueConstraints = @UniqueConstraint(
-                name = "uk_idempotency_key_endpoint",
-                columnNames = {"idempotency_key", "endpoint"}))
+                name = "uk_idempotency_principal_key_endpoint",
+                columnNames = {"principal_id", "idempotency_key", "endpoint"}))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -32,6 +32,10 @@ public class IdempotencyKey {
 
     @Column(name = "idempotency_key", nullable = false, length = 255)
     private String key;
+
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "principal_id", nullable = false, length = 36)
+    private UUID principalId;
 
     @Column(nullable = false, length = 255)
     private String endpoint;
@@ -48,6 +52,13 @@ public class IdempotencyKey {
 
     @Column(name = "response_body", columnDefinition = "LONGTEXT")
     private String responseBody;
+
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "processing_token", nullable = false, length = 36)
+    private UUID processingToken;
+
+    @Column(name = "lease_expires_at", nullable = false)
+    private Instant leaseExpiresAt;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;

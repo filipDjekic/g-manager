@@ -37,7 +37,7 @@ class JwtServiceTest {
                 java.time.ZoneId.of("Europe/Belgrade"),
                 java.util.List.of("http://localhost:5173"),
                 new GManagerProperties.Storage(java.nio.file.Path.of("target/test-uploads")),
-                new GManagerProperties.Idempotency(24, "0 0 3 * * *"),
+                new GManagerProperties.Idempotency(24, "0 0 3 * * *", 120),
                 new GManagerProperties.Reservations(60),
                 new GManagerProperties.Jwt(secret, 15, 14, false),
                 new GManagerProperties.InitialOwner("Initial Owner", "", ""));
