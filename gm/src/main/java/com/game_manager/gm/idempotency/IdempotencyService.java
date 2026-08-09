@@ -1,6 +1,9 @@
 package com.game_manager.gm.idempotency;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import java.time.Instant;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -13,28 +16,28 @@ import org.springframework.transaction.annotation.Transactional;
 public class IdempotencyService {
     private final IdempotencyRepository repository;
     private final IdempotencyReservationWriter writer;
+    private final MeterRegistry meterRegistry;
 
-    public ReservationResult reserve(String key, String endpoint, String requestHash) {
+    public ReservationResult reserve(UUID principalId, String key, String endpoint, String requestHash) {
+        ReservationResult result;
         try {
-            writer.insert(key, endpoint, requestHash);
-            return ReservationResult.newKey();
+            result = ReservationResult.newKey(writer.insert(principalId, key, endpoint, requestHash));
         } catch (DataIntegrityViolationException exception) {
-            IdempotencyKey existing = repository.findByKeyAndEndpoint(key, endpoint)
-                    .orElseThrow(() -> exception);
-            if (!existing.getRequestHash().equals(requestHash)) {
-                return ReservationResult.differentHash();
+            Timer.Sample sample = Timer.start(meterRegistry);
+            try {
+                result = writer.resolveExisting(principalId, key, endpoint, requestHash);
+            } finally {
+                sample.stop(meterRegistry.timer("idempotency.lock.latency", "operation", endpoint));
             }
-            if (existing.getStatus() == IdempotencyStatus.IN_PROGRESS) {
-                return ReservationResult.inProgress();
-            }
-            return ReservationResult.completed(
-                    existing.getResponseStatus(), existing.getResponseBody());
         }
+        meterRegistry.counter("idempotency.requests", "outcome", result.outcome().name()).increment();
+        return result;
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void complete(String key, String endpoint, int responseStatus, String responseBody) {
-        IdempotencyKey entity = repository.findByKeyAndEndpoint(key, endpoint).orElseThrow();
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void complete(UUID principalId, String key, String endpoint, UUID processingToken,
+                         int responseStatus, String responseBody) {
+        IdempotencyKey entity = owned(principalId, key, endpoint, processingToken);
         entity.setStatus(IdempotencyStatus.COMPLETED);
         entity.setResponseStatus(responseStatus);
         entity.setResponseBody(responseBody);
@@ -42,31 +45,46 @@ public class IdempotencyService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void release(String key, String endpoint) {
-        repository.findByKeyAndEndpoint(key, endpoint).ifPresent(repository::delete);
+    public void release(UUID principalId, String key, String endpoint, UUID processingToken) {
+        repository.findScopedForUpdate(principalId, key, endpoint)
+                .filter(entity -> entity.getProcessingToken().equals(processingToken))
+                .filter(entity -> entity.getStatus() == IdempotencyStatus.IN_PROGRESS)
+                .ifPresent(repository::delete);
     }
 
     @Scheduled(cron = "${app.idempotency.cleanup-cron:0 0 3 * * *}")
     @Transactional
     public void cleanupExpired() {
-        repository.deleteByExpiresAtBefore(Instant.now());
+        repository.deleteCompletedByExpiresAtBefore(Instant.now());
     }
 
-    public enum Outcome { NEW, COMPLETED, DIFFERENT_HASH, IN_PROGRESS }
+    private IdempotencyKey owned(UUID principalId, String key, String endpoint, UUID processingToken) {
+        IdempotencyKey entity = repository.findScopedForUpdate(principalId, key, endpoint).orElseThrow();
+        if (!entity.getProcessingToken().equals(processingToken)
+                || entity.getStatus() != IdempotencyStatus.IN_PROGRESS) {
+            throw new IllegalStateException("Idempotency lease is no longer owned by this request");
+        }
+        return entity;
+    }
+
+    public enum Outcome { NEW, COMPLETED, DIFFERENT_HASH, IN_PROGRESS, EXPIRED_RECOVERED }
 
     public record ReservationResult(
-            Outcome outcome, Integer responseStatus, String responseBody) {
-        static ReservationResult newKey() {
-            return new ReservationResult(Outcome.NEW, null, null);
+            Outcome outcome, Integer responseStatus, String responseBody, UUID processingToken) {
+        static ReservationResult newKey(UUID token) {
+            return new ReservationResult(Outcome.NEW, null, null, token);
         }
         static ReservationResult completed(int status, String body) {
-            return new ReservationResult(Outcome.COMPLETED, status, body);
+            return new ReservationResult(Outcome.COMPLETED, status, body, null);
         }
         static ReservationResult differentHash() {
-            return new ReservationResult(Outcome.DIFFERENT_HASH, null, null);
+            return new ReservationResult(Outcome.DIFFERENT_HASH, null, null, null);
         }
         static ReservationResult inProgress() {
-            return new ReservationResult(Outcome.IN_PROGRESS, null, null);
+            return new ReservationResult(Outcome.IN_PROGRESS, null, null, null);
+        }
+        static ReservationResult expired(UUID token) {
+            return new ReservationResult(Outcome.EXPIRED_RECOVERED, null, null, token);
         }
     }
 }

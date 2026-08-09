@@ -29,7 +29,8 @@ public record GManagerProperties(
 
     public record Idempotency(
             @Positive long ttlHours,
-            @NotBlank String cleanupCron
+            @NotBlank String cleanupCron,
+            @Positive long inProgressTimeoutSeconds
     ) {
     }
 

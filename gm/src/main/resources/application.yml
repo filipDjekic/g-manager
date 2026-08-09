@@ -44,6 +44,7 @@ app:
   idempotency:
     ttl-hours: 24
     cleanup-cron: "0 0 3 * * *"
+    in-progress-timeout-seconds: 120
   reservations:
     cancellation-cutoff-minutes: ${CANCELLATION_CUTOFF_MINUTES:60}
   jwt:

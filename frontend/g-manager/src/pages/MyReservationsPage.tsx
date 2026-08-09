@@ -1,4 +1,4 @@
-import { type FormEvent, useCallback, useEffect, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { catalogApi } from '../api/catalogApi'
 import { apiErrorMessage } from '../api/client'
 import { reservationApi } from '../api/reservationApi'
@@ -10,6 +10,7 @@ import type { PageResponse } from '../types/api.types'
 import type { Reservation, ReservationStatus } from '../types/reservation.types'
 import type { UserResponse } from '../types/user.types'
 import type { WorkingHours } from '../types/workingHours.types'
+import { IdempotencyKeyManager, isConflictResponse } from '../api/idempotency'
 
 export function MyReservationsPage() {
   const [result, setResult] = useState<PageResponse<Reservation> | null>(null)
@@ -24,6 +25,9 @@ export function MyReservationsPage() {
   const [note, setNote] = useState('')
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const createAttempt = useRef(new IdempotencyKeyManager())
+  const submitInFlight = useRef(false)
 
   const loadMine = useCallback(async () => {
     setResult(await reservationApi.mine({
@@ -47,19 +51,29 @@ export function MyReservationsPage() {
 
   async function create(event: FormEvent) {
     event.preventDefault()
+    if (submitInFlight.current) return
+    submitInFlight.current = true
+    setSubmitting(true)
     try {
       await reservationApi.create({
         serviceId,
         employeeId,
         startTime: businessLocalToInstant(localStart),
         note: note || undefined,
-      }, crypto.randomUUID())
+      }, createAttempt.current.begin())
+      createAttempt.current.succeeded()
       setLocalStart('')
       setNote('')
       setMessage('Zahtev za termin je poslat.')
       await loadMine()
     } catch (cause) {
-      setError(apiErrorMessage(cause, 'Termin nije moguće rezervisati.'))
+      createAttempt.current.failed(cause)
+      setError(isConflictResponse(cause)
+        ? 'Termin ili podaci su promenjeni. Osvežite prikaz pre novog pokušaja.'
+        : apiErrorMessage(cause, 'Termin nije moguće rezervisati. Isti zahtev možete pokušati ponovo.'))
+    } finally {
+      submitInFlight.current = false
+      setSubmitting(false)
     }
   }
 
@@ -93,7 +107,9 @@ export function MyReservationsPage() {
           <label>Početak — Europe/Belgrade<input type="datetime-local" required value={localStart}
             onChange={(event) => setLocalStart(event.target.value)} /></label>
           <label>Napomena<textarea maxLength={500} value={note} onChange={(event) => setNote(event.target.value)} /></label>
-          <button type="submit">Pošalji zahtev</button>
+          <button type="submit" disabled={submitting}>
+            {submitting ? 'Slanje…' : 'Pošalji zahtev'}
+          </button>
         </form>
         <section className="panel">
           <h2>Radno vreme</h2>

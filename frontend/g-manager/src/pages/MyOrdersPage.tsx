@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { catalogApi } from '../api/catalogApi'
 import { apiErrorMessage } from '../api/client'
 import { orderApi } from '../api/orderApi'
@@ -7,6 +7,7 @@ import { formatBusinessDateTime } from '../reservations/dateTime'
 import type { PageResponse } from '../types/api.types'
 import type { CatalogItem } from '../types/catalog.types'
 import type { Order, OrderStatus } from '../types/order.types'
+import { IdempotencyKeyManager, isConflictResponse } from '../api/idempotency'
 
 export function MyOrdersPage() {
   const [products, setProducts] = useState<CatalogItem[]>([])
@@ -17,6 +18,8 @@ export function MyOrdersPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const createAttempt = useRef(new IdempotencyKeyManager())
+  const submitInFlight = useRef(false)
 
   const loadMine = useCallback(async () => {
     setResult(await orderApi.mine({ page, size: 20, status: status || undefined }))
@@ -36,22 +39,29 @@ export function MyOrdersPage() {
   const estimatedTotal = calculateEstimatedTotal(cart)
 
   async function submit() {
+    if (submitInFlight.current) return
     if (!cart.length) {
       setError('Dodajte najmanje jedan proizvod.')
       return
     }
     setSubmitting(true)
+    submitInFlight.current = true
     setError('')
     try {
       await orderApi.create({
         items: cart.map(({ product, quantity }) => ({ productId: product.id, quantity })),
-      }, crypto.randomUUID())
+      }, createAttempt.current.begin())
+      createAttempt.current.succeeded()
       setQuantities({})
       setMessage('Narudžbina je uspešno poslata.')
       await loadMine()
     } catch (cause) {
-      setError(apiErrorMessage(cause, 'Narudžbinu nije moguće poslati.'))
+      createAttempt.current.failed(cause)
+      setError(isConflictResponse(cause)
+        ? 'Podaci su promenjeni. Osvežite prikaz pre novog pokušaja.'
+        : apiErrorMessage(cause, 'Narudžbinu nije moguće poslati. Isti zahtev možete pokušati ponovo.'))
     } finally {
+      submitInFlight.current = false
       setSubmitting(false)
     }
   }

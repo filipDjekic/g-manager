@@ -122,7 +122,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(properties.corsAllowedOrigins());
         configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(java.util.List.of("Authorization", "Content-Type", "Idempotency-Key", "X-Request-Id"));
-        configuration.setExposedHeaders(java.util.List.of("X-Request-Id"));
+        configuration.setExposedHeaders(java.util.List.of("X-Request-Id", "Idempotency-Replayed", "Retry-After"));
         configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", configuration);
