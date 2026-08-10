@@ -1,6 +1,7 @@
 import { apiClient } from './client'
 import type { PageResponse } from '../types/api.types'
 import type { CreateUserRequest, UserResponse } from '../types/user.types'
+import type { BulkOperationResponse } from '../types/bulk.types'
 
 export const userApi = {
   me: () => apiClient.get<UserResponse>('/users/me').then(({ data }) => data),
@@ -18,6 +19,8 @@ export const userApi = {
   create: (request: CreateUserRequest) =>
     apiClient.post<UserResponse>('/users', request).then(({ data }) => data),
   deactivate: (id: string) => apiClient.patch<void>(`/users/${id}/deactivate`),
+  bulkDeactivate: (ids: string[]) => apiClient.post<BulkOperationResponse>('/users/bulk/deactivate', { ids })
+    .then(({ data }) => data),
   deleted: (page = 0, size = 20) =>
     apiClient.get<PageResponse<UserResponse>>('/users/deleted', { params: { page, size } })
       .then(({ data }) => data),

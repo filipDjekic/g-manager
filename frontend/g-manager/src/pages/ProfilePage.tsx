@@ -67,7 +67,7 @@ export function ProfilePage() {
       <div className="page-heading">
         <div><p className="eyebrow">Nalog</p><h1>Moj profil</h1></div>
         {profile?.avatarUrl
-          ? <img className="avatar" src={profile.avatarUrl} alt="" />
+          ? <img className="avatar" src={profile.avatarUrl} alt="" decoding="async" width="80" height="80" />
           : <span className="avatar avatar-fallback">{profile?.name?.slice(0, 1)}</span>}
       </div>
       {error && <p className="error-banner" role="alert">{error}</p>}

@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { auditApi } from '../api/auditApi'
 import { apiErrorMessage } from '../api/client'
+import { Modal } from '../components/ui'
 import type { PageResponse } from '../types/api.types'
 import type { AuditEvent } from '../types/audit.types'
 
@@ -70,12 +71,12 @@ export function AuditPage() {
     <div className="pagination"><button disabled={page === 0} onClick={() => changePage(page - 1)}>Prethodna</button>
       <span>Strana {page + 1} od {Math.max(result?.totalPages ?? 1, 1)}</span>
       <button disabled={!result || page + 1 >= result.totalPages} onClick={() => changePage(page + 1)}>Sledeća</button></div>
-    {selected && <div className="dialog-backdrop"><section className="panel audit-detail" role="dialog" aria-modal="true">
-      <h2>{selected.action}</h2><p><strong>UTC:</strong> {selected.occurredAt}</p>
+    <Modal open={selected !== null} title={selected?.action ?? 'Detalji audit događaja'} onClose={() => setSelected(null)}>
+      {selected && <div className="audit-detail"><p><strong>UTC:</strong> {selected.occurredAt}</p>
       {selected.reason && <p><strong>Razlog:</strong> {selected.reason}</p>}
       <h3>Pre promene</h3><pre>{selected.beforeData ?? '—'}</pre>
       <h3>Posle promene</h3><pre>{selected.afterData ?? '—'}</pre>
-      <button type="button" onClick={() => setSelected(null)}>Zatvori</button>
-    </section></div>}
+      </div>}
+    </Modal>
   </main>
 }

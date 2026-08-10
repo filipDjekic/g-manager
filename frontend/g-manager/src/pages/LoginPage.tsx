@@ -8,6 +8,7 @@ import { apiErrorMessage } from '../api/client'
 import { loginSchema } from '../auth/schemas'
 import { useAuthStore } from '../auth/authStore'
 import { applyApiFieldErrors } from '../common/applyApiFieldErrors'
+import { Button, Card, ErrorState, FormField, Input } from '../components/ui'
 
 type LoginValues = z.infer<typeof loginSchema>
 
@@ -34,27 +35,20 @@ export function LoginPage() {
     }
   })
 
-  return (
-    <main className="auth-page">
-      <form className="auth-card" onSubmit={submit} noValidate>
-        <p className="eyebrow">G-Manager</p>
-        <h1>Prijava</h1>
-        <label>
-          Email
-          <input type="email" autoComplete="email" {...form.register('email')} />
-          <span className="field-error">{form.formState.errors.email?.message}</span>
-        </label>
-        <label>
-          Lozinka
-          <input type="password" autoComplete="current-password" {...form.register('password')} />
-          <span className="field-error">{form.formState.errors.password?.message}</span>
-        </label>
-        {serverError && <div className="error-banner" role="alert">{serverError}</div>}
-        <button type="submit" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? 'Prijavljivanje…' : 'Prijavi se'}
-        </button>
-        <p>Nemaš nalog? <Link to="/register">Registruj se</Link></p>
-      </form>
-    </main>
-  )
+  return <main className="auth-page">
+    <Card className="auth-card"><form className="auth-form" onSubmit={submit} noValidate>
+      <p className="eyebrow">G-Manager</p><h1>Prijava</h1>
+      <FormField label="Email" htmlFor="login-email" error={form.formState.errors.email?.message}>
+        <Input id="login-email" type="email" autoComplete="email"
+          aria-invalid={!!form.formState.errors.email} {...form.register('email')} />
+      </FormField>
+      <FormField label="Lozinka" htmlFor="login-password" error={form.formState.errors.password?.message}>
+        <Input id="login-password" type="password" autoComplete="current-password"
+          aria-invalid={!!form.formState.errors.password} {...form.register('password')} />
+      </FormField>
+      {serverError && <ErrorState title="Prijava nije uspela" message={serverError} />}
+      <Button type="submit" loading={form.formState.isSubmitting}>Prijavi se</Button>
+      <p>Nemaš nalog? <Link to="/register">Registruj se</Link></p>
+    </form></Card>
+  </main>
 }

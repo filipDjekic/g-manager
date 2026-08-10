@@ -1,0 +1,17 @@
+{
+  "api": {
+    "httpRequestDurationP95Ms": 500,
+    "httpRequestDurationP99Ms": 1000,
+    "errorRateMaximum": 0.01,
+    "databasePoolPendingMaximum": 0
+  },
+  "frontend": {
+    "initialJavaScriptBytes": 350000,
+    "maxRouteJavaScriptBytes": 400000
+  },
+  "load": {
+    "smokeVirtualUsers": 1,
+    "targetRequestsPerSecond": 10,
+    "duration": "5m"
+  }
+}

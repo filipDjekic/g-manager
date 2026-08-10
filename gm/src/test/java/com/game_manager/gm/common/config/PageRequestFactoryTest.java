@@ -29,4 +29,13 @@ class PageRequestFactoryTest {
                 .isInstanceOf(ApplicationException.class)
                 .hasMessage("Unsupported sort direction");
     }
+
+    @Test
+    void createsAllowListedMultiSortAndRejectsShapeMismatch() {
+        var request = factory.create(0, 20, "status,createdAt", "ASC,DESC", Set.of("status", "createdAt"));
+        assertThat(request.getSort().getOrderFor("status").getDirection()).isEqualTo(org.springframework.data.domain.Sort.Direction.ASC);
+        assertThat(request.getSort().getOrderFor("createdAt").getDirection()).isEqualTo(org.springframework.data.domain.Sort.Direction.DESC);
+        assertThatThrownBy(() -> factory.create(0, 20, "status,createdAt", "ASC,DESC,ASC", Set.of("status", "createdAt")))
+                .isInstanceOf(ApplicationException.class).hasMessage("Sort directions must match sort fields");
+    }
 }

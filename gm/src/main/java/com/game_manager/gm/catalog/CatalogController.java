@@ -3,6 +3,9 @@ package com.game_manager.gm.catalog;
 import com.game_manager.gm.catalog.dto.CatalogItemResponse;
 import com.game_manager.gm.catalog.dto.CreateCatalogItemRequest;
 import com.game_manager.gm.catalog.dto.UpdateCatalogItemRequest;
+import com.game_manager.gm.catalog.dto.BulkCatalogRequest;
+import com.game_manager.gm.common.dto.BulkOperationResponse;
+import com.game_manager.gm.common.observability.BulkOperationExecutor;
 import com.game_manager.gm.common.dto.PageResponse;
 import com.game_manager.gm.common.dto.DeletionReasonRequest;
 import jakarta.validation.Valid;
@@ -27,11 +30,20 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class CatalogController {
     private final CatalogService catalogService;
+    private final BulkOperationExecutor bulkOperationExecutor;
 
     @PostMapping
     public ResponseEntity<CatalogItemResponse> create(
             @Valid @RequestBody CreateCatalogItemRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(catalogService.create(request));
+    }
+
+    @PostMapping("/bulk/activation")
+    public BulkOperationResponse bulkActivation(@Valid @RequestBody BulkCatalogRequest request) {
+        return bulkOperationExecutor.execute("catalog", request.items(), item -> item.id(), item -> {
+            if (request.action() == BulkCatalogRequest.Action.ACTIVATE) catalogService.activate(item.id(), item.version());
+            else catalogService.deactivate(item.id(), item.version());
+        });
     }
 
     @GetMapping

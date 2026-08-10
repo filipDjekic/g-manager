@@ -2,6 +2,8 @@ package com.game_manager.gm.common.config;
 
 import com.game_manager.gm.common.error.ApplicationException;
 import java.util.Set;
+import java.util.Arrays;
+import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
@@ -17,16 +19,26 @@ public class PageRequestFactory {
         if (size < 1) {
             throw new ApplicationException(HttpStatus.BAD_REQUEST, "Size must be positive");
         }
-        if (!allowedSorts.contains(sort)) {
+        List<String> fields = Arrays.stream(sort.split(",", -1)).map(String::trim).toList();
+        List<String> directions = Arrays.stream(direction.split(",", -1)).map(String::trim).toList();
+        if (fields.isEmpty() || fields.size() > 3 || fields.stream().anyMatch(String::isBlank)
+                || fields.stream().distinct().count() != fields.size()
+                || fields.stream().anyMatch(field -> !allowedSorts.contains(field))) {
             throw new ApplicationException(HttpStatus.BAD_REQUEST, "Unsupported sort field");
         }
-        Sort.Direction parsedDirection;
+        if (directions.size() != 1 && directions.size() != fields.size()) {
+            throw new ApplicationException(HttpStatus.BAD_REQUEST, "Sort directions must match sort fields");
+        }
         try {
-            parsedDirection = Sort.Direction.fromString(direction);
+            Sort result = Sort.unsorted();
+            for (int index = 0; index < fields.size(); index++) {
+                String rawDirection = directions.get(directions.size() == 1 ? 0 : index);
+                result = result.and(Sort.by(Sort.Direction.fromString(rawDirection), fields.get(index)));
+            }
+            return PageRequest.of(page, Math.min(size, 100), result);
         } catch (IllegalArgumentException exception) {
             throw new ApplicationException(HttpStatus.BAD_REQUEST, "Unsupported sort direction");
         }
-        return PageRequest.of(page, Math.min(size, 100), Sort.by(parsedDirection, sort));
     }
 
     public PageRequest create(int page, int size, Sort sort) {

@@ -16,6 +16,7 @@
     "ci:validate": "node scripts/validate-ci.mjs",
     "ci:validate:self-test": "node scripts/validate-ci.mjs --self-test",
     "build": "tsc -b && vite build",
+    "build:budget": "npm run build && node scripts/check-bundle-budget.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },

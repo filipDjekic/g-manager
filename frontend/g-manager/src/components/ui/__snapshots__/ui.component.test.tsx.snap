@@ -1,0 +1,158 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`UI component system > renders the complete representative catalog without serious accessibility violations 1`] = `
+<div>
+  <main>
+    <header
+      class="ui-page-header"
+    >
+      <div>
+        <nav
+          aria-label="Putanja"
+          class="ui-breadcrumbs"
+        >
+          <ol>
+            <li>
+              <a
+                href="/"
+              >
+                Početna
+              </a>
+            </li>
+            <li>
+              <span
+                aria-current="page"
+              >
+                Komponente
+              </span>
+            </li>
+          </ol>
+        </nav>
+        <h1>
+          Komponente
+        </h1>
+      </div>
+    </header>
+    <section
+      class="ui-card "
+    >
+      <label
+        class="ui-field"
+        for="name"
+      >
+        <span>
+          Naziv
+        </span>
+        <span
+          class="ui-field-control"
+        >
+          <input
+            aria-describedby="name-hint"
+            class="ui-input "
+            id="name"
+          />
+        </span>
+        <span
+          class="ui-field-hint"
+          id="name-hint"
+        >
+          Obavezno polje
+        </span>
+        <span
+          class="field-error"
+          id="name-error"
+        />
+      </label>
+      <label
+        class="ui-field"
+        for="type"
+      >
+        <span>
+          Tip
+        </span>
+        <span
+          class="ui-field-control"
+        >
+          <select
+            class="ui-input "
+            id="type"
+          >
+            <option>
+              Proizvod
+            </option>
+          </select>
+        </span>
+        <span
+          class="field-error"
+          id="type-error"
+        />
+      </label>
+      <button
+        class="ui-button ui-button--primary "
+      >
+        Sačuvaj
+      </button>
+      <button
+        class="ui-button ui-button--secondary "
+      >
+        Odustani
+      </button>
+      <button
+        class="ui-button ui-button--danger "
+      >
+        Obriši
+      </button>
+    </section>
+    <div
+      aria-label="Primer tabele"
+      class="ui-table-shell"
+      role="region"
+      tabindex="0"
+    >
+      <table>
+        <thead>
+          <tr>
+            <th>
+              Naziv
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              Primer
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div
+      aria-label="Učitavanje"
+      class="ui-skeleton"
+      role="status"
+    >
+      <span />
+      <span />
+      <span />
+    </div>
+    <div
+      class="ui-empty"
+    >
+      <h2>
+        Nema rezultata
+      </h2>
+    </div>
+    <div
+      class="ui-error"
+      role="alert"
+    >
+      <h2>
+        Došlo je do greške
+      </h2>
+      <p>
+        Bezbedna poruka
+      </p>
+    </div>
+  </main>
+</div>
+`;

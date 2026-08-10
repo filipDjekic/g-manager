@@ -1,6 +1,7 @@
 import { apiClient } from './client'
 import type { PageResponse } from '../types/api.types'
 import type { CreateOrderInput, Order, OrderStatus } from '../types/order.types'
+import type { BulkItem, BulkOperationResponse } from '../types/bulk.types'
 
 export interface OrderFilters {
   page: number
@@ -9,6 +10,8 @@ export interface OrderFilters {
   handledBy?: string
   from?: string
   to?: string
+  sort?: 'createdAt' | 'status' | 'totalPrice'
+  direction?: 'ASC' | 'DESC'
 }
 
 export const orderApi = {
@@ -25,4 +28,6 @@ export const orderApi = {
       status,
       version: order.version,
     }).then(({ data }) => data),
+  bulkStatus: (status: OrderStatus, items: BulkItem[]) =>
+    apiClient.patch<BulkOperationResponse>('/orders/bulk/status', { status, items }).then(({ data }) => data),
 }
