@@ -13,6 +13,7 @@ function Navigation({ close }: { close?: () => void }) {
   return <nav aria-label="Glavna navigacija" onClick={close}>
     <NavLink to="/">G-Manager</NavLink><NavLink to="/profile">Profil</NavLink>
     <NavLink to="/sessions">Sesije</NavLink><NavLink to="/catalog">Katalog</NavLink>
+    <NavLink to="/documents">Dokumenti</NavLink>
     {hasCapability(user, 'DASHBOARD_OPERATIONAL') && <NavLink to="/dashboard">Dashboard</NavLink>}
     {hasCapability(user, 'USER_LIST') && <NavLink to="/employees">Zaposleni</NavLink>}
     {hasCapability(user, 'WORKING_HOURS_MANAGE') && <NavLink to="/settings">Radno vreme</NavLink>}

@@ -1,0 +1,3 @@
+package com.game_manager.gm.document;
+import static org.assertj.core.api.Assertions.*; import java.io.*; import java.nio.charset.StandardCharsets; import org.junit.jupiter.api.Test;
+class SafeDocumentScannerTest {private final SafeDocumentScanner scanner=new SafeDocumentScanner();@Test void acceptsBenignCorpus(){assertThat(scanner.scan(new ByteArrayInputStream("ordinary text".getBytes()),"text/plain").clean()).isTrue();}@Test void rejectsSafeMalwareTestSignature(){assertThat(scanner.scan(new ByteArrayInputStream("EICAR-STANDARD-ANTIVIRUS-TEST-FILE".getBytes(StandardCharsets.US_ASCII)),"text/plain").clean()).isFalse();}}

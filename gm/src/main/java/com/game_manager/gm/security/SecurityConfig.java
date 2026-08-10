@@ -82,6 +82,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/saved-views/**").authenticated()
                         .requestMatchers("/api/v1/search/**", "/api/v1/search").authenticated()
                         .requestMatchers("/api/v1/notifications/**", "/api/v1/notifications").authenticated()
+                        .requestMatchers("/api/v1/documents/**", "/api/v1/documents").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/catalog/**").hasAuthority("CATALOG_READ")
                         .requestMatchers("/api/v1/catalog/**").hasAuthority("CATALOG_MANAGE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/working-hours/**").hasAuthority("WORKING_HOURS_READ")

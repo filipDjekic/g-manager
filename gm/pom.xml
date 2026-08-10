@@ -23,6 +23,7 @@
         <jacoco.version>0.8.14</jacoco.version>
         <checkstyle.version>10.21.4</checkstyle.version>
         <cyclonedx.version>2.9.1</cyclonedx.version>
+        <aws-sdk.version>2.31.54</aws-sdk.version>
     </properties>
 
     <dependencies>
@@ -89,6 +90,11 @@
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>3.0.3</version>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <version>${aws-sdk.version}</version>
         </dependency>
 
         <dependency>

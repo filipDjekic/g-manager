@@ -132,7 +132,7 @@ class UserManagementIntegrationTest {
                         .file(valid).header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.avatarUrl").value(
-                        org.hamcrest.Matchers.matchesPattern("/media/avatars/[0-9a-f-]+\\.png")))
+                        org.hamcrest.Matchers.matchesPattern("/api/v1/documents/[0-9a-f-]+/content\\?preview=true")))
                 .andReturn();
         assertThat(response.getResponse().getContentAsString()).doesNotContain("original.png");
 
