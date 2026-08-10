@@ -4,6 +4,9 @@ import com.game_manager.gm.common.dto.PageResponse;
 import com.game_manager.gm.order.dto.CreateOrderRequest;
 import com.game_manager.gm.order.dto.OrderResponse;
 import com.game_manager.gm.order.dto.UpdateOrderStatusRequest;
+import com.game_manager.gm.order.dto.BulkOrderStatusRequest;
+import com.game_manager.gm.common.dto.BulkOperationResponse;
+import com.game_manager.gm.common.observability.BulkOperationExecutor;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -24,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class OrderController {
     private final OrderService orderService;
+    private final BulkOperationExecutor bulkOperationExecutor;
 
     @PostMapping
     public ResponseEntity<OrderResponse> create(@Valid @RequestBody CreateOrderRequest request) {
@@ -59,5 +63,11 @@ public class OrderController {
     public OrderResponse changeStatus(
             @PathVariable UUID id, @Valid @RequestBody UpdateOrderStatusRequest request) {
         return orderService.changeStatus(id, request);
+    }
+
+    @PatchMapping("/bulk/status")
+    public BulkOperationResponse bulkStatus(@Valid @RequestBody BulkOrderStatusRequest request) {
+        return bulkOperationExecutor.execute("orders", request.items(), item -> item.id(), item ->
+                orderService.changeStatus(item.id(), new UpdateOrderStatusRequest(request.status(), item.version())));
     }
 }

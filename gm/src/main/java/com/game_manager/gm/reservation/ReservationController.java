@@ -4,6 +4,9 @@ import com.game_manager.gm.common.dto.PageResponse;
 import com.game_manager.gm.reservation.dto.ChangeReservationStatusRequest;
 import com.game_manager.gm.reservation.dto.CreateReservationRequest;
 import com.game_manager.gm.reservation.dto.ReservationResponse;
+import com.game_manager.gm.reservation.dto.BulkReservationStatusRequest;
+import com.game_manager.gm.common.dto.BulkOperationResponse;
+import com.game_manager.gm.common.observability.BulkOperationExecutor;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -24,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class ReservationController {
     private final ReservationService reservationService;
+    private final BulkOperationExecutor bulkOperationExecutor;
 
     @PostMapping
     public ResponseEntity<ReservationResponse> create(
@@ -62,5 +66,12 @@ public class ReservationController {
             @PathVariable UUID id,
             @Valid @RequestBody ChangeReservationStatusRequest request) {
         return reservationService.changeStatus(id, request);
+    }
+
+    @PatchMapping("/bulk/status")
+    public BulkOperationResponse bulkStatus(@Valid @RequestBody BulkReservationStatusRequest request) {
+        return bulkOperationExecutor.execute("reservations", request.items(), item -> item.id(), item ->
+                reservationService.changeStatus(item.id(), new ChangeReservationStatusRequest(
+                        request.status(), request.note(), item.version())));
     }
 }

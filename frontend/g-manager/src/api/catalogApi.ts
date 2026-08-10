@@ -6,6 +6,7 @@ import type {
   CatalogItemUpdate,
   ItemType,
 } from '../types/catalog.types'
+import type { BulkItem, BulkOperationResponse } from '../types/bulk.types'
 
 export interface CatalogFilters {
   page: number
@@ -34,6 +35,8 @@ export const catalogApi = {
     apiClient.patch<CatalogItem>(`/catalog/${item.id}/activate`, undefined, {
       params: { version: item.version },
     }).then(({ data }) => data),
+  bulkActivation: (action: 'ACTIVATE' | 'DEACTIVATE', items: BulkItem[]) =>
+    apiClient.post<BulkOperationResponse>('/catalog/bulk/activation', { action, items }).then(({ data }) => data),
   deleted: (page = 0, size = 20) =>
     apiClient.get<PageResponse<CatalogItem>>('/catalog/deleted', { params: { page, size } })
       .then(({ data }) => data),

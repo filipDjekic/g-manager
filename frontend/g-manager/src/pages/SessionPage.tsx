@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { apiErrorMessage } from '../api/client'
 import { authApi } from '../api/authApi'
 import { useAuthStore } from '../auth/authStore'
+import { Modal } from '../components/ui'
 import type { SecurityEventInfo, SecurityEventType, SessionInfo } from '../types/auth.types'
 
 const eventLabels: Record<SecurityEventType, string> = {
@@ -112,15 +113,15 @@ export function SessionPage() {
           </tr>)}</tbody></table></div>}
     </section>
 
-    {showRevokeAll && <div className="dialog-backdrop" role="presentation">
-      <section className="panel confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="revoke-all-title">
-        <h2 id="revoke-all-title">Opozvati sve sesije?</h2>
+    <Modal open={showRevokeAll} title="Opozvati sve sesije?"
+      onClose={() => { if (pendingId !== 'all') setShowRevokeAll(false) }}>
+      <div className="confirm-dialog">
         <p>Bićete odjavljeni i svi uređaji će morati ponovo da se prijave.</p>
         <div className="form-actions"><button type="button" className="secondary-button"
           onClick={() => setShowRevokeAll(false)} disabled={pendingId === 'all'}>Otkaži</button>
           <button type="button" className="danger-button" onClick={() => void revokeAll()}
             disabled={pendingId === 'all'}>{pendingId === 'all' ? 'Opozivanje…' : 'Opozovi sve'}</button></div>
-      </section>
-    </div>}
+      </div>
+    </Modal>
   </main>
 }

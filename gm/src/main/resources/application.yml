@@ -14,7 +14,12 @@ spring:
     hibernate:
       ddl-auto: validate
     properties:
+      jakarta:
+        persistence:
+          query:
+            timeout: 5000
       hibernate:
+        default_batch_fetch_size: 50
         jdbc:
           time_zone: UTC
   flyway:

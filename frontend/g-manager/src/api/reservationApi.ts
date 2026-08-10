@@ -5,6 +5,7 @@ import type {
   Reservation,
   ReservationStatus,
 } from '../types/reservation.types'
+import type { BulkItem, BulkOperationResponse } from '../types/bulk.types'
 
 interface ReservationFilters {
   page: number
@@ -13,6 +14,8 @@ interface ReservationFilters {
   employeeId?: string
   from?: string
   to?: string
+  sort?: 'startTime' | 'status' | 'createdAt'
+  direction?: 'ASC' | 'DESC'
 }
 
 export const reservationApi = {
@@ -35,4 +38,7 @@ export const reservationApi = {
     note,
     version: reservation.version,
   }).then(({ data }) => data),
+  bulkStatus: (status: ReservationStatus, items: BulkItem[], note?: string) =>
+    apiClient.patch<BulkOperationResponse>('/reservations/bulk/status', { status, note, items })
+      .then(({ data }) => data),
 }

@@ -5,8 +5,12 @@ import App from './App'
 import { AppErrorBoundary } from './common/AppErrorBoundary'
 import './index.css'
 import { installGlobalErrorReporting } from './observability/errorReporter'
+import { installWebVitalsReporting } from './observability/performanceReporter'
+import { UiPreferencesProvider } from './preferences/UiPreferences'
+import { ToastProvider } from './components/ui'
 
 installGlobalErrorReporting()
+installWebVitalsReporting()
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,9 +24,13 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AppErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
+      <UiPreferencesProvider>
+        <ToastProvider>
+          <QueryClientProvider client={queryClient}>
+            <App />
+          </QueryClientProvider>
+        </ToastProvider>
+      </UiPreferencesProvider>
     </AppErrorBoundary>
   </StrictMode>,
 )

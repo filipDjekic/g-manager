@@ -7,6 +7,7 @@ import { apiErrorMessage } from '../api/client'
 import { dashboardApi } from '../api/dashboardApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
+import { TableShell } from '../components/ui'
 import { currentBusinessMonth } from '../dashboard/dateRange'
 import type { DashboardSummary, DashboardToday } from '../types/dashboard.types'
 import type { ReservationStatus } from '../types/reservation.types'
@@ -97,19 +98,31 @@ export function DashboardPage() {
     <div className="dashboard-charts">
       <section className="panel chart-panel"><h2>Rezervacije po statusu</h2>
         {!statusData.some((item) => item.value > 0) && <p className="empty-state">Nema rezervacija u opsegu.</p>}
-        {statusData.some((item) => item.value > 0) && <ResponsiveContainer width="100%" height={300}>
-          <PieChart><Pie data={statusData} dataKey="value" nameKey="name" outerRadius={100} label>
+        {statusData.some((item) => item.value > 0) && <div aria-hidden="true"><ResponsiveContainer width="100%" height={300}>
+          <PieChart accessibilityLayer={false}><Pie rootTabIndex={-1} data={statusData} dataKey="value" nameKey="name" outerRadius={100} label>
             {statusData.map((item) => <Cell key={item.name}
               fill={statusColors[item.name as ReservationStatus]} />)}
           </Pie><Tooltip /></PieChart>
-        </ResponsiveContainer>}
+        </ResponsiveContainer></div>}
+        <TableShell label="Tabelarni podaci grafikona rezervacija po statusu">
+          <table><caption>Broj rezervacija grupisan po statusu za izabrani period</caption>
+            <thead><tr><th scope="col">Status</th><th scope="col">Broj rezervacija</th></tr></thead>
+            <tbody>{statusData.map((item) => <tr key={item.name}><th scope="row">{item.name}</th><td>{item.value}</td></tr>)}</tbody>
+          </table>
+        </TableShell>
       </section>
       <section className="panel chart-panel"><h2>Realizovani prihod</h2>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={revenueData}><CartesianGrid strokeDasharray="3 3" stroke="#315247" />
+        <div aria-hidden="true"><ResponsiveContainer width="100%" height={300}>
+          <BarChart data={revenueData} accessibilityLayer={false}><CartesianGrid strokeDasharray="3 3" stroke="#315247" />
             <XAxis dataKey="name" stroke="#a7c5ba" /><YAxis stroke="#a7c5ba" />
             <Tooltip /><Bar dataKey="value" fill="#6ee7b7" /></BarChart>
-        </ResponsiveContainer>
+        </ResponsiveContainer></div>
+        <TableShell label="Tabelarni podaci grafikona realizovanog prihoda">
+          <table><caption>Realizovani prihod završenih narudžbina za izabrani period</caption>
+            <thead><tr><th scope="col">Metrika</th><th scope="col">Iznos u RSD</th></tr></thead>
+            <tbody>{revenueData.map((item) => <tr key={item.name}><th scope="row">{item.name}</th><td>{item.value.toLocaleString('sr-RS')}</td></tr>)}</tbody>
+          </table>
+        </TableShell>
       </section>
     </div>
   </main>

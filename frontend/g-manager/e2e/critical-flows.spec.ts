@@ -17,6 +17,7 @@ async function installApi(page: Page, role: Role) {
   let orderCreated = false
   let reservationCreated = false
   let orderTransitioned = false
+  const savedViews: Array<{ id: string; resourceType: string; name: string; query: Record<string, string>; version: number }> = []
 
   await page.route('**/api/v1/**', async (route: Route) => {
     const request = route.request()
@@ -34,6 +35,25 @@ async function installApi(page: Page, role: Role) {
       return json({ token: 'synthetic-e2e-token', expiresAt: '2030-01-01T00:00:00Z', user: user(role) })
     }
     if (path === '/auth/sessions' || path === '/auth/security-events') return json([])
+    if (path === '/saved-views' && request.method() === 'GET') {
+      const resourceType = url.searchParams.get('resourceType')
+      return json(savedViews.filter((view) => view.resourceType === resourceType))
+    }
+    if (path === '/saved-views' && request.method() === 'POST') {
+      const input = request.postDataJSON() as { resourceType: string; name: string; query: Record<string, string> }
+      const view = { id: `view-${savedViews.length + 1}`, ...input, version: 0 }
+      savedViews.push(view); return json(view, 201)
+    }
+    if (path === '/users/me') return json(user(role))
+    if (path === '/working-hours/exceptions') return json([])
+    if (path === '/dashboard/summary') return json({
+      totalRevenueCompleted: 1200, completedOrdersCount: 2,
+      reservationsByStatus: { PENDING: 1, CONFIRMED: 2, REJECTED: 0, CANCELLED: 0, COMPLETED: 3 },
+    })
+    if (path === '/dashboard/today') return json({
+      pendingReservationsToMe: 1, confirmedTodayCount: 2,
+      unclaimedOrdersCount: 3, myInProgressOrdersCount: 1,
+    })
     if (path === '/catalog') {
       const service = url.searchParams.get('type') === 'SERVICE'
       return json({ ...emptyPage, size: 100, content: [service ? {
@@ -93,10 +113,18 @@ async function login(page: Page, role: Role) {
   await expect(page.getByText(`${role} E2E`)).toBeVisible()
 }
 
+async function revealResponsiveNavigation(page: Page) {
+  if ((page.viewportSize()?.width ?? 1280) <= 800) {
+    await page.getByRole('button', { name: 'Meni' }).click()
+    await expect(page.getByRole('dialog', { name: 'Navigacija' })).toBeVisible()
+  }
+}
+
 for (const role of ['OWNER', 'ADMIN', 'EMPLOYEE', 'CUSTOMER'] as const) {
   test(`${role} auth and navigation smoke`, async ({ page }) => {
     await installApi(page, role)
     await login(page, role)
+    await revealResponsiveNavigation(page)
     await expect(page.getByRole('link', { name: 'Profil' })).toBeVisible()
     const results = await new AxeBuilder({ page }).analyze()
     expect(results.violations.filter(({ impact }) => impact === 'serious' || impact === 'critical')).toEqual([])
@@ -128,4 +156,76 @@ test('employee performs an order status transition', async ({ page }) => {
   await takeOrder.focus()
   await takeOrder.press('Enter')
   await expect(page.getByRole('article').getByText('IN_PROGRESS')).toBeVisible()
+})
+
+test('theme density and responsive navigation remain usable at configured viewport', async ({ page }) => {
+  await installApi(page, 'CUSTOMER')
+  await login(page, 'CUSTOMER')
+  await page.getByLabel('Tema').selectOption('light')
+  await page.getByLabel('Gustina prikaza').selectOption('compact')
+  await page.reload()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+  await expect(page.locator('html')).toHaveAttribute('data-density', 'compact')
+
+  const width = page.viewportSize()?.width ?? 1280
+  if (width <= 800) {
+    const menu = page.getByRole('button', { name: 'Meni' })
+    await expect(menu).toBeVisible()
+    await menu.click()
+    await expect(page.getByRole('dialog', { name: 'Navigacija' })).toBeVisible()
+    await page.getByRole('dialog', { name: 'Navigacija' }).getByRole('link', { name: 'Katalog' }).click()
+  } else {
+    await page.getByRole('navigation', { name: 'Glavna navigacija' }).getByRole('link', { name: 'Katalog' }).click()
+  }
+  await expect(page.getByRole('heading', { name: 'Katalog' })).toBeVisible()
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
+  expect(overflow).toBe(false)
+})
+
+test('all MVP routes have no serious accessibility findings', async ({ page }) => {
+  test.setTimeout(90_000)
+  await installApi(page, 'OWNER')
+  await login(page, 'OWNER')
+  const routes = ['/sessions', '/profile', '/catalog', '/employees', '/settings', '/dashboard',
+    '/reservations', '/orders', '/users', '/audit']
+  for (const route of routes) {
+    await page.goto(route)
+    await expect(page.locator('main h1')).toBeVisible()
+    const results = await new AxeBuilder({ page }).analyze()
+    expect(results.violations.filter(({ impact }) => impact === 'serious' || impact === 'critical'), route).toEqual([])
+  }
+})
+
+test('skip navigation, route focus, reduced motion and 200 percent zoom layout work', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.setViewportSize({ width: 320, height: 640 })
+  await installApi(page, 'CUSTOMER')
+  await login(page, 'CUSTOMER')
+  await page.goto('/catalog')
+  await expect(page.locator('main h1')).toBeFocused()
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+  await page.keyboard.press('Tab')
+  const skipLink = page.getByRole('link', { name: 'Preskoči na glavni sadržaj' })
+  await expect(skipLink).toBeVisible()
+  await skipLink.press('Enter')
+  await expect(page.locator('main')).toBeFocused()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+  expect(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(true)
+})
+
+test('deep link, refresh, back navigation and saved views preserve list context', async ({ page }) => {
+  await installApi(page, 'OWNER')
+  await login(page, 'OWNER')
+  await page.goto('/orders?status=READY&page=2&sort=totalPrice&direction=DESC')
+  await expect(page.getByLabel('Status')).toHaveValue('READY')
+  await expect(page.getByText('Strana 3 od 1')).toBeVisible()
+  await page.reload()
+  await expect(page.getByLabel('Status')).toHaveValue('READY')
+  page.once('dialog', (dialog) => dialog.accept('Spremne narudžbine'))
+  await page.getByRole('button', { name: 'Sačuvaj prikaz' }).click()
+  await expect(page.getByRole('combobox', { name: /Sačuvani prikaz/ })).toContainText('Spremne narudžbine')
+  await page.goto('/catalog')
+  await page.goBack()
+  await expect(page).toHaveURL(/status=READY/)
+  await expect(page.getByLabel('Status')).toHaveValue('READY')
 })

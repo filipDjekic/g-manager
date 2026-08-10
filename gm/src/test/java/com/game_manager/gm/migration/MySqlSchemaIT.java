@@ -84,7 +84,7 @@ class MySqlSchemaIT {
         long startedAt = System.nanoTime();
         cleanSchema();
         assertThat(flyway.migrate().success).isTrue();
-        assertThat(currentVersion()).isEqualTo("11");
+        assertThat(currentVersion()).isEqualTo("15");
         assertThat(entityManagerFactory.getMetamodel().getEntities()).isNotEmpty();
         log.info("MySQL empty-to-latest migration completed in {} ms", elapsedMillis(startedAt));
     }
@@ -100,9 +100,13 @@ class MySqlSchemaIT {
                 .contains("chk_catalog_price_positive", "chk_reservation_interval",
                         "chk_order_item_quantity");
         assertThat(indexNames("reservations"))
-                .contains("idx_reservation_employee_time", "idx_reservation_status_time");
+                .contains("idx_reservation_employee_time", "idx_reservation_status_time",
+                        "idx_reservations_customer_status_time");
         assertThat(indexNames("orders"))
-                .contains("idx_orders_customer_created", "idx_orders_status_created");
+                .contains("idx_orders_customer_created", "idx_orders_status_created",
+                        "idx_orders_handler_created");
+        assertThat(indexNames("audit_events"))
+                .contains("idx_audit_visibility_created");
         assertThat(indexNames("idempotency_keys"))
                 .contains("uk_idempotency_principal_key_endpoint", "idx_idempotency_status_lease");
         assertThat(indexNames("outbox_events"))

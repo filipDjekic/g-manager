@@ -6,6 +6,9 @@ import com.game_manager.gm.user.dto.ChangePasswordRequest;
 import com.game_manager.gm.user.dto.CreateUserRequest;
 import com.game_manager.gm.user.dto.UpdateProfileRequest;
 import com.game_manager.gm.user.dto.UserResponse;
+import com.game_manager.gm.user.dto.BulkUserDeactivateRequest;
+import com.game_manager.gm.common.dto.BulkOperationResponse;
+import com.game_manager.gm.common.observability.BulkOperationExecutor;
 import com.game_manager.gm.common.dto.DeletionReasonRequest;
 import jakarta.validation.Valid;
 import java.util.UUID;
@@ -28,6 +31,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class UserController {
     private final UserService userService;
+    private final BulkOperationExecutor bulkOperationExecutor;
 
     @GetMapping("/me")
     public UserResponse getCurrentUser() {
@@ -53,6 +57,11 @@ public class UserController {
     @PostMapping
     public ResponseEntity<UserResponse> createUser(@Valid @RequestBody CreateUserRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(userService.createUser(request));
+    }
+
+    @PostMapping("/bulk/deactivate")
+    public BulkOperationResponse bulkDeactivate(@Valid @RequestBody BulkUserDeactivateRequest request) {
+        return bulkOperationExecutor.execute("users", request.ids(), id -> id, userService::deactivateUser);
     }
 
     @GetMapping
