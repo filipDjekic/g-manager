@@ -5,6 +5,8 @@ import type { AuthResponse } from '../types/auth.types'
 import { userFacingApiError } from './errorMessage'
 import { observeRequestId } from '../observability/errorReporter'
 import { cacheRead, readCached } from '../pwa/clientStorage'
+import { useFeatureStore } from '../feature/featureStore'
+import type { FeatureFlagState } from '../types/feature.types'
 
 const baseURL = import.meta.env.VITE_API_URL ?? '/api/v1'
 
@@ -89,7 +91,12 @@ publicClient.interceptors.response.use(
 )
 
 export async function initializeSession(): Promise<void> {
-  await refreshAccessToken()
+  const token = await refreshAccessToken()
+  if (token) {
+    await apiClient.get<FeatureFlagState[]>('/features/bootstrap')
+      .then(({ data }) => useFeatureStore.getState().apply(data))
+      .catch(() => useFeatureStore.getState().reset())
+  }
   useAuthStore.getState().finishInitialization()
 }
 

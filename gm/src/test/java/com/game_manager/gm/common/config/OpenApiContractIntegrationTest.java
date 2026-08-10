@@ -39,6 +39,7 @@ class OpenApiContractIntegrationTest {
             "/api/v1/workflows/inbox", "/api/v1/workflows/mine",
             "/api/v1/workflows/{id}", "/api/v1/workflows/{id}/actions",
             "/api/v1/workflows/{id}/comments", "/api/v1/workflows/{id}/documents",
+            "/api/v1/features", "/api/v1/features/bootstrap", "/api/v1/features/{flag}",
             "/api/v1/orders", "/api/v1/orders/me",
             "/api/v1/orders/{id}/status", "/api/v1/reservations",
             "/api/v1/reservations/me", "/api/v1/reservations/{id}/status",

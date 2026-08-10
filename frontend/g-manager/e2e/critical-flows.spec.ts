@@ -34,6 +34,18 @@ async function installApi(page: Page, role: Role) {
       authenticated = true
       return json({ token: 'synthetic-e2e-token', expiresAt: '2030-01-01T00:00:00Z', user: user(role) })
     }
+    if (path === '/features/bootstrap') return json([
+      { key: 'REPORTS', enabled: true, rolloutPercentage: 100, owner: 'Operations', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
+      { key: 'WORKFLOWS', enabled: true, rolloutPercentage: 100, owner: 'Product', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
+      { key: 'PWA_OFFLINE', enabled: true, rolloutPercentage: 100, owner: 'Platform', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
+      { key: 'AI_ASSISTANT', enabled: false, rolloutPercentage: 0, owner: 'Security', reviewBy: '2026-12-01', overridden: false, overrideExpiresAt: null, version: null },
+    ])
+    if (path === '/features' && request.method() === 'GET') return json([
+      { key: 'REPORTS', enabled: true, rolloutPercentage: 100, owner: 'Operations', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
+      { key: 'WORKFLOWS', enabled: true, rolloutPercentage: 100, owner: 'Product', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
+      { key: 'PWA_OFFLINE', enabled: true, rolloutPercentage: 100, owner: 'Platform', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
+      { key: 'AI_ASSISTANT', enabled: false, rolloutPercentage: 0, owner: 'Security', reviewBy: '2026-12-01', overridden: false, overrideExpiresAt: null, version: null },
+    ])
     if (path === '/auth/sessions' || path === '/auth/security-events') return json([])
     if (path === '/saved-views' && request.method() === 'GET') {
       const resourceType = url.searchParams.get('resourceType')
@@ -156,6 +168,15 @@ test('employee performs an order status transition', async ({ page }) => {
   await takeOrder.focus()
   await takeOrder.press('Enter')
   await expect(page.getByRole('article').getByText('IN_PROGRESS')).toBeVisible()
+})
+
+test('owner receives typed feature bootstrap and can inspect rollout metadata', async ({ page }) => {
+  await installApi(page, 'OWNER')
+  await login(page, 'OWNER')
+  await page.goto('/features')
+  await expect(page.getByRole('heading', { name: 'Feature flags' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'REPORTS' })).toBeVisible()
+  await expect(page.getByText(/Owner: Operations/)).toBeVisible()
 })
 
 test('theme density and responsive navigation remain usable at configured viewport', async ({ page }) => {

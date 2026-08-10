@@ -9,6 +9,8 @@ import { loginSchema } from '../auth/schemas'
 import { useAuthStore } from '../auth/authStore'
 import { applyApiFieldErrors } from '../common/applyApiFieldErrors'
 import { Button, Card, ErrorState, FormField, Input } from '../components/ui'
+import { featureApi } from '../api/featureApi'
+import { useFeatureStore } from '../feature/featureStore'
 
 type LoginValues = z.infer<typeof loginSchema>
 
@@ -27,6 +29,8 @@ export function LoginPage() {
     try {
       const response = await authApi.login(values)
       setSession(response.token, response.user)
+      await featureApi.bootstrap().then(useFeatureStore.getState().apply)
+        .catch(() => useFeatureStore.getState().reset())
       const from = (location.state as { from?: string } | null)?.from
       navigate(from && from !== '/login' ? from : '/', { replace: true })
     } catch (error) {

@@ -57,6 +57,15 @@ management:
         gmanager.http.requests: true
 
 app:
+  features:
+    reports:
+      enabled: ${FEATURE_REPORTS_ENABLED:true}
+    workflows:
+      enabled: ${FEATURE_WORKFLOWS_ENABLED:true}
+    pwa-offline:
+      enabled: ${FEATURE_PWA_OFFLINE_ENABLED:true}
+    ai-assistant:
+      enabled: ${FEATURE_AI_ASSISTANT_ENABLED:false}
   business-zone: ${BUSINESS_TIME_ZONE:Europe/Belgrade}
   cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   storage:
