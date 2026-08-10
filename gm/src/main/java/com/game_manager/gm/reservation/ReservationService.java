@@ -283,6 +283,12 @@ public class ReservationService {
     }
 
     @Transactional(readOnly = true)
+    public java.util.Optional<ReservationNotificationContext> notificationContext(UUID id) {
+        return reservationRepository.findById(id).map(value -> new ReservationNotificationContext(
+                value.getCustomerId(), value.getEmployeeId(), value.getStatus()));
+    }
+
+    @Transactional(readOnly = true)
     public long countForEmployeeToday(
             UUID employeeId, ReservationStatus status, Instant from, Instant to) {
         return reservationRepository.countForEmployeeAndStatusBetween(

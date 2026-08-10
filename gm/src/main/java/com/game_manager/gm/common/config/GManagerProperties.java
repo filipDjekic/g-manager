@@ -23,6 +23,7 @@ public record GManagerProperties(
         @Valid @NotNull Outbox outbox,
         @Valid @NotNull Jobs jobs,
         @Valid @NotNull Reservations reservations,
+        @Valid @NotNull Notifications notifications,
         @Valid @NotNull Jwt jwt,
         @Valid @NotNull InitialOwner initialOwner
 ) {
@@ -65,6 +66,10 @@ public record GManagerProperties(
 
     public record Reservations(@Positive long cancellationCutoffMinutes) {
     }
+
+    public record Notifications(boolean emailEnabled, @Positive int deliveryBatchSize,
+            @Positive int maxDeliveryAttempts, @Positive long initialBackoffSeconds,
+            @Positive long retentionDays, @Positive long sseTimeoutSeconds) {}
 
     public record Jwt(
             @NotBlank @Size(min = 32) String secret,

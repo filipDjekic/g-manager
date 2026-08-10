@@ -6,6 +6,7 @@ import { useAuthStore } from '../auth/authStore'
 import { Button, Drawer, Select } from '../components/ui'
 import { useUiPreferences } from '../preferences/uiPreferencesContext'
 import { CommandPalette } from '../search/CommandPalette'
+import { NotificationCenter } from '../notification/NotificationCenter'
 
 function Navigation({ close }: { close?: () => void }) {
   const user = useAuthStore((state) => state.user)
@@ -43,6 +44,7 @@ export function AppShell() {
       <div className="desktop-navigation"><Navigation /></div>
       <div className="shell-actions">
         <CommandPalette />
+        <NotificationCenter />
         <span>{user?.name} · {user?.role}</span>
         <label className="preference-control">Tema<Select aria-label="Tema" value={theme}
           onChange={(event) => setTheme(event.target.value as 'light' | 'dark')}>

@@ -195,6 +195,12 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
+    public java.util.Optional<OrderNotificationContext> notificationContext(UUID id) {
+        return orderRepository.findById(id).map(value -> new OrderNotificationContext(
+                value.getCustomerId(), value.getHandledBy(), value.getStatus()));
+    }
+
+    @Transactional(readOnly = true)
     public long countByStatusToday(
             OrderStatus status, UUID handledBy, Instant from, Instant to) {
         return orderRepository.countByStatusBetween(status, handledBy, from, to);
