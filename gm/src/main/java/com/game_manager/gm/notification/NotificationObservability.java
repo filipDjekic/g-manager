@@ -1,0 +1,4 @@
+package com.game_manager.gm.notification;
+import java.time.Clock; import java.time.Duration;
+import io.micrometer.core.instrument.Gauge; import io.micrometer.core.instrument.MeterRegistry; import org.springframework.stereotype.Component;
+@Component public class NotificationObservability { public NotificationObservability(MeterRegistry registry,NotificationDeliveryRepository deliveries,NotificationRepository notifications,NotificationRealtimeHub realtime,Clock clock){Gauge.builder("gm.notification.delivery.dead",deliveries,d->d.countByStatus(DeliveryStatus.DEAD)).register(registry);Gauge.builder("gm.notification.sse.active",realtime,NotificationRealtimeHub::connections).register(registry);Gauge.builder("gm.notification.unread.oldest.age.seconds",notifications,n->n.oldestUnreadCreatedAt().map(created->Math.max(0,Duration.between(created,clock.instant()).toSeconds())).orElse(0L)).register(registry);}}

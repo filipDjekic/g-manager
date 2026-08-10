@@ -88,6 +88,13 @@ app:
     audit-retention-days: ${AUDIT_RETENTION_DAYS:365}
   reservations:
     cancellation-cutoff-minutes: ${CANCELLATION_CUTOFF_MINUTES:60}
+  notifications:
+    email-enabled: ${NOTIFICATION_EMAIL_ENABLED:false}
+    delivery-batch-size: ${NOTIFICATION_DELIVERY_BATCH_SIZE:25}
+    max-delivery-attempts: ${NOTIFICATION_MAX_DELIVERY_ATTEMPTS:5}
+    initial-backoff-seconds: ${NOTIFICATION_INITIAL_BACKOFF_SECONDS:10}
+    retention-days: ${NOTIFICATION_RETENTION_DAYS:90}
+    sse-timeout-seconds: ${NOTIFICATION_SSE_TIMEOUT_SECONDS:1800}
   jwt:
     secret: ${JWT_SECRET}
     access-token-minutes: 15

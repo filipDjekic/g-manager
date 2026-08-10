@@ -55,6 +55,11 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
+    public java.util.Optional<String> activeEmail(UUID id) {
+        return userRepository.findById(id).filter(User::isActive).map(User::getEmail);
+    }
+
+    @Transactional(readOnly = true)
     @PreAuthorize("hasAuthority('PROFILE_READ')")
     public UserResponse getCurrentUser() {
         return UserResponse.from(requireCurrentUser());

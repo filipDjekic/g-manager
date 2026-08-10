@@ -143,6 +143,7 @@ class AuthFlowIntegrationTest {
                         new GManagerProperties.Jobs(false, 2, 4, 2, 1000, 30, 60,
                                 3, 2, 10, 30, 365),
                         new GManagerProperties.Reservations(60),
+                        new GManagerProperties.Notifications(false, 25, 5, 10, 90, 1800),
                         new GManagerProperties.Jwt(
                                 "test-only-secret-with-at-least-32-bytes",
                                 15, 14, false),
