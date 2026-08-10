@@ -1,0 +1,13 @@
+{
+  "name": "G-Manager",
+  "short_name": "G-Manager",
+  "description": "Upravljanje poslovnim operacijama",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    { "src": "/pwa-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

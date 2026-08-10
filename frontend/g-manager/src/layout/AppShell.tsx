@@ -7,6 +7,7 @@ import { Button, Drawer, Select } from '../components/ui'
 import { useUiPreferences } from '../preferences/uiPreferencesContext'
 import { CommandPalette } from '../search/CommandPalette'
 import { NotificationCenter } from '../notification/NotificationCenter'
+import { ConnectivityBanner } from '../pwa/ConnectivityBanner'
 
 function Navigation({ close }: { close?: () => void }) {
   const user = useAuthStore((state) => state.user)
@@ -41,6 +42,7 @@ export function AppShell() {
   }
 
   return <div className="app-shell">
+    <ConnectivityBanner />
     <header>
       <Button className="mobile-menu-button" variant="secondary" type="button"
         aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>Meni</Button>

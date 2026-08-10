@@ -5,6 +5,7 @@ import { hasCapability } from '../auth/capabilities'
 import { useAuthStore } from '../auth/authStore'
 import { Button, Card, EmptyState, ErrorState, PageHeader, Select, Skeleton } from '../components/ui'
 import type { ReportDefinition, ReportFormat, ReportItem, ReportSchedule } from '../types/report.types'
+import { useEncryptedDraft } from '../pwa/useEncryptedDraft'
 
 const DAY = 86_400_000
 const loadedAt = Date.now()
@@ -25,6 +26,10 @@ export function ReportsPage() {
   const [error, setError] = useState('')
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Belgrade'
   const manage = hasCapability(user, 'REPORT_MANAGE')
+  const draftValue = { definition, format, from, to }
+  const draft = useEncryptedDraft(user?.id, 'report-generator', 1, draftValue, (saved) => {
+    setDefinition(saved.definition); setFormat(saved.format); setFrom(saved.from); setTo(saved.to)
+  })
 
   const refresh = useCallback(async () => {
     try {
@@ -48,7 +53,7 @@ export function ReportsPage() {
 
   async function generate() {
     setBusy(true)
-    try { await reportApi.generate(payload()); await refresh() }
+    try { await reportApi.generate(payload()); await draft.discard(); await refresh() }
     catch (cause) { setError(apiErrorMessage(cause, 'Generisanje nije pokrenuto.')) }
     finally { setBusy(false) }
   }
@@ -62,6 +67,7 @@ export function ReportsPage() {
   }
 
   return <main><PageHeader eyebrow="Asinhrona obrada" title="Izveštaji" />
+    {draft.recovered && <p role="status" className="connectivity-banner">Oporavljen je šifrovani lokalni draft. Pregledajte podatke pre slanja. <Button variant="secondary" onClick={draft.acknowledge}>U redu</Button></p>}
     <Card><h2>Novi izveštaj</h2><div className="form-grid">
       <label>Definicija<Select value={definition} onChange={(event) => setDefinition(event.target.value)}>
         {definitions.map((value) => <option key={value.key} value={value.key}>{value.label}</option>)}</Select></label>

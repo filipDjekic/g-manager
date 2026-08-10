@@ -2248,6 +2248,8 @@ frontend E2E/a11y i pilot walkthrough.
 
 ## Stage 24 — PWA, offline read i bezbedni draftovi
 
+**Izvršni status: DONE (2026-08-10).** Dodat je installable/versioned app shell, eksplicitni user-scoped stale read cache, AES-GCM report draft, purge pri logout/user switch-u, offline/update UX, ETag/API metadata i CSP. Capability matrica i runbook su u `docs/stages/STAGE_24_PWA_OFFLINE.md`.
+
 ### Status prioriteta
 OPCIONO
 

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { AuthUser } from '../types/auth.types'
+import { purgePrivateData } from '../pwa/clientStorage'
 
 interface AuthState {
   user: AuthUser | null
@@ -11,12 +12,20 @@ interface AuthState {
   finishInitialization: () => void
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   accessToken: null,
   isInitializing: true,
-  setSession: (accessToken, user) => set({ accessToken, user, isInitializing: false }),
+  setSession: (accessToken, user) => {
+    const previous = get().user?.id
+    if (previous && previous !== user.id) void purgePrivateData(previous).catch(() => undefined)
+    set({ accessToken, user, isInitializing: false })
+  },
   updateUser: (user) => set({ user }),
-  clearSession: () => set({ accessToken: null, user: null, isInitializing: false }),
+  clearSession: () => {
+    const previous = get().user?.id
+    set({ accessToken: null, user: null, isInitializing: false })
+    if (previous) void purgePrivateData(previous).catch(() => undefined)
+  },
   finishInitialization: () => set({ isInitializing: false }),
 }))
