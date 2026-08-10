@@ -6,6 +6,8 @@ import { CapabilityGuard } from './auth/CapabilityGuard'
 import { RouteAccessibility } from './accessibility/RouteAccessibility'
 import { AppShell } from './layout/AppShell'
 import './App.css'
+import { useFeatureStore } from './feature/featureStore'
+import { FeatureUnavailable } from './feature/FeatureUnavailable'
 
 const lazyPage = <T extends Record<K, ComponentType>, K extends keyof T>(
   loader: () => Promise<T>, name: K,
@@ -28,12 +30,15 @@ const NotificationPreferencesPage = lazyPage(() => import('./pages/NotificationP
 const DocumentsPage = lazyPage(() => import('./pages/DocumentsPage'), 'DocumentsPage')
 const ReportsPage = lazyPage(() => import('./pages/ReportsPage'), 'ReportsPage')
 const WorkflowsPage = lazyPage(() => import('./pages/WorkflowsPage'), 'WorkflowsPage')
+const FeatureFlagsPage = lazyPage(() => import('./pages/FeatureFlagsPage'), 'FeatureFlagsPage')
 
 function RouteLoading() {
   return <p className="screen-message" role="status">Učitavanje stranice…</p>
 }
 
 function App() {
+  const reportsEnabled = useFeatureStore((state) => state.flags.REPORTS)
+  const workflowsEnabled = useFeatureStore((state) => state.flags.WORKFLOWS)
   useEffect(() => {
     void initializeSession()
   }, [])
@@ -77,8 +82,9 @@ function App() {
               <Route element={<CapabilityGuard anyOf={['AUDIT_READ']} />}>
                 <Route path="audit" element={<AuditPage />} />
               </Route>
-              <Route element={<CapabilityGuard anyOf={['REPORT_READ']} />}><Route path="reports" element={<ReportsPage />} /></Route>
-              <Route element={<CapabilityGuard anyOf={['WORKFLOW_SUBMIT','WORKFLOW_ACT','WORKFLOW_MANAGE']} />}><Route path="workflows" element={<WorkflowsPage />} /></Route>
+              <Route element={<CapabilityGuard anyOf={['REPORT_READ']} />}><Route path="reports" element={reportsEnabled ? <ReportsPage /> : <FeatureUnavailable />} /></Route>
+              <Route element={<CapabilityGuard anyOf={['WORKFLOW_SUBMIT','WORKFLOW_ACT','WORKFLOW_MANAGE']} />}><Route path="workflows" element={workflowsEnabled ? <WorkflowsPage /> : <FeatureUnavailable />} /></Route>
+              <Route element={<CapabilityGuard anyOf={['FEATURE_FLAG_MANAGE']} />}><Route path="features" element={<FeatureFlagsPage />} /></Route>
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

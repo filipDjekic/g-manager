@@ -2348,6 +2348,8 @@ CSP i cache-header pregled.
 
 ## Stage 25 — Feature flags i multi-tenancy readiness
 
+**Izvršni status: DONE (2026-08-10).** Implementirani su typed, auditovani i deterministično rollout-ovani feature flagovi. Multi-tenancy stop/go je NO-GO jer nema odobrenog multi-organization identity/data modela; Stage je završen ADR/prototype rezultatom bez polu-tenant produkcijske migracije. Detalji su u `docs/stages/STAGE_25_FEATURE_FLAGS_TENANCY.md`.
+
 ### Status prioriteta
 DUGOROČNO
 

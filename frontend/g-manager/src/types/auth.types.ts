@@ -12,6 +12,7 @@ export type Permission =
   | 'DASHBOARD_SUMMARY' | 'DASHBOARD_OPERATIONAL' | 'METRICS_READ'
   | 'REPORT_READ' | 'REPORT_MANAGE'
   | 'WORKFLOW_SUBMIT' | 'WORKFLOW_ACT' | 'WORKFLOW_MANAGE'
+  | 'FEATURE_FLAG_MANAGE'
 
 export interface AuthUser {
   id: string

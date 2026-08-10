@@ -8,15 +8,18 @@ import { useUiPreferences } from '../preferences/uiPreferencesContext'
 import { CommandPalette } from '../search/CommandPalette'
 import { NotificationCenter } from '../notification/NotificationCenter'
 import { ConnectivityBanner } from '../pwa/ConnectivityBanner'
+import { useFeatureStore } from '../feature/featureStore'
 
 function Navigation({ close }: { close?: () => void }) {
   const user = useAuthStore((state) => state.user)
+  const flags = useFeatureStore((state) => state.flags)
   return <nav aria-label="Glavna navigacija" onClick={close}>
     <NavLink to="/">G-Manager</NavLink><NavLink to="/profile">Profil</NavLink>
     <NavLink to="/sessions">Sesije</NavLink><NavLink to="/catalog">Katalog</NavLink>
     <NavLink to="/documents">Dokumenti</NavLink>
-    {hasCapability(user, 'REPORT_READ') && <NavLink to="/reports">Izveštaji</NavLink>}
-    {(hasCapability(user, 'WORKFLOW_SUBMIT')||hasCapability(user, 'WORKFLOW_ACT')||hasCapability(user, 'WORKFLOW_MANAGE'))&&<NavLink to="/workflows">Workflow</NavLink>}
+    {flags.REPORTS && hasCapability(user, 'REPORT_READ') && <NavLink to="/reports">Izveštaji</NavLink>}
+    {flags.WORKFLOWS && (hasCapability(user, 'WORKFLOW_SUBMIT')||hasCapability(user, 'WORKFLOW_ACT')||hasCapability(user, 'WORKFLOW_MANAGE'))&&<NavLink to="/workflows">Workflow</NavLink>}
+    {hasCapability(user, 'FEATURE_FLAG_MANAGE') && <NavLink to="/features">Feature flags</NavLink>}
     {hasCapability(user, 'DASHBOARD_OPERATIONAL') && <NavLink to="/dashboard">Dashboard</NavLink>}
     {hasCapability(user, 'USER_LIST') && <NavLink to="/employees">Zaposleni</NavLink>}
     {hasCapability(user, 'WORKING_HOURS_MANAGE') && <NavLink to="/settings">Radno vreme</NavLink>}

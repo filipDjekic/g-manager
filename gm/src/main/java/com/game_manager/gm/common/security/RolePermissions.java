@@ -43,7 +43,8 @@ public final class RolePermissions {
                 Permission.ORDER_READ_ALL, Permission.ORDER_CHANGE_STATUS,
                 Permission.DASHBOARD_SUMMARY, Permission.DASHBOARD_OPERATIONAL,
                 Permission.METRICS_READ, Permission.REPORT_READ, Permission.REPORT_MANAGE,
-                Permission.WORKFLOW_ACT, Permission.WORKFLOW_MANAGE));
+                Permission.WORKFLOW_ACT, Permission.WORKFLOW_MANAGE,
+                Permission.FEATURE_FLAG_MANAGE));
         permissions.put(Role.OWNER, immutableWithProfile(
                 Permission.USER_LIST, Permission.USER_CREATE, Permission.USER_DEACTIVATE,
                 Permission.USER_DELETE, Permission.USER_RESTORE,
@@ -53,7 +54,8 @@ public final class RolePermissions {
                 Permission.ORDER_READ_ALL, Permission.ORDER_CHANGE_STATUS,
                 Permission.DASHBOARD_SUMMARY, Permission.DASHBOARD_OPERATIONAL,
                 Permission.METRICS_READ, Permission.REPORT_READ, Permission.REPORT_MANAGE,
-                Permission.WORKFLOW_ACT, Permission.WORKFLOW_MANAGE));
+                Permission.WORKFLOW_ACT, Permission.WORKFLOW_MANAGE,
+                Permission.FEATURE_FLAG_MANAGE));
         return Map.copyOf(permissions);
     }
 

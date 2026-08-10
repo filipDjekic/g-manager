@@ -2,6 +2,7 @@ package com.game_manager.gm.security;
 
 import com.game_manager.gm.common.error.ApiErrorFactory;
 import com.game_manager.gm.common.config.GManagerProperties;
+import com.game_manager.gm.feature.FeatureFlagHttpFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -27,17 +28,20 @@ public class SecurityConfig {
     private final ObjectMapper objectMapper;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final GManagerProperties properties;
+    private final FeatureFlagHttpFilter featureFlagHttpFilter;
 
     public SecurityConfig(
             ApiErrorFactory apiErrorFactory,
             ObjectMapper objectMapper,
             JwtAuthenticationFilter jwtAuthenticationFilter,
-            GManagerProperties properties
+            GManagerProperties properties,
+            FeatureFlagHttpFilter featureFlagHttpFilter
     ) {
         this.apiErrorFactory = apiErrorFactory;
         this.objectMapper = objectMapper;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.properties = properties;
+        this.featureFlagHttpFilter = featureFlagHttpFilter;
     }
 
     @Bean
@@ -85,6 +89,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/documents/**", "/api/v1/documents").authenticated()
                         .requestMatchers("/api/v1/reports/**", "/api/v1/reports").hasAuthority("REPORT_READ")
                         .requestMatchers("/api/v1/workflows/**", "/api/v1/workflows").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/features/bootstrap").authenticated()
+                        .requestMatchers("/api/v1/features/**", "/api/v1/features")
+                            .hasAuthority("FEATURE_FLAG_MANAGE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/catalog/**").hasAuthority("CATALOG_READ")
                         .requestMatchers("/api/v1/catalog/**").hasAuthority("CATALOG_MANAGE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/working-hours/**").hasAuthority("WORKING_HOURS_READ")
@@ -106,6 +113,7 @@ public class SecurityConfig {
                         .hasAuthority("DASHBOARD_SUMMARY")
                         .anyRequest().denyAll())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(featureFlagHttpFilter, JwtAuthenticationFilter.class)
                 .headers(headers -> headers
                         .contentTypeOptions(contentType -> {})
                         .frameOptions(frame -> frame.deny())
@@ -129,6 +137,13 @@ public class SecurityConfig {
     @Bean
     FilterRegistrationBean<JwtAuthenticationFilter> jwtFilterRegistration(JwtAuthenticationFilter filter) {
         FilterRegistrationBean<JwtAuthenticationFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    FilterRegistrationBean<FeatureFlagHttpFilter> featureFlagFilterRegistration(FeatureFlagHttpFilter filter) {
+        FilterRegistrationBean<FeatureFlagHttpFilter> registration = new FilterRegistrationBean<>(filter);
         registration.setEnabled(false);
         return registration;
     }

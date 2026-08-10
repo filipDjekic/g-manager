@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { AuthUser } from '../types/auth.types'
 import { purgePrivateData } from '../pwa/clientStorage'
+import { useFeatureStore } from '../feature/featureStore'
 
 interface AuthState {
   user: AuthUser | null
@@ -25,6 +26,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   clearSession: () => {
     const previous = get().user?.id
     set({ accessToken: null, user: null, isInitializing: false })
+    useFeatureStore.getState().reset()
     if (previous) void purgePrivateData(previous).catch(() => undefined)
   },
   finishInitialization: () => set({ isInitializing: false }),
