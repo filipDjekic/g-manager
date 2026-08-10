@@ -54,7 +54,10 @@ services:
       DOCUMENT_S3_REGION: ${DOCUMENT_S3_REGION:-us-east-1}
       DOCUMENT_S3_BUCKET: ${DOCUMENT_S3_BUCKET:?DOCUMENT_S3_BUCKET is required}
       MANAGEMENT_SERVER_ADDRESS: 0.0.0.0
-    secrets: [jwt_secret, db_username, db_password, document_s3_access_key, document_s3_secret_key]
+      AI_PROVIDER: ${AI_PROVIDER:-disabled}
+      AI_ENDPOINT: ${AI_ENDPOINT:-}
+      AI_MODEL: ${AI_MODEL:-not-configured}
+    secrets: [jwt_secret, db_username, db_password, document_s3_access_key, document_s3_secret_key, ai_api_key]
     volumes: [document_data:/data/uploads]
     networks: [data, edge]
     depends_on: { mysql: { condition: service_healthy } }
@@ -141,6 +144,7 @@ secrets:
   document_s3_access_key: { file: ./secrets/document_s3_access_key }
   document_s3_secret_key: { file: ./secrets/document_s3_secret_key }
   backup_encryption_key: { file: ./secrets/backup_encryption_key }
+  ai_api_key: { file: ./secrets/ai_api_key }
 configs:
   mysql_init:
     file: ./mysql-init.sh

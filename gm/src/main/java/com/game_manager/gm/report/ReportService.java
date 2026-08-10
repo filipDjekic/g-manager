@@ -45,6 +45,7 @@ public class ReportService {
 
     @Transactional(readOnly=true) public List<ReportResponse> list(){UUID owner=requireRead().id();return requests.findByOwnerIdOrderByCreatedAtDesc(owner).stream().map(ReportResponse::from).toList();}
     @Transactional(readOnly=true) public ReportResponse get(UUID id){return ReportResponse.from(owned(id,requireRead().id()));}
+    @Transactional(readOnly=true) public AiSummarySource aiSummarySource(UUID id){AuthenticatedUser actor=requireRead();ReportRequest request=owned(id,actor.id());if(request.getStatus()!=ReportStatus.COMPLETED)throw new ApplicationException(HttpStatus.CONFLICT,"Only completed reports can be summarized");return new AiSummarySource(request.getId(),request.getOwnerId(),request.getDefinitionKey(),request.getRowCount()==null?0:request.getRowCount(),request.getSnapshotAt());}
     @Transactional public ReportResponse cancel(UUID id){ReportRequest request=owned(id,requireRead().id());if(request.getStatus()==ReportStatus.QUEUED||request.getStatus()==ReportStatus.RUNNING){jobs.cancel(request.getJobId());request.setStatus(ReportStatus.CANCELLED);request.setProgress(0);}return ReportResponse.from(request);}
     @Transactional(readOnly=true) public UUID downloadDocument(UUID id){AuthenticatedUser actor=requireRead();ReportRequest request=owned(id,actor.id());if(request.getStatus()!=ReportStatus.COMPLETED||request.getDocumentId()==null||request.getExpiresAt()==null||!request.getExpiresAt().isAfter(clock.instant()))throw new ApplicationException(HttpStatus.GONE,"Report is not available");return request.getDocumentId();}
 
@@ -63,4 +64,5 @@ public class ReportService {
     private ReportRequest owned(UUID id,UUID owner){return requests.findById(id).filter(r->r.getOwnerId().equals(owner)).orElseThrow(this::notFound);}
     private ApplicationException notFound(){return new ApplicationException(HttpStatus.NOT_FOUND,"Report not found");}
     private static ReportDefinitionResponse definition(String key,String label,String metric){return new ReportDefinitionResponse(key,label,metric,List.of("CSV","XLSX","PDF"));}
+    public record AiSummarySource(UUID reportId,UUID ownerId,String definition,long rowCount,Instant snapshotAt){}
 }

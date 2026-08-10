@@ -88,6 +88,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/notifications/**", "/api/v1/notifications").authenticated()
                         .requestMatchers("/api/v1/documents/**", "/api/v1/documents").authenticated()
                         .requestMatchers("/api/v1/reports/**", "/api/v1/reports").hasAuthority("REPORT_READ")
+                        .requestMatchers("/api/v1/ai/**").hasAuthority("REPORT_READ")
                         .requestMatchers("/api/v1/workflows/**", "/api/v1/workflows").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/features/bootstrap").authenticated()
                         .requestMatchers("/api/v1/features/**", "/api/v1/features")

@@ -12,7 +12,7 @@ function user(role: Role) {
   }
 }
 
-async function installApi(page: Page, role: Role) {
+async function installApi(page: Page, role: Role, aiEnabled = false) {
   let authenticated = false
   let orderCreated = false
   let reservationCreated = false
@@ -38,13 +38,13 @@ async function installApi(page: Page, role: Role) {
       { key: 'REPORTS', enabled: true, rolloutPercentage: 100, owner: 'Operations', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
       { key: 'WORKFLOWS', enabled: true, rolloutPercentage: 100, owner: 'Product', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
       { key: 'PWA_OFFLINE', enabled: true, rolloutPercentage: 100, owner: 'Platform', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
-      { key: 'AI_ASSISTANT', enabled: false, rolloutPercentage: 0, owner: 'Security', reviewBy: '2026-12-01', overridden: false, overrideExpiresAt: null, version: null },
+      { key: 'AI_ASSISTANT', enabled: aiEnabled, rolloutPercentage: aiEnabled ? 100 : 0, owner: 'Security', reviewBy: '2026-12-01', overridden: aiEnabled, overrideExpiresAt: null, version: null },
     ])
     if (path === '/features' && request.method() === 'GET') return json([
       { key: 'REPORTS', enabled: true, rolloutPercentage: 100, owner: 'Operations', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
       { key: 'WORKFLOWS', enabled: true, rolloutPercentage: 100, owner: 'Product', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
       { key: 'PWA_OFFLINE', enabled: true, rolloutPercentage: 100, owner: 'Platform', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
-      { key: 'AI_ASSISTANT', enabled: false, rolloutPercentage: 0, owner: 'Security', reviewBy: '2026-12-01', overridden: false, overrideExpiresAt: null, version: null },
+      { key: 'AI_ASSISTANT', enabled: aiEnabled, rolloutPercentage: aiEnabled ? 100 : 0, owner: 'Security', reviewBy: '2026-12-01', overridden: aiEnabled, overrideExpiresAt: null, version: null },
     ])
     if (path === '/auth/sessions' || path === '/auth/security-events') return json([])
     if (path === '/saved-views' && request.method() === 'GET') {
@@ -58,6 +58,11 @@ async function installApi(page: Page, role: Role) {
     }
     if (path === '/users/me') return json(user(role))
     if (path === '/working-hours/exceptions') return json([])
+    if (path === '/reports/definitions') return json([{ key: 'orders', label: 'Orders', metricDefinition: 'Created in range', formats: ['CSV'] }])
+    if (path === '/reports' && request.method() === 'GET') return json([{ id: 'report-1', definitionKey: 'orders', format: 'CSV', status: 'COMPLETED', progress: 100, rowCount: 42, documentId: 'document-1', errorMessage: null, snapshotAt: '2028-03-15T10:00:00Z', expiresAt: '2028-03-16T10:00:00Z', version: 1 }])
+    if (path === '/reports/schedules') return json([])
+    if (path === '/ai/report-summaries/report-1') return json({ usageId: 'usage-1', aiGenerated: false, summary: 'Deterministic report metadata summary.', limitations: 'Provider unavailable; source report remains authoritative.', sources: [{ reportId: 'report-1', definition: 'orders', rowCount: 42, snapshotAt: '2028-03-15T10:00:00Z' }], promptVersion: 'report-summary-v1', outputVersion: 'report-summary-response-v1' })
+    if (path === '/ai/usage/usage-1/feedback') return json(null, 204)
     if (path === '/dashboard/summary') return json({
       totalRevenueCompleted: 1200, completedOrdersCount: 2,
       reservationsByStatus: { PENDING: 1, CONFIRMED: 2, REJECTED: 0, CANCELLED: 0, COMPLETED: 3 },
@@ -177,6 +182,21 @@ test('owner receives typed feature bootstrap and can inspect rollout metadata', 
   await expect(page.getByRole('heading', { name: 'Feature flags' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'REPORTS' })).toBeVisible()
   await expect(page.getByText(/Owner: Operations/)).toBeVisible()
+})
+
+test('AI report pilot requires consent and exposes an accessible sourced fallback', async ({ page }) => {
+  await installApi(page, 'OWNER', true)
+  await login(page, 'OWNER')
+  await page.goto('/reports')
+  await expect(page.getByRole('button', { name: 'AI sažetak' })).toBeVisible()
+  await page.getByRole('checkbox').focus()
+  await page.getByRole('checkbox').press('Space')
+  await page.getByRole('button', { name: 'AI sažetak' }).focus()
+  await page.getByRole('button', { name: 'AI sažetak' }).press('Enter')
+  await expect(page.getByRole('heading', { name: 'Sažetak bez AI-a' })).toBeVisible()
+  await expect(page.getByText(/Izveštaj orders, 42 redova/)).toBeVisible()
+  const results = await new AxeBuilder({ page }).analyze()
+  expect(results.violations.filter(({ impact }) => impact === 'serious' || impact === 'critical')).toEqual([])
 })
 
 test('theme density and responsive navigation remain usable at configured viewport', async ({ page }) => {
