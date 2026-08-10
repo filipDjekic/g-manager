@@ -1,0 +1,146 @@
+name: gmanager-${DEPLOY_ENV:-staging}
+services:
+  mysql:
+    image: mysql:8.4.5
+    restart: unless-stopped
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    environment:
+      MYSQL_DATABASE: gmanager
+      MYSQL_USER_FILE: /run/secrets/db_username
+      MYSQL_PASSWORD_FILE: /run/secrets/db_password
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+      MIGRATION_DB_PASSWORD: ${MIGRATION_DB_PASSWORD:?MIGRATION_DB_PASSWORD is required}
+    secrets: [db_username, db_password, db_root_password]
+    volumes: [mysql_data:/var/lib/mysql]
+    configs:
+      - source: mysql_init
+        target: /docker-entrypoint-initdb.d/20-least-privilege-users.sh
+        mode: 0555
+    networks: [data]
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$(cat /run/secrets/db_root_password) --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  migrate:
+    image: flyway/flyway:11.7.2
+    profiles: [migration]
+    command: ["-connectRetries=30", "-validateMigrationNaming=true", "validate", "migrate", "info"]
+    environment:
+      FLYWAY_URL: jdbc:mysql://mysql:3306/gmanager?useSSL=false&serverTimezone=UTC
+      FLYWAY_USER: gmanager_migrator
+      FLYWAY_PASSWORD: ${MIGRATION_DB_PASSWORD:?MIGRATION_DB_PASSWORD is required}
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+    volumes:
+      - ../../gm/src/main/resources/db/migration:/flyway/sql:ro
+    networks: [data]
+    depends_on:
+      mysql: { condition: service_healthy }
+    restart: "no"
+
+  backend:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE digest is required}
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp/gmanager:size=128m,noexec,nosuid]
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:mysql://mysql:3306/gmanager?useSSL=false&serverTimezone=UTC
+      CANONICAL_ORIGIN: ${CANONICAL_ORIGIN:?CANONICAL_ORIGIN is required}
+      APP_RELEASE: ${APP_RELEASE:?APP_RELEASE is required}
+      DOCUMENT_STORAGE_BACKEND: ${DOCUMENT_STORAGE_BACKEND:-s3}
+      DOCUMENT_S3_ENDPOINT: ${DOCUMENT_S3_ENDPOINT:-}
+      DOCUMENT_S3_REGION: ${DOCUMENT_S3_REGION:-us-east-1}
+      DOCUMENT_S3_BUCKET: ${DOCUMENT_S3_BUCKET:?DOCUMENT_S3_BUCKET is required}
+      MANAGEMENT_SERVER_ADDRESS: 0.0.0.0
+    secrets: [jwt_secret, db_username, db_password, document_s3_access_key, document_s3_secret_key]
+    volumes: [document_data:/data/uploads]
+    networks: [data, edge]
+    depends_on: { mysql: { condition: service_healthy } }
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+
+  frontend:
+    image: ${FRONTEND_IMAGE:?FRONTEND_IMAGE digest is required}
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/var/cache/nginx:size=32m,noexec,nosuid, /tmp:size=16m,noexec,nosuid]
+    ports: ["127.0.0.1:${APP_PORT:-8080}:8080"]
+    networks: [edge]
+    depends_on: { backend: { condition: service_healthy } }
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+
+  backup:
+    build: ../backup
+    profiles: [operations]
+    command: ["/backup/backup.sh"]
+    environment:
+      DB_HOST: mysql
+      DB_NAME: gmanager
+      DB_USER: gmanager
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      BACKUP_KEY_FILE: /run/secrets/backup_encryption_key
+      BACKUP_OUTPUT_DIR: /backup/output
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+    secrets: [db_password, backup_encryption_key]
+    volumes: [../backup/output:/backup/output]
+    networks: [data]
+    depends_on: { mysql: { condition: service_healthy } }
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+
+  restore-drill:
+    build: ../backup
+    profiles: [operations]
+    command: ["/backup/restore-drill.sh"]
+    environment:
+      DB_HOST: mysql
+      DB_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+      BACKUP_KEY_FILE: /run/secrets/backup_encryption_key
+      BACKUP_FILE: ${BACKUP_FILE:?BACKUP_FILE is required}
+      RESTORE_DB_NAME: gmanager_restore_drill
+    secrets: [db_root_password, backup_encryption_key]
+    volumes: [../backup/output:/backup/output:ro]
+    networks: [data]
+    depends_on: { mysql: { condition: service_healthy } }
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+
+  restore-backend:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE digest is required}
+    profiles: [operations]
+    read_only: true
+    tmpfs: [/tmp/gmanager:size=128m,noexec,nosuid]
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:mysql://mysql:3306/gmanager_restore_drill?useSSL=false&serverTimezone=UTC
+      CANONICAL_ORIGIN: ${CANONICAL_ORIGIN:?CANONICAL_ORIGIN is required}
+      APP_RELEASE: ${APP_RELEASE:?APP_RELEASE is required}-restore-drill
+      DOCUMENT_STORAGE_BACKEND: local
+      MANAGEMENT_SERVER_ADDRESS: 0.0.0.0
+    secrets: [jwt_secret, db_username, db_password]
+    networks: [data]
+    depends_on: { mysql: { condition: service_healthy } }
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    restart: "no"
+
+networks:
+  edge: {}
+  data: { internal: true }
+volumes:
+  mysql_data: {}
+  document_data: {}
+secrets:
+  jwt_secret: { file: ./secrets/jwt_secret }
+  db_username: { file: ./secrets/db_username }
+  db_password: { file: ./secrets/db_password }
+  db_root_password: { file: ./secrets/db_root_password }
+  document_s3_access_key: { file: ./secrets/document_s3_access_key }
+  document_s3_secret_key: { file: ./secrets/document_s3_secret_key }
+  backup_encryption_key: { file: ./secrets/backup_encryption_key }
+configs:
+  mysql_init:
+    file: ./mysql-init.sh

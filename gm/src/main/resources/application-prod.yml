@@ -1,15 +1,36 @@
 app:
+  cors-allowed-origins: ${CANONICAL_ORIGIN}
+  production:
+    canonical-origin: ${CANONICAL_ORIGIN}
+    release: ${APP_RELEASE}
+    trusted-proxy-regex: ${TRUSTED_PROXY_REGEX:10\..*|192\.168\..*|172\.(1[6-9]|2[0-9]|3[0-1])\..*}
   jwt:
     secret: ${JWT_SECRET}
     secure-cookie: true
 spring:
   datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     hikari:
       maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
       minimum-idle: ${DB_POOL_MIN_IDLE:5}
       connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:3000}
       validation-timeout: ${DB_VALIDATION_TIMEOUT_MS:2000}
       max-lifetime: ${DB_MAX_LIFETIME_MS:1800000}
+  flyway:
+    enabled: false
+
+server:
+  forward-headers-strategy: native
+  tomcat:
+    remoteip:
+      internal-proxies: ${TRUSTED_PROXY_REGEX:10\..*|192\.168\..*|172\.(1[6-9]|2[0-9]|3[0-1])\..*}
+  max-http-request-header-size: 16KB
+
+info:
+  app:
+    release: ${APP_RELEASE}
 
 springdoc:
   api-docs:
