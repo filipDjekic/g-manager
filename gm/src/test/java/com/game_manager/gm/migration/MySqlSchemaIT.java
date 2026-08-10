@@ -74,7 +74,7 @@ class MySqlSchemaIT {
         assertThat(currentVersion()).isEqualTo("10");
         flyway.migrate();
 
-        assertThat(currentVersion()).isEqualTo("11");
+        assertThat(currentVersion()).isEqualTo("13");
         log.info("MySQL V7-to-latest migration completed in {} ms", elapsedMillis(startedAt));
     }
 
@@ -105,6 +105,10 @@ class MySqlSchemaIT {
                 .contains("idx_orders_customer_created", "idx_orders_status_created");
         assertThat(indexNames("idempotency_keys"))
                 .contains("uk_idempotency_principal_key_endpoint", "idx_idempotency_status_lease");
+        assertThat(indexNames("outbox_events"))
+                .contains("idx_outbox_claim", "idx_outbox_aggregate");
+        assertThat(indexNames("background_jobs"))
+                .contains("idx_background_jobs_claim", "idx_background_jobs_lease");
 
         Map<String, Object> plan = jdbc.queryForMap(
                 "EXPLAIN SELECT * FROM reservations WHERE employee_id = ? AND status = ? "

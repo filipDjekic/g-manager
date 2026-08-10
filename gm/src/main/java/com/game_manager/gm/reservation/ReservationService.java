@@ -15,6 +15,8 @@ import com.game_manager.gm.common.security.CurrentUserProvider;
 import com.game_manager.gm.common.security.Role;
 import com.game_manager.gm.audit.AuditVisibility;
 import com.game_manager.gm.audit.AuditWriter;
+import com.game_manager.gm.events.DomainEventType;
+import com.game_manager.gm.events.OutboxWriter;
 import com.game_manager.gm.user.User;
 import com.game_manager.gm.user.UserRepository;
 import com.game_manager.gm.workinghours.WorkingHoursService;
@@ -51,6 +53,7 @@ public class ReservationService {
     private final PageRequestFactory pageRequestFactory;
     private final ReservationAuthorizationPolicy authorizationPolicy;
     private final AuditWriter auditWriter;
+    private final OutboxWriter outboxWriter;
     private final Clock clock;
 
     @Transactional
@@ -95,7 +98,10 @@ public class ReservationService {
         reservation.setEndTime(endTime);
         reservation.setStatus(ReservationStatus.PENDING);
         reservation.setNote(normalizeNote(request.note()));
-        return ReservationResponse.from(reservationRepository.saveAndFlush(reservation));
+        Reservation saved = reservationRepository.saveAndFlush(reservation);
+        outboxWriter.write(DomainEventType.RESERVATION_CREATED, "RESERVATION", saved.getId(),
+                java.util.Map.of("status", saved.getStatus().name()));
+        return ReservationResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
@@ -185,6 +191,9 @@ public class ReservationService {
         auditWriter.write("RESERVATION_STATUS_CHANGED", "RESERVATION", id,
                 java.util.Map.of("status", previousStatus.name()),
                 java.util.Map.of("status", saved.getStatus().name()), null, AuditVisibility.MANAGEMENT);
+        outboxWriter.write(DomainEventType.RESERVATION_STATUS_CHANGED, "RESERVATION", saved.getId(),
+                java.util.Map.of("previousStatus", previousStatus.name(),
+                        "status", saved.getStatus().name()));
         return ReservationResponse.from(saved);
     }
 

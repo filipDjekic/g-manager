@@ -20,6 +20,8 @@ public record GManagerProperties(
         @NotEmpty List<@NotBlank String> corsAllowedOrigins,
         @Valid @NotNull Storage storage,
         @Valid @NotNull Idempotency idempotency,
+        @Valid @NotNull Outbox outbox,
+        @Valid @NotNull Jobs jobs,
         @Valid @NotNull Reservations reservations,
         @Valid @NotNull Jwt jwt,
         @Valid @NotNull InitialOwner initialOwner
@@ -31,6 +33,33 @@ public record GManagerProperties(
             @Positive long ttlHours,
             @NotBlank String cleanupCron,
             @Positive long inProgressTimeoutSeconds
+    ) {
+    }
+
+    public record Outbox(
+            boolean enabled,
+            @Positive int batchSize,
+            @Positive long pollIntervalMillis,
+            @Positive long leaseSeconds,
+            @Positive int maxAttempts,
+            @Positive long initialBackoffSeconds,
+            @Positive long retentionDays
+    ) {
+    }
+
+    public record Jobs(
+            boolean enabled,
+            @Positive int workerCount,
+            @Positive int queueCapacity,
+            @Positive int claimBatchSize,
+            @Positive long pollIntervalMillis,
+            @Positive long leaseSeconds,
+            @Positive long timeoutSeconds,
+            @Positive int maxAttempts,
+            @Positive long initialBackoffSeconds,
+            @Positive long shutdownWaitSeconds,
+            @Positive long refreshTokenRetentionDays,
+            @Positive long auditRetentionDays
     ) {
     }
 
