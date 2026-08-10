@@ -5,7 +5,7 @@ cd "$(dirname "$0")"
 [[ "$BACKEND_IMAGE" == *@sha256:* && "$FRONTEND_IMAGE" == *@sha256:* ]] || { echo "Deployment requires immutable image digests" >&2; exit 1; }
 mkdir -p releases ../backup/output
 current=releases/current.env; previous=releases/previous.env; candidate=releases/"$APP_RELEASE.env"
-env | grep -E '^(DEPLOY_ENV|APP_RELEASE|BACKEND_IMAGE|FRONTEND_IMAGE|CANONICAL_ORIGIN|APP_PORT|DOCUMENT_|BACKUP_RETENTION_DAYS)=' > "$candidate"
+env | grep -E '^(DEPLOY_ENV|APP_RELEASE|BACKEND_IMAGE|FRONTEND_IMAGE|CANONICAL_ORIGIN|APP_PORT|DOCUMENT_|AI_PROVIDER|AI_ENDPOINT|AI_MODEL|BACKUP_RETENTION_DAYS)=' > "$candidate"
 docker compose --env-file "$candidate" pull backend frontend mysql
 docker compose --env-file "$candidate" up -d mysql
 if [ -f "$current" ]; then

@@ -1,4 +1,9 @@
 app:
+  ai:
+    provider: ${AI_PROVIDER:disabled}
+    endpoint: ${AI_ENDPOINT:}
+    api-key: ${AI_API_KEY:}
+    model: ${AI_MODEL:not-configured}
   cors-allowed-origins: ${CANONICAL_ORIGIN}
   production:
     canonical-origin: ${CANONICAL_ORIGIN}

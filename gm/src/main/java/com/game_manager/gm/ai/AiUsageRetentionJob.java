@@ -1,0 +1,4 @@
+package com.game_manager.gm.ai;
+import io.micrometer.core.instrument.MeterRegistry;import java.time.Clock;import org.springframework.scheduling.annotation.Scheduled;import org.springframework.stereotype.Component;import org.springframework.transaction.annotation.Transactional;
+@Component public class AiUsageRetentionJob {private final AiUsageRepository repository;private final AiProperties config;private final Clock clock;private final MeterRegistry metrics;public AiUsageRetentionJob(AiUsageRepository repository,AiProperties config,Clock clock,MeterRegistry metrics){this.repository=repository;this.config=config;this.clock=clock;this.metrics=metrics;}
+ @Scheduled(cron="${app.ai.cleanup-cron:0 30 3 * * *}") @Transactional public void purgeExpiredMetadata(){long removed=repository.deleteByCreatedAtBefore(clock.instant().minusSeconds(config.metadataRetentionDays()*86400));metrics.counter("gmanager.ai.metadata.deleted").increment(removed);}}

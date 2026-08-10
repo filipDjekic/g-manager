@@ -1,0 +1,3 @@
+package com.game_manager.gm.ai;
+import static org.assertj.core.api.Assertions.assertThat;import jakarta.validation.Validation;import java.net.URI;import org.junit.jupiter.api.Test;
+class AiPropertiesTest {@Test void requiresHttpsEndpointAndSecretOnlyForHttpProvider(){var validator=Validation.buildDefaultValidatorFactory().getValidator();assertThat(validator.validate(new AiProperties("disabled",null,"","none",100,200,100,1000,3,60,90))).isEmpty();assertThat(validator.validate(new AiProperties("http",URI.create("http://ai.example"),"","model",100,200,100,1000,3,60,90))).isNotEmpty();assertThat(validator.validate(new AiProperties("http",URI.create("https://ai.example"),"external-secret","model",100,200,100,1000,3,60,90))).isEmpty();}}

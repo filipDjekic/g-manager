@@ -6,6 +6,9 @@ import { useAuthStore } from '../auth/authStore'
 import { Button, Card, EmptyState, ErrorState, PageHeader, Select, Skeleton } from '../components/ui'
 import type { ReportDefinition, ReportFormat, ReportItem, ReportSchedule } from '../types/report.types'
 import { useEncryptedDraft } from '../pwa/useEncryptedDraft'
+import { useFeatureStore } from '../feature/featureStore'
+import { aiApi } from '../api/aiApi'
+import type { AiFeedback, AiReportSummary } from '../types/ai.types'
 
 const DAY = 86_400_000
 const loadedAt = Date.now()
@@ -24,6 +27,10 @@ export function ReportsPage() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [aiSummary, setAiSummary] = useState<AiReportSummary | null>(null)
+  const [aiConsent, setAiConsent] = useState(false)
+  const [aiBusy, setAiBusy] = useState(false)
+  const aiEnabled = useFeatureStore((state) => state.flags.AI_ASSISTANT)
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Belgrade'
   const manage = hasCapability(user, 'REPORT_MANAGE')
   const draftValue = { definition, format, from, to }
@@ -66,6 +73,20 @@ export function ReportsPage() {
     } catch (cause) { setError(apiErrorMessage(cause, 'Preuzimanje nije dostupno.')) }
   }
 
+  async function summarize(item: ReportItem) {
+    if (!aiConsent) { setError('Potvrdite slanje ograničenih metapodataka AI provider-u.'); return }
+    setAiBusy(true)
+    try { setAiSummary(await aiApi.summarize(item.id)); setError('') }
+    catch (cause) { setError(apiErrorMessage(cause, 'AI sažetak nije dostupan; koristite izvorni izveštaj.')) }
+    finally { setAiBusy(false) }
+  }
+
+  async function feedback(value: AiFeedback) {
+    if (!aiSummary) return
+    try { await aiApi.feedback(aiSummary.usageId, value); setAiSummary(null); setAiConsent(false) }
+    catch (cause) { setError(apiErrorMessage(cause, 'Povratna informacija nije sačuvana.')) }
+  }
+
   return <main><PageHeader eyebrow="Asinhrona obrada" title="Izveštaji" />
     {draft.recovered && <p role="status" className="connectivity-banner">Oporavljen je šifrovani lokalni draft. Pregledajte podatke pre slanja. <Button variant="secondary" onClick={draft.acknowledge}>U redu</Button></p>}
     <Card><h2>Novi izveštaj</h2><div className="form-grid">
@@ -86,9 +107,15 @@ export function ReportsPage() {
       <Card><h2>Istorija</h2><div className="table-scroll"><table><thead><tr><th>Izveštaj</th><th>Format</th><th>Status</th><th>Redovi</th><th>Akcije</th></tr></thead>
         <tbody>{items.map((item) => <tr key={item.id}><td>{item.definitionKey}</td><td>{item.format}</td><td><span role="status">{item.status} {item.status === 'RUNNING' && `${item.progress}%`}</span>{item.errorMessage && <small>{item.errorMessage}</small>}</td><td>{item.rowCount ?? '—'}</td><td>
           {item.status === 'COMPLETED' && <Button onClick={() => void download(item)}>Preuzmi</Button>}
+          {item.status === 'COMPLETED' && aiEnabled && <Button variant="secondary" loading={aiBusy} onClick={() => void summarize(item)}>AI sažetak</Button>}
           {['QUEUED', 'RUNNING'].includes(item.status) && <Button variant="secondary" onClick={async () => { await reportApi.cancel(item.id); await refresh() }}>Otkaži</Button>}
         </td></tr>)}</tbody></table></div></Card>}
     {manage && <Card><h2>Rasporedi</h2>{!schedules.length ? <p>Nema rasporeda.</p> : <ul>{schedules.map((schedule) =>
       <li key={schedule.id}>{schedule.definitionKey} · {schedule.timezone} · sledeće {new Date(schedule.nextRunAt).toLocaleString()} <Button variant="danger" onClick={async () => { await reportApi.removeSchedule(schedule.id); await refresh() }}>Obriši</Button></li>)}</ul>}</Card>}
+    {aiEnabled && <Card><h2>AI asistencija (eksperimentalno)</h2><p>AI dobija samo definiciju, broj redova i vreme preseka izveštaja. Rezultat može biti netačan; izvorni izveštaj ostaje merodavan.</p>
+      <label><input type="checkbox" checked={aiConsent} onChange={(event) => setAiConsent(event.target.checked)} /> Saglasan/na sam sa obradom ovih ograničenih metapodataka.</label></Card>}
+    {aiSummary && <Card><h2>{aiSummary.aiGenerated ? 'AI sažetak' : 'Sažetak bez AI-a'}</h2><p role="status">{aiSummary.summary}</p><p><strong>Ograničenja:</strong> {aiSummary.limitations}</p>
+      <h3>Izvori</h3><ul>{aiSummary.sources.map((source) => <li key={source.reportId}>Izveštaj {source.definition}, {source.rowCount} redova, presek {new Date(source.snapshotAt).toLocaleString()}</li>)}</ul>
+      <p>Pregledajte rezultat pre bilo kakve odluke.</p><Button onClick={() => void feedback('ACCEPTED')}>Prihvati</Button><Button variant="secondary" onClick={() => void feedback('CORRECTED')}>Ispravljeno</Button><Button variant="danger" onClick={() => void feedback('REJECTED')}>Odbaci</Button></Card>}
   </main>
 }

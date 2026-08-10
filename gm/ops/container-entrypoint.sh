@@ -9,4 +9,7 @@ if [ "${DOCUMENT_STORAGE_BACKEND:-}" = "s3" ]; then
   read_secret DOCUMENT_S3_ACCESS_KEY "${DOCUMENT_S3_ACCESS_KEY_FILE:-/run/secrets/document_s3_access_key}"
   read_secret DOCUMENT_S3_SECRET_KEY "${DOCUMENT_S3_SECRET_KEY_FILE:-/run/secrets/document_s3_secret_key}"
 fi
+if [ "${AI_PROVIDER:-disabled}" = "http" ]; then
+  read_secret AI_API_KEY "${AI_API_KEY_FILE:-/run/secrets/ai_api_key}"
+fi
 exec java -jar /app/app.jar

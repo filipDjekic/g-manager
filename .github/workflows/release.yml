@@ -69,6 +69,9 @@ jobs:
       DOCUMENT_S3_REGION: ${{ vars.DOCUMENT_S3_REGION }}
       DOCUMENT_S3_BUCKET: ${{ vars.DOCUMENT_S3_BUCKET }}
       MIGRATION_DB_PASSWORD: ${{ secrets.MIGRATION_DB_PASSWORD }}
+      AI_PROVIDER: ${{ vars.AI_PROVIDER }}
+      AI_ENDPOINT: ${{ vars.AI_ENDPOINT }}
+      AI_MODEL: ${{ vars.AI_MODEL }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Materialize runner-only secrets
@@ -81,6 +84,7 @@ jobs:
           S3_ACCESS_KEY: ${{ secrets.DOCUMENT_S3_ACCESS_KEY }}
           S3_SECRET_KEY: ${{ secrets.DOCUMENT_S3_SECRET_KEY }}
           BACKUP_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
         run: |
           install -d -m 0700 secrets
           printf %s "$JWT_SECRET" > secrets/jwt_secret
@@ -90,6 +94,7 @@ jobs:
           printf %s "$S3_ACCESS_KEY" > secrets/document_s3_access_key
           printf %s "$S3_SECRET_KEY" > secrets/document_s3_secret_key
           printf %s "$BACKUP_KEY" > secrets/backup_encryption_key
+          printf %s "$AI_API_KEY" > secrets/ai_api_key
           chmod 0600 secrets/*
       - name: Deploy through migration, restore and smoke gates
         run: ./ops/deploy/deploy.sh
