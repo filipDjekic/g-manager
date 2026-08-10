@@ -158,6 +158,8 @@ refresh sesije korisnika.
   - Windows/PowerShell: `.\scripts\verify.cmd`
   - Bash: `./scripts/verify.sh`
 - Backend clean test/build: `cd gm && ./mvnw clean verify`
+- MySQL 8.4 migration/repository/concurrency suite (zahteva pokrenut Docker):
+  `cd gm && ./mvnw clean verify -Pmysql-it`
 - Frontend instalacija: `cd frontend/g-manager && npm ci`
 - Frontend typecheck: `npm run typecheck`
 - Frontend lint: `npm run lint`
@@ -168,6 +170,17 @@ Flyway migracije se automatski izvršavaju pri backend startup-u i tokom
 integration testova. Produkcija se pokreće sa `SPRING_PROFILES_ACTIVE=prod`
 i spoljašnjim `JWT_SECRET`; lokalni profil se može aktivirati i promenljivom
 `SPRING_PROFILES_ACTIVE=local`.
+
+Brzi integration testovi koriste H2 i nisu dokaz kompatibilnosti migracija sa
+produkcijskom bazom. Profil `mysql-it` pokreće efemerni MySQL 8.4 kroz
+Testcontainers i proverava praznu šemu, V(n-1)→latest upgrade, Hibernate
+validaciju, kritične constraints/indekse, vremensku preciznost i optimistic
+locking. Kredencijali postoje samo tokom testa i ne upisuju se u log.
+
+Primenjene Flyway migracije se nikada ne menjaju. Korekcije su nove,
+expand-only `V<n>__opis.sql` migracije; rollback se radi narednom roll-forward
+migracijom. Svaka promena šeme mora proći i `clean verify` i `clean verify
+-Pmysql-it`.
 
 ## Bezbednosna osnova
 

@@ -12,6 +12,9 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
+    "sbom": "cyclonedx-npm --package-lock-only --omit dev --output-reproducible --no-validate --output-file bom.json",
+    "ci:validate": "node scripts/validate-ci.mjs",
+    "ci:validate:self-test": "node scripts/validate-ci.mjs --self-test",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -31,6 +34,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
+    "@cyclonedx/cyclonedx-npm": "^6.0.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.62.1",
     "@testing-library/dom": "^10.4.1",
@@ -55,6 +59,7 @@
     "typescript-eslint": "^8.58.2",
     "vite": "^8.0.10",
     "vitest": "^4.0.18",
-    "vitest-axe": "^0.1.0"
+    "vitest-axe": "^0.1.0",
+    "yaml": "^2.9.0"
   }
 }
