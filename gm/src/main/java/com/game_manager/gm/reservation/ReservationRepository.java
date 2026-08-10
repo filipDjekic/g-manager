@@ -45,4 +45,16 @@ public interface ReservationRepository
             @Param("status") ReservationStatus status,
             @Param("from") Instant from,
             @Param("to") Instant to);
+
+    @Query("""
+            select new com.game_manager.gm.reservation.ReservationAnalyticsRow(
+                r.id, r.employeeId, r.startTime, r.endTime, r.status)
+            from Reservation r
+            where r.startTime >= :from and r.startTime < :to
+              and (:employeeId is null or r.employeeId = :employeeId)
+            order by r.startTime, r.id
+            """)
+    List<ReservationAnalyticsRow> analyticsBetween(
+            @Param("from") Instant from, @Param("to") Instant to,
+            @Param("employeeId") UUID employeeId);
 }

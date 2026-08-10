@@ -190,6 +190,11 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
+    public java.util.List<OrderAnalyticsRow> analyticsBetween(Instant from, Instant to) {
+        return orderRepository.analyticsBetween(from, to);
+    }
+
+    @Transactional(readOnly = true)
     public long countByStatusToday(
             OrderStatus status, UUID handledBy, Instant from, Instant to) {
         return orderRepository.countByStatusBetween(status, handledBy, from, to);

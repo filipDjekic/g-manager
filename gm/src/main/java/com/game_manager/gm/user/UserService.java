@@ -50,6 +50,11 @@ public class UserService {
     private final OutboxWriter outboxWriter;
 
     @Transactional(readOnly = true)
+    public java.util.List<EmployeeAnalyticsRow> activeEmployeesForAnalytics() {
+        return userRepository.activeEmployeesForAnalytics();
+    }
+
+    @Transactional(readOnly = true)
     @PreAuthorize("hasAuthority('PROFILE_READ')")
     public UserResponse getCurrentUser() {
         return UserResponse.from(requireCurrentUser());

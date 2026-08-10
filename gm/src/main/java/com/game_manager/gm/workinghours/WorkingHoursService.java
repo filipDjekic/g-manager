@@ -160,6 +160,16 @@ public class WorkingHoursService {
         return properties.businessZone();
     }
 
+    @Transactional(readOnly = true)
+    public long capacityMinutes(LocalDate from, LocalDate to) {
+        long minutes = 0;
+        for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
+            Shift shift = shiftFor(date);
+            if (shift != null) minutes += java.time.Duration.between(shift.open(), shift.close()).toMinutes();
+        }
+        return minutes;
+    }
+
     private Shift shiftFor(LocalDate date) {
         ZoneId businessZone = properties.businessZone();
         WorkingHoursException exception = exceptionRepository.findByDate(date).orElse(null);

@@ -27,12 +27,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.jdbc.core.JdbcTemplate;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -48,6 +50,7 @@ class DashboardIntegrationTest {
     @Autowired private OrderRepository orderRepository;
     @Autowired private CatalogRepository catalogRepository;
     @Autowired private PasswordEncoder passwordEncoder;
+    @Autowired private JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
@@ -129,6 +132,63 @@ class DashboardIntegrationTest {
                         today, today.minusDays(1))
                         .header("Authorization", bearer(login(createUser(Role.ADMIN)))))
                 .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/v1/dashboard/trends?from={from}&to={to}",
+                        today.minusDays(367), today)
+                        .header("Authorization", bearer(login(createUser(Role.OWNER)))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void trendsComparisonBucketsDrilldownTotalsAndCsvUseTheSameBusinessRange() throws Exception {
+        User owner = createUser(Role.OWNER); User customer = createUser(Role.CUSTOMER);
+        User employee = createUser(Role.EMPLOYEE);
+        LocalDate current = LocalDate.now(ZONE).minusDays(3); LocalDate previous = current.minusDays(1);
+        Instant currentInstant = current.atTime(12, 0).atZone(ZONE).toInstant();
+        Instant previousInstant = previous.atTime(12, 0).atZone(ZONE).toInstant();
+        Order currentOrder = createOrder(customer, OrderStatus.COMPLETED, new BigDecimal("300.00"), null);
+        jdbcTemplate.update("update orders set created_at = ? where id = ?", currentInstant, currentOrder.getId());
+        Order previousOrder = createOrder(customer, OrderStatus.COMPLETED, new BigDecimal("100.00"), null);
+        jdbcTemplate.update("update orders set created_at = ? where id = ?", previousInstant, previousOrder.getId());
+        Reservation reservation = createReservation(customer, employee, ReservationStatus.CONFIRMED);
+        reservation.setStartTime(currentInstant); reservation.setEndTime(currentInstant.plus(90, ChronoUnit.MINUTES));
+        reservationRepository.saveAndFlush(reservation);
+        String token = bearer(login(owner));
+
+        mockMvc.perform(get("/api/v1/dashboard/trends").queryParam("from", current.toString()).queryParam("to", current.toString())
+                        .header("Authorization", token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.timezone").value("Europe/Belgrade"))
+                .andExpect(jsonPath("$.previousFrom").value(previous.toString()))
+                .andExpect(jsonPath("$.revenue.current").value(300.0))
+                .andExpect(jsonPath("$.revenue.previous").value(100.0))
+                .andExpect(jsonPath("$.revenue.percentChange").value(200.0))
+                .andExpect(jsonPath("$.buckets[0].completedOrders").value(1))
+                .andExpect(jsonPath("$.buckets[0].reservations").value(1))
+                .andExpect(jsonPath("$.reservationsByStatus.CONFIRMED").value(1));
+        mockMvc.perform(get("/api/v1/dashboard/workload").queryParam("from", current.toString()).queryParam("to", current.toString())
+                        .queryParam("employeeId", employee.getId().toString()).header("Authorization", token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.employees[0].reservedMinutes").value(90));
+        mockMvc.perform(get("/api/v1/dashboard/export").queryParam("from", current.toString()).queryParam("to", current.toString())
+                        .queryParam("view", "raw").header("Authorization", token))
+                .andExpect(status().isOk()).andExpect(result -> assertThat(result.getResponse().getContentAsString())
+                        .contains("trend," + current).contains(",300.00,1,1,"));
+    }
+
+    @Test
+    void dashboardPreferencesAreOwnerIsolatedAndNewApisRejectOperationalRole() throws Exception {
+        User owner = createUser(Role.OWNER); User admin = createUser(Role.ADMIN); User employee = createUser(Role.EMPLOYEE);
+        String ownerToken = bearer(login(owner)); String adminToken = bearer(login(admin));
+        String payload = "[{\"widgetKey\":\"workload\",\"position\":0,\"visible\":true,\"threshold\":75}]";
+        mockMvc.perform(put("/api/v1/dashboard/widget-preferences").header("Authorization", ownerToken)
+                        .contentType(MediaType.APPLICATION_JSON).content(payload))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].threshold").value(75));
+        mockMvc.perform(get("/api/v1/dashboard/widget-preferences").header("Authorization", adminToken))
+                .andExpect(status().isOk()).andExpect(jsonPath("$").isEmpty());
+        LocalDate today = LocalDate.now(ZONE);
+        for (String path : java.util.List.of("trends", "workload", "export")) {
+            mockMvc.perform(get("/api/v1/dashboard/" + path).queryParam("from", today.toString()).queryParam("to", today.toString())
+                            .header("Authorization", bearer(login(employee))))
+                    .andExpect(status().isForbidden());
+        }
     }
 
     private Reservation createReservation(

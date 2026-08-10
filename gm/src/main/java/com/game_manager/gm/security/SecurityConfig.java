@@ -97,6 +97,9 @@ public class SecurityConfig {
                             .hasAuthority("ORDER_CHANGE_STATUS")
                         .requestMatchers(HttpMethod.GET, "/api/v1/dashboard/summary").hasAuthority("DASHBOARD_SUMMARY")
                         .requestMatchers(HttpMethod.GET, "/api/v1/dashboard/today").hasAuthority("DASHBOARD_OPERATIONAL")
+                        .requestMatchers("/api/v1/dashboard/trends", "/api/v1/dashboard/workload",
+                                "/api/v1/dashboard/export", "/api/v1/dashboard/widget-preferences")
+                        .hasAuthority("DASHBOARD_SUMMARY")
                         .anyRequest().denyAll())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .headers(headers -> headers
