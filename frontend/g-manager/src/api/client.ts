@@ -3,6 +3,7 @@ import { useAuthStore } from '../auth/authStore'
 import type { ApiError } from '../types/api.types'
 import type { AuthResponse } from '../types/auth.types'
 import { userFacingApiError } from './errorMessage'
+import { observeRequestId } from '../observability/errorReporter'
 
 const baseURL = import.meta.env.VITE_API_URL ?? '/api/v1'
 
@@ -41,8 +42,12 @@ interface RetryableRequest extends InternalAxiosRequestConfig {
 }
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    observeRequestId(response.headers['x-request-id'])
+    return response
+  },
   async (error: AxiosError<ApiError>) => {
+    observeRequestId(error.response?.headers['x-request-id'] ?? error.response?.data?.requestId)
     const request = error.config as RetryableRequest | undefined
     if (error.response?.status === 401 && request && !request._authRetry) {
       request._authRetry = true
@@ -52,6 +57,17 @@ apiClient.interceptors.response.use(
         return apiClient(request)
       }
     }
+    return Promise.reject(error)
+  },
+)
+
+publicClient.interceptors.response.use(
+  (response) => {
+    observeRequestId(response.headers['x-request-id'])
+    return response
+  },
+  (error: AxiosError<ApiError>) => {
+    observeRequestId(error.response?.headers['x-request-id'] ?? error.response?.data?.requestId)
     return Promise.reject(error)
   },
 )

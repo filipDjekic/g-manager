@@ -4,6 +4,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
 import { AppErrorBoundary } from './common/AppErrorBoundary'
 import './index.css'
+import { installGlobalErrorReporting } from './observability/errorReporter'
+
+installGlobalErrorReporting()
 
 const queryClient = new QueryClient({
   defaultOptions: {

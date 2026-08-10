@@ -12,6 +12,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import com.game_manager.gm.common.observability.SensitiveDataSanitizer;
 
 @Repository
 public class JobStore {
@@ -22,14 +23,15 @@ public class JobStore {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void insert(UUID id, String type, String payload, String dedupeKey, int priority,
+    public void insert(UUID id, String type, String payload, String correlationId,
+                       String dedupeKey, int priority,
                        int maxAttempts, long timeoutSeconds, Instant availableAt) {
         jdbcTemplate.update("""
                 INSERT INTO background_jobs
-                (id, job_type, payload, dedupe_key, status, priority, attempts, max_attempts,
+                (id, job_type, payload, correlation_id, dedupe_key, status, priority, attempts, max_attempts,
                  available_at, timeout_seconds, created_at, updated_at)
-                VALUES (?, ?, ?, ?, 'QUEUED', ?, 0, ?, ?, ?, ?, ?)
-                """, id.toString(), type, payload, dedupeKey, priority, maxAttempts,
+                VALUES (?, ?, ?, ?, ?, 'QUEUED', ?, 0, ?, ?, ?, ?, ?)
+                """, id.toString(), type, payload, correlationId, dedupeKey, priority, maxAttempts,
                 Timestamp.from(availableAt), timeoutSeconds, Timestamp.from(availableAt),
                 Timestamp.from(availableAt));
     }
@@ -44,7 +46,7 @@ public class JobStore {
     @Transactional(propagation = Propagation.MANDATORY)
     public List<JobRecord> claim(String workerId, int limit, Instant now, Duration lease) {
         List<JobRecord> jobs = jdbcTemplate.query("""
-                SELECT id, job_type, payload, attempts, max_attempts, timeout_seconds,
+                SELECT id, job_type, payload, correlation_id, attempts, max_attempts, timeout_seconds,
                        lease_token, lease_expires_at
                 FROM background_jobs
                 WHERE (status IN ('QUEUED', 'RETRY') AND available_at <= ?)
@@ -83,7 +85,8 @@ public class JobStore {
                 VALUES (?, ?, ?, ?, ?, 'RUNNING', ?)
                 """, UUID.randomUUID().toString(), job.id().toString(), attempt, workerId,
                 leaseToken.toString(), Timestamp.from(now));
-        return new JobRecord(job.id(), job.type(), job.payload(), attempt, job.maxAttempts(),
+        return new JobRecord(job.id(), job.type(), job.payload(), job.correlationId(),
+                attempt, job.maxAttempts(),
                 job.timeoutSeconds(), leaseToken, leaseExpiresAt);
     }
 
@@ -207,6 +210,7 @@ public class JobStore {
         Timestamp expiry = resultSet.getTimestamp("lease_expires_at");
         return new JobRecord(UUID.fromString(resultSet.getString("id")),
                 resultSet.getString("job_type"), resultSet.getString("payload"),
+                resultSet.getString("correlation_id"),
                 resultSet.getInt("attempts"), resultSet.getInt("max_attempts"),
                 resultSet.getLong("timeout_seconds"),
                 token == null ? null : UUID.fromString(token),
@@ -217,6 +221,7 @@ public class JobStore {
         if (value == null || value.isBlank()) {
             return null;
         }
-        return value.length() <= 500 ? value : value.substring(0, 500);
+        String sanitized = SensitiveDataSanitizer.redact(value);
+        return sanitized.length() <= 500 ? sanitized : sanitized.substring(0, 500);
     }
 }

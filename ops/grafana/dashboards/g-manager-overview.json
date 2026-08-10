@@ -1,0 +1,22 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "panels": [
+    {"type":"timeseries","title":"Request rate","targets":[{"expr":"sum(rate(gmanager_http_requests_seconds_count[5m]))"}],"gridPos":{"h":8,"w":8,"x":0,"y":0}},
+    {"type":"timeseries","title":"Server error rate","targets":[{"expr":"sum(rate(gmanager_http_requests_seconds_count{outcome=\"SERVER_ERROR\"}[5m]))"}],"gridPos":{"h":8,"w":8,"x":8,"y":0}},
+    {"type":"timeseries","title":"Request p95 latency","targets":[{"expr":"histogram_quantile(0.95, sum by (le) (rate(gmanager_http_requests_seconds_bucket[5m])))"}],"gridPos":{"h":8,"w":8,"x":16,"y":0}},
+    {"type":"stat","title":"DB pool active","targets":[{"expr":"hikaricp_connections_active"}],"gridPos":{"h":6,"w":6,"x":0,"y":8}},
+    {"type":"stat","title":"Outbox pending","targets":[{"expr":"gmanager_outbox_pending"}],"gridPos":{"h":6,"w":6,"x":6,"y":8}},
+    {"type":"stat","title":"Outbox dead","targets":[{"expr":"gmanager_outbox_dead"}],"gridPos":{"h":6,"w":6,"x":12,"y":8}},
+    {"type":"stat","title":"Jobs queued","targets":[{"expr":"gmanager_jobs_queued"}],"gridPos":{"h":6,"w":6,"x":18,"y":8}},
+    {"type":"timeseries","title":"Business throughput","targets":[{"expr":"sum by (type) (rate(gmanager_business_events_total[5m]))"}],"gridPos":{"h":8,"w":12,"x":0,"y":14}},
+    {"type":"timeseries","title":"Auth and rate-limit outcomes","targets":[{"expr":"sum by (status) (rate(gmanager_http_requests_seconds_count{route=~\"/api/v1/auth/.*\",status=~\"401|429\"}[5m]))"}],"gridPos":{"h":8,"w":12,"x":12,"y":14}}
+  ],
+  "schemaVersion": 41,
+  "tags": ["g-manager", "slo"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "title": "G-Manager Overview",
+  "uid": "g-manager-overview",
+  "version": 1
+}

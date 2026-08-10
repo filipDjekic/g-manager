@@ -1,0 +1,43 @@
+groups:
+  - name: g-manager
+    rules:
+      - alert: GManagerInstanceDown
+        expr: up{job="g-manager"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: G-Manager metrics target is unavailable
+          runbook_url: https://github.com/filipDjekic/g-manager/blob/main/ops/runbooks/observability.txt
+      - alert: GManagerHighServerErrorRate
+        expr: sum(rate(gmanager_http_requests_seconds_count{outcome="SERVER_ERROR"}[5m])) / clamp_min(sum(rate(gmanager_http_requests_seconds_count[5m])), 1) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: G-Manager server error rate exceeds five percent
+          runbook_url: https://github.com/filipDjekic/g-manager/blob/main/ops/runbooks/observability.txt
+      - alert: GManagerOutboxDeadLetter
+        expr: gmanager_outbox_dead > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Transactional outbox contains dead events
+          runbook_url: https://github.com/filipDjekic/g-manager/blob/main/ops/runbooks/observability.txt
+      - alert: GManagerBackgroundJobDead
+        expr: gmanager_jobs_dead > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Background job queue contains dead jobs
+          runbook_url: https://github.com/filipDjekic/g-manager/blob/main/ops/runbooks/observability.txt
+      - alert: GManagerObservabilityTest
+        expr: vector(1)
+        for: 0m
+        labels:
+          severity: test
+        annotations:
+          summary: Synthetic alert validating the alert delivery path
+          runbook_url: https://github.com/filipDjekic/g-manager/blob/main/ops/runbooks/observability.txt

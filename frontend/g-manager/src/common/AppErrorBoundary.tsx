@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from 'react'
+import { reportFrontendError } from '../observability/errorReporter'
 
 interface Props {
   children: ReactNode
@@ -13,6 +14,10 @@ export class AppErrorBoundary extends Component<Props, State> {
 
   static getDerivedStateFromError(): State {
     return { failed: true }
+  }
+
+  componentDidCatch(error: Error) {
+    reportFrontendError(error, 'react.error-boundary')
   }
 
   render() {

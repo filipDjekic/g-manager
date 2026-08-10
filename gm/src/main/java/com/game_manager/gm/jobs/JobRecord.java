@@ -7,6 +7,7 @@ public record JobRecord(
         UUID id,
         String type,
         String payload,
+        String correlationId,
         int attempt,
         int maxAttempts,
         long timeoutSeconds,

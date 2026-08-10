@@ -19,6 +19,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.health.contributor.Status;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -46,13 +47,22 @@ class JobFrameworkIntegrationTest {
 
     @Test
     void enqueueIsDeduplicatedAndPayloadContainsNoInfrastructureSecrets() {
-        UUID first = jobService.enqueue("test", Map.of("scope", "safe"), "daily:test");
-        UUID duplicate = jobService.enqueue("test", Map.of("scope", "ignored"), "daily:test");
+        MDC.put("requestId", "stage13-job-correlation");
+        UUID first;
+        UUID duplicate;
+        try {
+            first = jobService.enqueue("test", Map.of("scope", "safe"), "daily:test");
+            duplicate = jobService.enqueue("test", Map.of("scope", "ignored"), "daily:test");
+        } finally {
+            MDC.remove("requestId");
+        }
 
         assertThat(duplicate).isEqualTo(first);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM background_jobs", Integer.class)).isOne();
         assertThat(jdbc.queryForObject("SELECT payload FROM background_jobs", String.class))
                 .contains("safe").doesNotContain("password", "token", "secret");
+        assertThat(jdbc.queryForObject("SELECT correlation_id FROM background_jobs", String.class))
+                .isEqualTo("stage13-job-correlation");
     }
 
     @Test

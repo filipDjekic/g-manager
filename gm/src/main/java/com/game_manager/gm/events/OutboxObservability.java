@@ -6,6 +6,7 @@ import java.time.Clock;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.stereotype.Component;
+import org.springframework.dao.DataAccessException;
 
 @Component("outbox")
 public class OutboxObservability implements HealthIndicator {
@@ -28,12 +29,16 @@ public class OutboxObservability implements HealthIndicator {
 
     @Override
     public Health health() {
-        long pending = store.count(OutboxStatus.PENDING);
-        long processing = store.count(OutboxStatus.PROCESSING);
-        long dead = store.count(OutboxStatus.DEAD);
-        return Health.up().withDetail("pending", pending).withDetail("processing", processing)
-                .withDetail("dead", dead)
-                .withDetail("oldestPendingAgeSeconds", store.oldestPendingAgeSeconds(clock.instant()))
-                .build();
+        try {
+            long pending = store.count(OutboxStatus.PENDING);
+            long processing = store.count(OutboxStatus.PROCESSING);
+            long dead = store.count(OutboxStatus.DEAD);
+            return Health.up().withDetail("pending", pending).withDetail("processing", processing)
+                    .withDetail("dead", dead)
+                    .withDetail("oldestPendingAgeSeconds", store.oldestPendingAgeSeconds(clock.instant()))
+                    .build();
+        } catch (DataAccessException exception) {
+            return Health.down().withDetail("reason", "database-unavailable").build();
+        }
     }
 }

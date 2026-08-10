@@ -7,6 +7,7 @@ import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.dao.DataAccessException;
 
 @Component("backgroundJobs")
 public class JobObservability implements HealthIndicator {
@@ -35,16 +36,20 @@ public class JobObservability implements HealthIndicator {
 
     @Override
     public Health health() {
-        JobRunner runner = runnerProvider.getIfAvailable();
-        return Health.up()
-                .withDetail("queued", store.count(JobStatus.QUEUED))
-                .withDetail("retry", store.count(JobStatus.RETRY))
-                .withDetail("running", store.count(JobStatus.RUNNING))
-                .withDetail("dead", store.count(JobStatus.DEAD))
-                .withDetail("oldestQueuedAgeSeconds", store.oldestQueuedAgeSeconds(clock.instant()))
-                .withDetail("workerEnabled", runner != null)
-                .withDetail("workerAccepting", runner != null && runner.isAccepting())
-                .withDetail("activeWorkers", runner == null ? 0 : runner.activeWorkers())
-                .build();
+        try {
+            JobRunner runner = runnerProvider.getIfAvailable();
+            return Health.up()
+                    .withDetail("queued", store.count(JobStatus.QUEUED))
+                    .withDetail("retry", store.count(JobStatus.RETRY))
+                    .withDetail("running", store.count(JobStatus.RUNNING))
+                    .withDetail("dead", store.count(JobStatus.DEAD))
+                    .withDetail("oldestQueuedAgeSeconds", store.oldestQueuedAgeSeconds(clock.instant()))
+                    .withDetail("workerEnabled", runner != null)
+                    .withDetail("workerAccepting", runner != null && runner.isAccepting())
+                    .withDetail("activeWorkers", runner == null ? 0 : runner.activeWorkers())
+                    .build();
+        } catch (DataAccessException exception) {
+            return Health.down().withDetail("reason", "database-unavailable").build();
+        }
     }
 }
