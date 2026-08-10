@@ -1,0 +1,1 @@
+package com.game_manager.gm.workflow.dto; import jakarta.validation.constraints.*; import java.math.BigDecimal; public record CreateWorkflowRequest(@NotBlank String definitionKey,@NotBlank @Size(max=160)String title,@NotNull @DecimalMin("0.01")BigDecimal amount,@NotBlank @Size(max=1000)String description){}

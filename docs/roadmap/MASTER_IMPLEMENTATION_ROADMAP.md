@@ -2049,6 +2049,10 @@ malware-a, frontend E2E/a11y, object-store local stack i migration dry-run.
 
 ## Stage 22 — Asinhroni izveštaji i eksport
 
+**Izvršni status: DONE (2026-08-10).** Implementirani su permission-safe
+asinhroni reports, CSV/XLSX/PDF rendereri, privatni document output, status,
+cancel/expiry, šabloni, timezone/DST rasporedi, metrike, audit i kompletan UI tok.
+
 ### Status prioriteta
 PREPORUČENO
 
@@ -2141,6 +2145,8 @@ Backend golden/security/load/job tests, otvoriti PDF/XLSX/CSV standardnim
 alatima, frontend E2E/a11y, metrics pregled.
 
 ## Stage 23 — Approval workflow i poslovna automatizacija
+
+**Izvršni status: DONE (2026-08-10).** Implementiran je izolovani pilot za odobravanje internih troškova sa verzionisanim definicijama, SLA pravilima, bezbednim akcijama, audit timeline-om, prilozima i inbox/detail UI tokom. Detalji su u `docs/stages/STAGE_23_APPROVAL_WORKFLOW.md`.
 
 ### Status prioriteta
 OPCIONO

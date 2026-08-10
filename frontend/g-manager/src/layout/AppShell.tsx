@@ -14,6 +14,8 @@ function Navigation({ close }: { close?: () => void }) {
     <NavLink to="/">G-Manager</NavLink><NavLink to="/profile">Profil</NavLink>
     <NavLink to="/sessions">Sesije</NavLink><NavLink to="/catalog">Katalog</NavLink>
     <NavLink to="/documents">Dokumenti</NavLink>
+    {hasCapability(user, 'REPORT_READ') && <NavLink to="/reports">Izveštaji</NavLink>}
+    {(hasCapability(user, 'WORKFLOW_SUBMIT')||hasCapability(user, 'WORKFLOW_ACT')||hasCapability(user, 'WORKFLOW_MANAGE'))&&<NavLink to="/workflows">Workflow</NavLink>}
     {hasCapability(user, 'DASHBOARD_OPERATIONAL') && <NavLink to="/dashboard">Dashboard</NavLink>}
     {hasCapability(user, 'USER_LIST') && <NavLink to="/employees">Zaposleni</NavLink>}
     {hasCapability(user, 'WORKING_HOURS_MANAGE') && <NavLink to="/settings">Radno vreme</NavLink>}

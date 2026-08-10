@@ -1,0 +1,1 @@
+package com.game_manager.gm.document; import com.game_manager.gm.common.security.AuthenticatedUser; import java.util.UUID; public interface DocumentAccessExtension {String resourceType();boolean allowed(UUID resourceId,AuthenticatedUser actor);}

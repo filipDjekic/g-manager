@@ -26,6 +26,8 @@ const AuditPage = lazyPage(() => import('./pages/AuditPage'), 'AuditPage')
 const DashboardPage = lazyPage(() => import('./pages/DashboardPage'), 'DashboardPage')
 const NotificationPreferencesPage = lazyPage(() => import('./pages/NotificationPreferencesPage'), 'NotificationPreferencesPage')
 const DocumentsPage = lazyPage(() => import('./pages/DocumentsPage'), 'DocumentsPage')
+const ReportsPage = lazyPage(() => import('./pages/ReportsPage'), 'ReportsPage')
+const WorkflowsPage = lazyPage(() => import('./pages/WorkflowsPage'), 'WorkflowsPage')
 
 function RouteLoading() {
   return <p className="screen-message" role="status">Učitavanje stranice…</p>
@@ -75,6 +77,8 @@ function App() {
               <Route element={<CapabilityGuard anyOf={['AUDIT_READ']} />}>
                 <Route path="audit" element={<AuditPage />} />
               </Route>
+              <Route element={<CapabilityGuard anyOf={['REPORT_READ']} />}><Route path="reports" element={<ReportsPage />} /></Route>
+              <Route element={<CapabilityGuard anyOf={['WORKFLOW_SUBMIT','WORKFLOW_ACT','WORKFLOW_MANAGE']} />}><Route path="workflows" element={<WorkflowsPage />} /></Route>
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

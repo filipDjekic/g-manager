@@ -24,6 +24,8 @@
         <checkstyle.version>10.21.4</checkstyle.version>
         <cyclonedx.version>2.9.1</cyclonedx.version>
         <aws-sdk.version>2.31.54</aws-sdk.version>
+        <poi.version>5.4.1</poi.version>
+        <pdfbox.version>3.0.4</pdfbox.version>
     </properties>
 
     <dependencies>
@@ -96,6 +98,8 @@
             <artifactId>s3</artifactId>
             <version>${aws-sdk.version}</version>
         </dependency>
+        <dependency><groupId>org.apache.poi</groupId><artifactId>poi-ooxml</artifactId><version>${poi.version}</version></dependency>
+        <dependency><groupId>org.apache.pdfbox</groupId><artifactId>pdfbox</artifactId><version>${pdfbox.version}</version></dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>

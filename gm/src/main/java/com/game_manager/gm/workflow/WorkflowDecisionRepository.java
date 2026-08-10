@@ -1,0 +1,1 @@
+package com.game_manager.gm.workflow; import java.util.*; import org.springframework.data.jpa.repository.JpaRepository; public interface WorkflowDecisionRepository extends JpaRepository<WorkflowDecision,UUID>{List<WorkflowDecision> findByInstanceIdOrderByDecidedAt(UUID instance);}
