@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -82,6 +83,8 @@ public class JobRunner {
     private void execute(JobRecord job) {
         Timer.Sample sample = Timer.start(meterRegistry);
         String outcome = "completed";
+        String previousCorrelation = MDC.get("requestId");
+        MDC.put("requestId", job.correlationId());
         try {
             JobContext context = new JobContext(store, job, clock,
                     Duration.ofSeconds(properties.leaseSeconds()));
@@ -98,6 +101,11 @@ public class JobRunner {
         } finally {
             sample.stop(meterRegistry.timer("gmanager.jobs.duration", "type", job.type(),
                     "outcome", outcome));
+            if (previousCorrelation == null) {
+                MDC.remove("requestId");
+            } else {
+                MDC.put("requestId", previousCorrelation);
+            }
         }
     }
 

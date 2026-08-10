@@ -2,6 +2,7 @@ CREATE TABLE background_jobs (
     id CHAR(36) NOT NULL,
     job_type VARCHAR(80) NOT NULL,
     payload TEXT NOT NULL,
+    correlation_id VARCHAR(80) NOT NULL,
     dedupe_key VARCHAR(160) NULL,
     status VARCHAR(24) NOT NULL,
     priority INT NOT NULL DEFAULT 0,

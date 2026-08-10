@@ -1,0 +1,23 @@
+G-MANAGER OBSERVABILITY RUNBOOK
+
+Management endpoints must remain on a private interface. Check readiness first,
+then Prometheus target health and the Grafana overview dashboard. Search backend
+logs by requestId. Never paste tokens, cookies, request bodies, email addresses,
+or database credentials into an incident record.
+
+GManagerInstanceDown: verify the backend management port and network route, then
+check liveness. Restart only when liveness fails; a readiness-only failure needs
+dependency diagnosis.
+
+GManagerHighServerErrorRate: identify affected route and requestId, inspect the
+matching sanitized backend log, and compare database pool saturation.
+
+GManagerOutboxDeadLetter: inspect event type and event ID without copying payload,
+fix the consumer cause, then use the controlled replay operation.
+
+GManagerBackgroundJobDead: inspect job type, job ID, attempt outcome and requestId.
+Fix the handler cause before using the explicit retry operation.
+
+GManagerObservabilityTest: this synthetic alert proves rule evaluation and the
+runbook link. Silence or remove only in an environment where test alerts are
+routed separately and validated by another controlled injection.

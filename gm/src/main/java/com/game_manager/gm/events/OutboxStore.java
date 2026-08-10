@@ -11,6 +11,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import com.game_manager.gm.common.observability.SensitiveDataSanitizer;
 
 @Repository
 public class OutboxStore {
@@ -119,7 +120,8 @@ public class OutboxStore {
     }
 
     private static String abbreviate(String value) {
-        String safe = value == null || value.isBlank() ? "Consumer failed" : value;
+        String safe = value == null || value.isBlank()
+                ? "Consumer failed" : SensitiveDataSanitizer.redact(value);
         return safe.length() <= 500 ? safe : safe.substring(0, 500);
     }
 }

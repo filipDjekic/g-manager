@@ -11,17 +11,21 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import io.micrometer.core.instrument.MeterRegistry;
 
 @Component
 public class OutboxWriter {
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    private final MeterRegistry meterRegistry;
 
-    public OutboxWriter(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper, Clock clock) {
+    public OutboxWriter(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper, Clock clock,
+                        MeterRegistry meterRegistry) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
         this.clock = clock;
+        this.meterRegistry = meterRegistry;
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -41,6 +45,7 @@ public class OutboxWriter {
                 """, id.toString(), type.name(), event.schemaVersion(), aggregateType,
                 aggregateId.toString(), Timestamp.from(now), correlationId, serialize(event),
                 Timestamp.from(now), Timestamp.from(now));
+        meterRegistry.counter("gmanager.business.events", "type", type.name()).increment();
         return id;
     }
 
