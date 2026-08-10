@@ -50,22 +50,24 @@ export function TableShell({ label, children }: { label: string; children: React
   return <div className="ui-table-shell" role="region" aria-label={label} tabIndex={0}>{children}</div>
 }
 
-function DialogSurface({ title, children, onClose, className = '' }: {
+function DialogSurface({ title, children, onClose, className = '', initialFocusRef }: {
   title: string; children: ReactNode; onClose: () => void; className?: string
+  initialFocusRef?: React.RefObject<HTMLElement | null>
 }) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   const titleId = useId()
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null
-    closeRef.current?.focus()
+    if (initialFocusRef?.current) initialFocusRef.current.focus()
+    else closeRef.current?.focus()
     const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
     document.addEventListener('keydown', escape)
     return () => {
       document.removeEventListener('keydown', escape)
       previouslyFocused?.focus()
     }
-  }, [onClose])
+  }, [initialFocusRef, onClose])
   const trapFocus = (event: ReactKeyboardEvent) => {
     if (event.key !== 'Tab') return
     const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
@@ -85,12 +87,13 @@ function DialogSurface({ title, children, onClose, className = '' }: {
   </div>
 }
 
-export function Modal({ open, title, children, onClose }: {
+export function Modal({ open, title, children, onClose, initialFocusRef }: {
   open: boolean; title: string; children: ReactNode; onClose: () => void
+  initialFocusRef?: React.RefObject<HTMLElement | null>
 }) {
   if (!open) return null
   return <div className="ui-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
-    <DialogSurface title={title} onClose={onClose} className="ui-dialog">{children}</DialogSurface>
+    <DialogSurface title={title} onClose={onClose} className="ui-dialog" initialFocusRef={initialFocusRef}>{children}</DialogSurface>
   </div>
 }
 

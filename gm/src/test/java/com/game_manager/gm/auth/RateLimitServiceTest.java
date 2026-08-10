@@ -51,4 +51,20 @@ class RateLimitServiceTest {
         service.checkOperationalCreate(userId, "/api/v1/reservations");
         service.checkOperationalCreate(UUID.randomUUID(), "/api/v1/orders");
     }
+
+    @Test
+    void limitsSearchesPerAuthenticatedUserToSixtyPerMinute() {
+        RateLimitService service = new RateLimitService(Clock.systemUTC());
+        UUID userId = UUID.randomUUID();
+        for (int attempt = 0; attempt < 60; attempt++) {
+            service.checkSearch(userId);
+        }
+
+        assertThatThrownBy(() -> service.checkSearch(userId))
+                .isInstanceOf(ApplicationException.class)
+                .extracting("status")
+                .isEqualTo(org.springframework.http.HttpStatus.TOO_MANY_REQUESTS);
+
+        service.checkSearch(UUID.randomUUID());
+    }
 }

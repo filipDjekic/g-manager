@@ -5,6 +5,7 @@ import { hasCapability } from '../auth/capabilities'
 import { useAuthStore } from '../auth/authStore'
 import { Button, Drawer, Select } from '../components/ui'
 import { useUiPreferences } from '../preferences/uiPreferencesContext'
+import { CommandPalette } from '../search/CommandPalette'
 
 function Navigation({ close }: { close?: () => void }) {
   const user = useAuthStore((state) => state.user)
@@ -41,6 +42,7 @@ export function AppShell() {
         aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>Meni</Button>
       <div className="desktop-navigation"><Navigation /></div>
       <div className="shell-actions">
+        <CommandPalette />
         <span>{user?.name} · {user?.role}</span>
         <label className="preference-control">Tema<Select aria-label="Tema" value={theme}
           onChange={(event) => setTheme(event.target.value as 'light' | 'dark')}>
