@@ -278,6 +278,11 @@ public class ReservationService {
     }
 
     @Transactional(readOnly = true)
+    public List<ReservationAnalyticsRow> analyticsBetween(Instant from, Instant to, UUID employeeId) {
+        return reservationRepository.analyticsBetween(from, to, employeeId);
+    }
+
+    @Transactional(readOnly = true)
     public long countForEmployeeToday(
             UUID employeeId, ReservationStatus status, Instant from, Instant to) {
         return reservationRepository.countForEmployeeAndStatusBetween(

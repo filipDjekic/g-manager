@@ -35,4 +35,13 @@ public interface OrderRepository
             @Param("handledBy") UUID handledBy,
             @Param("from") Instant from,
             @Param("to") Instant to);
+
+    @Query("""
+            select new com.game_manager.gm.order.OrderAnalyticsRow(
+                o.id, o.createdAt, o.status, o.totalPrice)
+            from Order o where o.createdAt >= :from and o.createdAt < :to
+            order by o.createdAt, o.id
+            """)
+    java.util.List<OrderAnalyticsRow> analyticsBetween(
+            @Param("from") Instant from, @Param("to") Instant to);
 }

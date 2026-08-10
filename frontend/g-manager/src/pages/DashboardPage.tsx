@@ -1,129 +1,136 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
-import {
-  Bar, BarChart, CartesianGrid, Cell, Pie, PieChart,
-  ResponsiveContainer, Tooltip, XAxis, YAxis,
-} from 'recharts'
+import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart,
+  ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Link } from 'react-router-dom'
 import { apiErrorMessage } from '../api/client'
 import { dashboardApi } from '../api/dashboardApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
 import { TableShell } from '../components/ui'
 import { currentBusinessMonth } from '../dashboard/dateRange'
-import type { DashboardSummary, DashboardToday } from '../types/dashboard.types'
+import type { DashboardToday, DashboardTrends, DashboardWidgetPreference, DashboardWorkload } from '../types/dashboard.types'
 import type { ReservationStatus } from '../types/reservation.types'
 
 const statusColors: Record<ReservationStatus, string> = {
-  PENDING: '#fbbf24',
-  CONFIRMED: '#60a5fa',
-  REJECTED: '#fb7185',
-  CANCELLED: '#94a3b8',
-  COMPLETED: '#6ee7b7',
+  PENDING: '#fbbf24', CONFIRMED: '#60a5fa', REJECTED: '#fb7185', CANCELLED: '#94a3b8', COMPLETED: '#6ee7b7',
+}
+const defaults: DashboardWidgetPreference[] = [
+  { widgetKey: 'trends', position: 0, visible: true, threshold: null },
+  { widgetKey: 'statuses', position: 1, visible: true, threshold: null },
+  { widgetKey: 'workload', position: 2, visible: true, threshold: 80 },
+]
+const widgetLabels: Record<string, string> = { trends: 'Trendovi', statuses: 'Statusi rezervacija', workload: 'Opterećenje zaposlenih' }
+
+function Change({ value }: { value: number | null }) {
+  if (value === null) return <small>Prethodni period nema osnovicu</small>
+  return <small className={value < 0 ? 'metric-down' : 'metric-up'}>{value > 0 ? '+' : ''}{value.toLocaleString('sr-RS')}% prema prethodnom periodu</small>
 }
 
 export function DashboardPage() {
   const user = useAuthStore((state) => state.user)
   const management = hasCapability(user, 'DASHBOARD_SUMMARY')
-  const initialRange = useMemo(() => currentBusinessMonth(), [])
-  const [from, setFrom] = useState(initialRange.from)
-  const [to, setTo] = useState(initialRange.to)
-  const [summary, setSummary] = useState<DashboardSummary | null>(null)
+  const initial = useMemo(() => currentBusinessMonth(), [])
+  const [from, setFrom] = useState(initial.from); const [to, setTo] = useState(initial.to)
+  const [employeeId, setEmployeeId] = useState('')
+  const [trends, setTrends] = useState<DashboardTrends | null>(null)
+  const [workload, setWorkload] = useState<DashboardWorkload | null>(null)
   const [today, setToday] = useState<DashboardToday | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [preferences, setPreferences] = useState(defaults)
+  const [loading, setLoading] = useState(true); const [error, setError] = useState('')
 
   useEffect(() => {
     const request = management
-      ? dashboardApi.summary(initialRange.from, initialRange.to).then(setSummary)
+      ? Promise.all([dashboardApi.trends(initial.from, initial.to), dashboardApi.workload(initial.from, initial.to), dashboardApi.preferences()])
+        .then(([nextTrends, nextWorkload, stored]) => { setTrends(nextTrends); setWorkload(nextWorkload); if (stored.length) setPreferences(stored) })
       : dashboardApi.today().then(setToday)
-    void request.catch((cause) =>
-      setError(apiErrorMessage(cause, 'Dashboard nije moguće učitati.')))
-      .finally(() => setLoading(false))
-  }, [initialRange.from, initialRange.to, management])
+    void request.catch((cause) => setError(apiErrorMessage(cause, 'Dashboard nije moguće učitati.'))).finally(() => setLoading(false))
+  }, [initial.from, initial.to, management])
 
-  async function loadSummary(event: FormEvent) {
+  async function load(event: FormEvent) {
     event.preventDefault()
-    if (from > to) {
-      setError('Početni datum ne sme biti posle završnog.')
-      return
-    }
-    setLoading(true)
-    setError('')
+    if (from > to) { setError('Početni datum ne sme biti posle završnog.'); return }
+    setLoading(true); setError('')
     try {
-      setSummary(await dashboardApi.summary(from, to))
-    } catch (cause) {
-      setError(apiErrorMessage(cause, 'Sažetak nije moguće učitati.'))
-    } finally {
-      setLoading(false)
-    }
+      const [nextTrends, nextWorkload] = await Promise.all([
+        dashboardApi.trends(from, to), dashboardApi.workload(from, to, employeeId || undefined),
+      ])
+      setTrends(nextTrends); setWorkload(nextWorkload)
+    } catch (cause) { setError(apiErrorMessage(cause, 'Dashboard nije moguće učitati.')) }
+    finally { setLoading(false) }
   }
 
-  if (loading && !summary && !today) {
-    return <main className="workspace"><p className="empty-state">Učitavanje dashboarda…</p></main>
+  async function download(view: 'current' | 'raw') {
+    try {
+      const blob = await dashboardApi.export(from, to, view, employeeId || undefined)
+      const url = URL.createObjectURL(blob); const anchor = document.createElement('a')
+      anchor.href = url; anchor.download = `dashboard-${from}-${to}-${view}.csv`; anchor.click(); URL.revokeObjectURL(url)
+    } catch (cause) { setError(apiErrorMessage(cause, 'CSV nije moguće preuzeti.')) }
   }
 
+  async function savePreferences() {
+    try { setPreferences(await dashboardApi.savePreferences(preferences)) }
+    catch (cause) { setError(apiErrorMessage(cause, 'Raspored widgeta nije moguće sačuvati.')) }
+  }
+
+  if (loading && !trends && !today) return <main className="workspace"><p className="empty-state">Učitavanje dashboarda…</p></main>
   if (!management) {
-    const cards = [
-      ['Zahtevi za termine', today?.pendingReservationsToMe ?? 0],
-      ['Potvrđeni termini danas', today?.confirmedTodayCount ?? 0],
-      ['Nepreuzete narudžbine', today?.unclaimedOrdersCount ?? 0],
-      ['Moje narudžbine u obradi', today?.myInProgressOrdersCount ?? 0],
-    ]
-    return <main className="workspace">
-      <div className="page-heading"><div><p className="eyebrow">Danas · Europe/Belgrade</p><h1>Operativni dashboard</h1></div></div>
+    const cards = [['Zahtevi za termine', today?.pendingReservationsToMe ?? 0], ['Potvrđeni termini danas', today?.confirmedTodayCount ?? 0],
+      ['Nepreuzete narudžbine', today?.unclaimedOrdersCount ?? 0], ['Moje narudžbine u obradi', today?.myInProgressOrdersCount ?? 0]]
+    return <main className="workspace"><div className="page-heading"><div><p className="eyebrow">Danas · Europe/Belgrade</p><h1>Operativni dashboard</h1></div></div>
       {error && <p className="error-banner" role="alert">{error}</p>}
-      <section className="metric-grid">{cards.map(([label, value]) =>
-        <article className="metric-card" key={label}><span>{label}</span><strong>{value}</strong></article>)}</section>
-    </main>
+      <section className="metric-grid">{cards.map(([label, value]) => <article className="metric-card" key={label}><span>{label}</span><strong>{value}</strong></article>)}</section></main>
   }
 
-  const statusData = Object.entries(summary?.reservationsByStatus ?? {})
-    .map(([name, value]) => ({ name, value }))
-  const revenueData = [{ name: 'Završene narudžbine', value: summary?.totalRevenueCompleted ?? 0 }]
+  const statuses = Object.entries(trends?.reservationsByStatus ?? {}) as [ReservationStatus, number][]
+  const visible = new Set(preferences.filter((item) => item.visible).map((item) => item.widgetKey))
+  const workloadThreshold = preferences.find((item) => item.widgetKey === 'workload')?.threshold ?? 80
   return <main className="workspace">
-    <div className="page-heading"><div><p className="eyebrow">Poslovni pregled</p><h1>Dashboard</h1></div></div>
+    <div className="page-heading"><div><p className="eyebrow">Poslovni pregled · {trends?.timezone}</p><h1>Dashboard</h1></div>
+      <div className="form-actions"><button type="button" className="secondary-button" onClick={() => void download('current')}>Izvezi prikaz</button>
+        <button type="button" className="secondary-button" onClick={() => void download('raw')}>Izvezi raw CSV</button></div></div>
     {error && <p className="error-banner" role="alert">{error}</p>}
-    <form className="filter-bar" onSubmit={loadSummary}>
+    <form className="filter-bar dashboard-filters" onSubmit={load}>
       <label>Od<input type="date" required value={from} onChange={(event) => setFrom(event.target.value)} /></label>
       <label>Do<input type="date" required value={to} onChange={(event) => setTo(event.target.value)} /></label>
+      <label>Zaposleni<select value={employeeId} onChange={(event) => setEmployeeId(event.target.value)}><option value="">Svi zaposleni</option>
+        {workload?.employees.map((item) => <option key={item.employeeId} value={item.employeeId}>{item.employeeName}</option>)}</select></label>
       <button type="submit" disabled={loading}>{loading ? 'Učitavanje…' : 'Primeni'}</button>
     </form>
+    <p className="period-note">Trenutni period {trends?.from}–{trends?.to}; prethodni period {trends?.previousFrom}–{trends?.previousTo}; dnevni grain, zona {trends?.timezone}.</p>
     <section className="metric-grid">
-      <article className="metric-card"><span>Prihod završenih narudžbina</span>
-        <strong>{(summary?.totalRevenueCompleted ?? 0).toLocaleString('sr-RS', { minimumFractionDigits: 2 })} RSD</strong></article>
-      <article className="metric-card"><span>Završene narudžbine</span>
-        <strong>{summary?.completedOrdersCount ?? 0}</strong></article>
-      <article className="metric-card"><span>Rezervacije u opsegu</span>
-        <strong>{statusData.reduce((total, item) => total + item.value, 0)}</strong></article>
+      <article className="metric-card"><span>Realizovani prihod</span><strong>{trends?.revenue.current.toLocaleString('sr-RS')} RSD</strong><Change value={trends?.revenue.percentChange ?? null} /></article>
+      <article className="metric-card"><span>Završene narudžbine</span><strong>{trends?.completedOrders.current ?? 0}</strong><Change value={trends?.completedOrders.percentChange ?? null} /></article>
+      <article className="metric-card"><span>Rezervacije</span><strong>{trends?.reservations.current ?? 0}</strong><Change value={trends?.reservations.percentChange ?? null} /></article>
     </section>
+
+    <details className="panel widget-settings"><summary>Prilagodi dashboard</summary>{[...preferences].sort((a, b) => a.position - b.position).map((item, index) =>
+      <div className="widget-setting" key={item.widgetKey}><label className="inline-toggle"><input type="checkbox" checked={item.visible}
+        onChange={(event) => setPreferences((items) => items.map((value) => value.widgetKey === item.widgetKey ? { ...value, visible: event.target.checked } : value))} />{widgetLabels[item.widgetKey]}</label>
+        {item.widgetKey === 'workload' && <label>Prag %<input type="number" min="0" max="100" value={item.threshold ?? ''}
+          onChange={(event) => setPreferences((items) => items.map((value) => value.widgetKey === item.widgetKey ? { ...value, threshold: event.target.value ? Number(event.target.value) : null } : value))} /></label>}
+        <button type="button" className="secondary-button" disabled={index === 0} onClick={() => setPreferences((items) => items.map((value) => value.widgetKey === item.widgetKey ? { ...value, position: item.position - 1 } : value))}>Pomeri gore</button></div>)}
+      <button type="button" onClick={() => void savePreferences()}>Sačuvaj raspored</button></details>
+
     <div className="dashboard-charts">
-      <section className="panel chart-panel"><h2>Rezervacije po statusu</h2>
-        {!statusData.some((item) => item.value > 0) && <p className="empty-state">Nema rezervacija u opsegu.</p>}
-        {statusData.some((item) => item.value > 0) && <div aria-hidden="true"><ResponsiveContainer width="100%" height={300}>
-          <PieChart accessibilityLayer={false}><Pie rootTabIndex={-1} data={statusData} dataKey="value" nameKey="name" outerRadius={100} label>
-            {statusData.map((item) => <Cell key={item.name}
-              fill={statusColors[item.name as ReservationStatus]} />)}
-          </Pie><Tooltip /></PieChart>
-        </ResponsiveContainer></div>}
-        <TableShell label="Tabelarni podaci grafikona rezervacija po statusu">
-          <table><caption>Broj rezervacija grupisan po statusu za izabrani period</caption>
-            <thead><tr><th scope="col">Status</th><th scope="col">Broj rezervacija</th></tr></thead>
-            <tbody>{statusData.map((item) => <tr key={item.name}><th scope="row">{item.name}</th><td>{item.value}</td></tr>)}</tbody>
-          </table>
-        </TableShell>
-      </section>
-      <section className="panel chart-panel"><h2>Realizovani prihod</h2>
-        <div aria-hidden="true"><ResponsiveContainer width="100%" height={300}>
-          <BarChart data={revenueData} accessibilityLayer={false}><CartesianGrid strokeDasharray="3 3" stroke="#315247" />
-            <XAxis dataKey="name" stroke="#a7c5ba" /><YAxis stroke="#a7c5ba" />
-            <Tooltip /><Bar dataKey="value" fill="#6ee7b7" /></BarChart>
-        </ResponsiveContainer></div>
-        <TableShell label="Tabelarni podaci grafikona realizovanog prihoda">
-          <table><caption>Realizovani prihod završenih narudžbina za izabrani period</caption>
-            <thead><tr><th scope="col">Metrika</th><th scope="col">Iznos u RSD</th></tr></thead>
-            <tbody>{revenueData.map((item) => <tr key={item.name}><th scope="row">{item.name}</th><td>{item.value.toLocaleString('sr-RS')}</td></tr>)}</tbody>
-          </table>
-        </TableShell>
-      </section>
+      {visible.has('trends') && <section className="panel chart-panel dashboard-wide"><h2>Dnevni poslovni trendovi</h2>
+        <p>Prihod obuhvata samo završene narudžbine po datumu kreiranja; rezervacije su termini čiji početak pripada danu.</p>
+        {!trends?.buckets.some((item) => item.completedOrders || item.reservations) ? <p className="empty-state">Nema podataka u periodu.</p> : <div aria-hidden="true"><ResponsiveContainer width="100%" height={300}><BarChart data={trends?.buckets}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#315247" /><XAxis dataKey="date" stroke="#a7c5ba" /><YAxis stroke="#a7c5ba" />
+          <Tooltip /><Bar dataKey="completedOrders" name="Završene narudžbine" fill="#6ee7b7" />
+          <Bar dataKey="reservations" name="Rezervacije" fill="#60a5fa" /></BarChart></ResponsiveContainer></div>}
+        <TableShell label="Tabelarni podaci dnevnih trendova"><table><caption>Dnevni prihod, završene narudžbine i rezervacije</caption><thead><tr><th>Datum</th><th>Prihod RSD</th><th>Narudžbine</th><th>Rezervacije</th></tr></thead>
+          <tbody>{trends?.buckets.map((item) => <tr key={item.date}><th scope="row">{item.date}</th><td>{item.completedRevenue}</td><td>{item.completedOrders}</td><td>{item.reservations}</td></tr>)}</tbody></table></TableShell></section>}
+
+      {visible.has('statuses') && <section className="panel chart-panel"><h2>Status rezervacija</h2><p>Broj termina prema trenutnom statusu, za početak termina u izabranom periodu.</p>
+        {!statuses.some(([, count]) => count) ? <p className="empty-state">Nema rezervacija u periodu.</p> : <div aria-hidden="true"><ResponsiveContainer width="100%" height={260}><PieChart><Pie data={statuses.map(([name, value]) => ({ name, value }))} dataKey="value" nameKey="name" outerRadius={90}>{statuses.map(([name]) => <Cell key={name} fill={statusColors[name]} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer></div>}
+        <TableShell label="Tabelarni podaci statusa rezervacija"><table><caption>Rezervacije po statusu</caption><thead><tr><th>Status</th><th>Broj</th><th>Detalji</th></tr></thead><tbody>{statuses.map(([status, count]) =>
+          <tr key={status}><th scope="row">{status}</th><td>{count}</td><td><Link to={`/reservations?status=${status}&from=${from}&to=${to}`}>Otvori {status} rezervacije</Link></td></tr>)}</tbody></table></TableShell></section>}
+
+      {visible.has('workload') && <section className="panel chart-panel"><h2>Opterećenje zaposlenih</h2><p>{workload?.capacityDefinition}. Prag upozorenja: {workloadThreshold}%.</p>
+        {!workload?.employees.length ? <p className="empty-state">Nema aktivnih zaposlenih za filter.</p> : <div aria-hidden="true"><ResponsiveContainer width="100%" height={260}><BarChart data={workload?.employees}><CartesianGrid strokeDasharray="3 3" stroke="#315247" /><XAxis dataKey="employeeName" stroke="#a7c5ba" /><YAxis domain={[0, 100]} stroke="#a7c5ba" /><Tooltip /><Bar dataKey="utilizationPercent" name="Iskorišćenost %" fill="#fbbf24" /></BarChart></ResponsiveContainer></div>}
+        <TableShell label="Tabelarni podaci opterećenja"><table><caption>Potvrđeni i završeni rezervisani minuti prema dostupnim poslovnim minutima</caption><thead><tr><th>Zaposleni</th><th>Termini</th><th>Rezervisano</th><th>Kapacitet</th><th>Iskorišćenost</th></tr></thead><tbody>{workload?.employees.map((item) =>
+          <tr key={item.employeeId} className={item.utilizationPercent !== null && item.utilizationPercent >= workloadThreshold ? 'threshold-exceeded' : undefined}><th scope="row"><Link to={`/reservations?employeeId=${item.employeeId}&from=${from}&to=${to}`}>{item.employeeName}</Link></th><td>{item.reservationCount}</td><td>{item.reservedMinutes} min</td><td>{item.capacityMinutes || 'Nije konfigurisan'}</td><td>{item.utilizationPercent === null ? 'N/D' : `${item.utilizationPercent}%`}</td></tr>)}</tbody></table></TableShell></section>}
     </div>
+    <p className="period-note">Team, attendance, kašnjenje i prekovremeni rad nisu prikazani jer projekat nema pouzdan team/attendance izvor podataka.</p>
   </main>
 }

@@ -11,6 +11,12 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificationExecutor<User> {
+    @org.springframework.data.jpa.repository.Query("""
+            select new com.game_manager.gm.user.EmployeeAnalyticsRow(u.id, u.name)
+            from User u where u.role = com.game_manager.gm.common.security.Role.EMPLOYEE
+              and u.active = true and u.deletedAt is null order by u.name, u.id
+            """)
+    java.util.List<EmployeeAnalyticsRow> activeEmployeesForAnalytics();
     @Query("select u from User u where lower(u.email) = lower(:email) and u.deletedAt is null")
     Optional<User> findByEmailIgnoreCase(@Param("email") String email);
     boolean existsByEmailIgnoreCase(String email);
