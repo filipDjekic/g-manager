@@ -15,6 +15,8 @@ import com.game_manager.gm.user.dto.UserResponse;
 import com.game_manager.gm.audit.AuditVisibility;
 import com.game_manager.gm.audit.AuditWriter;
 import com.game_manager.gm.common.dto.DeletionReasonRequest;
+import com.game_manager.gm.events.DomainEventType;
+import com.game_manager.gm.events.OutboxWriter;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Locale;
@@ -45,6 +47,7 @@ public class UserService {
     private final PageRequestFactory pageRequestFactory;
     private final UserAuthorizationPolicy authorizationPolicy;
     private final AuditWriter auditWriter;
+    private final OutboxWriter outboxWriter;
 
     @Transactional(readOnly = true)
     @PreAuthorize("hasAuthority('PROFILE_READ')")
@@ -61,6 +64,7 @@ public class UserService {
         User saved = userRepository.save(user);
         auditWriter.write("USER_PROFILE_UPDATED", "USER", saved.getId(),
                 Map.of("name", previousName), Map.of("name", saved.getName()), null, visibility(saved));
+        outboxWriter.write(DomainEventType.USER_PROFILE_UPDATED, "USER", saved.getId(), Map.of());
         return UserResponse.from(saved);
     }
 
@@ -81,6 +85,7 @@ public class UserService {
         auditWriter.write("USER_PASSWORD_CHANGED", "USER", user.getId(),
                 Map.of("password", "[REDACTED]"), Map.of("password", "[REDACTED]"),
                 "All refresh sessions revoked", visibility(user));
+        outboxWriter.write(DomainEventType.USER_PASSWORD_CHANGED, "USER", user.getId(), Map.of());
     }
 
     @Transactional
@@ -115,6 +120,8 @@ public class UserService {
         User saved = userRepository.save(user);
         auditWriter.write("USER_CREATED", "USER", saved.getId(), null, userAuditData(saved),
                 null, visibility(saved));
+        outboxWriter.write(DomainEventType.USER_CREATED, "USER", saved.getId(),
+                Map.of("active", saved.isActive()));
         return UserResponse.from(saved);
     }
 
@@ -169,6 +176,8 @@ public class UserService {
         refreshTokenRevocationService.revokeAllSessions(targetId);
         auditWriter.write("USER_DEACTIVATED", "USER", targetId,
                 Map.of("active", true), Map.of("active", false), null, visibility(target));
+        outboxWriter.write(DomainEventType.USER_DEACTIVATED, "USER", targetId,
+                Map.of("active", false));
     }
 
     @Transactional
@@ -184,6 +193,8 @@ public class UserService {
         refreshTokenRevocationService.revokeAllSessions(targetId);
         auditWriter.write("USER_DELETED", "USER", targetId, before,
                 Map.of("deleted", true), request.reason(), visibility(target));
+        outboxWriter.write(DomainEventType.USER_DELETED, "USER", targetId,
+                Map.of("deleted", true));
     }
 
     @Transactional
@@ -201,6 +212,8 @@ public class UserService {
         User saved = userRepository.save(target);
         auditWriter.write("USER_RESTORED", "USER", targetId, Map.of("deleted", true),
                 userAuditData(saved), reason, visibility(saved));
+        outboxWriter.write(DomainEventType.USER_RESTORED, "USER", targetId,
+                Map.of("active", saved.isActive()));
         return UserResponse.from(saved);
     }
 

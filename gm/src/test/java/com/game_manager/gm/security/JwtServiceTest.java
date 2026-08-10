@@ -38,6 +38,9 @@ class JwtServiceTest {
                 java.util.List.of("http://localhost:5173"),
                 new GManagerProperties.Storage(java.nio.file.Path.of("target/test-uploads")),
                 new GManagerProperties.Idempotency(24, "0 0 3 * * *", 120),
+                new GManagerProperties.Outbox(false, 10, 1000, 30, 3, 2, 30),
+                new GManagerProperties.Jobs(false, 2, 4, 2, 1000, 30, 60,
+                        3, 2, 10, 30, 365),
                 new GManagerProperties.Reservations(60),
                 new GManagerProperties.Jwt(secret, 15, 14, false),
                 new GManagerProperties.InitialOwner("Initial Owner", "", ""));

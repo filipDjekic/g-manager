@@ -45,6 +45,27 @@ app:
     ttl-hours: 24
     cleanup-cron: "0 0 3 * * *"
     in-progress-timeout-seconds: 120
+  outbox:
+    enabled: ${OUTBOX_ENABLED:true}
+    batch-size: ${OUTBOX_BATCH_SIZE:50}
+    poll-interval-millis: ${OUTBOX_POLL_INTERVAL_MILLIS:1000}
+    lease-seconds: ${OUTBOX_LEASE_SECONDS:60}
+    max-attempts: ${OUTBOX_MAX_ATTEMPTS:5}
+    initial-backoff-seconds: ${OUTBOX_INITIAL_BACKOFF_SECONDS:5}
+    retention-days: ${OUTBOX_RETENTION_DAYS:30}
+  jobs:
+    enabled: ${JOBS_ENABLED:true}
+    worker-count: ${JOBS_WORKER_COUNT:4}
+    queue-capacity: ${JOBS_QUEUE_CAPACITY:20}
+    claim-batch-size: ${JOBS_CLAIM_BATCH_SIZE:4}
+    poll-interval-millis: ${JOBS_POLL_INTERVAL_MILLIS:1000}
+    lease-seconds: ${JOBS_LEASE_SECONDS:60}
+    timeout-seconds: ${JOBS_TIMEOUT_SECONDS:300}
+    max-attempts: ${JOBS_MAX_ATTEMPTS:5}
+    initial-backoff-seconds: ${JOBS_INITIAL_BACKOFF_SECONDS:10}
+    shutdown-wait-seconds: ${JOBS_SHUTDOWN_WAIT_SECONDS:30}
+    refresh-token-retention-days: ${REFRESH_TOKEN_RETENTION_DAYS:30}
+    audit-retention-days: ${AUDIT_RETENTION_DAYS:365}
   reservations:
     cancellation-cutoff-minutes: ${CANCELLATION_CUTOFF_MINUTES:60}
   jwt:

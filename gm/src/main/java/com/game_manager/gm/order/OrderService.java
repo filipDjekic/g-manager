@@ -16,6 +16,8 @@ import com.game_manager.gm.common.security.CurrentUserProvider;
 import com.game_manager.gm.common.security.Role;
 import com.game_manager.gm.audit.AuditVisibility;
 import com.game_manager.gm.audit.AuditWriter;
+import com.game_manager.gm.events.DomainEventType;
+import com.game_manager.gm.events.OutboxWriter;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -44,6 +46,7 @@ public class OrderService {
     private final PageRequestFactory pageRequestFactory;
     private final OrderAuthorizationPolicy authorizationPolicy;
     private final AuditWriter auditWriter;
+    private final OutboxWriter outboxWriter;
 
     @Transactional
     @PreAuthorize("hasAuthority('ORDER_CREATE')")
@@ -74,7 +77,10 @@ public class OrderService {
             total = total.add(lineTotal);
         }
         order.setTotalPrice(total);
-        return OrderResponse.from(orderRepository.saveAndFlush(order));
+        Order saved = orderRepository.saveAndFlush(order);
+        outboxWriter.write(DomainEventType.ORDER_CREATED, "ORDER", saved.getId(),
+                java.util.Map.of("status", saved.getStatus().name()));
+        return OrderResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
@@ -119,6 +125,9 @@ public class OrderService {
         auditWriter.write("ORDER_STATUS_CHANGED", "ORDER", id,
                 java.util.Map.of("status", previousStatus.name()),
                 java.util.Map.of("status", saved.getStatus().name()), null, AuditVisibility.MANAGEMENT);
+        outboxWriter.write(DomainEventType.ORDER_STATUS_CHANGED, "ORDER", saved.getId(),
+                java.util.Map.of("previousStatus", previousStatus.name(),
+                        "status", saved.getStatus().name()));
         return OrderResponse.from(saved);
     }
 

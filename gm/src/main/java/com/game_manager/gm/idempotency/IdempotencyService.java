@@ -7,7 +7,6 @@ import java.time.Clock;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,10 +53,9 @@ public class IdempotencyService {
                 .ifPresent(repository::delete);
     }
 
-    @Scheduled(cron = "${app.idempotency.cleanup-cron:0 0 3 * * *}")
     @Transactional
-    public void cleanupExpired() {
-        repository.deleteCompletedByExpiresAtBefore(clock.instant());
+    public long cleanupExpired() {
+        return repository.deleteCompletedByExpiresAtBefore(clock.instant());
     }
 
     private IdempotencyKey owned(UUID principalId, String key, String endpoint, UUID processingToken) {

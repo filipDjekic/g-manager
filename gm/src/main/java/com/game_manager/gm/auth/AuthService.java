@@ -32,6 +32,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.game_manager.gm.auth.dto.SessionResponse;
 import com.game_manager.gm.auth.dto.SecurityEventResponse;
 import com.game_manager.gm.common.security.CurrentUserProvider;
+import com.game_manager.gm.events.DomainEventType;
+import com.game_manager.gm.events.OutboxWriter;
+import java.util.Map;
 
 @Service
 public class AuthService {
@@ -46,6 +49,7 @@ public class AuthService {
     private final CurrentUserProvider currentUserProvider;
     private final TransactionTemplate transactionTemplate;
     private final Duration refreshTtl;
+    private final OutboxWriter outboxWriter;
     private final SecureRandom secureRandom = new SecureRandom();
     private final Clock clock = Clock.systemUTC();
 
@@ -59,7 +63,8 @@ public class AuthService {
             SecurityEventRecorder securityEventRecorder,
             CurrentUserProvider currentUserProvider,
             org.springframework.transaction.PlatformTransactionManager transactionManager,
-            GManagerProperties properties
+            GManagerProperties properties,
+            OutboxWriter outboxWriter
     ) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
@@ -71,6 +76,7 @@ public class AuthService {
         this.currentUserProvider = currentUserProvider;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.refreshTtl = Duration.ofDays(properties.jwt().refreshTokenDays());
+        this.outboxWriter = outboxWriter;
     }
 
     @Transactional
@@ -86,6 +92,8 @@ public class AuthService {
         user.setRole(Role.CUSTOMER);
         user.setActive(true);
         User saved = userRepository.save(user);
+        outboxWriter.write(DomainEventType.USER_REGISTERED, "USER", saved.getId(),
+                Map.of("active", saved.isActive()));
         return new RegistrationResponse(saved.getId(), saved.getName(), saved.getEmail(), saved.getRole());
     }
 
@@ -102,6 +110,8 @@ public class AuthService {
             throw invalidCredentials();
         }
         Session session = createSession(user, metadata);
+        outboxWriter.write(DomainEventType.SESSION_STARTED, "USER", user.getId(),
+                Map.of("sessionId", session.sessionId().toString()));
         securityEventRecorder.record(user.getId(), session.sessionId(),
                 SecurityEventType.LOGIN_SUCCESS, metadata);
         return session;
@@ -128,6 +138,8 @@ public class AuthService {
             token.revoke(null);
             securityEventRepository.save(new SecurityEvent(token.getUserId(), token.getSessionId(),
                     SecurityEventType.LOGOUT, token.getDeviceLabel(), token.getIpHash()));
+            outboxWriter.write(DomainEventType.SESSION_ENDED, "USER", token.getUserId(),
+                    Map.of("scope", "CURRENT"));
         });
     }
 
@@ -155,6 +167,8 @@ public class AuthService {
         refreshTokenRepository.revokeAllBySessionId(token.getSessionId());
         securityEventRepository.save(new SecurityEvent(userId, token.getSessionId(),
                 SecurityEventType.SESSION_REVOKED, token.getDeviceLabel(), token.getIpHash()));
+        outboxWriter.write(DomainEventType.SESSION_ENDED, "USER", userId,
+                Map.of("scope", current ? "CURRENT" : "SELECTED"));
         return current;
     }
 
@@ -164,6 +178,8 @@ public class AuthService {
         revocationService.revokeAllSessionsInCurrentTransaction(userId);
         securityEventRepository.save(new SecurityEvent(userId, null,
                 SecurityEventType.ALL_SESSIONS_REVOKED, "All devices", zeroIpHash()));
+        outboxWriter.write(DomainEventType.SESSION_ENDED, "USER", userId,
+                Map.of("scope", "ALL"));
     }
 
     @Transactional(readOnly = true)
