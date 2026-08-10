@@ -39,6 +39,8 @@ obima. „Preporučeno“ nije dozvola da se tehnologija uvede ranije.
   [`ADR-001-MODULAR-MONOLITH.md`](../architecture/decisions/ADR-001-MODULAR-MONOLITH.md).
 - ADR-02 je prihvaćen kroz
   [`ADR-002-EXPLICIT-MAPPING.md`](../architecture/decisions/ADR-002-EXPLICIT-MAPPING.md).
+- ADR-03 je zatvoren odlukom da MySQL 8.4 ostaje produkcijska i migration-test
+  baza; H2 ostaje samo brzi test double.
 
 ## Obavezni sadržaj budućeg ADR-a
 

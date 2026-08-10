@@ -245,6 +245,11 @@ npm run build`; pregled generisanog module dependency dijagrama.
 
 ## Stage 3 — MySQL-verne migracije i integritet šeme
 
+**Izvršni status: BLOCKED (2026-08-08).** Implementirani su MySQL 8.4
+Testcontainers profil, migration/upgrade/schema/repository/concurrency testovi i
+V8 korekcija stranih ključeva. Lokalna validacija profila čeka dostupan Docker
+CLI/daemon; brzi H2 suite ostaje odvojen.
+
 ### Status prioriteta
 OBAVEZNO
 
