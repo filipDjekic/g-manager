@@ -1,0 +1,11 @@
+package com.game_manager.gm.document;
+import com.game_manager.gm.document.dto.DocumentResponse; import java.nio.charset.StandardCharsets; import java.util.*; import org.springframework.core.io.InputStreamResource; import org.springframework.http.*; import org.springframework.web.bind.annotation.*; import org.springframework.web.multipart.MultipartFile;
+@RestController @RequestMapping("/api/v1/documents") public class DocumentController {
+ private final DocumentService service; public DocumentController(DocumentService s){service=s;}
+ @PostMapping(consumes=MediaType.MULTIPART_FORM_DATA_VALUE) @ResponseStatus(HttpStatus.CREATED) public DocumentResponse upload(@RequestParam String resourceType,@RequestParam UUID resourceId,@RequestParam("file")MultipartFile file){return service.upload(resourceType,resourceId,file);}
+ @PostMapping(value="/{id}/versions",consumes=MediaType.MULTIPART_FORM_DATA_VALUE) public DocumentResponse version(@PathVariable UUID id,@RequestParam long version,@RequestParam("file")MultipartFile file){return service.addVersion(id,version,file);}
+ @GetMapping public List<DocumentResponse> list(@RequestParam String resourceType,@RequestParam UUID resourceId){return service.list(resourceType,resourceId);}
+ @GetMapping("/{id}/content") public ResponseEntity<InputStreamResource> content(@PathVariable UUID id,@RequestParam(required=false)UUID versionId,@RequestParam(defaultValue="false")boolean preview){var d=service.download(id,versionId,preview);var disposition=(d.inline()?ContentDisposition.inline():ContentDisposition.attachment()).filename(d.filename(),StandardCharsets.UTF_8).build();return ResponseEntity.ok().contentType(MediaType.parseMediaType(d.contentType())).contentLength(d.size()).header(HttpHeaders.CONTENT_DISPOSITION,disposition.toString()).header("X-Content-Type-Options","nosniff").header(HttpHeaders.CACHE_CONTROL,"private, no-store").body(new InputStreamResource(d.stream()));}
+ @DeleteMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT) public void delete(@PathVariable UUID id,@RequestParam long version){service.delete(id,version);}
+ @PostMapping("/{id}/restore") public DocumentResponse restore(@PathVariable UUID id){return service.restore(id);}
+}

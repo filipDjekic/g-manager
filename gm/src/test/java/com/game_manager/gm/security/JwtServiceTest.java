@@ -37,6 +37,7 @@ class JwtServiceTest {
                 java.time.ZoneId.of("Europe/Belgrade"),
                 java.util.List.of("http://localhost:5173"),
                 new GManagerProperties.Storage(java.nio.file.Path.of("target/test-uploads")),
+                new GManagerProperties.Documents(5242880, 20, 30, "local", "", "us-east-1", "", "", ""),
                 new GManagerProperties.Idempotency(24, "0 0 3 * * *", 120),
                 new GManagerProperties.Outbox(false, 10, 1000, 30, 3, 2, 30),
                 new GManagerProperties.Jobs(false, 2, 4, 2, 1000, 30, 60,

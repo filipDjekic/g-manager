@@ -1948,6 +1948,11 @@ metrics/DLQ pregled.
 
 ## Stage 21 — Bezbedni dokumenti i object-storage spremnost
 
+**Izvršni status: DONE (2026-08-10).** Uvedeni su privatni verzionisani
+dokumenti, karantin i skeniranje, local/S3 storage ugovor, autorizovani
+download, audit/metrics, migracioni ledger za postojeće medije i kompletan UI
+tok. Backend clean verify i sve frontend provere prolaze.
+
 ### Status prioriteta
 PREPORUČENO
 

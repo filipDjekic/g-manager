@@ -61,6 +61,16 @@ app:
   cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   storage:
     local-root: ${UPLOAD_ROOT:data/uploads}
+  documents:
+    max-file-bytes: ${DOCUMENT_MAX_FILE_BYTES:5242880}
+    max-files-per-resource: ${DOCUMENT_MAX_FILES_PER_RESOURCE:20}
+    delete-retention-days: ${DOCUMENT_DELETE_RETENTION_DAYS:30}
+    backend: ${DOCUMENT_STORAGE_BACKEND:local}
+    s3-endpoint: ${DOCUMENT_S3_ENDPOINT:}
+    s3-region: ${DOCUMENT_S3_REGION:us-east-1}
+    s3-bucket: ${DOCUMENT_S3_BUCKET:}
+    s3-access-key: ${DOCUMENT_S3_ACCESS_KEY:}
+    s3-secret-key: ${DOCUMENT_S3_SECRET_KEY:}
   idempotency:
     ttl-hours: 24
     cleanup-cron: "0 0 3 * * *"

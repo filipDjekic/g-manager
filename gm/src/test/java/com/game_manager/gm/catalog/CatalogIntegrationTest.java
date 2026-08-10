@@ -142,7 +142,7 @@ class CatalogIntegrationTest {
                         .header("Authorization", bearer(adminToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.imageUrl").value(
-                        org.hamcrest.Matchers.matchesPattern("/media/catalog/[0-9a-f-]+\\.png")));
+                        org.hamcrest.Matchers.matchesPattern("/api/v1/documents/[0-9a-f-]+/content\\?preview=true")));
 
         CatalogItem updated = catalogRepository.findById(item.getId()).orElseThrow();
         assertThat(updated.getImageUrl()).doesNotContain("product.png");

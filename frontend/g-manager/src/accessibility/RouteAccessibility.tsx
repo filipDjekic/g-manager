@@ -8,7 +8,7 @@ const routeNames: Record<string, string> = {
   '/settings': 'Radno vreme', '/my-reservations': 'Moji termini',
   '/my-orders': 'Moje narudžbine', '/dashboard': 'Dashboard', '/notification-preferences': 'Podešavanja obaveštenja',
   '/reservations': 'Rezervacije', '/orders': 'Narudžbine', '/users': 'Korisnici',
-  '/audit': 'Audit evidencija',
+  '/audit': 'Audit evidencija', '/documents': 'Dokumenti',
 }
 
 export function RouteAccessibility() {

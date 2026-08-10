@@ -109,6 +109,12 @@ table caption {
 .preference-row p { margin: var(--space-1) 0 0; color: var(--color-text-muted); }
 .command-palette mark { color: inherit; background: var(--color-success-bg); }
 
+.document-drop { display:grid; gap:.5rem; padding:1.25rem; border:2px dashed var(--border); border-radius:var(--radius-md); cursor:pointer; }
+.document-drop input { max-width:100%; }
+.document-list { display:grid; gap:1rem; margin-top:1rem; }
+.document-actions { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; }
+.scan-clean { color:var(--success); } .scan-rejected,.scan-error { color:var(--danger); } .scan-pending { color:var(--text-muted); }
+
 @media (max-width: 620px) {
   .command-palette { min-width: 0; }
   .notification-center { width: auto; }

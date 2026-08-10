@@ -25,6 +25,7 @@ const OrdersPage = lazyPage(() => import('./pages/OrdersPage'), 'OrdersPage')
 const AuditPage = lazyPage(() => import('./pages/AuditPage'), 'AuditPage')
 const DashboardPage = lazyPage(() => import('./pages/DashboardPage'), 'DashboardPage')
 const NotificationPreferencesPage = lazyPage(() => import('./pages/NotificationPreferencesPage'), 'NotificationPreferencesPage')
+const DocumentsPage = lazyPage(() => import('./pages/DocumentsPage'), 'DocumentsPage')
 
 function RouteLoading() {
   return <p className="screen-message" role="status">Učitavanje stranice…</p>
@@ -51,6 +52,7 @@ function App() {
                 <Route path="profile" element={<ProfilePage />} />
                 <Route path="catalog" element={<CatalogPage />} />
                 <Route path="notification-preferences" element={<NotificationPreferencesPage />} />
+                <Route path="documents" element={<DocumentsPage />} />
               </Route>
               <Route element={<CapabilityGuard anyOf={['USER_LIST']} />}>
                 <Route path="employees" element={<UserManagementPage employeesOnly />} />

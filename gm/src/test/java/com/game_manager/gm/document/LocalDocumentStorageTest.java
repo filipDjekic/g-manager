@@ -1,0 +1,9 @@
+package com.game_manager.gm.document;
+import static org.assertj.core.api.Assertions.*; import com.game_manager.gm.common.config.GManagerProperties; import com.game_manager.gm.document.storage.*; import java.io.*; import java.nio.charset.StandardCharsets; import java.nio.file.*; import org.junit.jupiter.api.*; import org.junit.jupiter.api.io.TempDir;
+class LocalDocumentStorageTest {
+ @TempDir Path root; private LocalDocumentStorage storage;
+ @BeforeEach void setup(){storage=new LocalDocumentStorage(properties(root));}
+ @Test void storesStreamsReadsAndDeletesWithChecksum()throws Exception{byte[] data="private document".getBytes(StandardCharsets.UTF_8);StoredObject saved=storage.store("quarantine/a/object",new ByteArrayInputStream(data),data.length);assertThat(saved.checksumSha256()).isEqualTo("342b55d4f3a1e171fe06aec7e6389cbd03db9f07759873cbaadb017ca8ac1076");assertThat(storage.open(saved.key()).readAllBytes()).isEqualTo(data);assertThat(storage.exists(saved.key())).isTrue();storage.delete(saved.key());assertThat(storage.exists(saved.key())).isFalse();}
+ @Test void blocksTraversal(){assertThatThrownBy(()->storage.store("../outside",InputStream.nullInputStream(),0)).isInstanceOf(IllegalArgumentException.class);}
+ private static GManagerProperties properties(Path root){return new GManagerProperties(java.time.ZoneId.of("UTC"),java.util.List.of("http://localhost"),new GManagerProperties.Storage(root),new GManagerProperties.Documents(5242880,20,30,"local","","us-east-1","","",""),new GManagerProperties.Idempotency(24,"cron",120),new GManagerProperties.Outbox(false,1,1,1,1,1,1),new GManagerProperties.Jobs(false,1,1,1,1,1,1,1,1,1,1,1),new GManagerProperties.Reservations(60),new GManagerProperties.Notifications(false,1,1,1,1,1),new GManagerProperties.Jwt("test-only-secret-with-at-least-32-bytes",1,1,false),new GManagerProperties.InitialOwner("Owner","",""));}
+}

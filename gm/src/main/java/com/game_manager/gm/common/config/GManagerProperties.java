@@ -19,6 +19,7 @@ public record GManagerProperties(
         @NotNull ZoneId businessZone,
         @NotEmpty List<@NotBlank String> corsAllowedOrigins,
         @Valid @NotNull Storage storage,
+        @Valid @NotNull Documents documents,
         @Valid @NotNull Idempotency idempotency,
         @Valid @NotNull Outbox outbox,
         @Valid @NotNull Jobs jobs,
@@ -29,6 +30,11 @@ public record GManagerProperties(
 ) {
     public record Storage(@NotNull Path localRoot) {
     }
+
+    public record Documents(@Positive long maxFileBytes, @Positive int maxFilesPerResource,
+            @Positive long deleteRetentionDays, @NotBlank String backend,
+            String s3Endpoint, String s3Region, String s3Bucket,
+            String s3AccessKey, String s3SecretKey) {}
 
     public record Idempotency(
             @Positive long ttlHours,

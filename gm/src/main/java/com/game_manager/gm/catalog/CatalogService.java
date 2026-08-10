@@ -174,7 +174,7 @@ public class CatalogService {
         CatalogItem item = requireItem(id);
         requireVersion(item, version);
         boolean hadImage = item.getImageUrl() != null;
-        item.setImageUrl(fileStorageService.storeCatalogImage(image));
+        item.setImageUrl(fileStorageService.storeCatalogImage(id, image));
         CatalogItem saved = catalogRepository.saveAndFlush(item);
         auditWriter.write("CATALOG_IMAGE_UPDATED", "CATALOG_ITEM", id,
                 Map.of("imagePresent", hadImage), Map.of("imagePresent", true), null,
