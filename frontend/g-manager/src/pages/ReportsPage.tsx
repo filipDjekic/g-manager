@@ -1,0 +1,88 @@
+import { useCallback, useEffect, useState } from 'react'
+import { apiErrorMessage } from '../api/client'
+import { reportApi } from '../api/reportApi'
+import { hasCapability } from '../auth/capabilities'
+import { useAuthStore } from '../auth/authStore'
+import { Button, Card, EmptyState, ErrorState, PageHeader, Select, Skeleton } from '../components/ui'
+import type { ReportDefinition, ReportFormat, ReportItem, ReportSchedule } from '../types/report.types'
+
+const DAY = 86_400_000
+const loadedAt = Date.now()
+const defaultFrom = new Date(loadedAt - 30 * DAY).toISOString().slice(0, 10)
+const defaultTo = new Date(loadedAt + DAY).toISOString().slice(0, 10)
+
+export function ReportsPage() {
+  const user = useAuthStore((state) => state.user)
+  const [definitions, setDefinitions] = useState<ReportDefinition[]>([])
+  const [items, setItems] = useState<ReportItem[]>([])
+  const [schedules, setSchedules] = useState<ReportSchedule[]>([])
+  const [definition, setDefinition] = useState('orders')
+  const [format, setFormat] = useState<ReportFormat>('CSV')
+  const [from, setFrom] = useState(defaultFrom)
+  const [to, setTo] = useState(defaultTo)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Belgrade'
+  const manage = hasCapability(user, 'REPORT_MANAGE')
+
+  const refresh = useCallback(async () => {
+    try {
+      const [available, reports, plans] = await Promise.all([
+        reportApi.definitions(), reportApi.list(), manage ? reportApi.schedules() : Promise.resolve([]),
+      ])
+      setDefinitions(available); setItems(reports); setSchedules(plans); setError('')
+    } catch (cause) { setError(apiErrorMessage(cause, 'Izveštaji nisu dostupni.')) }
+    finally { setLoading(false) }
+  }, [manage])
+
+  useEffect(() => {
+    const initial = window.setTimeout(() => void refresh(), 0)
+    const poll = window.setInterval(() => void refresh(), 5000)
+    return () => { window.clearTimeout(initial); window.clearInterval(poll) }
+  }, [refresh])
+
+  const payload = () => ({ definitionKey: definition, format,
+    from: new Date(`${from}T00:00:00Z`).toISOString(), to: new Date(`${to}T00:00:00Z`).toISOString(),
+    timezone, locale: navigator.language })
+
+  async function generate() {
+    setBusy(true)
+    try { await reportApi.generate(payload()); await refresh() }
+    catch (cause) { setError(apiErrorMessage(cause, 'Generisanje nije pokrenuto.')) }
+    finally { setBusy(false) }
+  }
+
+  async function download(item: ReportItem) {
+    try {
+      const url = await reportApi.download(item.id); const link = document.createElement('a')
+      link.href = url; link.download = `${item.definitionKey}.${item.format.toLowerCase()}`; link.click()
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch (cause) { setError(apiErrorMessage(cause, 'Preuzimanje nije dostupno.')) }
+  }
+
+  return <main><PageHeader eyebrow="Asinhrona obrada" title="Izveštaji" />
+    <Card><h2>Novi izveštaj</h2><div className="form-grid">
+      <label>Definicija<Select value={definition} onChange={(event) => setDefinition(event.target.value)}>
+        {definitions.map((value) => <option key={value.key} value={value.key}>{value.label}</option>)}</Select></label>
+      <label>Format<Select value={format} onChange={(event) => setFormat(event.target.value as ReportFormat)}>
+        <option>CSV</option><option>XLSX</option><option>PDF</option></Select></label>
+      <label>Od<input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
+      <label>Do<input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
+    </div><p>{definitions.find((value) => value.key === definition)?.metricDefinition} · Zona: {timezone}</p>
+    <Button loading={busy} onClick={() => void generate()}>Generiši</Button>
+    <Button variant="secondary" onClick={async () => { try { const value = payload(); await reportApi.createTemplate({ name: `${definition} ${from}`, definitionKey: definition, format, from: value.from, to: value.to }) } catch (cause) { setError(apiErrorMessage(cause, 'Šablon nije sačuvan.')) } }}>Sačuvaj kao šablon</Button>
+    {manage && <Button variant="secondary" onClick={async () => { try {
+      await reportApi.createSchedule({ ...payload(), localTime: '08:00', dayOfWeek: 1 }); await refresh()
+    } catch (cause) { setError(apiErrorMessage(cause, 'Raspored nije sačuvan.')) } }}>Zakaži ponedeljkom u 08:00</Button>}</Card>
+    {error && <ErrorState message={error} action={<Button variant="secondary" onClick={() => void refresh()}>Osveži</Button>} />}
+    {loading ? <Skeleton lines={5} /> : !items.length ? <EmptyState title="Nema izveštaja" description="Pokrenite prvi izveštaj." /> :
+      <Card><h2>Istorija</h2><div className="table-scroll"><table><thead><tr><th>Izveštaj</th><th>Format</th><th>Status</th><th>Redovi</th><th>Akcije</th></tr></thead>
+        <tbody>{items.map((item) => <tr key={item.id}><td>{item.definitionKey}</td><td>{item.format}</td><td><span role="status">{item.status} {item.status === 'RUNNING' && `${item.progress}%`}</span>{item.errorMessage && <small>{item.errorMessage}</small>}</td><td>{item.rowCount ?? '—'}</td><td>
+          {item.status === 'COMPLETED' && <Button onClick={() => void download(item)}>Preuzmi</Button>}
+          {['QUEUED', 'RUNNING'].includes(item.status) && <Button variant="secondary" onClick={async () => { await reportApi.cancel(item.id); await refresh() }}>Otkaži</Button>}
+        </td></tr>)}</tbody></table></div></Card>}
+    {manage && <Card><h2>Rasporedi</h2>{!schedules.length ? <p>Nema rasporeda.</p> : <ul>{schedules.map((schedule) =>
+      <li key={schedule.id}>{schedule.definitionKey} · {schedule.timezone} · sledeće {new Date(schedule.nextRunAt).toLocaleString()} <Button variant="danger" onClick={async () => { await reportApi.removeSchedule(schedule.id); await refresh() }}>Obriši</Button></li>)}</ul>}</Card>}
+  </main>
+}

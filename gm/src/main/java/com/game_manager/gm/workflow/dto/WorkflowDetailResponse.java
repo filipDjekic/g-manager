@@ -1,0 +1,2 @@
+package com.game_manager.gm.workflow.dto; import java.time.Instant; import java.util.*;
+public record WorkflowDetailResponse(WorkflowSummaryResponse workflow,String description,UUID requesterId,List<Step> steps,List<Decision> decisions,List<Comment> comments,List<UUID> documents){public record Step(UUID id,String key,String role,String status,Instant startedAt,Instant dueAt,Instant completedAt){}public record Decision(UUID id,UUID actorId,String action,String reason,String from,String to,Instant at){}public record Comment(UUID id,UUID authorId,String body,Instant at){}}

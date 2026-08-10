@@ -29,6 +29,7 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
 
     @Query("select u from User u where u.id = :id and u.deletedAt is not null")
     Optional<User> findDeletedById(@Param("id") UUID id);
+    java.util.List<User> findByRoleAndActiveTrueAndDeletedAtIsNull(com.game_manager.gm.common.security.Role role);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select u from User u where u.id = :id and u.deletedAt is null")

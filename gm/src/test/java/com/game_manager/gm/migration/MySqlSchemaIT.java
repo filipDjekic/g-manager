@@ -84,7 +84,7 @@ class MySqlSchemaIT {
         long startedAt = System.nanoTime();
         cleanSchema();
         assertThat(flyway.migrate().success).isTrue();
-        assertThat(currentVersion()).isEqualTo("19");
+        assertThat(currentVersion()).isEqualTo("21");
         assertThat(entityManagerFactory.getMetamodel().getEntities()).isNotEmpty();
         log.info("MySQL empty-to-latest migration completed in {} ms", elapsedMillis(startedAt));
     }

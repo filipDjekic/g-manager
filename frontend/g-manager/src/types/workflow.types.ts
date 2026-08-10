@@ -1,0 +1,5 @@
+export type WorkflowStatus='ACTIVE'|'APPROVED'|'REJECTED'|'RETURNED'|'CANCELLED'
+export interface WorkflowSummary{id:string;definitionKey:string;title:string;amount:number;status:WorkflowStatus;currentStep:string|null;dueAt:string|null;escalated:boolean;version:number;allowedActions:string[]}
+export interface WorkflowDetail{workflow:WorkflowSummary;description:string;requesterId:string;steps:{id:string;key:string;role:string;status:string;startedAt:string;dueAt:string;completedAt:string|null}[];decisions:{id:string;actorId:string;action:string;reason:string|null;from:string;to:string|null;at:string}[];comments:{id:string;authorId:string;body:string;at:string}[];documents:string[]}
+export interface WorkflowDefinition{id:string;key:string;name:string;activeVersion:number;enabled:boolean;schema:string}
+export interface WorkflowDefinitionInput{key:string;name:string;initialStep:string;enabled:boolean;steps:{key:string;label:string;role:string;dueHours:number;reminderHours:number;escalationRole:string|null}[];transitions:{from:string;action:string;target:string;reasonRequired:boolean}[]}

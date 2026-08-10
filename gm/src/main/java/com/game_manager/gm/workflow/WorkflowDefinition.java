@@ -1,0 +1,2 @@
+package com.game_manager.gm.workflow; import com.game_manager.gm.common.entity.BaseEntity; import jakarta.persistence.*; import lombok.*;
+@Entity @Table(name="workflow_definitions") @Getter @Setter @NoArgsConstructor public class WorkflowDefinition extends BaseEntity {@Column(name="definition_key",nullable=false,unique=true,length=60)private String definitionKey;@Column(nullable=false,length=120)private String name;@Column(name="active_version",nullable=false)private int activeVersion;@Column(nullable=false)private boolean enabled=true;}

@@ -32,7 +32,8 @@ public final class RolePermissions {
         permissions.put(Role.EMPLOYEE, immutableWithProfile(
                 Permission.RESERVATION_READ_ALL, Permission.RESERVATION_CHANGE_STATUS,
                 Permission.ORDER_READ_ALL, Permission.ORDER_CHANGE_STATUS,
-                Permission.DASHBOARD_OPERATIONAL));
+                Permission.DASHBOARD_OPERATIONAL, Permission.REPORT_READ,
+                Permission.WORKFLOW_SUBMIT));
         permissions.put(Role.ADMIN, immutableWithProfile(
                 Permission.USER_LIST, Permission.USER_CREATE, Permission.USER_DEACTIVATE,
                 Permission.USER_DELETE, Permission.USER_RESTORE,
@@ -41,7 +42,8 @@ public final class RolePermissions {
                 Permission.RESERVATION_READ_ALL, Permission.RESERVATION_CHANGE_STATUS,
                 Permission.ORDER_READ_ALL, Permission.ORDER_CHANGE_STATUS,
                 Permission.DASHBOARD_SUMMARY, Permission.DASHBOARD_OPERATIONAL,
-                Permission.METRICS_READ));
+                Permission.METRICS_READ, Permission.REPORT_READ, Permission.REPORT_MANAGE,
+                Permission.WORKFLOW_ACT, Permission.WORKFLOW_MANAGE));
         permissions.put(Role.OWNER, immutableWithProfile(
                 Permission.USER_LIST, Permission.USER_CREATE, Permission.USER_DEACTIVATE,
                 Permission.USER_DELETE, Permission.USER_RESTORE,
@@ -50,7 +52,8 @@ public final class RolePermissions {
                 Permission.RESERVATION_READ_ALL, Permission.RESERVATION_CHANGE_STATUS,
                 Permission.ORDER_READ_ALL, Permission.ORDER_CHANGE_STATUS,
                 Permission.DASHBOARD_SUMMARY, Permission.DASHBOARD_OPERATIONAL,
-                Permission.METRICS_READ));
+                Permission.METRICS_READ, Permission.REPORT_READ, Permission.REPORT_MANAGE,
+                Permission.WORKFLOW_ACT, Permission.WORKFLOW_MANAGE));
         return Map.copyOf(permissions);
     }
 

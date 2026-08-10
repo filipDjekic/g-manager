@@ -1,0 +1,1 @@
+package com.game_manager.gm.workflow; import java.util.*; import org.springframework.data.jpa.repository.JpaRepository; public interface WorkflowDocumentLinkRepository extends JpaRepository<WorkflowDocumentLink,UUID>{List<WorkflowDocumentLink> findByInstanceId(UUID instance);boolean existsByInstanceIdAndDocumentId(UUID instance,UUID document);}
