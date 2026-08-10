@@ -80,6 +80,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/users/deleted").hasAuthority("USER_RESTORE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/audit-events/**").hasAuthority("AUDIT_READ")
                         .requestMatchers("/api/v1/saved-views/**").authenticated()
+                        .requestMatchers("/api/v1/search/**", "/api/v1/search").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/catalog/**").hasAuthority("CATALOG_READ")
                         .requestMatchers("/api/v1/catalog/**").hasAuthority("CATALOG_MANAGE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/working-hours/**").hasAuthority("WORKING_HOURS_READ")

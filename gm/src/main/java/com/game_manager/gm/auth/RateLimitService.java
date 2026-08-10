@@ -34,6 +34,10 @@ public class RateLimitService {
         check("operation:" + userId + ":" + endpoint, 30, Duration.ofMinutes(1));
     }
 
+    public void checkSearch(UUID userId) {
+        check("search:" + userId, 60, Duration.ofMinutes(1));
+    }
+
     private void check(String key, int limit, Duration window) {
         Instant now = clock.instant();
         Deque<Instant> values = attempts.computeIfAbsent(key, ignored -> new ArrayDeque<>());
