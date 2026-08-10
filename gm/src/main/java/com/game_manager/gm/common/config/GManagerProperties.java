@@ -34,7 +34,17 @@ public record GManagerProperties(
     public record Documents(@Positive long maxFileBytes, @Positive int maxFilesPerResource,
             @Positive long deleteRetentionDays, @NotBlank String backend,
             String s3Endpoint, String s3Region, String s3Bucket,
-            String s3AccessKey, String s3SecretKey) {}
+            String s3AccessKey, String s3SecretKey) {
+        @AssertTrue(message = "S3 document storage requires region, bucket, access key and secret key")
+        public boolean isValidBackendConfiguration() {
+            if (!"s3".equalsIgnoreCase(backend)) return "local".equalsIgnoreCase(backend);
+            return notBlank(s3Region) && notBlank(s3Bucket) && notBlank(s3AccessKey) && notBlank(s3SecretKey);
+        }
+
+        private boolean notBlank(String value) {
+            return value != null && !value.isBlank();
+        }
+    }
 
     public record Idempotency(
             @Positive long ttlHours,
