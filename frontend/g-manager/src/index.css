@@ -19,3 +19,13 @@ body {
   color: var(--color-text);
   background: var(--color-bg);
 }
+
+.connectivity-banner {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  padding: 0.65rem 1rem;
+  color: #0f172a;
+  background: #fde68a;
+  text-align: center;
+}

@@ -8,9 +8,11 @@ import { installGlobalErrorReporting } from './observability/errorReporter'
 import { installWebVitalsReporting } from './observability/performanceReporter'
 import { UiPreferencesProvider } from './preferences/UiPreferences'
 import { ToastProvider } from './components/ui'
+import { registerPwa } from './pwa/pwa'
 
 installGlobalErrorReporting()
 installWebVitalsReporting()
+registerPwa()
 
 const queryClient = new QueryClient({
   defaultOptions: {
