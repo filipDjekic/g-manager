@@ -227,6 +227,47 @@ class ReservationIntegrationTest {
                 .andExpect(status().isConflict());
     }
 
+    @Test
+    void detailIsOwnershipScopedHumanReadableAndContactIsManagementOnly() throws Exception {
+        User customer = createUser(Role.CUSTOMER);
+        User otherCustomer = createUser(Role.CUSTOMER);
+        User employee = createUser(Role.EMPLOYEE);
+        User otherEmployee = createUser(Role.EMPLOYEE);
+        User admin = createUser(Role.ADMIN);
+        CatalogItem service = createCatalog(ItemType.SERVICE, true);
+        Reservation reservation = createReservation(customer, employee, service,
+                Instant.now().plus(2, ChronoUnit.DAYS), ReservationStatus.PENDING);
+
+        mockMvc.perform(get("/api/v1/reservations/{id}", reservation.getId())
+                        .header("Authorization", bearer(login(customer))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.customerName").value(customer.getName()))
+                .andExpect(jsonPath("$.customerContact").doesNotExist())
+                .andExpect(jsonPath("$.employeeName").value(employee.getName()))
+                .andExpect(jsonPath("$.serviceName").value(service.getName()))
+                .andExpect(jsonPath("$.durationMinutes").value(30))
+                .andExpect(jsonPath("$.allowedActions[0]").value("CANCELLED"))
+                .andExpect(jsonPath("$.history").isEmpty());
+
+        mockMvc.perform(get("/api/v1/reservations/{id}", reservation.getId())
+                        .header("Authorization", bearer(login(otherCustomer))))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/reservations/{id}", reservation.getId())
+                        .header("Authorization", bearer(login(otherEmployee))))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(patch("/api/v1/reservations/{id}/status", reservation.getId())
+                        .header("Authorization", bearer(login(employee)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(statusBody("CONFIRMED", reservation.getVersion())))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/reservations/{id}", reservation.getId())
+                        .header("Authorization", bearer(login(admin))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.customerContact").value(customer.getEmail()))
+                .andExpect(jsonPath("$.history[0].action").value("RESERVATION_STATUS_CHANGED"));
+    }
+
     private org.springframework.test.web.servlet.ResultActions createRequest(
             String token, String body) throws Exception {
         return mockMvc.perform(post("/api/v1/reservations")

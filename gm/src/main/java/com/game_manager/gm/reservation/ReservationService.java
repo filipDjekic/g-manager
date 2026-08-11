@@ -2,6 +2,7 @@ package com.game_manager.gm.reservation;
 
 import com.game_manager.gm.catalog.CatalogItem;
 import com.game_manager.gm.catalog.CatalogService;
+import com.game_manager.gm.catalog.CatalogReference;
 import com.game_manager.gm.catalog.ItemType;
 import com.game_manager.gm.common.dto.PageResponse;
 import com.game_manager.gm.common.config.PageRequestFactory;
@@ -10,11 +11,16 @@ import com.game_manager.gm.common.config.GManagerProperties;
 import com.game_manager.gm.reservation.dto.ChangeReservationStatusRequest;
 import com.game_manager.gm.reservation.dto.CreateReservationRequest;
 import com.game_manager.gm.reservation.dto.ReservationResponse;
+import com.game_manager.gm.reservation.dto.ReservationDetailResponse;
+import com.game_manager.gm.reservation.dto.ReservationHistoryResponse;
 import com.game_manager.gm.common.security.AuthenticatedUser;
 import com.game_manager.gm.common.security.CurrentUserProvider;
 import com.game_manager.gm.common.security.Role;
+import com.game_manager.gm.common.security.Permission;
+import com.game_manager.gm.common.security.RolePermissions;
 import com.game_manager.gm.audit.AuditVisibility;
 import com.game_manager.gm.audit.AuditWriter;
+import com.game_manager.gm.audit.AuditHistoryReader;
 import com.game_manager.gm.events.DomainEventType;
 import com.game_manager.gm.events.OutboxWriter;
 import com.game_manager.gm.user.User;
@@ -53,6 +59,7 @@ public class ReservationService {
     private final PageRequestFactory pageRequestFactory;
     private final ReservationAuthorizationPolicy authorizationPolicy;
     private final AuditWriter auditWriter;
+    private final AuditHistoryReader auditHistoryReader;
     private final OutboxWriter outboxWriter;
     private final Clock clock;
 
@@ -140,6 +147,39 @@ public class ReservationService {
                     HttpStatus.FORBIDDEN, "Reservation management is not permitted");
         }
         return listInternal(null, employeeId, status, from, to, page, size, sort, direction);
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('RESERVATION_READ_OWN') or hasAuthority('RESERVATION_READ_ALL')")
+    public ReservationDetailResponse getDetail(UUID id) {
+        AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
+        Reservation reservation = reservationRepository.findById(id)
+                .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND, "Reservation not found"));
+        boolean management = actor.role() == Role.ADMIN || actor.role() == Role.OWNER;
+        boolean visible = management
+                || actor.role() == Role.EMPLOYEE && actor.id().equals(reservation.getEmployeeId())
+                || actor.role() == Role.CUSTOMER && actor.id().equals(reservation.getCustomerId());
+        if (!visible) {
+            throw new ApplicationException(HttpStatus.NOT_FOUND, "Reservation not found");
+        }
+
+        User customer = userRepository.findById(reservation.getCustomerId())
+                .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND, "Customer not found"));
+        User employee = userRepository.findById(reservation.getEmployeeId())
+                .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND, "Employee not found"));
+        CatalogReference service = catalogService.getReference(reservation.getServiceId());
+        List<ReservationStatus> actions = allowedActions(actor, reservation);
+        boolean canSeeContact = RolePermissions.has(actor.role(), Permission.USER_LIST);
+        List<ReservationHistoryResponse> history = RolePermissions.has(actor.role(), Permission.AUDIT_READ)
+                ? auditHistoryReader.find("RESERVATION", reservation.getId()).stream()
+                    .map(item -> new ReservationHistoryResponse(item.action(), item.occurredAt())).toList()
+                : List.of();
+        return new ReservationDetailResponse(
+                reservation.getId(), customer.getName(), canSeeContact ? customer.getEmail() : null,
+                employee.getName(), service.name(), service.durationMinutes(),
+                reservation.getStartTime(), reservation.getEndTime(), reservation.getStatus(),
+                reservation.getNote(), reservation.getCreatedAt(), reservation.getUpdatedAt(),
+                reservation.getVersion(), actions, history);
     }
 
     @Transactional
@@ -253,6 +293,25 @@ public class ReservationService {
             throw new ApplicationException(
                     HttpStatus.CONFLICT, "Invalid reservation status transition");
         }
+    }
+
+    private List<ReservationStatus> allowedActions(
+            AuthenticatedUser actor, Reservation reservation) {
+        return switch (reservation.getStatus()) {
+            case PENDING -> List.of(ReservationStatus.CONFIRMED, ReservationStatus.REJECTED,
+                            ReservationStatus.CANCELLED).stream()
+                    .filter(target -> authorizationPolicy.canTransition(actor, reservation, target)).toList();
+            case CONFIRMED -> List.of(ReservationStatus.COMPLETED, ReservationStatus.CANCELLED).stream()
+                    .filter(target -> authorizationPolicy.canTransition(actor, reservation, target))
+                    .filter(target -> target != ReservationStatus.COMPLETED
+                            || !clock.instant().isBefore(reservation.getEndTime()))
+                    .filter(target -> target != ReservationStatus.CANCELLED
+                            || actor.role() != Role.CUSTOMER
+                            || clock.instant().isBefore(reservation.getStartTime().minus(
+                                    properties.reservations().cancellationCutoffMinutes(), ChronoUnit.MINUTES)))
+                    .toList();
+            case REJECTED, CANCELLED, COMPLETED -> List.of();
+        };
     }
 
     private static void validateDateRange(LocalDate from, LocalDate to) {

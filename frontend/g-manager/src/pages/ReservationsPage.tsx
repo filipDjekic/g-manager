@@ -2,21 +2,19 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { apiErrorMessage } from '../api/client'
 import { reservationApi } from '../api/reservationApi'
-import { useAuthStore } from '../auth/authStore'
 import { SavedViewBar } from '../components/lists/SavedViewBar'
 import { SelectionBar } from '../components/lists/SelectionBar'
 import { Button, EmptyState, ErrorState, Skeleton } from '../components/ui'
 import { useListUrlState } from '../lists/useListUrlState'
 import { queryKeys } from '../query/queryKeys'
 import { formatBusinessDateTime } from '../reservations/dateTime'
-import type { Reservation, ReservationStatus } from '../types/reservation.types'
+import { ReservationDetailsDrawer } from '../reservations/ReservationDetailsDrawer'
+import type { ReservationStatus } from '../types/reservation.types'
 
-const defaults = { page: '0', status: 'PENDING', employeeId: '', from: '', to: '', sort: 'startTime', direction: 'ASC' }
-const allowed = ['page', 'status', 'employeeId', 'from', 'to', 'sort', 'direction'] as const
+const defaults = { page: '0', status: 'PENDING', employeeId: '', from: '', to: '', sort: 'startTime', direction: 'ASC', reservationId: '' }
+const allowed = ['page', 'status', 'employeeId', 'from', 'to', 'sort', 'direction', 'reservationId'] as const
 
 export function ReservationsPage() {
-  const [renderedAt] = useState(() => Date.now())
-  const user = useAuthStore((state) => state.user)
   const url = useListUrlState(defaults, allowed)
   const client = useQueryClient()
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -29,21 +27,13 @@ export function ReservationsPage() {
   }), [url.state])
   const result = useQuery({ queryKey: queryKeys.reservations(url.query), queryFn: () => reservationApi.list(filters) })
   const refresh = () => client.invalidateQueries({ queryKey: ['reservations'] })
-  const transition = useMutation({ mutationFn: ({ reservation, next, note }: {
-    reservation: Reservation; next: ReservationStatus; note?: string
-  }) => reservationApi.changeStatus(reservation, next, note), onSuccess: refresh })
   const bulk = useMutation({ mutationFn: async (status: ReservationStatus) => reservationApi.bulkStatus(status,
     (result.data?.content ?? []).filter(({ id }) => selected.has(id)).map(({ id, version }) => ({ id, version }))),
   onSuccess: async (response) => {
     setBulkSummary(`${response.succeeded} uspešno, ${response.failed} neuspešno.`)
     setSelected(new Set()); await refresh()
   } })
-  const error = result.error || transition.error || bulk.error
-
-  function change(reservation: Reservation, next: ReservationStatus) {
-    const note = next === 'REJECTED' ? window.prompt('Razlog odbijanja (opciono):') ?? undefined : undefined
-    transition.mutate({ reservation, next, note })
-  }
+  const error = result.error || bulk.error
   const toggle = (id: string) => setSelected((current) => {
     const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next
   })
@@ -71,25 +61,19 @@ export function ReservationsPage() {
     {result.isLoading ? <Skeleton lines={6} label="Učitavanje rezervacija" /> :
       !result.data?.content.length ? <EmptyState title="Nema rezervacija" description="Promenite filtere ili period." /> :
       <section className="reservation-list">{result.data.content.map((reservation) => {
-        const own = user?.role !== 'EMPLOYEE' || reservation.employeeId === user.id
         return <article className="panel reservation-row management" key={reservation.id}>
           <label className="row-selector"><input type="checkbox" checked={selected.has(reservation.id)}
             onChange={() => toggle(reservation.id)} aria-label={`Izaberi rezervaciju ${reservation.id}`} /></label>
-          <div><strong>{formatBusinessDateTime(reservation.startTime)}</strong><p>Kupac: {reservation.customerId}</p>
+          <div><strong>{formatBusinessDateTime(reservation.startTime)}</strong><p>Detalji klijenta i usluge</p>
             <small>do {formatBusinessDateTime(reservation.endTime)}</small></div>
           <span className="status-badge neutral">{reservation.status}</span>
-          {own && <div className="card-actions">
-            {reservation.status === 'PENDING' && <><button onClick={() => change(reservation, 'CONFIRMED')}>Potvrdi</button>
-              <button className="danger-button" onClick={() => change(reservation, 'REJECTED')}>Odbij</button></>}
-            {reservation.status === 'CONFIRMED' && <button disabled={renderedAt < new Date(reservation.endTime).getTime()}
-              onClick={() => change(reservation, 'COMPLETED')}>Završi</button>}
-            {(user?.role === 'OWNER' || user?.role === 'ADMIN') && (reservation.status === 'PENDING' || reservation.status === 'CONFIRMED')
-              && <button className="danger-button" onClick={() => change(reservation, 'CANCELLED')}>Otkaži</button>}
-          </div>}
+          <Button variant="secondary" onClick={() => url.set({ reservationId: reservation.id })}>Detalji</Button>
         </article>
       })}</section>}
     <div className="pagination"><button disabled={filters.page === 0} onClick={() => url.set({ page: String(filters.page - 1) })}>Prethodna</button>
       <span>Strana {filters.page + 1} od {Math.max(result.data?.totalPages ?? 1, 1)}</span>
       <button disabled={!result.data || filters.page + 1 >= result.data.totalPages} onClick={() => url.set({ page: String(filters.page + 1) })}>Sledeća</button></div>
+    <ReservationDetailsDrawer reservationId={url.state.reservationId || null}
+      onClose={() => url.set({ reservationId: '' }, true)} />
   </main>
 }

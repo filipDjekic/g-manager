@@ -8,6 +8,8 @@ import { AppShell } from './layout/AppShell'
 import './App.css'
 import { useFeatureStore } from './feature/featureStore'
 import { FeatureUnavailable } from './feature/FeatureUnavailable'
+import { useAuthStore } from './auth/authStore'
+import { homeForRole } from './layout/navigation'
 
 const lazyPage = <T extends Record<K, ComponentType>, K extends keyof T>(
   loader: () => Promise<T>, name: K,
@@ -36,6 +38,11 @@ function RouteLoading() {
   return <p className="screen-message" role="status">Učitavanje stranice…</p>
 }
 
+function HomeRedirect() {
+  const user = useAuthStore((state) => state.user)
+  return <Navigate to={user ? homeForRole(user.role) : '/login'} replace />
+}
+
 function App() {
   const reportsEnabled = useFeatureStore((state) => state.flags.REPORTS)
   const workflowsEnabled = useFeatureStore((state) => state.flags.WORKFLOWS)
@@ -54,7 +61,7 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<AppShell />}>
               <Route element={<CapabilityGuard anyOf={['PROFILE_READ']} />}>
-                <Route index element={<SessionPage />} />
+                <Route index element={<HomeRedirect />} />
                 <Route path="sessions" element={<SessionPage />} />
                 <Route path="profile" element={<ProfilePage />} />
                 <Route path="catalog" element={<CatalogPage />} />

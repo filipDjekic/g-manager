@@ -4,6 +4,7 @@ import com.game_manager.gm.common.dto.PageResponse;
 import com.game_manager.gm.reservation.dto.ChangeReservationStatusRequest;
 import com.game_manager.gm.reservation.dto.CreateReservationRequest;
 import com.game_manager.gm.reservation.dto.ReservationResponse;
+import com.game_manager.gm.reservation.dto.ReservationDetailResponse;
 import com.game_manager.gm.reservation.dto.BulkReservationStatusRequest;
 import com.game_manager.gm.common.dto.BulkOperationResponse;
 import com.game_manager.gm.common.observability.BulkOperationExecutor;
@@ -59,6 +60,11 @@ public class ReservationController {
             @RequestParam(defaultValue = "ASC") String direction) {
         return reservationService.listAll(
                 employeeId, status, from, to, page, size, sort, direction);
+    }
+
+    @GetMapping("/{id}")
+    public ReservationDetailResponse get(@PathVariable UUID id) {
+        return reservationService.getDetail(id);
     }
 
     @PatchMapping("/{id}/status")

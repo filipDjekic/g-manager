@@ -16,6 +16,7 @@ async function installApi(page: Page, role: Role, aiEnabled = false) {
   let authenticated = false
   let orderCreated = false
   let reservationCreated = false
+  let reservationStatus = 'PENDING'
   let orderTransitioned = false
   const savedViews: Array<{ id: string; resourceType: string; name: string; query: Record<string, string>; version: number }> = []
 
@@ -71,6 +72,20 @@ async function installApi(page: Page, role: Role, aiEnabled = false) {
       pendingReservationsToMe: 1, confirmedTodayCount: 2,
       unclaimedOrdersCount: 3, myInProgressOrdersCount: 1,
     })
+    if (path === '/dashboard/widget-preferences') return json([])
+    if (path === '/dashboard/trends') return json({
+      from: '2028-03-01', to: '2028-03-31', previousFrom: '2028-02-01', previousTo: '2028-02-29',
+      timezone: 'Europe/Belgrade', grain: 'DAY',
+      revenue: { current: 1200, previous: 900, absoluteChange: 300, percentChange: 33.33 },
+      completedOrders: { current: 2, previous: 1, absoluteChange: 1, percentChange: 100 },
+      reservations: { current: 6, previous: 4, absoluteChange: 2, percentChange: 50 },
+      reservationsByStatus: { PENDING: 1, CONFIRMED: 2, REJECTED: 0, CANCELLED: 0, COMPLETED: 3 },
+      buckets: [],
+    })
+    if (path === '/dashboard/workload') return json({
+      from: '2028-03-01', to: '2028-03-31', timezone: 'Europe/Belgrade',
+      capacityDefinition: 'Podešeno radno vreme', employees: [],
+    })
     if (path === '/catalog') {
       const service = url.searchParams.get('type') === 'SERVICE'
       return json({ ...emptyPage, size: 100, content: [service ? {
@@ -113,6 +128,17 @@ async function installApi(page: Page, role: Role, aiEnabled = false) {
     if (path === '/reservations' && request.method() === 'POST') {
       reservationCreated = true
       return json({ id: 'reservation-1' }, 201)
+    }
+    if (path === '/reservations/reservation-1' && request.method() === 'GET') return json({
+      id: 'reservation-1', customerName: `${role} E2E`, customerContact: role === 'OWNER' || role === 'ADMIN' ? `${role.toLowerCase()}@example.test` : null,
+      employeeName: 'EMPLOYEE E2E', serviceName: 'Test usluga', durationMinutes: 60,
+      startTime: '2028-03-16T10:00:00Z', endTime: '2028-03-16T11:00:00Z', status: reservationStatus,
+      note: null, createdAt: '2028-03-15T10:00:00Z', updatedAt: '2028-03-15T10:00:00Z', version: 0,
+      allowedActions: reservationStatus === 'PENDING' ? ['CANCELLED'] : [], history: [],
+    })
+    if (path === '/reservations/reservation-1/status' && request.method() === 'PATCH') {
+      reservationStatus = 'CANCELLED'
+      return json({ id: 'reservation-1', status: reservationStatus, version: 1 })
     }
     if (path === '/users/employees') return json({ ...emptyPage, size: 100, content: [{
       ...user('EMPLOYEE'), id: 'employee-1', version: 0,
@@ -163,6 +189,16 @@ test('customer creates an order and reservation with visible success states', as
   await page.locator('input[type="datetime-local"]').fill('2028-03-16T11:00')
   await page.getByRole('button', { name: /Po.*alji zahtev/ }).click()
   await expect(page.getByRole('status')).toBeVisible()
+  await page.getByRole('button', { name: 'Detalji' }).click()
+  const drawer = page.getByRole('dialog', { name: /Test usluga/ })
+  await expect(drawer.getByText('CUSTOMER E2E')).toBeVisible()
+  await expect(drawer.getByText('EMPLOYEE E2E')).toBeVisible()
+  await expect(drawer.getByText('customer-1')).toHaveCount(0)
+  await drawer.getByRole('button', { name: 'Otkaži' }).click()
+  const confirmation = page.getByRole('dialog', { name: 'Otkaži rezervaciju' })
+  await confirmation.getByLabel('Razlog ili napomena (opciono)').fill('Promena plana')
+  await confirmation.getByRole('button', { name: 'Otkaži', exact: true }).click()
+  await expect(confirmation).not.toBeVisible()
 })
 
 test('employee performs an order status transition', async ({ page }) => {

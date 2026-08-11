@@ -135,19 +135,29 @@ button:disabled { opacity: .55; cursor: wait; }
 a { color: var(--color-primary); }
 .field-error { min-height: 1rem; color: var(--color-danger); font-size: .8rem; font-weight: 500; }
 .error-banner { padding: .8rem; border-radius: var(--radius-md); color: var(--color-danger); background: var(--color-danger-bg); }
-.app-shell header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
-.app-shell header div { display: flex; align-items: center; gap: 1rem; }
-.app-shell header button { padding: .55rem .8rem; }
-.app-shell nav { display: flex; align-items: center; gap: 1rem; }
-.app-shell nav a { text-decoration: none; }
-.app-shell nav a.active { color: var(--color-text); text-decoration: underline; text-underline-offset: .3rem; }
+.app-shell { min-height: 100vh; display: grid; grid-template: auto auto 1fr / var(--sidebar-width) minmax(0, 1fr); }
+.app-shell > .connectivity-banner { grid-row: 1; grid-column: 1 / -1; }
+.shell-topbar { position: sticky; inset-block-start: 0; z-index: 10; grid-row: 2; grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); min-height: 4.5rem; padding: var(--space-3) var(--space-5); border-bottom: 1px solid var(--color-border); background: color-mix(in srgb, var(--color-surface) 94%, transparent); backdrop-filter: blur(12px); }
+.shell-topbar button { padding: .55rem .8rem; }
+.shell-brand { color: var(--color-text); font-size: 1.15rem; font-weight: 900; letter-spacing: -.02em; text-decoration: none; }
 .mobile-menu-button { display: none; }
-.shell-actions { justify-content: flex-end; }
+.shell-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-3); }
+.shell-user { display: grid; min-width: 8rem; line-height: 1.15; }
+.shell-user small { color: var(--color-text-muted); font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; }
+.desktop-navigation { position: sticky; inset-block-start: 4.5rem; grid-row: 3; align-self: start; display: flex; flex-direction: column; justify-content: space-between; gap: var(--space-5); height: calc(100vh - 4.5rem); padding: var(--space-5) var(--space-3); overflow-y: auto; border-inline-end: 1px solid var(--color-border); background: var(--color-surface); }
+.product-navigation { display: grid; gap: var(--space-5); }
+.navigation-group { display: grid; gap: var(--space-1); }
+.navigation-group h2 { margin: 0 var(--space-3) var(--space-1); color: var(--color-text-muted); font-size: .68rem; letter-spacing: .13em; text-transform: uppercase; }
+.navigation-group a { min-height: var(--control-height); display: flex; align-items: center; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); color: var(--color-text-muted); font-weight: 700; text-decoration: none; }
+.navigation-group a:hover { color: var(--color-text); background: var(--color-surface-raised); }
+.navigation-group a.active { color: var(--color-on-primary); background: var(--color-primary); box-shadow: var(--shadow-raised); }
+.shell-content { grid-row: 3; min-width: 0; }
+.shell-preferences { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); padding-block-start: var(--space-4); border-block-start: 1px solid var(--color-border); }
 .preference-control { min-width: 7rem; font-size: .75rem; }
 .preference-control .ui-input { min-height: 2rem; padding: .25rem .5rem; }
-.ui-drawer nav { display: grid; gap: var(--space-2); }
-.ui-drawer nav a { padding: var(--space-3); border-radius: var(--radius-sm); text-decoration: none; }
-.ui-drawer nav a.active { color: var(--color-on-primary); background: var(--color-primary); }
+.mobile-navigation-content { display: grid; gap: var(--space-5); }
+.mobile-user { display: grid; margin: 0; }
+.mobile-user span { color: var(--color-text-muted); font-size: .8rem; }
 .session-page { max-width: 850px; margin: 0 auto; padding: clamp(3rem, 10vw, 8rem) 2rem; }
 .session-page p:last-child { max-width: 60ch; color: #a7c5ba; line-height: 1.7; }
 .workspace { max-width: 1120px; margin: 0 auto; padding: 3rem 2rem; }
@@ -222,6 +232,13 @@ th { color: #a7c5ba; }
 .reservation-row.management { grid-template-columns: minmax(260px, 1fr) auto minmax(250px, auto); }
 .reservation-row p { margin: .3rem 0; color: #a7c5ba; }
 .status-badge.neutral { color: #d1fae5; background: #1d382f; }
+.reservation-detail { display: grid; gap: var(--space-5); }
+.reservation-detail dl { display: grid; gap: var(--space-3); margin: 0; }
+.reservation-detail dl div { display: grid; grid-template-columns: minmax(6rem, .7fr) 1.3fr; gap: var(--space-3); padding-block-end: var(--space-2); border-block-end: 1px solid var(--color-border); }
+.reservation-detail dt { color: var(--color-text-muted); font-weight: 700; }
+.reservation-detail dd { margin: 0; overflow-wrap: anywhere; }
+.reservation-history { display: grid; gap: var(--space-2); padding-inline-start: var(--space-5); color: var(--color-text-muted); }
+.dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-3); margin-block-start: var(--space-5); }
 .reservation-filters { grid-template-columns: repeat(3, minmax(150px, 1fr)); }
 .session-list { display: grid; gap: 1rem; }
 .session-card { grid-template-columns: minmax(14rem, 1fr) minmax(14rem, 1fr) auto; align-items: center; }
@@ -236,12 +253,21 @@ th { color: #a7c5ba; }
 .audit-detail pre { overflow: auto; padding: .8rem; border-radius: .6rem; background: #07110e; color: #a7f3d0; }
 
 @media (max-width: 800px) {
-  .app-shell header { align-items: flex-start; padding: var(--space-3); }
+  .app-shell { display: block; }
+  .shell-topbar { min-height: 4rem; padding: var(--space-2) var(--space-3); }
   .desktop-navigation { display: none !important; }
   .mobile-menu-button { display: inline-flex; }
-  .shell-actions { align-items: stretch !important; flex-direction: column; }
-  .shell-actions > span { max-width: 12rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .shell-user { min-width: 0; max-width: 7rem; }
+  .shell-user strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .shell-user small { display: none; }
+  .shell-actions { gap: var(--space-2); }
+  .shell-actions .preference-control { display: none; }
   .workspace { padding: var(--space-5) var(--space-3); }
+}
+
+@media (max-width: 430px) {
+  .shell-brand { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .shell-actions > .ui-button:last-child { padding-inline: var(--space-2); font-size: .8rem; }
 }
 
 @media (max-width: 620px) {
