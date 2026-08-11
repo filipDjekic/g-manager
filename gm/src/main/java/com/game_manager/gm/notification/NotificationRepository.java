@@ -11,4 +11,6 @@ interface NotificationRepository extends JpaRepository<Notification,UUID> {
  @Query("select n from Notification n where n.recipientId=:recipient and n.inAppVisible=true and (n.createdAt>:created or (n.createdAt=:created and n.id>:id)) order by n.createdAt,n.id")
  List<Notification> replayAfter(@Param("recipient") UUID recipient,@Param("created") Instant created,@Param("id") UUID id,Pageable pageable);
  long deleteByReadAtBefore(Instant cutoff);
+ @Query("select n from Notification n where n.recipientId=:recipient and n.inAppVisible=true and n.readAt is null and n.createdAt>=:from and n.createdAt<:to order by n.priority desc,n.createdAt desc,n.id desc")
+ List<Notification> attentionBetween(@Param("recipient")UUID recipient,@Param("from")Instant from,@Param("to")Instant to,Pageable pageable);
 }

@@ -36,7 +36,7 @@ public final class RolePermissions {
                 Permission.WORKFLOW_SUBMIT));
         permissions.put(Role.ADMIN, immutableWithProfile(
                 Permission.USER_LIST, Permission.USER_CREATE, Permission.USER_DEACTIVATE,
-                Permission.USER_DELETE, Permission.USER_RESTORE,
+                Permission.USER_DELETE, Permission.USER_RESTORE, Permission.CUSTOMER_READ,
                 Permission.CATALOG_MANAGE, Permission.CATALOG_DELETE, Permission.CATALOG_RESTORE,
                 Permission.AUDIT_READ, Permission.WORKING_HOURS_MANAGE,
                 Permission.RESERVATION_READ_ALL, Permission.RESERVATION_CHANGE_STATUS,
@@ -47,7 +47,7 @@ public final class RolePermissions {
                 Permission.FEATURE_FLAG_MANAGE));
         permissions.put(Role.OWNER, immutableWithProfile(
                 Permission.USER_LIST, Permission.USER_CREATE, Permission.USER_DEACTIVATE,
-                Permission.USER_DELETE, Permission.USER_RESTORE,
+                Permission.USER_DELETE, Permission.USER_RESTORE, Permission.CUSTOMER_READ,
                 Permission.CATALOG_MANAGE, Permission.CATALOG_DELETE, Permission.CATALOG_RESTORE,
                 Permission.AUDIT_READ, Permission.WORKING_HOURS_MANAGE,
                 Permission.RESERVATION_READ_ALL, Permission.RESERVATION_CHANGE_STATUS,

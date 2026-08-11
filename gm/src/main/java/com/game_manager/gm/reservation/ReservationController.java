@@ -5,12 +5,14 @@ import com.game_manager.gm.reservation.dto.ChangeReservationStatusRequest;
 import com.game_manager.gm.reservation.dto.CreateReservationRequest;
 import com.game_manager.gm.reservation.dto.ReservationResponse;
 import com.game_manager.gm.reservation.dto.ReservationDetailResponse;
+import com.game_manager.gm.reservation.dto.CalendarReservationResponse;
 import com.game_manager.gm.reservation.dto.BulkReservationStatusRequest;
 import com.game_manager.gm.common.dto.BulkOperationResponse;
 import com.game_manager.gm.common.observability.BulkOperationExecutor;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.UUID;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -60,6 +62,14 @@ public class ReservationController {
             @RequestParam(defaultValue = "ASC") String direction) {
         return reservationService.listAll(
                 employeeId, status, from, to, page, size, sort, direction);
+    }
+
+    @GetMapping("/calendar")
+    public List<CalendarReservationResponse> calendar(
+            @RequestParam(required = false) UUID employeeId,
+            @RequestParam LocalDate from,
+            @RequestParam LocalDate to) {
+        return reservationService.calendar(employeeId, from, to);
     }
 
     @GetMapping("/{id}")

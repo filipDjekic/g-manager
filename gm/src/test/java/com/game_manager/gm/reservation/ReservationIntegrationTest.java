@@ -268,6 +268,44 @@ class ReservationIntegrationTest {
                 .andExpect(jsonPath("$.history[0].action").value("RESERVATION_STATUS_CHANGED"));
     }
 
+    @Test
+    void calendarIsBoundedHumanReadableAndEmployeeScoped() throws Exception {
+        User customer = createUser(Role.CUSTOMER);
+        User employee = createUser(Role.EMPLOYEE);
+        User otherEmployee = createUser(Role.EMPLOYEE);
+        User admin = createUser(Role.ADMIN);
+        CatalogItem service = createCatalog(ItemType.SERVICE, true);
+        LocalDate date = LocalDate.now(ZONE).plusDays(4);
+        Reservation own = createReservation(customer, employee, service,
+                date.atTime(10, 0).atZone(ZONE).toInstant(), ReservationStatus.CONFIRMED);
+        createReservation(customer, otherEmployee, service,
+                date.atTime(12, 0).atZone(ZONE).toInstant(), ReservationStatus.PENDING);
+
+        mockMvc.perform(get("/api/v1/reservations/calendar")
+                        .param("from", date.toString()).param("to", date.toString())
+                        .header("Authorization", bearer(login(employee))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(own.getId().toString()))
+                .andExpect(jsonPath("$[0].employeeName").value(employee.getName()))
+                .andExpect(jsonPath("$[0].customerName").value(customer.getName()))
+                .andExpect(jsonPath("$[0].serviceName").value(service.getName()));
+
+        mockMvc.perform(get("/api/v1/reservations/calendar")
+                        .param("employeeId", otherEmployee.getId().toString())
+                        .param("from", date.toString()).param("to", date.toString())
+                        .header("Authorization", bearer(login(admin))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].employeeId").value(otherEmployee.getId().toString()));
+
+        mockMvc.perform(get("/api/v1/reservations/calendar")
+                        .param("from", date.toString()).param("to", date.plusDays(93).toString())
+                        .header("Authorization", bearer(login(admin))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Calendar range must contain between 1 and 93 days"));
+    }
+
     private org.springframework.test.web.servlet.ResultActions createRequest(
             String token, String body) throws Exception {
         return mockMvc.perform(post("/api/v1/reservations")

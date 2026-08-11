@@ -39,8 +39,21 @@ export interface ReservationDetail {
 }
 
 export interface CreateReservationInput {
-  employeeId: string
+  employeeId?: string
   serviceId: string
   startTime: string
   note?: string
+}
+
+export interface CalendarReservation {
+  id: string
+  employeeId: string
+  employeeName: string
+  customerName: string
+  serviceName: string
+  startTime: string
+  endTime: string
+  status: ReservationStatus
+  version: number
+  allowedActions: ReservationStatus[]
 }

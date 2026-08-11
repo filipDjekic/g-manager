@@ -1,7 +1,8 @@
 import { apiClient } from './client'
-import type { DashboardSummary, DashboardToday, DashboardTrends, DashboardWidgetPreference, DashboardWorkload } from '../types/dashboard.types'
+import type { DashboardAttention, DashboardSummary, DashboardToday, DashboardTrends, DashboardWidgetPreference, DashboardWorkload } from '../types/dashboard.types'
 
 export const dashboardApi = {
+  attention: () => apiClient.get<DashboardAttention>('/dashboard/attention').then(({ data }) => data),
   summary: (from: string, to: string) =>
     apiClient.get<DashboardSummary>('/dashboard/summary', { params: { from, to } })
       .then(({ data }) => data),

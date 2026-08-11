@@ -92,27 +92,32 @@ class DashboardIntegrationTest {
     @Test
     void operationalTodayIsEmployeeScopedExceptForUnclaimedOrders() throws Exception {
         User employee = createUser(Role.EMPLOYEE);
+        User otherEmployee = createUser(Role.EMPLOYEE);
         User customer = createUser(Role.CUSTOMER);
         JsonNode baseline = json(mockMvc.perform(get("/api/v1/dashboard/today")
                         .header("Authorization", bearer(login(employee))))
                 .andExpect(status().isOk()).andReturn());
 
-        createReservation(customer, employee, ReservationStatus.PENDING);
+        Reservation pending = createReservation(customer, employee, ReservationStatus.PENDING);
         createReservation(customer, employee, ReservationStatus.CONFIRMED);
+        createReservation(customer, otherEmployee, ReservationStatus.CONFIRMED);
         createOrder(customer, OrderStatus.CREATED, new BigDecimal("100.00"), null);
         createOrder(customer, OrderStatus.IN_PROGRESS, new BigDecimal("200.00"), employee.getId());
 
         JsonNode result = json(mockMvc.perform(get("/api/v1/dashboard/today")
                         .header("Authorization", bearer(login(employee))))
                 .andExpect(status().isOk()).andReturn());
-        assertThat(result.get("pendingReservationsToMe").asLong())
-                .isEqualTo(baseline.get("pendingReservationsToMe").asLong() + 1);
-        assertThat(result.get("confirmedTodayCount").asLong())
-                .isEqualTo(baseline.get("confirmedTodayCount").asLong() + 1);
-        assertThat(result.get("unclaimedOrdersCount").asLong())
-                .isEqualTo(baseline.get("unclaimedOrdersCount").asLong() + 1);
-        assertThat(result.get("myInProgressOrdersCount").asLong())
-                .isEqualTo(baseline.get("myInProgressOrdersCount").asLong() + 1);
+        assertThat(result.get("date").asText()).isEqualTo(LocalDate.now(ZONE).toString());
+        assertThat(result.get("timezone").asText()).isEqualTo("Europe/Belgrade");
+        assertThat(result.get("appointments").size()).isEqualTo(baseline.get("appointments").size() + 2);
+        assertThat(result.get("appointments").toString()).contains(pending.getId().toString())
+                .contains(customer.getName()).contains("CONFIRMED");
+        assertThat(result.get("appointments").toString()).doesNotContain(otherEmployee.getId().toString());
+        assertThat(result.get("appointments").toString()).contains("allowedActions");
+        assertThat(result.get("unclaimedOrders").size()).isEqualTo(baseline.get("unclaimedOrders").size() + 1);
+        assertThat(result.get("assignedOrders").size()).isEqualTo(baseline.get("assignedOrders").size() + 1);
+        assertThat(result.at("/unclaimedOrders/0/allowedActions").toString()).contains("IN_PROGRESS");
+        assertThat(result.toString()).contains("gaps").contains("attentionNotifications");
     }
 
     @Test
@@ -189,6 +194,44 @@ class DashboardIntegrationTest {
                             .header("Authorization", bearer(login(employee))))
                     .andExpect(status().isForbidden());
         }
+    }
+
+    @Test
+    void attentionDefinesCurrentMetricsAndAuthorizedDrillDowns() throws Exception {
+        User owner = createUser(Role.OWNER);
+        User employee = createUser(Role.EMPLOYEE);
+        User customer = createUser(Role.CUSTOMER);
+        Reservation pending = createReservation(customer, employee, ReservationStatus.PENDING);
+        createReservation(customer, employee, ReservationStatus.CANCELLED);
+        createReservation(customer, employee, ReservationStatus.CONFIRMED);
+        jdbcTemplate.update("update working_hours set active=true, open_time=?, close_time=? where day_of_week=?",
+                java.sql.Time.valueOf("08:00:00"), java.sql.Time.valueOf("20:00:00"),
+                LocalDate.now(ZONE).getDayOfWeek().name());
+        createOrder(customer, OrderStatus.CREATED, new BigDecimal("100.00"), null);
+        createOrder(customer, OrderStatus.IN_PROGRESS, new BigDecimal("200.00"), employee.getId());
+        String ownerToken = bearer(login(owner));
+        mockMvc.perform(put("/api/v1/dashboard/widget-preferences").header("Authorization", ownerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("[{\"widgetKey\":\"workload\",\"position\":0,\"visible\":true,\"threshold\":0}]"))
+                .andExpect(status().isOk());
+
+        JsonNode result = json(mockMvc.perform(get("/api/v1/dashboard/attention")
+                        .header("Authorization", ownerToken))
+                .andExpect(status().isOk()).andReturn());
+        assertThat(result.get("timezone").asText()).isEqualTo("Europe/Belgrade");
+        assertThat(result.get("workloadThresholdPercent").asInt()).isZero();
+        java.util.List<String> keys = new java.util.ArrayList<>();
+        result.get("items").forEach(item -> {
+            keys.add(item.get("key").asText());
+            assertThat(item.get("url").asText()).startsWith("/");
+            assertThat(item.get("detail").asText()).isNotBlank();
+        });
+        assertThat(keys).contains("pending-today", "cancelled-today", "orders-unclaimed", "orders-in-progress");
+        assertThat(keys).contains("next-" + pending.getId(), "workload-" + employee.getId());
+
+        mockMvc.perform(get("/api/v1/dashboard/attention")
+                        .header("Authorization", bearer(login(employee))))
+                .andExpect(status().isForbidden());
     }
 
     private Reservation createReservation(

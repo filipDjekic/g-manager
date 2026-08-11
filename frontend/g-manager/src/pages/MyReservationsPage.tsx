@@ -1,30 +1,33 @@
-import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { availabilityApi } from '../api/availabilityApi'
 import { catalogApi } from '../api/catalogApi'
 import { apiErrorMessage } from '../api/client'
+import { IdempotencyKeyManager, isConflictResponse } from '../api/idempotency'
 import { reservationApi } from '../api/reservationApi'
 import { userApi } from '../api/userApi'
-import { workingHoursApi } from '../api/workingHoursApi'
-import { businessLocalToInstant, formatBusinessDateTime } from '../reservations/dateTime'
+import { Button, EmptyState, ErrorState, Skeleton } from '../components/ui'
+import { formatBusinessDateTime, formatBusinessTime, todayInBusinessZone } from '../reservations/dateTime'
+import { ReservationDetailsDrawer } from '../reservations/ReservationDetailsDrawer'
 import type { CatalogItem } from '../types/catalog.types'
 import type { PageResponse } from '../types/api.types'
 import type { Reservation, ReservationStatus } from '../types/reservation.types'
 import type { UserResponse } from '../types/user.types'
-import type { WorkingHours } from '../types/workingHours.types'
-import { IdempotencyKeyManager, isConflictResponse } from '../api/idempotency'
-import { useSearchParams } from 'react-router-dom'
-import { ReservationDetailsDrawer } from '../reservations/ReservationDetailsDrawer'
+
+type EmployeeChoice = 'UNSELECTED' | 'ANY' | string
 
 export function MyReservationsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [result, setResult] = useState<PageResponse<Reservation> | null>(null)
   const [services, setServices] = useState<CatalogItem[]>([])
   const [employees, setEmployees] = useState<UserResponse[]>([])
-  const [hours, setHours] = useState<WorkingHours[]>([])
   const [page, setPage] = useState(0)
   const [status, setStatus] = useState<ReservationStatus | ''>('')
   const [serviceId, setServiceId] = useState('')
-  const [employeeId, setEmployeeId] = useState('')
-  const [localStart, setLocalStart] = useState('')
+  const [employeeChoice, setEmployeeChoice] = useState<EmployeeChoice>('UNSELECTED')
+  const [date, setDate] = useState('')
+  const [selectedStart, setSelectedStart] = useState('')
   const [note, setNote] = useState('')
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
@@ -33,9 +36,7 @@ export function MyReservationsPage() {
   const submitInFlight = useRef(false)
 
   const loadMine = useCallback(async () => {
-    setResult(await reservationApi.mine({
-      page, size: 20, status: status || undefined,
-    }))
+    setResult(await reservationApi.mine({ page, size: 20, status: status || undefined }))
   }, [page, status])
 
   useEffect(() => {
@@ -43,101 +44,136 @@ export function MyReservationsPage() {
       reservationApi.mine({ page, size: 20, status: status || undefined }),
       catalogApi.list({ page: 0, size: 100, type: 'SERVICE', active: true, sort: 'name', direction: 'ASC' }),
       userApi.employees(),
-      workingHoursApi.list(),
-    ]).then(([reservations, servicePage, employeePage, weeklyHours]) => {
+    ]).then(([reservations, servicePage, employeePage]) => {
       setResult(reservations)
       setServices(servicePage.content)
       setEmployees(employeePage)
-      setHours(weeklyHours)
     }).catch((cause) => setError(apiErrorMessage(cause, 'Rezervacije nije moguće učitati.')))
   }, [page, status])
 
+  const availability = useQuery({
+    queryKey: ['availability', serviceId, employeeChoice, date],
+    queryFn: () => availabilityApi.find({
+      serviceId,
+      employeeId: employeeChoice === 'ANY' ? undefined : employeeChoice,
+      from: date,
+      to: date,
+    }),
+    enabled: Boolean(serviceId && employeeChoice !== 'UNSELECTED' && date),
+    retry: false,
+  })
+  const slots = useMemo(() => {
+    const unique = new Map<string, string>()
+    availability.data?.employees.forEach((employee) => employee.slots.forEach((slot) => {
+      if (!unique.has(slot.startTime)) unique.set(slot.startTime, slot.endTime)
+    }))
+    return [...unique].map(([startTime, endTime]) => ({ startTime, endTime }))
+      .sort((left, right) => left.startTime.localeCompare(right.startTime))
+  }, [availability.data])
+  const service = services.find((item) => item.id === serviceId)
+  const employeeLabel = employeeChoice === 'ANY' ? 'Bilo koji slobodan zaposleni'
+    : employees.find((employee) => employee.id === employeeChoice)?.name
+
   async function create(event: FormEvent) {
     event.preventDefault()
-    if (submitInFlight.current) return
+    if (!selectedStart || submitInFlight.current) return
     submitInFlight.current = true
     setSubmitting(true)
+    setError('')
     try {
       await reservationApi.create({
         serviceId,
-        employeeId,
-        startTime: businessLocalToInstant(localStart),
+        employeeId: employeeChoice === 'ANY' ? undefined : employeeChoice,
+        startTime: selectedStart,
         note: note || undefined,
       }, createAttempt.current.begin())
       createAttempt.current.succeeded()
-      setLocalStart('')
+      setServiceId('')
+      setEmployeeChoice('UNSELECTED')
+      setDate('')
+      setSelectedStart('')
       setNote('')
-      setMessage('Zahtev za termin je poslat.')
+      setMessage('Termin je rezervisan i čeka potvrdu.')
       await loadMine()
     } catch (cause) {
       createAttempt.current.failed(cause)
-      setError(isConflictResponse(cause)
-        ? 'Termin ili podaci su promenjeni. Osvežite prikaz pre novog pokušaja.'
-        : apiErrorMessage(cause, 'Termin nije moguće rezervisati. Isti zahtev možete pokušati ponovo.'))
+      if (isConflictResponse(cause)) {
+        setSelectedStart('')
+        setError('Izabrani termin je upravo zauzet. Osvežili smo dostupne termine — izaberite drugi slot.')
+        await availability.refetch()
+      } else {
+        setError(apiErrorMessage(cause, 'Termin nije moguće rezervisati. Pokušajte ponovo.'))
+      }
     } finally {
       submitInFlight.current = false
       setSubmitting(false)
     }
   }
 
-  return (
-    <main className="workspace">
-      <div className="page-heading"><div><p className="eyebrow">Zakazivanje</p><h1>Moji termini</h1></div></div>
-      {error && <p className="error-banner" role="alert">{error}</p>}
-      {message && <p className="success-banner" role="status">{message}</p>}
-      <div className="panel-grid booking-grid">
-        <form className="panel" onSubmit={create}>
-          <h2>Novi termin</h2>
-          <label>Usluga<select required value={serviceId} onChange={(event) => setServiceId(event.target.value)}>
-            <option value="">Izaberite uslugu</option>{services.map((service) =>
-              <option value={service.id} key={service.id}>{service.name} · {service.durationMinutes} min</option>)}
-          </select></label>
-          <label>Zaposleni<select required value={employeeId} onChange={(event) => setEmployeeId(event.target.value)}>
-            <option value="">Izaberite zaposlenog</option>{employees.map((employee) =>
-              <option value={employee.id} key={employee.id}>{employee.name}</option>)}
-          </select></label>
-          <label>Početak — Europe/Belgrade<input type="datetime-local" required value={localStart}
-            onChange={(event) => setLocalStart(event.target.value)} /></label>
-          <label>Napomena<textarea maxLength={500} value={note} onChange={(event) => setNote(event.target.value)} /></label>
-          <button type="submit" disabled={submitting}>
-            {submitting ? 'Slanje…' : 'Pošalji zahtev'}
-          </button>
-        </form>
-        <section className="panel">
-          <h2>Radno vreme</h2>
-          {hours.map((item) => <div className="schedule-line" key={item.dayOfWeek}>
-            <span>{item.dayOfWeek}</span><strong>{item.active
-              ? `${item.openTime.slice(0, 5)}–${item.closeTime.slice(0, 5)}${item.spansMidnight ? ' (+1)' : ''}`
-              : 'Neradno'}</strong></div>)}
-          <p>Prikaz je informativan; backend proverava praznike, trajanje i zauzetost.</p>
-        </section>
-      </div>
-      <div className="list-filter"><label>Status<select value={status}
-        onChange={(event) => { setStatus(event.target.value as ReservationStatus | ''); setPage(0) }}>
-        <option value="">Svi</option>{['PENDING', 'CONFIRMED', 'REJECTED', 'CANCELLED', 'COMPLETED'].map((value) =>
-          <option value={value} key={value}>{value}</option>)}</select></label></div>
-      <section className="reservation-list">
-        {!result?.content.length && <p className="empty-state">Nemate rezervacije za izabrani filter.</p>}
-        {result?.content.map((reservation) => <article className="panel reservation-row" key={reservation.id}>
-          <div><strong>{formatBusinessDateTime(reservation.startTime)}</strong>
-            <p>{services.find((service) => service.id === reservation.serviceId)?.name ?? 'Usluga'}</p></div>
-          <span className="status-badge neutral">{reservation.status}</span>
-          <button type="button" onClick={() => {
-            const next = new URLSearchParams(searchParams)
-            next.set('reservationId', reservation.id)
-            setSearchParams(next)
-          }}>Detalji</button>
-        </article>)}
-      </section>
-      <div className="pagination"><button disabled={page === 0} onClick={() => setPage(page - 1)}>Prethodna</button>
-        <span>Strana {page + 1} od {Math.max(result?.totalPages ?? 1, 1)}</span>
-        <button disabled={!result || page + 1 >= result.totalPages} onClick={() => setPage(page + 1)}>Sledeća</button></div>
-      <ReservationDetailsDrawer reservationId={searchParams.get('reservationId')} onChanged={loadMine}
-        onClose={() => {
-          const next = new URLSearchParams(searchParams)
-          next.delete('reservationId')
-          setSearchParams(next, { replace: true })
-        }} />
-    </main>
-  )
+  return <main className="workspace">
+    <div className="page-heading"><div><p className="eyebrow">Zakazivanje</p><h1>Moji termini</h1></div></div>
+    {error && <p className="error-banner" role="alert">{error}</p>}
+    {message && <p className="success-banner" role="status">{message}</p>}
+    <form className="panel booking-flow" onSubmit={create}>
+      <div className="booking-step"><span>1</span><label>Usluga<select required value={serviceId} onChange={(event) => {
+        setServiceId(event.target.value); setEmployeeChoice('UNSELECTED'); setDate(''); setSelectedStart('')
+      }}><option value="">Izaberite uslugu</option>{services.map((item) =>
+        <option value={item.id} key={item.id}>{item.name} · {item.durationMinutes} min</option>)}</select></label></div>
+
+      {serviceId && <div className="booking-step"><span>2</span><label>Zaposleni<select required
+        value={employeeChoice} onChange={(event) => {
+          setEmployeeChoice(event.target.value); setDate(''); setSelectedStart('')
+        }}><option value="UNSELECTED">Izaberite opciju</option><option value="ANY">Bilo koji slobodan</option>
+        {employees.map((employee) => <option value={employee.id} key={employee.id}>{employee.name}</option>)}</select></label></div>}
+
+      {employeeChoice !== 'UNSELECTED' && <div className="booking-step"><span>3</span><label>Datum<input type="date"
+        min={todayInBusinessZone()} required value={date} onChange={(event) => {
+          setDate(event.target.value); setSelectedStart('')
+        }} /></label></div>}
+
+      {date && <div className="booking-step booking-slot-step"><span>4</span><fieldset><legend>Dostupan termin</legend>
+        {availability.isLoading && <Skeleton lines={3} label="Učitavanje dostupnih termina" />}
+        {availability.error && <ErrorState message={apiErrorMessage(availability.error, 'Dostupne termine nije moguće učitati.')}
+          action={<Button type="button" onClick={() => availability.refetch()}>Pokušaj ponovo</Button>} />}
+        {!availability.isLoading && !availability.error && slots.length === 0
+          && <EmptyState title="Nema slobodnih termina" description="Izaberite drugi datum ili zaposlenog." />}
+        {slots.length > 0 && <div className="slot-grid">{slots.map((slot) => <label key={slot.startTime}
+          className={selectedStart === slot.startTime ? 'slot-option selected' : 'slot-option'}>
+          <input type="radio" name="slot" value={slot.startTime} checked={selectedStart === slot.startTime}
+            onChange={() => setSelectedStart(slot.startTime)} />{formatBusinessTime(slot.startTime)}
+        </label>)}</div>}
+      </fieldset></div>}
+
+      {selectedStart && <div className="booking-step"><span>5</span><label>Napomena (opciono)<textarea maxLength={500}
+        value={note} onChange={(event) => setNote(event.target.value)} /></label></div>}
+
+      {selectedStart && <div className="booking-step booking-review"><span>6</span><section aria-labelledby="booking-review-title">
+        <h2 id="booking-review-title">Proverite termin</h2>
+        <dl><div><dt>Usluga</dt><dd>{service?.name}</dd></div><div><dt>Zaposleni</dt><dd>{employeeLabel}</dd></div>
+          <div><dt>Termin</dt><dd>{formatBusinessDateTime(selectedStart)}</dd></div></dl>
+        <Button type="submit" loading={submitting}>Potvrdi termin</Button>
+      </section></div>}
+    </form>
+
+    <div className="list-filter"><label>Status<select value={status}
+      onChange={(event) => { setStatus(event.target.value as ReservationStatus | ''); setPage(0) }}>
+      <option value="">Svi</option>{['PENDING', 'CONFIRMED', 'REJECTED', 'CANCELLED', 'COMPLETED'].map((value) =>
+        <option value={value} key={value}>{value}</option>)}</select></label></div>
+    <section className="reservation-list">
+      {!result?.content.length && <p className="empty-state">Nemate rezervacije za izabrani filter.</p>}
+      {result?.content.map((reservation) => <article className="panel reservation-row" key={reservation.id}>
+        <div><strong>{formatBusinessDateTime(reservation.startTime)}</strong>
+          <p>{services.find((item) => item.id === reservation.serviceId)?.name ?? 'Usluga'}</p></div>
+        <span className="status-badge neutral">{reservation.status}</span>
+        <button type="button" onClick={() => {
+          const next = new URLSearchParams(searchParams); next.set('reservationId', reservation.id); setSearchParams(next)
+        }}>Detalji</button>
+      </article>)}
+    </section>
+    <div className="pagination"><button disabled={page === 0} onClick={() => setPage(page - 1)}>Prethodna</button>
+      <span>Strana {page + 1} od {Math.max(result?.totalPages ?? 1, 1)}</span>
+      <button disabled={!result || page + 1 >= result.totalPages} onClick={() => setPage(page + 1)}>Sledeća</button></div>
+    <ReservationDetailsDrawer reservationId={searchParams.get('reservationId')} onChanged={loadMine}
+      onClose={() => { const next = new URLSearchParams(searchParams); next.delete('reservationId'); setSearchParams(next, { replace: true }) }} />
+  </main>
 }

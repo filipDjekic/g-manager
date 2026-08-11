@@ -205,4 +205,37 @@ public class OrderService {
             OrderStatus status, UUID handledBy, Instant from, Instant to) {
         return orderRepository.countByStatusBetween(status, handledBy, from, to);
     }
+
+    @Transactional(readOnly = true)
+    public java.util.List<OrderResponse> operationalOrders(
+            OrderStatus status, UUID handledBy, boolean unclaimed, int limit) {
+        return orderRepository.findOperational(status, handledBy, unclaimed,
+                org.springframework.data.domain.PageRequest.of(0, limit)).stream()
+                .map(OrderResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public long countUnclaimed(OrderStatus status) {
+        return orderRepository.countByStatusAndHandledByIsNull(status);
+    }
+
+    @Transactional(readOnly = true)
+    public long countByStatus(OrderStatus status) {
+        return orderRepository.countByStatus(status);
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.Map<UUID, CustomerOrderSummary> summarizeCustomers(java.util.Set<UUID> customerIds) {
+        if (customerIds.isEmpty()) return java.util.Map.of();
+        return orderRepository.summarizeCustomers(customerIds).stream().collect(java.util.stream.Collectors.toMap(
+                CustomerOrderSummary::customerId, java.util.function.Function.identity()));
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<CustomerOrderHistory> customerHistory(UUID customerId, int limit) {
+        return orderRepository.customerHistory(customerId,
+                org.springframework.data.domain.PageRequest.of(0, limit)).stream()
+                .map(order -> new CustomerOrderHistory(order.getId(), order.getStatus(),
+                        order.getTotalPrice(), order.getCreatedAt())).toList();
+    }
 }

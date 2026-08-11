@@ -12,11 +12,12 @@ function user(role: Role) {
   }
 }
 
-async function installApi(page: Page, role: Role, aiEnabled = false) {
+async function installApi(page: Page, role: Role, aiEnabled = false, reservationConflictOnce = false) {
   let authenticated = false
   let orderCreated = false
   let reservationCreated = false
   let reservationStatus = 'PENDING'
+  let reservationConflictReturned = false
   let orderTransitioned = false
   const savedViews: Array<{ id: string; resourceType: string; name: string; query: Record<string, string>; version: number }> = []
 
@@ -69,8 +70,21 @@ async function installApi(page: Page, role: Role, aiEnabled = false) {
       reservationsByStatus: { PENDING: 1, CONFIRMED: 2, REJECTED: 0, CANCELLED: 0, COMPLETED: 3 },
     })
     if (path === '/dashboard/today') return json({
-      pendingReservationsToMe: 1, confirmedTodayCount: 2,
-      unclaimedOrdersCount: 3, myInProgressOrdersCount: 1,
+      date: '2028-03-16', timezone: 'Europe/Belgrade',
+      workingDayStart: '2028-03-16T08:00:00Z', workingDayEnd: '2028-03-16T16:00:00Z',
+      appointments: [{ id: 'reservation-1', customerName: 'CUSTOMER E2E', serviceName: 'Test usluga',
+        startTime: '2028-03-16T10:00:00Z', endTime: '2028-03-16T11:00:00Z', status: reservationStatus,
+        version: 0, allowedActions: reservationStatus === 'PENDING' ? ['CONFIRMED', 'REJECTED', 'CANCELLED'] : [] }],
+      gaps: [{ startTime: '2028-03-16T08:00:00Z', endTime: '2028-03-16T10:00:00Z' }],
+      unclaimedOrders: orderTransitioned ? [] : [{ id: 'order-2', status: 'CREATED', totalPrice: 120,
+        createdAt: '2028-03-15T10:00:00Z', version: 0, allowedActions: ['IN_PROGRESS'] }],
+      assignedOrders: [], attentionNotifications: [{ id: 'notification-1', priority: 'HIGH',
+        title: 'Novi termin', body: 'Termin zahteva potvrdu', createdAt: '2028-03-16T09:00:00Z' }],
+    })
+    if (path === '/dashboard/attention') return json({
+      date: '2028-03-16', timezone: 'Europe/Belgrade', workloadThresholdPercent: 80,
+      items: [{ key: 'pending-today', label: 'Rezervacije na čekanju', detail: 'Početak termina je danas',
+        count: 1, severity: 'warning', url: '/reservations?status=PENDING&from=2028-03-16&to=2028-03-16' }],
     })
     if (path === '/dashboard/widget-preferences') return json([])
     if (path === '/dashboard/trends') return json({
@@ -125,7 +139,28 @@ async function installApi(page: Page, role: Role, aiEnabled = false) {
         status: 'PENDING', note: null, version: 0,
       }],
     } : emptyPage)
+    if (path === '/availability') return json({
+      timezone: 'Europe/Belgrade', serviceId: 'service-1', serviceName: 'Test usluga',
+      durationMinutes: 60, slotIncrementMinutes: 15,
+      from: url.searchParams.get('from'), to: url.searchParams.get('to'),
+      employees: [{
+        employeeId: 'employee-1', employeeName: 'EMPLOYEE E2E',
+        slots: [{ startTime: '2028-03-16T10:00:00Z', endTime: '2028-03-16T11:00:00Z' }],
+      }],
+    })
+    if (path === '/reservations/calendar') {
+      const calendarDay = url.searchParams.get('from') ?? '2028-03-16'
+      return json([{
+      id: 'reservation-1', employeeId: 'employee-1', employeeName: 'EMPLOYEE E2E',
+      customerName: 'CUSTOMER E2E', serviceName: 'Test usluga',
+      startTime: `${calendarDay}T10:00:00Z`, endTime: `${calendarDay}T11:00:00Z`, status: 'CONFIRMED',
+      }])
+    }
     if (path === '/reservations' && request.method() === 'POST') {
+      if (reservationConflictOnce && !reservationConflictReturned) {
+        reservationConflictReturned = true
+        return json({ status: 409, message: 'Employee unavailable' }, 409)
+      }
       reservationCreated = true
       return json({ id: 'reservation-1' }, 201)
     }
@@ -137,7 +172,7 @@ async function installApi(page: Page, role: Role, aiEnabled = false) {
       allowedActions: reservationStatus === 'PENDING' ? ['CANCELLED'] : [], history: [],
     })
     if (path === '/reservations/reservation-1/status' && request.method() === 'PATCH') {
-      reservationStatus = 'CANCELLED'
+      reservationStatus = (request.postDataJSON() as { status: string }).status
       return json({ id: 'reservation-1', status: reservationStatus, version: 1 })
     }
     if (path === '/users/employees') return json({ ...emptyPage, size: 100, content: [{
@@ -186,8 +221,11 @@ test('customer creates an order and reservation with visible success states', as
   await page.goto('/my-reservations')
   await page.getByLabel('Usluga').selectOption('service-1')
   await page.getByLabel('Zaposleni').selectOption('employee-1')
-  await page.locator('input[type="datetime-local"]').fill('2028-03-16T11:00')
-  await page.getByRole('button', { name: /Po.*alji zahtev/ }).click()
+  await page.getByLabel('Datum').fill('2028-03-16')
+  const slot = page.getByRole('radio')
+  await slot.focus()
+  await slot.press('Space')
+  await page.getByRole('button', { name: 'Potvrdi termin' }).click()
   await expect(page.getByRole('status')).toBeVisible()
   await page.getByRole('button', { name: 'Detalji' }).click()
   const drawer = page.getByRole('dialog', { name: /Test usluga/ })
@@ -201,6 +239,31 @@ test('customer creates an order and reservation with visible success states', as
   await expect(confirmation).not.toBeVisible()
 })
 
+test('customer recovers when a selected slot is taken concurrently', async ({ page }) => {
+  await installApi(page, 'CUSTOMER', false, true)
+  await login(page, 'CUSTOMER')
+  await page.goto('/my-reservations')
+  await page.getByLabel('Usluga').selectOption('service-1')
+  await page.getByLabel('Zaposleni').selectOption('ANY')
+  await page.getByLabel('Datum').fill('2028-03-16')
+  await page.getByRole('radio').check()
+  await page.getByRole('button', { name: 'Potvrdi termin' }).click()
+  await expect(page.getByRole('alert')).toContainText('upravo zauzet')
+  await expect(page.getByRole('radio')).toBeVisible()
+  await expect(page.getByRole('radio')).not.toBeChecked()
+})
+
+test('employee navigates calendar ranges and opens reservation details', async ({ page }) => {
+  await installApi(page, 'EMPLOYEE')
+  await login(page, 'EMPLOYEE')
+  await page.goto('/calendar')
+  await expect(page.getByRole('heading', { name: 'Kalendar rezervacija' })).toBeVisible()
+  await page.getByRole('button', { name: 'Mesec' }).click()
+  await page.getByRole('button', { name: 'Sledeće' }).click()
+  await page.getByRole('button', { name: /Test usluga/ }).click()
+  await expect(page.getByRole('dialog', { name: /Test usluga/ })).toBeVisible()
+})
+
 test('employee performs an order status transition', async ({ page }) => {
   await installApi(page, 'EMPLOYEE')
   await login(page, 'EMPLOYEE')
@@ -209,6 +272,27 @@ test('employee performs an order status transition', async ({ page }) => {
   await takeOrder.focus()
   await takeOrder.press('Enter')
   await expect(page.getByRole('article').getByText('IN_PROGRESS')).toBeVisible()
+})
+
+test('employee completes daily work from the Today workspace', async ({ page }) => {
+  await installApi(page, 'EMPLOYEE')
+  await login(page, 'EMPLOYEE')
+  await expect(page.getByRole('heading', { name: 'Moj radni dan' })).toBeVisible()
+  await page.getByRole('button', { name: 'Potvrdi' }).click()
+  await expect(page.getByText('CONFIRMED')).toBeVisible()
+  await page.getByRole('button', { name: 'Preuzmi' }).click()
+  await expect(page.getByRole('heading', { name: 'Nema nepreuzetih narudžbina' })).toBeVisible()
+  await expect(page.getByText('Novi termin')).toBeVisible()
+})
+
+test('management attention item opens its authorized operational view', async ({ page }) => {
+  await installApi(page, 'OWNER')
+  await login(page, 'OWNER')
+  const attention = page.getByRole('link', { name: 'Rezervacije na čekanju' })
+  await expect(attention).toBeVisible()
+  await attention.click()
+  await expect(page).toHaveURL(/\/reservations\?status=PENDING/)
+  await expect(page.getByRole('heading', { name: 'Rezervacije' })).toBeVisible()
 })
 
 test('owner receives typed feature bootstrap and can inspect rollout metadata', async ({ page }) => {

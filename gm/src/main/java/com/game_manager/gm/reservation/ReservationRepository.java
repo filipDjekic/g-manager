@@ -2,6 +2,7 @@ package com.game_manager.gm.reservation;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Collection;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -24,6 +25,45 @@ public interface ReservationRepository
             @Param("endTime") Instant endTime,
             @Param("excludedStatuses") List<ReservationStatus> excludedStatuses,
             @Param("excludeId") UUID excludeId);
+
+    @Query("""
+            select new com.game_manager.gm.reservation.ReservationBusyInterval(
+                r.employeeId, r.startTime, r.endTime)
+            from Reservation r
+            where r.employeeId in :employeeIds
+              and r.status not in :excludedStatuses
+              and r.startTime < :to and r.endTime > :from
+            order by r.employeeId, r.startTime
+            """)
+    List<ReservationBusyInterval> findBlockingBetween(
+            @Param("employeeIds") Collection<UUID> employeeIds,
+            @Param("from") Instant from,
+            @Param("to") Instant to,
+            @Param("excludedStatuses") List<ReservationStatus> excludedStatuses);
+
+    @Query("""
+            select r from Reservation r
+            where r.startTime < :to and r.endTime > :from
+              and (:employeeId is null or r.employeeId = :employeeId)
+            order by r.startTime, r.id
+            """)
+    List<Reservation> findCalendarBetween(
+            @Param("from") Instant from,
+            @Param("to") Instant to,
+            @Param("employeeId") UUID employeeId);
+
+    @Query("""
+            select new com.game_manager.gm.reservation.CustomerReservationSummary(
+                r.customerId, count(r),
+                sum(case when r.status = com.game_manager.gm.reservation.ReservationStatus.COMPLETED then 1 else 0 end),
+                max(r.startTime))
+            from Reservation r where r.customerId in :customerIds group by r.customerId
+            """)
+    List<CustomerReservationSummary> summarizeCustomers(@Param("customerIds") Collection<UUID> customerIds);
+
+    @Query("select r from Reservation r where r.customerId=:customerId order by r.startTime desc,r.id desc")
+    List<Reservation> customerHistory(@Param("customerId") UUID customerId,
+            org.springframework.data.domain.Pageable pageable);
 
     @Query("""
             select new com.game_manager.gm.reservation.ReservationStatusTotal(r.status, count(r))

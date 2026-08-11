@@ -20,10 +20,12 @@ const RegisterPage = lazyPage(() => import('./pages/RegisterPage'), 'RegisterPag
 const SessionPage = lazyPage(() => import('./pages/SessionPage'), 'SessionPage')
 const ProfilePage = lazyPage(() => import('./pages/ProfilePage'), 'ProfilePage')
 const UserManagementPage = lazyPage(() => import('./pages/UserManagementPage'), 'UserManagementPage')
+const CustomersPage = lazyPage(() => import('./pages/CustomersPage'), 'CustomersPage')
 const CatalogPage = lazyPage(() => import('./pages/CatalogPage'), 'CatalogPage')
 const SettingsPage = lazyPage(() => import('./pages/SettingsPage'), 'SettingsPage')
 const MyReservationsPage = lazyPage(() => import('./pages/MyReservationsPage'), 'MyReservationsPage')
 const ReservationsPage = lazyPage(() => import('./pages/ReservationsPage'), 'ReservationsPage')
+const CalendarPage = lazyPage(() => import('./pages/CalendarPage'), 'CalendarPage')
 const MyOrdersPage = lazyPage(() => import('./pages/MyOrdersPage'), 'MyOrdersPage')
 const OrdersPage = lazyPage(() => import('./pages/OrdersPage'), 'OrdersPage')
 const AuditPage = lazyPage(() => import('./pages/AuditPage'), 'AuditPage')
@@ -71,6 +73,9 @@ function App() {
               <Route element={<CapabilityGuard anyOf={['USER_LIST']} />}>
                 <Route path="employees" element={<UserManagementPage employeesOnly />} />
               </Route>
+              <Route element={<CapabilityGuard anyOf={['CUSTOMER_READ']} />}>
+                <Route path="customers" element={<CustomersPage />} />
+              </Route>
               <Route element={<CapabilityGuard anyOf={['WORKING_HOURS_MANAGE']} />}>
                 <Route path="settings" element={<SettingsPage />} />
               </Route>
@@ -81,6 +86,7 @@ function App() {
               <Route element={<CapabilityGuard anyOf={['DASHBOARD_SUMMARY', 'DASHBOARD_OPERATIONAL']} />}>
                 <Route path="dashboard" element={<DashboardPage />} />
                 <Route path="reservations" element={<ReservationsPage />} />
+                <Route path="calendar" element={<CalendarPage />} />
                 <Route path="orders" element={<OrdersPage />} />
               </Route>
               <Route element={<CapabilityGuard anyOf={['USER_LIST']} />}>
