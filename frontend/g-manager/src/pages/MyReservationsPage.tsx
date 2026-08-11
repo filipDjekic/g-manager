@@ -24,7 +24,8 @@ export function MyReservationsPage() {
   const [employees, setEmployees] = useState<UserResponse[]>([])
   const [page, setPage] = useState(0)
   const [status, setStatus] = useState<ReservationStatus | ''>('')
-  const [serviceId, setServiceId] = useState('')
+  const [serviceId, setServiceId] = useState(() => searchParams.get('serviceId')
+    ?? sessionStorage.getItem('gmanager.catalog-selection') ?? '')
   const [employeeChoice, setEmployeeChoice] = useState<EmployeeChoice>('UNSELECTED')
   const [date, setDate] = useState('')
   const [selectedStart, setSelectedStart] = useState('')
@@ -34,6 +35,12 @@ export function MyReservationsPage() {
   const [submitting, setSubmitting] = useState(false)
   const createAttempt = useRef(new IdempotencyKeyManager())
   const submitInFlight = useRef(false)
+
+  useEffect(() => {
+    if (serviceId && sessionStorage.getItem('gmanager.catalog-selection') === serviceId) {
+      sessionStorage.removeItem('gmanager.catalog-selection')
+    }
+  }, [serviceId])
 
   const loadMine = useCallback(async () => {
     setResult(await reservationApi.mine({ page, size: 20, status: status || undefined }))

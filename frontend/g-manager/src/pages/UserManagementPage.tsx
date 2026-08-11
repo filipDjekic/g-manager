@@ -75,11 +75,11 @@ export function UserManagementPage({ employeesOnly = false }: Props) {
       onClick={() => bulk.mutate()}>Deaktiviraj izabrane</Button></SelectionBar>
     {result.isLoading ? <Skeleton lines={7} label="Učitavanje korisnika" /> : !result.data?.content.length
       ? <EmptyState title="Nema korisnika" description="Promenite filter ili kreirajte korisnika." />
-      : <TableShell label="Lista korisnika"><table><thead><tr><th scope="col">Izbor</th><th scope="col">Ime</th>
+      : <TableShell label="Lista korisnika"><table className="responsive-table"><thead><tr><th scope="col">Izbor</th><th scope="col">Ime</th>
         <th scope="col">Email</th><th scope="col">Uloga</th><th scope="col">Status</th><th scope="col">Akcije</th></tr></thead>
-        <tbody>{result.data.content.map((user) => <tr key={user.id}><td><input type="checkbox" checked={selected.has(user.id)}
+        <tbody>{result.data.content.map((user) => <tr key={user.id}><td data-label="Izbor"><input type="checkbox" checked={selected.has(user.id)}
           disabled={showDeleted || user.id === actor?.id || !user.active} onChange={() => toggle(user.id)} aria-label={`Izaberi korisnika ${user.email}`} /></td>
-          <td>{user.name}</td><td>{user.email}</td><td>{user.role}</td><td>{user.active ? 'Aktivan' : 'Neaktivan'}</td><td><div className="form-actions">{showDeleted
+          <td data-label="Ime">{user.name}</td><td data-label="Email">{user.email}</td><td data-label="Uloga">{user.role}</td><td data-label="Status">{user.active ? 'Aktivan' : 'Neaktivan'}</td><td data-label="Akcije"><div className="form-actions">{showDeleted
             ? <button type="button" onClick={() => void restore(user)}>Vrati</button>
             : <>{user.active && user.id !== actor?.id && <button className="secondary-button" type="button"
               onClick={() => { if (window.confirm(`Deaktivirati nalog ${user.email}?`)) deactivate.mutate(user.id) }}>Deaktiviraj</button>}

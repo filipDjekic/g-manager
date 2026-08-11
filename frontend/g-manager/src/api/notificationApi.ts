@@ -1,12 +1,13 @@
 import { apiClient } from './client'
 import { useAuthStore } from '../auth/authStore'
 import type { AppNotification, NotificationPage, NotificationPreference } from '../types/notification.types'
+import type { NavigationAction } from './searchApi'
 
 export const notificationApi = {
   list: () => apiClient.get<NotificationPage>('/notifications').then(({ data }) => data),
   read: (id: string) => apiClient.patch<AppNotification>(`/notifications/${id}/read`).then(({ data }) => data),
   readAll: () => apiClient.patch('/notifications/read-all'),
-  open: (id: string) => apiClient.get<{ url: string }>(`/notifications/${id}/open`).then(({ data }) => data),
+  open: (id: string) => apiClient.get<{ action: NavigationAction }>(`/notifications/${id}/open`).then(({ data }) => data),
   preferences: () => apiClient.get<NotificationPreference[]>('/notifications/preferences').then(({ data }) => data),
   savePreference: (value: NotificationPreference) => apiClient.put<NotificationPreference>('/notifications/preferences', value).then(({ data }) => data),
 }

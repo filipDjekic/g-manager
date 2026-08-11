@@ -25,10 +25,13 @@ class NotificationIntegrationTest {
   assertThat(notifications.findAll().stream().filter(n->n.getSourceEventId().equals(message.id()))).hasSize(2);
   String customerToken=login(customer);String employeeToken=login(employee);
   MvcResult customerPage=mvc.perform(get("/api/v1/notifications").header("Authorization",bearer(customerToken))).andExpect(status().isOk())
-    .andExpect(jsonPath("$.unreadCount").value(1)).andExpect(jsonPath("$.notifications[0].body").value(org.hamcrest.Matchers.containsString("&lt;script&gt;"))).andReturn();
+    .andExpect(jsonPath("$.unreadCount").value(1)).andExpect(jsonPath("$.notifications[0].body").value(org.hamcrest.Matchers.containsString("&lt;script&gt;")))
+    .andExpect(jsonPath("$.notifications[0].action.kind").value("NAVIGATE")).andReturn();
   UUID id=UUID.fromString(mapper.readTree(customerPage.getResponse().getContentAsByteArray()).at("/notifications/0/id").asText());
-  mvc.perform(get("/api/v1/notifications/{id}/open",id).header("Authorization",bearer(customerToken))).andExpect(status().isOk()).andExpect(jsonPath("$.url",org.hamcrest.Matchers.containsString("/my-reservations")));
+  mvc.perform(get("/api/v1/notifications/{id}/open",id).header("Authorization",bearer(customerToken))).andExpect(status().isOk()).andExpect(jsonPath("$.action.url",org.hamcrest.Matchers.containsString("/my-reservations")));
   mvc.perform(get("/api/v1/notifications/{id}/open",id).header("Authorization",bearer(employeeToken))).andExpect(status().isNotFound());
+  reservations.deleteById(reservation.getId());reservations.flush();
+  mvc.perform(get("/api/v1/notifications/{id}/open",id).header("Authorization",bearer(customerToken))).andExpect(status().isNotFound());
   mvc.perform(put("/api/v1/notifications/preferences").header("Authorization",bearer(customerToken)).contentType(MediaType.APPLICATION_JSON)
     .content("{\"type\":\"SECURITY_SESSION_STARTED\",\"inAppEnabled\":false,\"emailEnabled\":false}"))
     .andExpect(status().isOk()).andExpect(jsonPath("$.mandatory").value(true)).andExpect(jsonPath("$.inAppEnabled").value(true)).andExpect(jsonPath("$.emailEnabled").value(true));

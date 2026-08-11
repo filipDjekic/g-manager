@@ -99,6 +99,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/catalog/**").hasAuthority("CATALOG_MANAGE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/working-hours/**").hasAuthority("WORKING_HOURS_READ")
                         .requestMatchers("/api/v1/working-hours/**").hasAuthority("WORKING_HOURS_MANAGE")
+                        .requestMatchers("/api/v1/time-off/**", "/api/v1/time-off")
+                            .hasAuthority("WORKING_HOURS_MANAGE")
                         .requestMatchers(HttpMethod.POST, "/api/v1/reservations").hasAuthority("RESERVATION_CREATE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/reservations/me").hasAuthority("RESERVATION_READ_OWN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/reservations/calendar").hasAuthority("RESERVATION_READ_ALL")

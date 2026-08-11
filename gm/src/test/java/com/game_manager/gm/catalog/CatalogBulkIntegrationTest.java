@@ -45,7 +45,9 @@ class CatalogBulkIntegrationTest {
         mockMvc.perform(post("/api/v1/catalog/bulk/activation").header("Authorization", bearer(owner))
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.requested").value(2))
-                .andExpect(jsonPath("$.succeeded").value(1)).andExpect(jsonPath("$.failed").value(1));
+                .andExpect(jsonPath("$.succeeded").value(1)).andExpect(jsonPath("$.failed").value(1))
+                .andExpect(jsonPath("$.outcomes[0].success").value(true))
+                .andExpect(jsonPath("$.outcomes[1].success").value(false));
     }
 
     private CatalogItem item(String name) {

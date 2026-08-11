@@ -12,7 +12,8 @@ const detail = {
   employeeName: 'Petar Petrović', serviceName: 'Masaža', durationMinutes: 60,
   startTime: '2028-03-16T09:00:00Z', endTime: '2028-03-16T10:00:00Z', status: 'PENDING',
   note: 'Tiha prostorija', createdAt: '2028-03-01T08:00:00Z', updatedAt: '2028-03-01T08:00:00Z',
-  version: 0, allowedActions: ['CANCELLED'], history: [],
+  version: 0, allowedActions: ['CANCELLED'], history: [{ fromStatus: 'PENDING', toStatus: 'CONFIRMED',
+    reason: null, occurredAt: '2028-03-02T08:00:00Z' }],
 } as const
 
 describe('ReservationDetailsDrawer', () => {
@@ -36,12 +37,14 @@ describe('ReservationDetailsDrawer', () => {
     expect(screen.queryByText('reservation-1')).not.toBeInTheDocument()
     expect(screen.queryByText('Kontakt')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Potvrdi' })).not.toBeInTheDocument()
+    expect(screen.getByText(/Na čekanju → Potvrđena/)).toBeVisible()
 
     await user.click(screen.getByRole('button', { name: 'Otkaži' }))
     const dialog = screen.getByRole('dialog', { name: 'Otkaži rezervaciju' })
     expect(dialog).toBeVisible()
-    await user.type(screen.getByLabelText('Razlog ili napomena (opciono)'), 'Promena plana')
-    expect(screen.getByLabelText('Razlog ili napomena (opciono)')).toHaveValue('Promena plana')
+    expect(within(dialog).getByRole('button', { name: 'Otkaži' })).toBeDisabled()
+    await user.type(screen.getByLabelText('Razlog'), 'Promena plana')
+    expect(screen.getByLabelText('Razlog')).toHaveValue('Promena plana')
     await user.click(within(dialog).getByRole('button', { name: 'Otkaži' }))
     await waitFor(() => expect(changeStatus).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'reservation-1', version: 0 }), 'CANCELLED', 'Promena plana',

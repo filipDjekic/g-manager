@@ -6,6 +6,7 @@ import com.game_manager.gm.common.search.SearchResourceType;
 import com.game_manager.gm.common.search.SearchSource;
 import com.game_manager.gm.common.security.AuthenticatedUser;
 import com.game_manager.gm.common.security.CurrentUserProvider;
+import com.game_manager.gm.common.web.NavigationActionResponse;
 import com.game_manager.gm.events.OutboxConsumer;
 import com.game_manager.gm.events.OutboxMessage;
 import com.game_manager.gm.notification.dto.*;
@@ -52,18 +53,16 @@ public class NotificationService implements OutboxConsumer {
         for(Recipient recipient:recipients(type,message.aggregateId())) create(message,type,recipient,values);
     }
 
-    @Transactional(readOnly=true) public NotificationPageResponse list(){UUID recipient=currentUser.requireCurrentUser().id();
-        return new NotificationPageResponse(notifications.findByRecipientIdAndInAppVisibleTrueOrderByCreatedAtDescIdDesc(recipient,PageRequest.of(0,50)).stream().map(NotificationResponse::from).toList(),
+    @Transactional(readOnly=true) public NotificationPageResponse list(){AuthenticatedUser actor=currentUser.requireCurrentUser();UUID recipient=actor.id();
+        return new NotificationPageResponse(notifications.findByRecipientIdAndInAppVisibleTrueOrderByCreatedAtDescIdDesc(recipient,PageRequest.of(0,50)).stream().map(n->response(actor,n)).toList(),
                 notifications.countByRecipientIdAndInAppVisibleTrueAndReadAtIsNull(recipient));}
-    @Transactional(readOnly=true) public List<NotificationResponse> attentionBetween(Instant from,Instant to,int limit){UUID recipient=currentUser.requireCurrentUser().id();
-        return notifications.attentionBetween(recipient,from,to,PageRequest.of(0,limit)).stream().map(NotificationResponse::from).toList();}
-    @Transactional public NotificationResponse read(UUID id){UUID recipient=currentUser.requireCurrentUser().id();Notification n=require(id,recipient);if(n.getReadAt()==null)n.setReadAt(clock.instant());return NotificationResponse.from(n);}
+    @Transactional(readOnly=true) public List<NotificationResponse> attentionBetween(Instant from,Instant to,int limit){AuthenticatedUser actor=currentUser.requireCurrentUser();
+        return notifications.attentionBetween(actor.id(),from,to,PageRequest.of(0,limit)).stream().map(n->response(actor,n)).toList();}
+    @Transactional public NotificationResponse read(UUID id){AuthenticatedUser actor=currentUser.requireCurrentUser();Notification n=require(id,actor.id());if(n.getReadAt()==null)n.setReadAt(clock.instant());return response(actor,n);}
     @Transactional public void readAll(){UUID recipient=currentUser.requireCurrentUser().id();notifications.findByRecipientIdAndInAppVisibleTrueOrderByCreatedAtDescIdDesc(recipient,PageRequest.of(0,200))
             .stream().filter(n->n.getReadAt()==null).forEach(n->n.setReadAt(clock.instant()));}
     @Transactional(readOnly=true) public NotificationOpenResponse open(UUID id){AuthenticatedUser actor=currentUser.requireCurrentUser();Notification n=require(id,actor.id());
-        if(n.getResourceType()==null)return new NotificationOpenResponse(n.getDeepLink());SearchSource source=searchSources.get(n.getResourceType());
-        String url=source==null?null:source.findVisible(actor,n.getResourceId()).map(entry->entry.url()).orElse(null);
-        if(url==null)throw new ApplicationException(HttpStatus.NOT_FOUND,"Notification resource is no longer available");return new NotificationOpenResponse(url);}
+        NavigationActionResponse action=action(actor,n).orElseThrow(()->new ApplicationException(HttpStatus.NOT_FOUND,"Notification resource is no longer available"));return new NotificationOpenResponse(action);}
 
     @Transactional(readOnly=true) public List<NotificationPreferenceResponse> preferenceList(){UUID id=currentUser.requireCurrentUser().id();Map<NotificationType,NotificationPreference> stored=new EnumMap<>(NotificationType.class);
         preferences.findByRecipientIdOrderByType(id).forEach(p->stored.put(p.getType(),p));return Arrays.stream(NotificationType.values()).map(type->preferenceResponse(type,stored.get(type))).toList();}
@@ -99,6 +98,10 @@ public class NotificationService implements OutboxConsumer {
     private Map<String,String> payload(String json){try{JsonNode node=mapper.readTree(json).path("payload");Map<String,String> values=new HashMap<>();node.properties().forEach(entry->values.put(entry.getKey(),entry.getValue().asText()));return values;}catch(RuntimeException e){throw new IllegalArgumentException("Notification event payload is invalid",e);}}
     private Notification require(UUID id,UUID recipient){return notifications.findByIdAndRecipientId(id,recipient).orElseThrow(()->new ApplicationException(HttpStatus.NOT_FOUND,"Notification not found"));}
     private NotificationPreferenceResponse preferenceResponse(NotificationType type,NotificationPreference value){return new NotificationPreferenceResponse(type,type.mandatory(),type.mandatory()||value==null||value.isInAppEnabled(),type.mandatory()||(value!=null&&value.isEmailEnabled()));}
+    private NotificationResponse response(AuthenticatedUser actor,Notification n){return NotificationResponse.from(n,action(actor,n).orElse(null));}
+    private Optional<NavigationActionResponse> action(AuthenticatedUser actor,Notification n){
+        if(n.getResourceType()==null)return Optional.ofNullable(n.getDeepLink()).filter(link->!link.isBlank()).map(link->NavigationActionResponse.navigate("Otvori",link));
+        SearchSource source=searchSources.get(n.getResourceType());return source==null?Optional.empty():source.findVisible(actor,n.getResourceId()).map(entry->NavigationActionResponse.forResource(n.getResourceType(),entry.url()));}
     private void send(SseEmitter emitter,Notification n){try{emitter.send(SseEmitter.event().id(n.getId().toString()).name("notification").data(NotificationResponse.from(n)));}catch(Exception ignored){emitter.complete();}}
     private void afterCommit(Runnable action){if(TransactionSynchronizationManager.isSynchronizationActive())TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization(){@Override public void afterCommit(){action.run();}});else action.run();}
     private record Recipient(UUID id,SearchResourceType resourceType,String link){}

@@ -7,7 +7,7 @@ import { catalogItemSchema } from '../catalog/catalogSchema'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
 import type { CatalogItem, CatalogItemInput, ItemType } from '../types/catalog.types'
-import { Button, Card, EmptyState, ErrorState, PageHeader, Skeleton } from '../components/ui'
+import { Button, Card, EmptyState, ErrorState, Modal, PageHeader, Skeleton } from '../components/ui'
 import { useToast } from '../components/ui/toastContext'
 import { SavedViewBar } from '../components/lists/SavedViewBar'
 import { SelectionBar } from '../components/lists/SelectionBar'
@@ -37,13 +37,14 @@ export function CatalogPage() {
   const maxPrice = url.state.maxPrice
   const [form, setForm] = useState<CatalogItemInput>(emptyForm)
   const [editing, setEditing] = useState<CatalogItem | null>(null)
+  const [formOpen, setFormOpen] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkSummary, setBulkSummary] = useState('')
   const toast = useToast()
   const client = useQueryClient()
-  useDirtyGuard(editing !== null || form.name !== '' || form.description !== '' || form.price !== 0)
+  useDirtyGuard(formOpen && (editing !== null || form.name !== '' || form.description !== '' || form.price !== 0))
   const listQuery = useQuery({ queryKey: queryKeys.catalog(url.query), queryFn: () => showDeleted
     ? catalogApi.deleted(page, 20) : catalogApi.list({
       page,
@@ -74,11 +75,13 @@ export function CatalogPage() {
       price: item.price,
       durationMinutes: item.durationMinutes ?? undefined,
     })
+    setFormOpen(true)
   }
 
   function resetForm() {
     setEditing(null)
     setForm(emptyForm)
+    setFormOpen(false)
   }
 
   async function submit(event: FormEvent) {
@@ -160,18 +163,19 @@ export function CatalogPage() {
 
   return (
     <main className="workspace">
-      <PageHeader eyebrow="Ponuda" title="Katalog" actions={hasCapability(user, 'CATALOG_RESTORE') &&
-        <Button type="button" variant="secondary" onClick={() => url.set({ deleted: showDeleted ? '' : 'true', page: '0' })}>
+      <PageHeader eyebrow={management ? 'Administracija' : 'Ponuda'} title={management ? 'Upravljanje katalogom' : 'Katalog'} actions={management && <div className="card-actions">
+        {!showDeleted && <Button type="button" onClick={() => { setEditing(null); setForm(emptyForm); setFormOpen(true) }}>Nova stavka</Button>}
+        {hasCapability(user, 'CATALOG_RESTORE') && <Button type="button" variant="secondary" onClick={() => url.set({ deleted: showDeleted ? '' : 'true', page: '0' })}>
           {showDeleted ? 'Aktivne stavke' : 'Obrisane stavke'}
-        </Button>} />
-      <SavedViewBar resource="CATALOG" query={url.queryObject} apply={url.apply} />
+        </Button>}</div>} />
+      {management && <SavedViewBar resource="CATALOG" query={url.queryObject} apply={url.apply} />}
       {!showDeleted && <form className="filter-bar" onSubmit={(event) => { event.preventDefault(); url.set({ page: '0' }); void load() }}>
         <label>Pretraga<input value={search} onChange={(event) => url.set({ search: event.target.value, page: '0' }, true)} /></label>
         <label>Tip<select value={type} onChange={(event) => url.set({ type: event.target.value, page: '0' })}>
           <option value="">Svi</option><option value="PRODUCT">Proizvodi</option><option value="SERVICE">Usluge</option>
         </select></label>
-        <label>Minimalna cena<input type="number" min="0" step="0.01" value={minPrice} onChange={(event) => url.set({ minPrice: event.target.value, page: '0' }, true)} /></label>
-        <label>Maksimalna cena<input type="number" min="0" step="0.01" value={maxPrice} onChange={(event) => url.set({ maxPrice: event.target.value, page: '0' }, true)} /></label>
+        {management && <label>Minimalna cena<input type="number" min="0" step="0.01" value={minPrice} onChange={(event) => url.set({ minPrice: event.target.value, page: '0' }, true)} /></label>}
+        {management && <label>Maksimalna cena<input type="number" min="0" step="0.01" value={maxPrice} onChange={(event) => url.set({ maxPrice: event.target.value, page: '0' }, true)} /></label>}
         {management && <label>Status<select value={active} onChange={(event) => url.set({ active: event.target.value, page: '0' })}>
           <option value="">Svi</option><option value="true">Aktivni</option><option value="false">Neaktivni</option>
         </select></label>}
@@ -179,7 +183,8 @@ export function CatalogPage() {
       </form>}
       {(error || listQuery.error || bulk.error) && <ErrorState message={error || apiErrorMessage(listQuery.error || bulk.error, 'Katalog nije moguće učitati.')}
         action={<Button variant="secondary" type="button" onClick={() => void load()}>Pokušaj ponovo</Button>} />}
-      {management && !showDeleted && <form className="panel catalog-form" onSubmit={submit}>
+      <Modal open={management && formOpen} title={editing ? 'Izmeni stavku' : 'Nova stavka'} onClose={resetForm}>
+        <form className="catalog-form catalog-dialog-form" onSubmit={submit}>
         <h2>{editing ? 'Izmeni stavku' : 'Nova stavka'}</h2>
         <label>Naziv<input maxLength={150} required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
         <label>Tip<select value={form.type} onChange={(event) => {
@@ -191,10 +196,11 @@ export function CatalogPage() {
         <label className="wide-field">Opis<textarea maxLength={2000} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
         <div className="form-actions"><Button type="submit" loading={submitting}>{editing ? 'Sačuvaj izmene' : 'Kreiraj'}</Button>
           {editing && <button className="secondary-button" type="button" onClick={resetForm}>Odustani</button>}</div>
-      </form>}
-      <SelectionBar count={selected.size} summary={bulkSummary}><Button loading={bulk.isPending}
+        </form>
+      </Modal>
+      {management && <SelectionBar count={selected.size} summary={bulkSummary}><Button loading={bulk.isPending}
         onClick={() => bulk.mutate('ACTIVATE')}>Aktiviraj izabrane</Button><Button variant="danger" loading={bulk.isPending}
-        onClick={() => bulk.mutate('DEACTIVATE')}>Deaktiviraj izabrane</Button></SelectionBar>
+        onClick={() => bulk.mutate('DEACTIVATE')}>Deaktiviraj izabrane</Button></SelectionBar>}
       {listQuery.isLoading && <Skeleton lines={4} label="Učitavanje kataloga" />}
       {result && !result.content.length && <EmptyState title="Nema stavki" description="Nijedna stavka ne odgovara izabranim filterima."
         action={<Button variant="secondary" type="button" onClick={() => url.apply({})}>Očisti filtere</Button>} />}
@@ -209,7 +215,8 @@ export function CatalogPage() {
             <p>{item.description || 'Bez opisa.'}</p>
             {item.durationMinutes && <span>{item.durationMinutes} min</span>}
             {!item.active && <span className="status-badge">Neaktivno</span>}
-            {hasCapability(user, 'ORDER_CREATE') && item.active && <div className="card-actions">
+            {hasCapability(user, 'ORDER_CREATE') && item.active && <div className="card-actions"
+              onClick={() => sessionStorage.setItem('gmanager.catalog-selection', item.id)}>
               {item.type === 'PRODUCT'
                 ? <Link className="button-link" to="/my-orders">Dodaj u korpu</Link>
                 : <Link className="button-link" to="/my-reservations">Zakaži termin</Link>}

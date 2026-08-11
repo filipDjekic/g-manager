@@ -197,6 +197,13 @@ class ReservationIntegrationTest {
                 customer, employee, service, Instant.now().plus(30, ChronoUnit.MINUTES),
                 ReservationStatus.CONFIRMED);
         mockMvc.perform(patch("/api/v1/reservations/{id}/status", near.getId())
+                        .header("Authorization", bearer(login(admin)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"CANCELLED\",\"version\":%d}".formatted(near.getVersion())))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.message").value(
+                        "A reason is required to reject or cancel a reservation"));
+        mockMvc.perform(patch("/api/v1/reservations/{id}/status", near.getId())
                         .header("Authorization", bearer(login(customer)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(statusBody("CANCELLED", near.getVersion())))
@@ -265,7 +272,8 @@ class ReservationIntegrationTest {
                         .header("Authorization", bearer(login(admin))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.customerContact").value(customer.getEmail()))
-                .andExpect(jsonPath("$.history[0].action").value("RESERVATION_STATUS_CHANGED"));
+                .andExpect(jsonPath("$.history[0].fromStatus").value("PENDING"))
+                .andExpect(jsonPath("$.history[0].toStatus").value("CONFIRMED"));
     }
 
     @Test
@@ -381,7 +389,9 @@ class ReservationIntegrationTest {
     }
 
     private String statusBody(String status, long version) {
-        return "{\"status\":\"%s\",\"version\":%d}".formatted(status, version);
+        String reason = status.equals("REJECTED") || status.equals("CANCELLED")
+                ? ",\"reason\":\"Test lifecycle reason\"" : "";
+        return "{\"status\":\"%s\",\"version\":%d%s}".formatted(status, version, reason);
     }
 
     private String json(MvcResult result, String field) throws Exception {

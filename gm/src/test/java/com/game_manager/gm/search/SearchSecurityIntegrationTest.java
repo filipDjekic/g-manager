@@ -10,6 +10,7 @@ import com.game_manager.gm.order.OrderStatus;
 import com.game_manager.gm.user.User;
 import com.game_manager.gm.user.UserRepository;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -18,6 +19,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.jdbc.core.JdbcTemplate;
+import testsupport.DatabaseCleaner;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -37,6 +40,12 @@ class SearchSecurityIntegrationTest {
     @Autowired CatalogRepository catalog;
     @Autowired OrderRepository orders;
     @Autowired PasswordEncoder encoder;
+    @Autowired JdbcTemplate jdbc;
+
+    @BeforeEach
+    void cleanDatabase() {
+        DatabaseCleaner.clean(jdbc);
+    }
 
     @Test
     void searchFiltersBeforeReturnAndDoesNotLeakForbiddenMetadata() throws Exception {
@@ -54,6 +63,7 @@ class SearchSecurityIntegrationTest {
         mockMvc.perform(get("/api/v1/search?q=CREATED").header("Authorization", bearer(firstToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.results[?(@.type == 'ORDER')]", hasSize(1)))
+                .andExpect(jsonPath("$.results[0].action.kind").value("NAVIGATE"))
                 .andExpect(jsonPath("$.results[?(@.id == '%s')]".formatted(own.getId())).exists())
                 .andExpect(jsonPath("$.results[?(@.id == '%s')]".formatted(foreign.getId())).isEmpty());
         mockMvc.perform(get("/api/v1/search").queryParam("q", second.getEmail())

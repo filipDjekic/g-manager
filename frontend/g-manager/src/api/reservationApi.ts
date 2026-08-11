@@ -38,13 +38,13 @@ export const reservationApi = {
   changeStatus: (
     reservation: Pick<Reservation, 'id' | 'version'>,
     status: ReservationStatus,
-    note?: string,
+    reason?: string,
   ) => apiClient.patch<Reservation>(`/reservations/${reservation.id}/status`, {
     status,
-    note,
+    reason,
     version: reservation.version,
   }).then(({ data }) => data),
-  bulkStatus: (status: ReservationStatus, items: BulkItem[], note?: string) =>
-    apiClient.patch<BulkOperationResponse>('/reservations/bulk/status', { status, note, items })
+  bulkStatus: (status: ReservationStatus, items: BulkItem[], reason?: string) =>
+    apiClient.patch<BulkOperationResponse>('/reservations/bulk/status', { status, reason, items })
       .then(({ data }) => data),
 }

@@ -50,24 +50,28 @@ export function TableShell({ label, children }: { label: string; children: React
   return <div className="ui-table-shell" role="region" aria-label={label} tabIndex={0}>{children}</div>
 }
 
-function DialogSurface({ title, children, onClose, className = '', initialFocusRef }: {
+function DialogSurface({ title, children, onClose, className = '', initialFocusRef, returnFocusRef }: {
   title: string; children: ReactNode; onClose: () => void; className?: string
   initialFocusRef?: React.RefObject<HTMLElement | null>
+  returnFocusRef?: React.RefObject<HTMLElement | null>
 }) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
+  const onCloseRef = useRef(onClose)
   const titleId = useId()
+  useEffect(() => { onCloseRef.current = onClose }, [onClose])
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null
+    const returnTarget = returnFocusRef?.current
     if (initialFocusRef?.current) initialFocusRef.current.focus()
     else closeRef.current?.focus()
-    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') onCloseRef.current() }
     document.addEventListener('keydown', escape)
     return () => {
-      document.removeEventListener('keydown', escape)
-      previouslyFocused?.focus()
+      document.removeEventListener('keydown', escape);
+      (returnTarget ?? previouslyFocused)?.focus()
     }
-  }, [initialFocusRef, onClose])
+  }, [initialFocusRef, returnFocusRef])
   const trapFocus = (event: ReactKeyboardEvent) => {
     if (event.key !== 'Tab') return
     const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
@@ -97,12 +101,13 @@ export function Modal({ open, title, children, onClose, initialFocusRef }: {
   </div>
 }
 
-export function Drawer({ open, title, children, onClose }: {
+export function Drawer({ open, title, children, onClose, returnFocusRef }: {
   open: boolean; title: string; children: ReactNode; onClose: () => void
+  returnFocusRef?: React.RefObject<HTMLElement | null>
 }) {
   if (!open) return null
   return <div className="ui-overlay ui-overlay--drawer" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
-    <DialogSurface title={title} onClose={onClose} className="ui-drawer">{children}</DialogSurface>
+    <DialogSurface title={title} onClose={onClose} className="ui-drawer" returnFocusRef={returnFocusRef}>{children}</DialogSurface>
   </div>
 }
 

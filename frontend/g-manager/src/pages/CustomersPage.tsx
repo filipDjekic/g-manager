@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import { apiErrorMessage } from '../api/client'
 import { customerApi } from '../api/customerApi'
 import { Button, Drawer, EmptyState, ErrorState, Skeleton, TableShell } from '../components/ui'
+import { SavedViewBar } from '../components/lists/SavedViewBar'
 import { useListUrlState } from '../lists/useListUrlState'
 import { queryKeys } from '../query/queryKeys'
 import { formatBusinessDateTime } from '../reservations/dateTime'
@@ -12,13 +13,15 @@ const allowed = ['search', 'active', 'page', 'customerId'] as const
 const money = new Intl.NumberFormat('sr-RS', { style: 'currency', currency: 'RSD' })
 
 export function CustomersPage() {
+  const detailOpener = useRef<HTMLButtonElement>(null)
   const url = useListUrlState(defaults, allowed)
   const filters = useMemo(() => ({
     search: url.state.search || undefined,
     active: url.state.active === '' ? undefined : url.state.active === 'true',
     page: Math.max(0, Number(url.state.page) || 0), size: 20,
   }), [url.state.active, url.state.page, url.state.search])
-  const list = useQuery({ queryKey: queryKeys.customers(url.query), queryFn: () => customerApi.list(filters) })
+  const listKey = `${url.state.search}|${url.state.active}|${url.state.page}`
+  const list = useQuery({ queryKey: queryKeys.customers(listKey), queryFn: () => customerApi.list(filters) })
   const selectedId = url.state.customerId
   const detail = useQuery({ queryKey: queryKeys.customerDetail(selectedId), queryFn: () => customerApi.detail(selectedId), enabled: Boolean(selectedId) })
   const close = () => url.set({ customerId: '' })
@@ -32,19 +35,20 @@ export function CustomersPage() {
         <option value="">Svi</option><option value="true">Aktivni</option><option value="false">Neaktivni</option>
       </select></label>
     </div>
+    <SavedViewBar resource="CUSTOMERS" query={url.queryObject} apply={url.apply} />
     {list.isLoading ? <Skeleton lines={6} label="Učitavanje klijenata" /> : list.error ?
       <ErrorState message={apiErrorMessage(list.error, 'Klijente nije moguće učitati.')} action={<Button onClick={() => list.refetch()}>Pokušaj ponovo</Button>} /> :
       !list.data?.content.length ? <EmptyState title="Nema klijenata" description="Promenite pretragu ili status." /> :
-      <TableShell label="Lista klijenata"><table className="data-table customer-table"><thead><tr><th>Klijent</th><th>Završeni termini</th>
+      <TableShell label="Lista klijenata"><table className="data-table customer-table responsive-table"><thead><tr><th>Klijent</th><th>Završeni termini</th>
         <th>Prihod završenih narudžbina</th><th>Poslednja aktivnost</th><th><span className="sr-only">Akcije</span></th></tr></thead>
-        <tbody>{list.data.content.map((customer) => <tr key={customer.id}><td><strong>{customer.name}</strong><small>{customer.email}</small></td>
-          <td>{customer.completedAppointmentCount}</td><td>{money.format(customer.completedOrderRevenue)}</td>
-          <td>{customer.lastActivityAt ? formatBusinessDateTime(customer.lastActivityAt) : 'Nema aktivnosti'}</td>
-          <td><Button variant="secondary" onClick={() => url.set({ customerId: customer.id })}>Detalji</Button></td></tr>)}</tbody></table></TableShell>}
+        <tbody>{list.data.content.map((customer) => <tr key={customer.id}><td data-label="Klijent"><strong>{customer.name}</strong><small>{customer.email}</small></td>
+          <td data-label="Završeni termini">{customer.completedAppointmentCount}</td><td data-label="Prihod">{money.format(customer.completedOrderRevenue)}</td>
+          <td data-label="Poslednja aktivnost">{customer.lastActivityAt ? formatBusinessDateTime(customer.lastActivityAt) : 'Nema aktivnosti'}</td>
+          <td data-label="Akcije"><Button variant="secondary" onClick={(event) => { detailOpener.current = event.currentTarget; url.set({ customerId: customer.id }) }}>Detalji</Button></td></tr>)}</tbody></table></TableShell>}
     <div className="pagination"><button disabled={filters.page === 0} onClick={() => url.set({ page: String(filters.page - 1) })}>Prethodna</button>
       <span>Strana {filters.page + 1} od {Math.max(list.data?.totalPages ?? 1, 1)}</span>
       <button disabled={!list.data || filters.page + 1 >= list.data.totalPages} onClick={() => url.set({ page: String(filters.page + 1) })}>Sledeća</button></div>
-    <Drawer open={Boolean(selectedId)} title={detail.data?.customer.name ?? 'Detalji klijenta'} onClose={close}>
+    <Drawer open={Boolean(selectedId)} title={detail.data?.customer.name ?? 'Detalji klijenta'} onClose={close} returnFocusRef={detailOpener}>
       {detail.isLoading ? <Skeleton lines={6} label="Učitavanje detalja klijenta" /> : detail.error ?
         <ErrorState message={apiErrorMessage(detail.error, 'Detalje klijenta nije moguće učitati.')} action={<Button onClick={() => detail.refetch()}>Pokušaj ponovo</Button>} /> : detail.data && <div className="customer-detail">
           <p>{detail.data.customer.email}</p><p><strong>Status:</strong> {detail.data.customer.active ? 'Aktivan' : 'Neaktivan'}</p>

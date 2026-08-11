@@ -1,6 +1,6 @@
 import { apiClient } from './client'
 
-export type SavedViewResource = 'CATALOG' | 'USERS' | 'RESERVATIONS' | 'ORDERS'
+export type SavedViewResource = 'CATALOG' | 'USERS' | 'CUSTOMERS' | 'RESERVATIONS' | 'ORDERS'
 export interface SavedView {
   id: string; resourceType: SavedViewResource; name: string
   query: Record<string, string>; version: number

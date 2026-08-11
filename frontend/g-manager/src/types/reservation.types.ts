@@ -16,7 +16,9 @@ export interface Reservation {
 }
 
 export interface ReservationHistoryItem {
-  action: string
+  fromStatus: ReservationStatus
+  toStatus: ReservationStatus
+  reason: string | null
   occurredAt: string
 }
 

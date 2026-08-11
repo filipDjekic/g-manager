@@ -104,6 +104,8 @@ class OrderIntegrationTest {
         create(token, oneItemBody(inactive.getId(), 1)).andExpect(status().isUnprocessableEntity());
         create(token, oneItemBody(UUID.randomUUID(), 1)).andExpect(status().isNotFound());
         create(token, "{\"items\":[]}").andExpect(status().isBadRequest());
+        create(token, oneItemBody(product.getId(), 0)).andExpect(status().isBadRequest());
+        create(token, oneItemBody(product.getId(), 1000)).andExpect(status().isBadRequest());
         create(token, """
                 {"items":[{"productId":"%s","quantity":1},{"productId":"%s","quantity":2}]}
                 """.formatted(product.getId(), product.getId()))
