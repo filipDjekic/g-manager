@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { HttpResponse, delay, http } from 'msw'
 import { MemoryRouter } from 'react-router-dom'
@@ -24,6 +24,7 @@ function baseHandlers() {
     http.get('/api/v1/reservations/me', () => HttpResponse.json(emptyPage)),
     http.get('/api/v1/catalog', () => HttpResponse.json({ ...emptyPage, size: 100, content: [service], totalElements: 1, totalPages: 1 })),
     http.get('/api/v1/users/employees', () => HttpResponse.json({ ...emptyPage, size: 100, content: [employee], totalElements: 1, totalPages: 1 })),
+    http.get('/api/v1/waitlist/me', () => HttpResponse.json([])),
   ]
 }
 
@@ -62,15 +63,28 @@ describe('MyReservationsPage slot booking', () => {
 
   it('renders an actionable empty state when the selected day has no slots', async () => {
     const user = userEvent.setup()
+    let joined = false
     server.use(...baseHandlers(), http.get('/api/v1/availability', () => HttpResponse.json({
       timezone: 'Europe/Belgrade', serviceId: 'service-1', serviceName: 'Masaža', durationMinutes: 60,
       slotIncrementMinutes: 15, from: '2028-03-16', to: '2028-03-16', employees: [{
         employeeId: 'employee-1', employeeName: 'Ana', slots: [],
       }],
-    })))
+    })), http.post('/api/v1/waitlist', async ({ request }) => {
+      const body = await request.json() as { employeeId: string }
+      joined = body.employeeId === 'employee-1'
+      return HttpResponse.json({ id: 'wait-1', serviceId: 'service-1', employeeId: 'employee-1',
+        desiredStart: '2028-03-16T09:00:00Z', status: 'WAITING', offerId: null,
+        offerExpiresAt: null, reservationId: null, version: 0 }, { status: 201 })
+    }))
     renderPage()
-    await selectDate(user)
+    await user.selectOptions(await screen.findByLabelText('Usluga'), 'service-1')
+    await user.selectOptions(screen.getByLabelText('Zaposleni'), 'employee-1')
+    await user.type(screen.getByLabelText('Datum'), '2028-03-16')
     expect(await screen.findByRole('heading', { name: 'Nema slobodnih termina' })).toBeVisible()
-    expect(screen.getByText('Izaberite drugi datum ili zaposlenog.')).toBeVisible()
+    expect(screen.getByText(/prijavite za konkretan termin/)).toBeVisible()
+    await user.type(screen.getByLabelText('Željeno vreme'), '10:00')
+    await user.click(screen.getByRole('button', { name: 'Prijavi se na listu čekanja' }))
+    await waitFor(() => expect(joined).toBe(true))
+    expect(await screen.findByText('Dodati ste na listu čekanja za izabrani termin.')).toBeVisible()
   })
 })

@@ -7,7 +7,9 @@ public final class DatabaseCleaner {
     private static final List<String> TABLES = List.of(
             "outbox_consumer_receipts", "outbox_events",
             "background_job_attempts", "background_jobs",
-            "idempotency_keys", "audit_events", "order_items", "orders",
+            "idempotency_keys", "audit_events", "notification_delivery_attempts",
+            "notifications", "notification_preferences", "order_items", "orders",
+            "waitlist_offers", "waitlist_entries", "employee_time_off",
             "reservations", "refresh_tokens", "security_events", "users");
 
     private DatabaseCleaner() {
