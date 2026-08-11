@@ -161,6 +161,12 @@ public class WorkingHoursService {
     }
 
     @Transactional(readOnly = true)
+    public AvailabilityWindow availabilityWindow(LocalDate date) {
+        Shift shift = shiftFor(date);
+        return shift == null ? null : new AvailabilityWindow(shift.open(), shift.close());
+    }
+
+    @Transactional(readOnly = true)
     public long capacityMinutes(LocalDate from, LocalDate to) {
         long minutes = 0;
         for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
@@ -285,5 +291,8 @@ public class WorkingHoursService {
     }
 
     private record Shift(Instant open, Instant close, boolean spansMidnight) {
+    }
+
+    public record AvailabilityWindow(Instant open, Instant close) {
     }
 }

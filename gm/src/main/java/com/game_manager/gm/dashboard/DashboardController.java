@@ -6,6 +6,7 @@ import com.game_manager.gm.dashboard.dto.DashboardTrendsResponse;
 import com.game_manager.gm.dashboard.dto.DashboardWorkloadResponse;
 import com.game_manager.gm.dashboard.dto.DashboardWidgetPreferenceRequest;
 import com.game_manager.gm.dashboard.dto.DashboardWidgetPreferenceResponse;
+import com.game_manager.gm.dashboard.dto.DashboardAttentionResponse;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
@@ -36,6 +37,11 @@ public class DashboardController {
     @GetMapping("/today")
     public DashboardTodayResponse today() {
         return dashboardService.today();
+    }
+
+    @GetMapping("/attention")
+    public DashboardAttentionResponse attention() {
+        return dashboardService.attention();
     }
 
     @GetMapping("/trends")

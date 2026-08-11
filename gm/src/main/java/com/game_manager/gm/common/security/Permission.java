@@ -9,6 +9,7 @@ public enum Permission {
     USER_DEACTIVATE,
     USER_DELETE,
     USER_RESTORE,
+    CUSTOMER_READ,
     CATALOG_READ,
     CATALOG_MANAGE,
     CATALOG_DELETE,

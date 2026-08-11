@@ -55,6 +55,8 @@ public class NotificationService implements OutboxConsumer {
     @Transactional(readOnly=true) public NotificationPageResponse list(){UUID recipient=currentUser.requireCurrentUser().id();
         return new NotificationPageResponse(notifications.findByRecipientIdAndInAppVisibleTrueOrderByCreatedAtDescIdDesc(recipient,PageRequest.of(0,50)).stream().map(NotificationResponse::from).toList(),
                 notifications.countByRecipientIdAndInAppVisibleTrueAndReadAtIsNull(recipient));}
+    @Transactional(readOnly=true) public List<NotificationResponse> attentionBetween(Instant from,Instant to,int limit){UUID recipient=currentUser.requireCurrentUser().id();
+        return notifications.attentionBetween(recipient,from,to,PageRequest.of(0,limit)).stream().map(NotificationResponse::from).toList();}
     @Transactional public NotificationResponse read(UUID id){UUID recipient=currentUser.requireCurrentUser().id();Notification n=require(id,recipient);if(n.getReadAt()==null)n.setReadAt(clock.instant());return NotificationResponse.from(n);}
     @Transactional public void readAll(){UUID recipient=currentUser.requireCurrentUser().id();notifications.findByRecipientIdAndInAppVisibleTrueOrderByCreatedAtDescIdDesc(recipient,PageRequest.of(0,200))
             .stream().filter(n->n.getReadAt()==null).forEach(n->n.setReadAt(clock.instant()));}

@@ -1,7 +1,7 @@
 # G-Manager product/UX upgrade roadmap
 
-Status: `ACTIVE`  
-Datum analize: 2026-08-11  
+Status: `ACTIVE`
+Datum analize: 2026-08-11
 Opseg: evolucija postojećeg modularnog monolita; bez rewrite-a, multi-tenancy-ja, mikroservisa ili paralelne arhitekture.
 
 ## Repository-wide baseline

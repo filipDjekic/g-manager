@@ -35,3 +35,21 @@ export function formatBusinessDateTime(value: string): string {
     timeStyle: 'short',
   }).format(new Date(value))
 }
+
+export function formatBusinessTime(value: string): string {
+  return new Intl.DateTimeFormat('sr-RS', {
+    timeZone: businessZone, hour: '2-digit', minute: '2-digit',
+  }).format(new Date(value))
+}
+
+export function todayInBusinessZone(now = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: businessZone, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(now)
+}
+
+export function dateInBusinessZone(instant: string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: businessZone, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date(instant))
+}

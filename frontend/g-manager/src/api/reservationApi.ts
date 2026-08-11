@@ -5,6 +5,7 @@ import type {
   Reservation,
   ReservationDetail,
   ReservationStatus,
+  CalendarReservation,
 } from '../types/reservation.types'
 import type { BulkItem, BulkOperationResponse } from '../types/bulk.types'
 
@@ -20,6 +21,8 @@ interface ReservationFilters {
 }
 
 export const reservationApi = {
+  calendar: (params: { employeeId?: string; from: string; to: string }) =>
+    apiClient.get<CalendarReservation[]>('/reservations/calendar', { params }).then(({ data }) => data),
   create: (input: CreateReservationInput, idempotencyKey: string) =>
     apiClient.post<Reservation>('/reservations', input, {
       headers: { 'Idempotency-Key': idempotencyKey },

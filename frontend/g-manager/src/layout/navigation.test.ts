@@ -25,6 +25,7 @@ describe('role-aware product navigation', () => {
     const groups = navigationFor(user('EMPLOYEE'), flags)
     expect(groups[0]).toMatchObject({ label: 'Danas' })
     expect(groups[0].items[0]).toMatchObject({ to: '/dashboard' })
+    expect(paths('EMPLOYEE')).toContain('/calendar')
     expect(paths('EMPLOYEE')).not.toContain('/users')
     expect(homeForRole('EMPLOYEE')).toBe('/dashboard')
   })
@@ -35,6 +36,8 @@ describe('role-aware product navigation', () => {
       'Pregled', 'Poslovanje', 'Ljudi', 'Upravljanje', 'Sistem', 'Moj nalog',
     ])
     expect(groups.flatMap((group) => group.items.map((item) => item.to))).not.toContain('/reports')
+    expect(paths('OWNER')).toContain('/calendar')
+    expect(paths('OWNER')).toContain('/customers')
     expect(navigationFor(authUser('OWNER', { permissions: ['PROFILE_READ'] }), flags)
       .flatMap((group) => group.items.map((item) => item.to))).toEqual([
         '/documents', '/profile', '/sessions', '/notification-preferences',

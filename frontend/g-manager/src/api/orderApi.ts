@@ -23,7 +23,7 @@ export const orderApi = {
     apiClient.get<PageResponse<Order>>('/orders/me', { params }).then(({ data }) => data),
   list: (params: OrderFilters) =>
     apiClient.get<PageResponse<Order>>('/orders', { params }).then(({ data }) => data),
-  changeStatus: (order: Order, status: OrderStatus) =>
+  changeStatus: (order: Pick<Order, 'id' | 'version'>, status: OrderStatus) =>
     apiClient.patch<Order>(`/orders/${order.id}/status`, {
       status,
       version: order.version,

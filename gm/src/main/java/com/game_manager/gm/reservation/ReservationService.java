@@ -13,6 +13,7 @@ import com.game_manager.gm.reservation.dto.CreateReservationRequest;
 import com.game_manager.gm.reservation.dto.ReservationResponse;
 import com.game_manager.gm.reservation.dto.ReservationDetailResponse;
 import com.game_manager.gm.reservation.dto.ReservationHistoryResponse;
+import com.game_manager.gm.reservation.dto.CalendarReservationResponse;
 import com.game_manager.gm.common.security.AuthenticatedUser;
 import com.game_manager.gm.common.security.CurrentUserProvider;
 import com.game_manager.gm.common.security.Role;
@@ -32,6 +33,9 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -45,8 +49,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class ReservationService {
-    private static final List<ReservationStatus> NON_BLOCKING =
-            List.of(ReservationStatus.CANCELLED, ReservationStatus.REJECTED);
     private static final Set<String> ALLOWED_SORTS =
             Set.of("startTime", "endTime", "status", "createdAt");
 
@@ -58,6 +60,7 @@ public class ReservationService {
     private final GManagerProperties properties;
     private final PageRequestFactory pageRequestFactory;
     private final ReservationAuthorizationPolicy authorizationPolicy;
+    private final ReservationAvailabilityPolicy availabilityPolicy;
     private final AuditWriter auditWriter;
     private final AuditHistoryReader auditHistoryReader;
     private final OutboxWriter outboxWriter;
@@ -81,25 +84,13 @@ public class ReservationService {
             throw new ApplicationException(
                     HttpStatus.UNPROCESSABLE_ENTITY, "Catalog item is not a service");
         }
-        User employee = userRepository.findById(request.employeeId())
-                .orElseThrow(() -> new ApplicationException(
-                        HttpStatus.NOT_FOUND, "Employee not found"));
-        if (!employee.isActive() || employee.getRole() != Role.EMPLOYEE) {
-            throw new ApplicationException(
-                    HttpStatus.UNPROCESSABLE_ENTITY, "Selected user is not an active employee");
-        }
-
         Instant endTime = request.startTime().plus(service.getDurationMinutes(), ChronoUnit.MINUTES);
         workingHoursService.validateWithinWorkingHours(request.startTime(), endTime);
-
-        userRepository.findByIdForUpdate(request.employeeId())
-                .orElseThrow(() -> new ApplicationException(
-                        HttpStatus.NOT_FOUND, "Employee not found"));
-        ensureAvailable(request.employeeId(), request.startTime(), endTime, null);
+        User employee = selectEmployee(request.employeeId(), request.startTime(), endTime);
 
         Reservation reservation = new Reservation();
         reservation.setCustomerId(actor.id());
-        reservation.setEmployeeId(request.employeeId());
+        reservation.setEmployeeId(employee.getId());
         reservation.setServiceId(request.serviceId());
         reservation.setStartTime(request.startTime());
         reservation.setEndTime(endTime);
@@ -147,6 +138,40 @@ public class ReservationService {
                     HttpStatus.FORBIDDEN, "Reservation management is not permitted");
         }
         return listInternal(null, employeeId, status, from, to, page, size, sort, direction);
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('RESERVATION_READ_ALL')")
+    public List<CalendarReservationResponse> calendar(UUID employeeId, LocalDate from, LocalDate to) {
+        if (from == null || to == null || from.isAfter(to) || from.plusDays(92).isBefore(to)) {
+            throw new ApplicationException(HttpStatus.BAD_REQUEST,
+                    "Calendar range must contain between 1 and 93 days");
+        }
+        AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
+        UUID scopedEmployeeId;
+        if (actor.role() == Role.EMPLOYEE) {
+            scopedEmployeeId = actor.id();
+        } else if (actor.role() == Role.ADMIN || actor.role() == Role.OWNER) {
+            scopedEmployeeId = employeeId;
+        } else {
+            throw new ApplicationException(HttpStatus.FORBIDDEN,
+                    "Reservation calendar is not permitted");
+        }
+        ZoneId zone = workingHoursService.getBusinessZone();
+        List<Reservation> reservations = reservationRepository.findCalendarBetween(
+                from.atStartOfDay(zone).toInstant(), to.plusDays(1).atStartOfDay(zone).toInstant(),
+                scopedEmployeeId);
+        Map<UUID, User> users = userRepository.findAllById(reservations.stream()
+                .flatMap(value -> java.util.stream.Stream.of(value.getEmployeeId(), value.getCustomerId()))
+                .collect(Collectors.toSet())).stream()
+                .collect(Collectors.toMap(User::getId, Function.identity()));
+        Map<UUID, CatalogReference> services = reservations.stream().map(Reservation::getServiceId).distinct()
+                .collect(Collectors.toMap(Function.identity(), catalogService::getReference));
+        return reservations.stream().map(value -> new CalendarReservationResponse(
+                value.getId(), value.getEmployeeId(), users.get(value.getEmployeeId()).getName(),
+                users.get(value.getCustomerId()).getName(), services.get(value.getServiceId()).name(),
+                value.getStartTime(), value.getEndTime(), value.getStatus(), value.getVersion(),
+                allowedActions(actor, value))).toList();
     }
 
     @Transactional(readOnly = true)
@@ -199,7 +224,7 @@ public class ReservationService {
             userRepository.findByIdForUpdate(reservation.getEmployeeId())
                     .orElseThrow(() -> new ApplicationException(
                             HttpStatus.NOT_FOUND, "Employee not found"));
-            ensureAvailable(
+            availabilityPolicy.requireAvailable(
                     reservation.getEmployeeId(), reservation.getStartTime(),
                     reservation.getEndTime(), reservation.getId());
             if (!reservation.getStartTime().isAfter(clock.instant())) {
@@ -268,16 +293,6 @@ public class ReservationService {
         return PageResponse.from(result);
     }
 
-    private void ensureAvailable(
-            UUID employeeId, Instant start, Instant end, UUID excludeId) {
-        if (!reservationRepository
-                .findConflicting(employeeId, start, end, NON_BLOCKING, excludeId)
-                .isEmpty()) {
-            throw new ApplicationException(
-                    HttpStatus.CONFLICT, "Employee is unavailable at this time");
-        }
-    }
-
     private static void validateTransition(
             Reservation reservation, ReservationStatus target, AuthenticatedUser actor) {
         ReservationStatus current = reservation.getStatus();
@@ -331,6 +346,29 @@ public class ReservationService {
         return note == null || note.isBlank() ? null : note.trim();
     }
 
+    private User selectEmployee(UUID requestedId, Instant start, Instant end) {
+        if (requestedId != null) {
+            User employee = userRepository.findByIdForUpdate(requestedId)
+                    .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND, "Employee not found"));
+            if (!employee.isActive() || employee.getRole() != Role.EMPLOYEE) {
+                throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,
+                        "Selected user is not an active employee");
+            }
+            availabilityPolicy.requireAvailable(employee.getId(), start, end, null);
+            return employee;
+        }
+        List<User> employees = userRepository.findActiveEmployeesForUpdate();
+        if (employees.isEmpty()) {
+            throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "No active employees are available for booking");
+        }
+        return employees.stream()
+                .filter(employee -> availabilityPolicy.isAvailable(employee.getId(), start, end, null))
+                .findFirst()
+                .orElseThrow(() -> new ApplicationException(HttpStatus.CONFLICT,
+                        "No employee is available at this time"));
+    }
+
     @Transactional(readOnly = true)
     public List<ReservationStatusTotal> countByStatusBetween(Instant from, Instant to) {
         return reservationRepository.countByStatusBetween(from, to);
@@ -345,6 +383,24 @@ public class ReservationService {
     public java.util.Optional<ReservationNotificationContext> notificationContext(UUID id) {
         return reservationRepository.findById(id).map(value -> new ReservationNotificationContext(
                 value.getCustomerId(), value.getEmployeeId(), value.getStatus()));
+    }
+
+    @Transactional(readOnly = true)
+    public Map<UUID, CustomerReservationSummary> summarizeCustomers(Set<UUID> customerIds) {
+        if (customerIds.isEmpty()) return Map.of();
+        return reservationRepository.summarizeCustomers(customerIds).stream()
+                .collect(Collectors.toMap(CustomerReservationSummary::customerId, Function.identity()));
+    }
+
+    @Transactional(readOnly = true)
+    public List<CustomerReservationHistory> customerHistory(UUID customerId, int limit) {
+        List<Reservation> values = reservationRepository.customerHistory(customerId,
+                org.springframework.data.domain.PageRequest.of(0, limit));
+        Map<UUID, CatalogReference> services = catalogService.getReferences(values.stream()
+                .map(Reservation::getServiceId).collect(Collectors.toSet()));
+        return values.stream().map(value -> new CustomerReservationHistory(value.getId(),
+                services.get(value.getServiceId()).name(), value.getStartTime(), value.getEndTime(),
+                value.getStatus())).toList();
     }
 
     @Transactional(readOnly = true)

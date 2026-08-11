@@ -4,6 +4,7 @@ import com.game_manager.gm.common.error.ApplicationException;
 import com.game_manager.gm.common.config.GManagerProperties;
 import com.game_manager.gm.dashboard.dto.DashboardSummaryResponse;
 import com.game_manager.gm.dashboard.dto.DashboardTodayResponse;
+import com.game_manager.gm.dashboard.dto.DashboardAttentionResponse;
 import com.game_manager.gm.dashboard.dto.DashboardMetricResponse;
 import com.game_manager.gm.dashboard.dto.DashboardTrendBucketResponse;
 import com.game_manager.gm.dashboard.dto.DashboardTrendsResponse;
@@ -15,6 +16,9 @@ import com.game_manager.gm.order.OrderAnalyticsRow;
 import com.game_manager.gm.order.OrderRevenueTotal;
 import com.game_manager.gm.order.OrderService;
 import com.game_manager.gm.order.OrderStatus;
+import com.game_manager.gm.order.dto.OrderResponse;
+import com.game_manager.gm.notification.NotificationService;
+import com.game_manager.gm.reservation.dto.CalendarReservationResponse;
 import com.game_manager.gm.reservation.ReservationService;
 import com.game_manager.gm.reservation.ReservationStatus;
 import com.game_manager.gm.reservation.ReservationStatusTotal;
@@ -52,6 +56,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class DashboardService {
     private final ReservationService reservationService;
     private final OrderService orderService;
+    private final NotificationService notificationService;
     private final CurrentUserProvider currentUserProvider;
     private final Clock clock;
     private final GManagerProperties properties;
@@ -95,13 +100,99 @@ public class DashboardService {
         LocalDate today = LocalDate.now(clock.withZone(businessZone));
         Instant from = today.atStartOfDay(businessZone).toInstant();
         Instant to = today.plusDays(1).atStartOfDay(businessZone).toInstant();
-        return new DashboardTodayResponse(
-                reservationService.countForEmployeeToday(
-                        actor.id(), ReservationStatus.PENDING, from, to),
-                reservationService.countForEmployeeToday(
-                        actor.id(), ReservationStatus.CONFIRMED, from, to),
-                orderService.countByStatusToday(OrderStatus.CREATED, null, from, to),
-                orderService.countByStatusToday(OrderStatus.IN_PROGRESS, actor.id(), from, to));
+        List<CalendarReservationResponse> appointments = reservationService.calendar(actor.id(), today, today);
+        WorkingHoursService.AvailabilityWindow workingDay = workingHoursService.availabilityWindow(today);
+        List<OrderResponse> unclaimed = orderService.operationalOrders(OrderStatus.CREATED, null, true, 10);
+        List<OrderResponse> assigned = orderService.operationalOrders(OrderStatus.IN_PROGRESS, actor.id(), false, 10);
+        return new DashboardTodayResponse(today, businessZone.getId(),
+                workingDay == null ? null : workingDay.open(), workingDay == null ? null : workingDay.close(),
+                appointments.stream().map(item -> new DashboardTodayResponse.TodayAppointment(
+                        item.id(), item.customerName(), item.serviceName(), item.startTime(), item.endTime(),
+                        item.status(), item.version(), item.allowedActions())).toList(),
+                gaps(workingDay, appointments),
+                unclaimed.stream().map(order -> todayOrder(order, List.of(OrderStatus.IN_PROGRESS))).toList(),
+                assigned.stream().map(order -> todayOrder(order,
+                        List.of(OrderStatus.READY, OrderStatus.CANCELLED))).toList(),
+                notificationService.attentionBetween(from, to, 10));
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('DASHBOARD_SUMMARY')")
+    public DashboardAttentionResponse attention() {
+        requireManagement();
+        AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
+        Timer.Sample sample = Timer.start(meterRegistry);
+        try {
+            ZoneId zone = properties.businessZone();
+            LocalDate date = LocalDate.now(clock.withZone(zone));
+            Instant from = date.atStartOfDay(zone).toInstant();
+            Instant to = date.plusDays(1).atStartOfDay(zone).toInstant();
+            int threshold = widgetPreferences.findByOwnerIdAndWidgetKey(actor.id(), "workload")
+                    .map(DashboardWidgetPreference::getThreshold).filter(java.util.Objects::nonNull)
+                    .map(BigDecimal::intValue).orElse(80);
+            List<CalendarReservationResponse> today = reservationService.calendar(null, date, date);
+            List<DashboardAttentionResponse.AttentionItem> items = new ArrayList<>();
+            addMetric(items, "pending-today", "Rezervacije na čekanju", "Početak termina je danas",
+                    today.stream().filter(item -> item.status() == ReservationStatus.PENDING).count(), "warning",
+                    "/reservations?status=PENDING&from=" + date + "&to=" + date);
+            addMetric(items, "cancelled-today", "Otkazane rezervacije", "Početak otkazanog termina je danas",
+                    today.stream().filter(item -> item.status() == ReservationStatus.CANCELLED).count(), "critical",
+                    "/reservations?status=CANCELLED&from=" + date + "&to=" + date);
+            addMetric(items, "orders-unclaimed", "Nepreuzete narudžbine", "Sve CREATED narudžbine bez handlera",
+                    orderService.countUnclaimed(OrderStatus.CREATED), "warning", "/orders?status=CREATED");
+            addMetric(items, "orders-in-progress", "Narudžbine u obradi", "Sve trenutno IN_PROGRESS narudžbine",
+                    orderService.countByStatus(OrderStatus.IN_PROGRESS), "info", "/orders?status=IN_PROGRESS");
+            today.stream().filter(item -> !item.startTime().isBefore(clock.instant()))
+                    .filter(item -> item.status() == ReservationStatus.PENDING
+                            || item.status() == ReservationStatus.CONFIRMED)
+                    .limit(5).forEach(item -> items.add(new DashboardAttentionResponse.AttentionItem(
+                            "next-" + item.id(), "Sledeći termin: " + item.serviceName(),
+                            item.customerName() + " · " + item.startTime(), 1, "info",
+                            "/reservations?reservationId=" + item.id())));
+            workload(date, date, null).employees().stream()
+                    .filter(item -> item.utilizationPercent() != null
+                            && item.utilizationPercent().compareTo(BigDecimal.valueOf(threshold)) >= 0)
+                    .limit(10).forEach(item -> items.add(new DashboardAttentionResponse.AttentionItem(
+                            "workload-" + item.employeeId(), "Visoko opterećenje: " + item.employeeName(),
+                            item.utilizationPercent() + "% potvrđenih/završenih minuta prema radnom kapacitetu",
+                            item.reservationCount(), "warning", "/reservations?employeeId=" + item.employeeId()
+                                    + "&from=" + date + "&to=" + date)));
+            return new DashboardAttentionResponse(date, zone.getId(), threshold, List.copyOf(items));
+        } finally {
+            sample.stop(meterRegistry.timer("gm.dashboard.query.duration", "query", "attention"));
+        }
+    }
+
+    private static void addMetric(List<DashboardAttentionResponse.AttentionItem> items,
+            String key, String label, String detail, long count, String severity, String url) {
+        items.add(new DashboardAttentionResponse.AttentionItem(
+                key, label, detail, count, severity, url));
+    }
+
+    private static DashboardTodayResponse.TodayOrder todayOrder(
+            OrderResponse order, List<OrderStatus> actions) {
+        return new DashboardTodayResponse.TodayOrder(order.id(), order.status(), order.totalPrice(),
+                order.createdAt(), order.version(), actions);
+    }
+
+    private static List<DashboardTodayResponse.TodayGap> gaps(
+            WorkingHoursService.AvailabilityWindow window,
+            List<CalendarReservationResponse> appointments) {
+        if (window == null) return List.of();
+        List<CalendarReservationResponse> blocking = appointments.stream()
+                .filter(item -> item.status() != ReservationStatus.CANCELLED
+                        && item.status() != ReservationStatus.REJECTED)
+                .sorted(java.util.Comparator.comparing(CalendarReservationResponse::startTime)).toList();
+        List<DashboardTodayResponse.TodayGap> result = new ArrayList<>();
+        Instant cursor = window.open();
+        for (CalendarReservationResponse item : blocking) {
+            Instant start = item.startTime().isBefore(window.open()) ? window.open() : item.startTime();
+            Instant end = item.endTime().isAfter(window.close()) ? window.close() : item.endTime();
+            if (start.isAfter(cursor)) result.add(new DashboardTodayResponse.TodayGap(cursor, start));
+            if (end.isAfter(cursor)) cursor = end;
+        }
+        if (cursor.isBefore(window.close())) result.add(new DashboardTodayResponse.TodayGap(cursor, window.close()));
+        return result;
     }
 
     @Transactional(readOnly = true)

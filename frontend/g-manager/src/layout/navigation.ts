@@ -10,10 +10,14 @@ const management: NavigationGroup[] = [
   { label: 'Pregled', items: [{ label: 'Dashboard', to: '/dashboard', capability: 'DASHBOARD_OPERATIONAL' }] },
   { label: 'Poslovanje', items: [
     { label: 'Rezervacije', to: '/reservations', capability: 'RESERVATION_READ_ALL' },
+    { label: 'Kalendar', to: '/calendar', capability: 'RESERVATION_READ_ALL' },
     { label: 'Narudžbine', to: '/orders', capability: 'ORDER_READ_ALL' },
     { label: 'Katalog', to: '/catalog', capability: 'CATALOG_READ' },
   ] },
-  { label: 'Ljudi', items: [{ label: 'Zaposleni', to: '/employees', capability: 'USER_LIST' }] },
+  { label: 'Ljudi', items: [
+    { label: 'Klijenti', to: '/customers', capability: 'CUSTOMER_READ' },
+    { label: 'Zaposleni', to: '/employees', capability: 'USER_LIST' },
+  ] },
   { label: 'Upravljanje', items: [
     { label: 'Izveštaji', to: '/reports', capability: 'REPORT_READ', flag: 'REPORTS' },
     { label: 'Workflow', to: '/workflows', capability: 'WORKFLOW_ACT', flag: 'WORKFLOWS' },
@@ -36,6 +40,7 @@ const employee: NavigationGroup[] = [
   { label: 'Danas', items: [{ label: 'Moj radni dan', to: '/dashboard', capability: 'DASHBOARD_OPERATIONAL' }] },
   { label: 'Operativa', items: [
     { label: 'Moji termini', to: '/reservations', capability: 'RESERVATION_READ_ALL' },
+    { label: 'Kalendar', to: '/calendar', capability: 'RESERVATION_READ_ALL' },
     { label: 'Narudžbine', to: '/orders', capability: 'ORDER_READ_ALL' },
   ] },
   { label: 'Alati', items: [

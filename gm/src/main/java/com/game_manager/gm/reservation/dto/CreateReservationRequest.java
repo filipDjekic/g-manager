@@ -6,7 +6,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record CreateReservationRequest(
-        @NotNull UUID employeeId,
+        UUID employeeId,
         @NotNull UUID serviceId,
         @NotNull Instant startTime,
         @Size(max = 500) String note

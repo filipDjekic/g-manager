@@ -60,6 +60,36 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('CUSTOMER_READ')")
+    public PageResponse<CustomerReference> customerPage(
+            String search, Boolean active, int page, int size) {
+        currentUserProvider.requireCurrentUser();
+        Specification<User> specification = UserSpecifications.notDeleted()
+                .and(UserSpecifications.hasRole(Role.CUSTOMER))
+                .and(UserSpecifications.isActive(active));
+        if (search != null && !search.isBlank()) {
+            specification = specification.and(UserSpecifications.matchesSearch(search));
+        }
+        return PageResponse.from(userRepository.findAll(specification,
+                pageRequestFactory.create(page, size, "createdAt", "DESC", ALLOWED_SORTS))
+                .map(UserService::customerReference));
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('CUSTOMER_READ')")
+    public CustomerReference customerReference(UUID id) {
+        currentUserProvider.requireCurrentUser();
+        User user = userRepository.findById(id)
+                .filter(value -> value.getRole() == Role.CUSTOMER)
+                .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND, "Customer not found"));
+        return customerReference(user);
+    }
+
+    private static CustomerReference customerReference(User user) {
+        return new CustomerReference(user.getId(), user.getName(), user.getEmail(), user.isActive(), user.getCreatedAt());
+    }
+
+    @Transactional(readOnly = true)
     @PreAuthorize("hasAuthority('PROFILE_READ')")
     public UserResponse getCurrentUser() {
         return UserResponse.from(requireCurrentUser());

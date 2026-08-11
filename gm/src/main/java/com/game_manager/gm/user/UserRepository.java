@@ -32,6 +32,15 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
     java.util.List<User> findByRoleAndActiveTrueAndDeletedAtIsNull(com.game_manager.gm.common.security.Role role);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select u from User u
+            where u.role = com.game_manager.gm.common.security.Role.EMPLOYEE
+              and u.active = true and u.deletedAt is null
+            order by u.id
+            """)
+    java.util.List<User> findActiveEmployeesForUpdate();
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select u from User u where u.id = :id and u.deletedAt is null")
     Optional<User> findByIdForUpdate(@Param("id") UUID id);
 }
