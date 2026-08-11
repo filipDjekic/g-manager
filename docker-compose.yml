@@ -1,21 +1,71 @@
 services:
   mysql:
     image: mysql:8.4
+    restart: unless-stopped
     environment:
       MYSQL_DATABASE: gmanager
-      MYSQL_USER: root
-      MYSQL_PASSWORD: root
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
       TZ: UTC
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - gmanager_mysql:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-ugmanager", "-pgmanager"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$${MYSQL_ROOT_PASSWORD}\" --silent"]
       interval: 5s
       timeout: 5s
       retries: 20
+      start_period: 20s
+
+  backend:
+    build:
+      context: ./gm
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      DB_URL: jdbc:mysql://mysql:3306/gmanager?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      DB_USERNAME: ${DB_USERNAME:-root}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+      CANONICAL_ORIGIN: http://localhost:5173
+      COOKIE_SECURE: "false"
+      BUSINESS_TIME_ZONE: ${BUSINESS_TIME_ZONE:-Europe/Belgrade}
+      UPLOAD_ROOT: /data/uploads
+      CANCELLATION_CUTOFF_MINUTES: ${CANCELLATION_CUTOFF_MINUTES:-60}
+      INITIAL_OWNER_NAME: ${INITIAL_OWNER_NAME:-Initial Owner}
+      INITIAL_OWNER_EMAIL: ${INITIAL_OWNER_EMAIL:-}
+      INITIAL_OWNER_PASSWORD: ${INITIAL_OWNER_PASSWORD:-}
+    ports:
+      - "8080:8080"
+    volumes:
+      - gmanager_uploads:/data/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 45s
+
+  frontend:
+    build:
+      context: ./frontend/g-manager
+    restart: unless-stopped
+    ports:
+      - "5173:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
 
 volumes:
   gmanager_mysql:
+  gmanager_uploads:
