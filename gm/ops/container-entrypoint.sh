@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
-read_secret() { var="$1"; file="$2"; [ -r "$file" ] || { echo "Required secret file is missing: $file" >&2; exit 1; }; value=$(cat "$file"); [ -n "$value" ] || { echo "Required secret is empty: $var" >&2; exit 1; }; export "$var=$value"; }
+read_secret() { var="$1"; file="$2"; eval "value=\${$var:-}"; [ -n "$value" ] && return; [ -r "$file" ] || { echo "Required secret $var or readable secret file $file is missing" >&2; exit 1; }; value=$(cat "$file"); [ -n "$value" ] || { echo "Required secret is empty: $var" >&2; exit 1; }; export "$var=$value"; }
 read_secret JWT_SECRET "${JWT_SECRET_FILE:-/run/secrets/jwt_secret}"
 read_secret DB_USERNAME "${DB_USERNAME_FILE:-/run/secrets/db_username}"
 read_secret DB_PASSWORD "${DB_PASSWORD_FILE:-/run/secrets/db_password}"

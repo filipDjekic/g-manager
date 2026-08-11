@@ -1,5 +1,39 @@
 # G-Manager
 
+## Lokalno pokretanje celog sistema preko Docker Compose-a
+
+Root `.env` mora sadržati najmanje `DB_PASSWORD` i bezbedan `JWT_SECRET`
+(najmanje 32 UTF-8 bajta); `DB_USERNAME` podrazumevano koristi `root`. Fajl je ignorisan u Git-u i njegove
+vrednosti se ne ugrađuju u image. Za trenutno lokalno okruženje dovoljno je:
+
+```bash
+docker compose up --build -d
+```
+
+Aplikacija je dostupna na <http://localhost:5173>. Backend je direktno dostupan
+na <http://localhost:8080>, a MySQL na `localhost:3307`. Unutar Compose mreže
+backend koristi `mysql:3306`, dok frontend prosleđuje same-origin `/api` zahteve
+na `backend:8080`. Compose koristi lokalni Spring profil kako bi Flyway migracije
+bile uključene i refresh cookie radio preko lokalnog HTTP-a; produkcioni profil
+i njegovi secure-cookie zahtevi nisu promenjeni.
+
+Korisne komande:
+
+```bash
+docker compose ps
+docker compose logs -f
+docker compose logs -f backend
+docker compose logs -f frontend
+docker compose logs -f mysql
+docker compose down
+```
+
+MySQL podaci se čuvaju u `gmanager_mysql`, a lokalni upload-i u
+`gmanager_uploads` volume-u. `docker compose down` ih ne briše.
+
+> `docker compose down -v` trajno briše oba persistent volume-a i njihove
+> podatke. Ne koristiti ovu komandu osim kada je namerno prihvaćen potpuni reset.
+
 G-Manager je Spring Boot + React aplikacija za upravljanje lokalnim biznisom.
 
 ## Lokalno pokretanje

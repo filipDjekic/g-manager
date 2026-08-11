@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1.7
 FROM node:22.13.0-alpine3.21 AS build
 WORKDIR /workspace
+ARG NPM_VERSION=11.14.1
+RUN npm install --global "npm@${NPM_VERSION}"
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci
 COPY . .
