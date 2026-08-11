@@ -102,6 +102,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/time-off/**", "/api/v1/time-off")
                             .hasAuthority("WORKING_HOURS_MANAGE")
                         .requestMatchers(HttpMethod.POST, "/api/v1/reservations").hasAuthority("RESERVATION_CREATE")
+                        .requestMatchers("/api/v1/waitlist/**", "/api/v1/waitlist").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/reservations/me").hasAuthority("RESERVATION_READ_OWN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/reservations/calendar").hasAuthority("RESERVATION_READ_ALL")
                         .requestMatchers(HttpMethod.GET, "/api/v1/reservations").hasAuthority("RESERVATION_READ_ALL")

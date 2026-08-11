@@ -268,6 +268,14 @@ public class UserService {
                 .map(UserResponse::from));
     }
 
+    @Transactional(readOnly = true)
+    public boolean isActiveEmployee(UUID id) {
+        return userRepository.findById(id)
+                .filter(User::isActive)
+                .filter(user -> user.getRole() == Role.EMPLOYEE)
+                .isPresent();
+    }
+
     private User requireCurrentUser() {
         AuthenticatedUser authenticated = currentUserProvider.requireCurrentUser();
         User user = userRepository.findById(authenticated.id())

@@ -6,14 +6,16 @@ import { catalogApi } from '../api/catalogApi'
 import { apiErrorMessage } from '../api/client'
 import { IdempotencyKeyManager, isConflictResponse } from '../api/idempotency'
 import { reservationApi } from '../api/reservationApi'
+import { waitlistApi } from '../api/waitlistApi'
 import { userApi } from '../api/userApi'
 import { Button, EmptyState, ErrorState, Skeleton } from '../components/ui'
-import { formatBusinessDateTime, formatBusinessTime, todayInBusinessZone } from '../reservations/dateTime'
+import { businessLocalToInstant, formatBusinessDateTime, formatBusinessTime, todayInBusinessZone } from '../reservations/dateTime'
 import { ReservationDetailsDrawer } from '../reservations/ReservationDetailsDrawer'
 import type { CatalogItem } from '../types/catalog.types'
 import type { PageResponse } from '../types/api.types'
 import type { Reservation, ReservationStatus } from '../types/reservation.types'
 import type { UserResponse } from '../types/user.types'
+import type { WaitlistEntry } from '../types/waitlist.types'
 
 type EmployeeChoice = 'UNSELECTED' | 'ANY' | string
 
@@ -22,6 +24,8 @@ export function MyReservationsPage() {
   const [result, setResult] = useState<PageResponse<Reservation> | null>(null)
   const [services, setServices] = useState<CatalogItem[]>([])
   const [employees, setEmployees] = useState<UserResponse[]>([])
+  const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([])
+  const [waitlistTime, setWaitlistTime] = useState('')
   const [page, setPage] = useState(0)
   const [status, setStatus] = useState<ReservationStatus | ''>('')
   const [serviceId, setServiceId] = useState(() => searchParams.get('serviceId')
@@ -51,10 +55,12 @@ export function MyReservationsPage() {
       reservationApi.mine({ page, size: 20, status: status || undefined }),
       catalogApi.list({ page: 0, size: 100, type: 'SERVICE', active: true, sort: 'name', direction: 'ASC' }),
       userApi.employees(),
-    ]).then(([reservations, servicePage, employeePage]) => {
+      waitlistApi.mine(),
+    ]).then(([reservations, servicePage, employeePage, waitlistEntries]) => {
       setResult(reservations)
       setServices(servicePage.content)
       setEmployees(employeePage)
+      setWaitlist(waitlistEntries)
     }).catch((cause) => setError(apiErrorMessage(cause, 'Rezervacije nije moguće učitati.')))
   }, [page, status])
 
@@ -117,6 +123,43 @@ export function MyReservationsPage() {
     }
   }
 
+  async function joinWaitlist() {
+    if (!serviceId || !date || !waitlistTime || employeeChoice === 'ANY' || employeeChoice === 'UNSELECTED') return
+    try {
+      await waitlistApi.join({ serviceId, employeeId: employeeChoice, desiredStart: businessLocalToInstant(`${date}T${waitlistTime}`) })
+      setWaitlist(await waitlistApi.mine())
+      setWaitlistTime('')
+      setError('')
+      setMessage('Dodati ste na listu čekanja za izabrani termin.')
+    } catch (cause) {
+      setError(apiErrorMessage(cause, 'Prijava na listu čekanja nije uspela.'))
+    }
+  }
+
+  async function acceptOffer(entry: WaitlistEntry) {
+    if (!entry.offerId) return
+    try {
+      await waitlistApi.accept(entry.offerId)
+      setWaitlist(await waitlistApi.mine())
+      await loadMine()
+      setError('')
+      setMessage('Ponuda je prihvaćena i rezervacija je kreirana.')
+    } catch (cause) {
+      setWaitlist(await waitlistApi.mine())
+      setError(apiErrorMessage(cause, 'Ponuda više nije dostupna.'))
+    }
+  }
+
+  async function cancelWaitlist(entry: WaitlistEntry) {
+    try {
+      await waitlistApi.cancel(entry)
+      setWaitlist(await waitlistApi.mine())
+      setError('')
+    } catch (cause) {
+      setError(apiErrorMessage(cause, 'Prijavu nije moguće otkazati.'))
+    }
+  }
+
   return <main className="workspace">
     <div className="page-heading"><div><p className="eyebrow">Zakazivanje</p><h1>Moji termini</h1></div></div>
     {error && <p className="error-banner" role="alert">{error}</p>}
@@ -143,7 +186,10 @@ export function MyReservationsPage() {
         {availability.error && <ErrorState message={apiErrorMessage(availability.error, 'Dostupne termine nije moguće učitati.')}
           action={<Button type="button" onClick={() => availability.refetch()}>Pokušaj ponovo</Button>} />}
         {!availability.isLoading && !availability.error && slots.length === 0
-          && <EmptyState title="Nema slobodnih termina" description="Izaberite drugi datum ili zaposlenog." />}
+          && <><EmptyState title="Nema slobodnih termina" description="Izaberite drugi datum ili se prijavite za konkretan termin." />
+            {employeeChoice !== 'ANY' && <div className="form-actions"><label>Željeno vreme<input type="time" value={waitlistTime}
+              onChange={(event) => setWaitlistTime(event.target.value)} /></label>
+              <Button type="button" disabled={!waitlistTime} onClick={() => void joinWaitlist()}>Prijavi se na listu čekanja</Button></div>}</>}
         {slots.length > 0 && <div className="slot-grid">{slots.map((slot) => <label key={slot.startTime}
           className={selectedStart === slot.startTime ? 'slot-option selected' : 'slot-option'}>
           <input type="radio" name="slot" value={slot.startTime} checked={selectedStart === slot.startTime}
@@ -161,6 +207,21 @@ export function MyReservationsPage() {
         <Button type="submit" loading={submitting}>Potvrdi termin</Button>
       </section></div>}
     </form>
+
+    <section className="panel">
+      <h2>Lista čekanja</h2>
+      {!waitlist.length && <p className="empty-state compact">Nemate aktivne ili prethodne prijave.</p>}
+      {waitlist.map((entry) => <article className="exception-row" key={entry.id}>
+        <div><strong>{formatBusinessDateTime(entry.desiredStart)}</strong>
+          <p>{services.find((item) => item.id === entry.serviceId)?.name ?? 'Usluga'} · {entry.status}</p>
+          {entry.offerExpiresAt && entry.status === 'OFFERED' && <small>Ponuda važi do {formatBusinessDateTime(entry.offerExpiresAt)}</small>}</div>
+        <div className="form-actions">
+          {entry.status === 'OFFERED' && <Button type="button" onClick={() => void acceptOffer(entry)}>Prihvati termin</Button>}
+          {(entry.status === 'WAITING' || entry.status === 'OFFERED') &&
+            <Button type="button" variant="danger" onClick={() => void cancelWaitlist(entry)}>Otkaži prijavu</Button>}
+        </div>
+      </article>)}
+    </section>
 
     <div className="list-filter"><label>Status<select value={status}
       onChange={(event) => { setStatus(event.target.value as ReservationStatus | ''); setPage(0) }}>
