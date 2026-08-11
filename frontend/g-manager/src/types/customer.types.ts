@@ -36,3 +36,20 @@ export interface CustomerDetail {
 }
 
 export type CustomerPage = PageResponse<CustomerListItem>
+
+export interface CustomerCrmNote {
+  id: string
+  body: string
+  createdBy: string
+  createdAt: string
+  updatedAt: string
+  expiresAt: string
+  version: number
+}
+
+export interface CustomerCrm {
+  customerId: string
+  version: number
+  notes: CustomerCrmNote[]
+  tags: string[]
+}

@@ -32,6 +32,10 @@ public class Reservation extends BaseEntity {
     @Column(name = "service_id", nullable = false, length = 36)
     private UUID serviceId;
 
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "recurrence_series_id", length = 36)
+    private UUID recurrenceSeriesId;
+
     @Column(name = "start_time", nullable = false)
     private Instant startTime;
 

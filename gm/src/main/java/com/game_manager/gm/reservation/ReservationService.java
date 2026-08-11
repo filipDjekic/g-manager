@@ -74,6 +74,11 @@ public class ReservationService {
             throw new ApplicationException(
                     HttpStatus.FORBIDDEN, "Only customers can create reservations");
         }
+        return createForCustomer(actor.id(), request, null);
+    }
+
+    ReservationResponse createForCustomer(
+            UUID customerId, CreateReservationRequest request, UUID recurrenceSeriesId) {
         if (!request.startTime().isAfter(clock.instant())) {
             throw new ApplicationException(
                     HttpStatus.BAD_REQUEST, "Reservation must be in the future");
@@ -89,9 +94,10 @@ public class ReservationService {
         User employee = selectEmployee(request.employeeId(), request.startTime(), endTime);
 
         Reservation reservation = new Reservation();
-        reservation.setCustomerId(actor.id());
+        reservation.setCustomerId(customerId);
         reservation.setEmployeeId(employee.getId());
         reservation.setServiceId(request.serviceId());
+        reservation.setRecurrenceSeriesId(recurrenceSeriesId);
         reservation.setStartTime(request.startTime());
         reservation.setEndTime(endTime);
         reservation.setStatus(ReservationStatus.PENDING);

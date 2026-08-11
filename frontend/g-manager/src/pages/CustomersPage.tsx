@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useMemo, useRef } from 'react'
+import { type FormEvent, useMemo, useRef, useState } from 'react'
 import { apiErrorMessage } from '../api/client'
 import { customerApi } from '../api/customerApi'
 import { Button, Drawer, EmptyState, ErrorState, Skeleton, TableShell } from '../components/ui'
@@ -24,7 +24,39 @@ export function CustomersPage() {
   const list = useQuery({ queryKey: queryKeys.customers(listKey), queryFn: () => customerApi.list(filters) })
   const selectedId = url.state.customerId
   const detail = useQuery({ queryKey: queryKeys.customerDetail(selectedId), queryFn: () => customerApi.detail(selectedId), enabled: Boolean(selectedId) })
+  const [crmSearch, setCrmSearch] = useState('')
+  const [note, setNote] = useState('')
+  const [tag, setTag] = useState('')
+  const [crmError, setCrmError] = useState('')
+  const crm = useQuery({ queryKey: ['customers', 'crm', selectedId, crmSearch],
+    queryFn: () => customerApi.crm(selectedId, crmSearch || undefined), enabled: Boolean(selectedId) })
   const close = () => url.set({ customerId: '' })
+
+  async function addNote(event: FormEvent) {
+    event.preventDefault(); if (!selectedId || !note.trim()) return
+    try { await customerApi.addCrmNote(selectedId, note.trim()); setNote(''); setCrmError(''); await crm.refetch() }
+    catch (cause) { setCrmError(apiErrorMessage(cause, 'Belešku nije moguće sačuvati.')) }
+  }
+  async function editNote(item: NonNullable<typeof crm.data>['notes'][number]) {
+    const body = window.prompt('Izmenite CRM belešku', item.body)?.trim(); if (!body || !selectedId) return
+    try { await customerApi.updateCrmNote(selectedId, item.id, body, item.version); await crm.refetch() }
+    catch (cause) { setCrmError(apiErrorMessage(cause, 'Belešku nije moguće izmeniti.')) }
+  }
+  async function removeNote(item: NonNullable<typeof crm.data>['notes'][number]) {
+    if (!selectedId || !window.confirm('Obrisati CRM belešku?')) return
+    try { await customerApi.deleteCrmNote(selectedId, item.id, item.version); await crm.refetch() }
+    catch (cause) { setCrmError(apiErrorMessage(cause, 'Belešku nije moguće obrisati.')) }
+  }
+  async function addTag(event: FormEvent) {
+    event.preventDefault(); if (!selectedId || !tag.trim()) return
+    try { await customerApi.addCrmTag(selectedId, tag.trim()); setTag(''); setCrmError(''); await crm.refetch() }
+    catch (cause) { setCrmError(apiErrorMessage(cause, 'Tag nije moguće sačuvati.')) }
+  }
+  async function removeTag(name: string) {
+    if (!selectedId || !crm.data) return
+    try { await customerApi.removeCrmTag(selectedId, name, crm.data.version); await crm.refetch() }
+    catch (cause) { setCrmError(apiErrorMessage(cause, 'Tag nije moguće ukloniti.')) }
+  }
 
   return <main className="workspace customer-workspace">
     <div className="page-heading"><div><p className="eyebrow">Ljudi</p><h1>Klijenti</h1></div></div>
@@ -56,6 +88,20 @@ export function CustomersPage() {
           <div className="customer-kpis"><article><strong>{detail.data.customer.completedAppointmentCount}</strong><span>Završeni termini</span></article>
             <article><strong>{detail.data.customer.completedOrderCount}</strong><span>Završene narudžbine</span></article>
             <article><strong>{money.format(detail.data.customer.completedOrderRevenue)}</strong><span>Ostvaren prihod</span></article></div>
+          <section className="customer-crm"><h3>CRM beleške i tagovi</h3>
+            {crmError && <p className="error-banner" role="alert">{crmError}</p>}
+            <label>Pretraži CRM<input value={crmSearch} onChange={(event) => setCrmSearch(event.target.value)} /></label>
+            <form onSubmit={addTag}><label>Novi tag<input maxLength={60} value={tag} onChange={(event) => setTag(event.target.value)} /></label>
+              <Button type="submit" disabled={!tag.trim()}>Dodaj tag</Button></form>
+            <div className="form-actions">{crm.data?.tags.map((value) => <Button type="button" variant="secondary" key={value}
+              onClick={() => void removeTag(value)}>{value} ×</Button>)}</div>
+            <form onSubmit={addNote}><label>Nova beleška<textarea maxLength={1000} value={note}
+              onChange={(event) => setNote(event.target.value)} /></label><Button type="submit" disabled={!note.trim()}>Sačuvaj belešku</Button></form>
+            {crm.isLoading ? <Skeleton lines={2} label="Učitavanje CRM podataka" /> : crm.data?.notes.map((item) =>
+              <article className="exception-row" key={item.id}><div><p>{item.body}</p><small>Zadržava se do {formatBusinessDateTime(item.expiresAt)}</small></div>
+                <div className="form-actions"><Button type="button" variant="secondary" onClick={() => void editNote(item)}>Izmeni</Button>
+                  <Button type="button" variant="danger" onClick={() => void removeNote(item)}>Obriši</Button></div></article>)}
+          </section>
           <section><h3>Termini</h3>{detail.data.reservations.length ? <ul className="history-list">{detail.data.reservations.map((item) =>
             <li key={item.id}><strong>{item.serviceName}</strong><span>{formatBusinessDateTime(item.startTime)} · {item.status}</span></li>)}</ul> : <p>Nema istorije termina.</p>}</section>
           <section><h3>Narudžbine</h3>{detail.data.orders.length ? <ul className="history-list">{detail.data.orders.map((item) =>

@@ -87,4 +87,36 @@ describe('MyReservationsPage slot booking', () => {
     await waitFor(() => expect(joined).toBe(true))
     expect(await screen.findByText('Dodati ste na listu čekanja za izabrani termin.')).toBeVisible()
   })
+
+  it('requires a bounded preview before creating a recurring series', async () => {
+    const user = userEvent.setup()
+    let idempotencyKey = ''
+    server.use(...baseHandlers(), http.get('/api/v1/availability', () => HttpResponse.json({
+      timezone: 'Europe/Belgrade', serviceId: 'service-1', serviceName: 'Masaža', durationMinutes: 60,
+      slotIncrementMinutes: 15, from: '2028-03-16', to: '2028-03-16', employees: [{
+        employeeId: 'employee-1', employeeName: 'Ana',
+        slots: [{ startTime: '2028-03-16T09:00:00Z', endTime: '2028-03-16T10:00:00Z' }],
+      }],
+    })), http.post('/api/v1/reservations/recurrence/preview', () => HttpResponse.json({
+      timezone: 'Europe/Belgrade', occurrences: [
+        { startTime: '2028-03-16T09:00:00Z', endTime: '2028-03-16T10:00:00Z', available: true, reason: null },
+        { startTime: '2028-03-23T09:00:00Z', endTime: '2028-03-23T10:00:00Z', available: false, reason: 'Zauzeto' },
+      ],
+    })), http.post('/api/v1/reservations/recurrence', ({ request }) => {
+      idempotencyKey = request.headers.get('Idempotency-Key') ?? ''
+      return HttpResponse.json({ seriesId: 'series-1', created: [{ id: 'reservation-1' }], skipped: [{}] }, { status: 201 })
+    }))
+    renderPage()
+    await user.selectOptions(await screen.findByLabelText('Usluga'), 'service-1')
+    await user.selectOptions(screen.getByLabelText('Zaposleni'), 'employee-1')
+    await user.type(screen.getByLabelText('Datum'), '2028-03-16')
+    await user.click(await screen.findByRole('radio'))
+    await user.click(screen.getByLabelText('Ponavljajući termini'))
+    expect(screen.getByRole('button', { name: 'Kreiraj seriju' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Pregledaj ponavljanje' }))
+    expect(await screen.findByText(/Konflikt: Zauzeto/)).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Kreiraj seriju' }))
+    await waitFor(() => expect(idempotencyKey).not.toBe(''))
+    expect(await screen.findByText(/Kreirano rezervacija: 1; preskočeno: 1/)).toBeVisible()
+  })
 })

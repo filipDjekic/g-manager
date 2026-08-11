@@ -6,6 +6,9 @@ import type {
   ReservationDetail,
   ReservationStatus,
   CalendarReservation,
+  RecurrenceInput,
+  RecurrencePreview,
+  RecurrenceCreateResult,
 } from '../types/reservation.types'
 import type { BulkItem, BulkOperationResponse } from '../types/bulk.types'
 
@@ -25,6 +28,12 @@ export const reservationApi = {
     apiClient.get<CalendarReservation[]>('/reservations/calendar', { params }).then(({ data }) => data),
   create: (input: CreateReservationInput, idempotencyKey: string) =>
     apiClient.post<Reservation>('/reservations', input, {
+      headers: { 'Idempotency-Key': idempotencyKey },
+    }).then(({ data }) => data),
+  previewRecurrence: (input: RecurrenceInput) =>
+    apiClient.post<RecurrencePreview>('/reservations/recurrence/preview', input).then(({ data }) => data),
+  createRecurrence: (input: RecurrenceInput, idempotencyKey: string) =>
+    apiClient.post<RecurrenceCreateResult>('/reservations/recurrence', input, {
       headers: { 'Idempotency-Key': idempotencyKey },
     }).then(({ data }) => data),
   mine: (params: ReservationFilters) =>
