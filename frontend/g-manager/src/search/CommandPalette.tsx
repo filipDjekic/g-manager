@@ -44,7 +44,7 @@ export function CommandPalette() {
   async function choose(item: SearchResult) {
     await searchApi.remember(item, false)
     setOpen(false); setQuery('')
-    navigate(item.url, { state: { searchReturnTo: location.pathname + location.search } })
+    navigate(item.action.url, { state: { searchReturnTo: location.pathname + location.search } })
   }
   async function toggleFavorite(item: SearchResult) {
     if (item.favorite) await searchApi.removeFavorite(item)
@@ -78,7 +78,7 @@ export function CommandPalette() {
               return <div key={`${item.type}-${item.id}`} className="search-result">
                 <button id={`search-result-${item.type}-${item.id}`} aria-current={index === active ? 'true' : undefined}
                   type="button" onClick={() => void choose(item)} onMouseEnter={() => setActive(index)}>
-                  <strong><Highlight text={item.title} query={query.trim()} /></strong><span>{item.subtitle}</span></button>
+                  <strong><Highlight text={item.title} query={query.trim()} /></strong><span>{item.subtitle}</span><span>{item.action.label}</span></button>
                 <button type="button" className="favorite-button" aria-label={item.favorite ? `Ukloni ${item.title} iz omiljenih` : `Dodaj ${item.title} u omiljene`}
                   aria-pressed={item.favorite} onClick={() => void toggleFavorite(item)}>{item.favorite ? '★' : '☆'}</button>
               </div>

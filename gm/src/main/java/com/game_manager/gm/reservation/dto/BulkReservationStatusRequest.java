@@ -10,5 +10,5 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 
 public record BulkReservationStatusRequest(@NotNull ReservationStatus status,
-        @Size(max = 500) String note,
+        @Size(max = 500) String reason,
         @NotEmpty @Size(max = 100) List<@Valid BulkItem> items) {}

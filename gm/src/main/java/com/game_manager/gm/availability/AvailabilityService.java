@@ -14,6 +14,8 @@ import com.game_manager.gm.reservation.ReservationBusyInterval;
 import com.game_manager.gm.user.User;
 import com.game_manager.gm.user.UserRepository;
 import com.game_manager.gm.workinghours.WorkingHoursService;
+import com.game_manager.gm.timeoff.TimeOffAvailabilityPolicy;
+import com.game_manager.gm.timeoff.TimeOffInterval;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -40,6 +42,7 @@ public class AvailabilityService {
     private final UserRepository userRepository;
     private final WorkingHoursService workingHoursService;
     private final ReservationAvailabilityPolicy reservationPolicy;
+    private final TimeOffAvailabilityPolicy timeOffPolicy;
     private final Clock clock;
 
     @Transactional(readOnly = true)
@@ -58,11 +61,13 @@ public class AvailabilityService {
                         windows.getFirst().open(), windows.getLast().close());
         Map<UUID, List<ReservationBusyInterval>> busyByEmployee = busy.stream()
                 .collect(Collectors.groupingBy(ReservationBusyInterval::employeeId));
+        List<TimeOffInterval> timeOff = windows.isEmpty()?List.of():timeOffPolicy.approvedBetween(employees.stream().map(User::getId).toList(),windows.getFirst().open(),windows.getLast().close());
+        Map<UUID,List<TimeOffInterval>> timeOffByEmployee=timeOff.stream().collect(Collectors.groupingBy(TimeOffInterval::employeeId));
 
         List<EmployeeAvailabilityResponse> result = employees.stream().map(employee ->
                 new EmployeeAvailabilityResponse(employee.getId(), employee.getName(),
                         slots(windows, service.getDurationMinutes(),
-                                busyByEmployee.getOrDefault(employee.getId(), List.of())))).toList();
+                                busyByEmployee.getOrDefault(employee.getId(), List.of()),timeOffByEmployee.getOrDefault(employee.getId(),List.of())))).toList();
         return new AvailabilityResponse(workingHoursService.getBusinessZone().getId(), service.getId(),
                 service.getName(), service.getDurationMinutes(), SLOT_INCREMENT_MINUTES,
                 query.from(), query.to(), result);
@@ -94,7 +99,7 @@ public class AvailabilityService {
     private List<AvailabilitySlotResponse> slots(
             List<WorkingHoursService.AvailabilityWindow> windows,
             int durationMinutes,
-            List<ReservationBusyInterval> busy) {
+            List<ReservationBusyInterval> busy,List<TimeOffInterval> timeOff) {
         Instant now = clock.instant();
         List<AvailabilitySlotResponse> slots = new ArrayList<>();
         for (WorkingHoursService.AvailabilityWindow window : windows) {
@@ -102,7 +107,7 @@ public class AvailabilityService {
                 Instant end = start.plus(durationMinutes, ChronoUnit.MINUTES);
                 if (end.isAfter(window.close())) break;
                 Instant slotStart = start;
-                if (slotStart.isAfter(now) && busy.stream().noneMatch(interval -> interval.overlaps(slotStart, end))) {
+                if (slotStart.isAfter(now) && busy.stream().noneMatch(interval -> interval.overlaps(slotStart, end))&&timeOff.stream().noneMatch(interval->interval.overlaps(slotStart,end))) {
                     slots.add(new AvailabilitySlotResponse(slotStart, end));
                 }
             }

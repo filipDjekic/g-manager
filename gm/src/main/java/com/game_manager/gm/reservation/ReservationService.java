@@ -59,7 +59,7 @@ public class ReservationService {
     private final CurrentUserProvider currentUserProvider;
     private final GManagerProperties properties;
     private final PageRequestFactory pageRequestFactory;
-    private final ReservationAuthorizationPolicy authorizationPolicy;
+    private final ReservationTransitionPolicy transitionPolicy;
     private final ReservationAvailabilityPolicy availabilityPolicy;
     private final AuditWriter auditWriter;
     private final AuditHistoryReader auditHistoryReader;
@@ -171,7 +171,7 @@ public class ReservationService {
                 value.getId(), value.getEmployeeId(), users.get(value.getEmployeeId()).getName(),
                 users.get(value.getCustomerId()).getName(), services.get(value.getServiceId()).name(),
                 value.getStartTime(), value.getEndTime(), value.getStatus(), value.getVersion(),
-                allowedActions(actor, value))).toList();
+                transitionPolicy.allowedActions(actor, value))).toList();
     }
 
     @Transactional(readOnly = true)
@@ -193,12 +193,13 @@ public class ReservationService {
         User employee = userRepository.findById(reservation.getEmployeeId())
                 .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND, "Employee not found"));
         CatalogReference service = catalogService.getReference(reservation.getServiceId());
-        List<ReservationStatus> actions = allowedActions(actor, reservation);
+        List<ReservationStatus> actions = transitionPolicy.allowedActions(actor, reservation);
         boolean canSeeContact = RolePermissions.has(actor.role(), Permission.USER_LIST);
-        List<ReservationHistoryResponse> history = RolePermissions.has(actor.role(), Permission.AUDIT_READ)
-                ? auditHistoryReader.find("RESERVATION", reservation.getId()).stream()
-                    .map(item -> new ReservationHistoryResponse(item.action(), item.occurredAt())).toList()
-                : List.of();
+        List<ReservationHistoryResponse> history = auditHistoryReader
+                .findStatusTransitions("RESERVATION", reservation.getId()).stream()
+                .map(item -> new ReservationHistoryResponse(
+                        item.fromStatus(), item.toStatus(), item.reason(), item.occurredAt()))
+                .toList();
         return new ReservationDetailResponse(
                 reservation.getId(), customer.getName(), canSeeContact ? customer.getEmail() : null,
                 employee.getName(), service.name(), service.durationMinutes(),
@@ -216,9 +217,8 @@ public class ReservationService {
                 .orElseThrow(() -> new ApplicationException(
                         HttpStatus.NOT_FOUND, "Reservation not found"));
         requireVersion(reservation, request.version());
-        authorizationPolicy.requireTransition(actor, reservation, request.status());
+        transitionPolicy.requireTransition(actor, reservation, request.status(), request.reason());
         ReservationStatus previousStatus = reservation.getStatus();
-        validateTransition(reservation, request.status(), actor);
 
         if (request.status() == ReservationStatus.CONFIRMED) {
             userRepository.findByIdForUpdate(reservation.getEmployeeId())
@@ -227,35 +227,14 @@ public class ReservationService {
             availabilityPolicy.requireAvailable(
                     reservation.getEmployeeId(), reservation.getStartTime(),
                     reservation.getEndTime(), reservation.getId());
-            if (!reservation.getStartTime().isAfter(clock.instant())) {
-                throw new ApplicationException(
-                        HttpStatus.CONFLICT, "Past reservations cannot be confirmed");
-            }
-        }
-        if (request.status() == ReservationStatus.COMPLETED
-                && clock.instant().isBefore(reservation.getEndTime())) {
-            throw new ApplicationException(
-                    HttpStatus.CONFLICT, "Reservation has not ended yet");
-        }
-        if (request.status() == ReservationStatus.CANCELLED
-                && actor.role() == Role.CUSTOMER
-                && reservation.getStatus() == ReservationStatus.CONFIRMED
-                && !clock.instant().isBefore(
-                        reservation.getStartTime().minus(
-                                properties.reservations().cancellationCutoffMinutes(),
-                                ChronoUnit.MINUTES))) {
-            throw new ApplicationException(
-                    HttpStatus.CONFLICT, "It is too late to cancel this reservation");
         }
 
         reservation.setStatus(request.status());
-        if (request.note() != null) {
-            reservation.setNote(normalizeNote(request.note()));
-        }
         Reservation saved = reservationRepository.saveAndFlush(reservation);
         auditWriter.write("RESERVATION_STATUS_CHANGED", "RESERVATION", id,
                 java.util.Map.of("status", previousStatus.name()),
-                java.util.Map.of("status", saved.getStatus().name()), null, AuditVisibility.MANAGEMENT);
+                java.util.Map.of("status", saved.getStatus().name()), request.reason(),
+                AuditVisibility.MANAGEMENT);
         outboxWriter.write(DomainEventType.RESERVATION_STATUS_CHANGED, "RESERVATION", saved.getId(),
                 java.util.Map.of("previousStatus", previousStatus.name(),
                         "status", saved.getStatus().name()));
@@ -293,41 +272,6 @@ public class ReservationService {
         return PageResponse.from(result);
     }
 
-    private static void validateTransition(
-            Reservation reservation, ReservationStatus target, AuthenticatedUser actor) {
-        ReservationStatus current = reservation.getStatus();
-        boolean valid = switch (current) {
-            case PENDING -> target == ReservationStatus.CONFIRMED
-                    || target == ReservationStatus.REJECTED
-                    || target == ReservationStatus.CANCELLED;
-            case CONFIRMED -> target == ReservationStatus.COMPLETED
-                    || target == ReservationStatus.CANCELLED;
-            case REJECTED, CANCELLED, COMPLETED -> false;
-        };
-        if (!valid) {
-            throw new ApplicationException(
-                    HttpStatus.CONFLICT, "Invalid reservation status transition");
-        }
-    }
-
-    private List<ReservationStatus> allowedActions(
-            AuthenticatedUser actor, Reservation reservation) {
-        return switch (reservation.getStatus()) {
-            case PENDING -> List.of(ReservationStatus.CONFIRMED, ReservationStatus.REJECTED,
-                            ReservationStatus.CANCELLED).stream()
-                    .filter(target -> authorizationPolicy.canTransition(actor, reservation, target)).toList();
-            case CONFIRMED -> List.of(ReservationStatus.COMPLETED, ReservationStatus.CANCELLED).stream()
-                    .filter(target -> authorizationPolicy.canTransition(actor, reservation, target))
-                    .filter(target -> target != ReservationStatus.COMPLETED
-                            || !clock.instant().isBefore(reservation.getEndTime()))
-                    .filter(target -> target != ReservationStatus.CANCELLED
-                            || actor.role() != Role.CUSTOMER
-                            || clock.instant().isBefore(reservation.getStartTime().minus(
-                                    properties.reservations().cancellationCutoffMinutes(), ChronoUnit.MINUTES)))
-                    .toList();
-            case REJECTED, CANCELLED, COMPLETED -> List.of();
-        };
-    }
 
     private static void validateDateRange(LocalDate from, LocalDate to) {
         if (from != null && to != null && from.isAfter(to)) {

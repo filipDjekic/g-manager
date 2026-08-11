@@ -2,7 +2,10 @@ package com.game_manager.gm.security.permission;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import com.game_manager.gm.common.config.GManagerProperties;
 import com.game_manager.gm.common.error.ApplicationException;
 import com.game_manager.gm.common.security.AuthenticatedUser;
 import com.game_manager.gm.common.security.Role;
@@ -11,18 +14,20 @@ import com.game_manager.gm.order.Order;
 import com.game_manager.gm.order.OrderAuthorizationPolicy;
 import com.game_manager.gm.order.OrderStatus;
 import com.game_manager.gm.reservation.Reservation;
-import com.game_manager.gm.reservation.ReservationAuthorizationPolicy;
+import com.game_manager.gm.reservation.ReservationTransitionPolicy;
 import com.game_manager.gm.reservation.ReservationStatus;
 import com.game_manager.gm.user.User;
 import com.game_manager.gm.user.UserAuthorizationPolicy;
 import java.util.UUID;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import org.junit.jupiter.api.Test;
 
 class ResourceAuthorizationPolicyTest {
     private final AuthorizationDenialLogger logger = new AuthorizationDenialLogger();
     private final OrderAuthorizationPolicy orders = new OrderAuthorizationPolicy(logger);
-    private final ReservationAuthorizationPolicy reservations =
-            new ReservationAuthorizationPolicy(logger);
+    private final ReservationTransitionPolicy reservations = reservationPolicy();
     private final UserAuthorizationPolicy users = new UserAuthorizationPolicy(logger);
 
     @Test
@@ -56,15 +61,15 @@ class ResourceAuthorizationPolicyTest {
         Reservation reservation = reservation(customerId, employeeId);
 
         assertThatCode(() -> reservations.requireTransition(
-                actor(customerId, Role.CUSTOMER), reservation, ReservationStatus.CANCELLED))
+                actor(customerId, Role.CUSTOMER), reservation, ReservationStatus.CANCELLED, "Changed plans"))
                 .doesNotThrowAnyException();
         assertThatCode(() -> reservations.requireTransition(
-                actor(employeeId, Role.EMPLOYEE), reservation, ReservationStatus.CONFIRMED))
+                actor(employeeId, Role.EMPLOYEE), reservation, ReservationStatus.CONFIRMED, null))
                 .doesNotThrowAnyException();
         assertForbidden(() -> reservations.requireTransition(
-                actor(UUID.randomUUID(), Role.CUSTOMER), reservation, ReservationStatus.CANCELLED));
+                actor(UUID.randomUUID(), Role.CUSTOMER), reservation, ReservationStatus.CANCELLED, "Changed plans"));
         assertForbidden(() -> reservations.requireTransition(
-                actor(UUID.randomUUID(), Role.EMPLOYEE), reservation, ReservationStatus.CONFIRMED));
+                actor(UUID.randomUUID(), Role.EMPLOYEE), reservation, ReservationStatus.CONFIRMED, null));
     }
 
     @Test
@@ -106,7 +111,16 @@ class ResourceAuthorizationPolicyTest {
         reservation.setCustomerId(customerId);
         reservation.setEmployeeId(employeeId);
         reservation.setStatus(ReservationStatus.PENDING);
+        reservation.setStartTime(Instant.parse("2028-03-16T12:00:00Z"));
+        reservation.setEndTime(Instant.parse("2028-03-16T13:00:00Z"));
         return reservation;
+    }
+
+    private ReservationTransitionPolicy reservationPolicy() {
+        GManagerProperties properties = mock(GManagerProperties.class);
+        when(properties.reservations()).thenReturn(new GManagerProperties.Reservations(60));
+        return new ReservationTransitionPolicy(logger, properties,
+                Clock.fixed(Instant.parse("2028-03-16T10:00:00Z"), ZoneOffset.UTC));
     }
 
     private User user(UUID id, Role role) {

@@ -191,6 +191,7 @@ th { color: #a7c5ba; }
 .catalog-card-body p, .catalog-card-body h2 { margin: 0; }
 .catalog-card-title { display: flex; justify-content: space-between; gap: .8rem; }
 .catalog-card-title h2 { font-size: 1.2rem; }
+.catalog-dialog-form { border: 0; padding: 0; }
 .status-badge { width: fit-content; padding: .25rem .5rem; border-radius: 2rem; color: #fecdd3; background: rgb(190 18 60 / 28%); }
 .empty-state { padding: 3rem; border: 1px dashed #315247; border-radius: 1rem; text-align: center; color: #a7c5ba; }
 .weekly-hours { margin-bottom: 1rem; }

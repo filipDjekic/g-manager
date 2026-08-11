@@ -88,6 +88,6 @@ public class ReservationController {
     public BulkOperationResponse bulkStatus(@Valid @RequestBody BulkReservationStatusRequest request) {
         return bulkOperationExecutor.execute("reservations", request.items(), item -> item.id(), item ->
                 reservationService.changeStatus(item.id(), new ChangeReservationStatusRequest(
-                        request.status(), request.note(), item.version())));
+                        request.status(), request.reason(), item.version())));
     }
 }

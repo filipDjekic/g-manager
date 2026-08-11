@@ -5,6 +5,7 @@ import { reservationApi } from '../api/reservationApi'
 import { SavedViewBar } from '../components/lists/SavedViewBar'
 import { SelectionBar } from '../components/lists/SelectionBar'
 import { Button, EmptyState, ErrorState, Skeleton } from '../components/ui'
+import { ActionDialog } from '../components/ui/ActionDialog'
 import { useListUrlState } from '../lists/useListUrlState'
 import { queryKeys } from '../query/queryKeys'
 import { formatBusinessDateTime } from '../reservations/dateTime'
@@ -19,6 +20,7 @@ export function ReservationsPage() {
   const client = useQueryClient()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkSummary, setBulkSummary] = useState('')
+  const [cancelOpen, setCancelOpen] = useState(false)
   const filters = useMemo(() => ({
     page: Math.max(0, Number(url.state.page) || 0), size: 20,
     status: (url.state.status || undefined) as ReservationStatus | undefined,
@@ -27,8 +29,8 @@ export function ReservationsPage() {
   }), [url.state])
   const result = useQuery({ queryKey: queryKeys.reservations(url.query), queryFn: () => reservationApi.list(filters) })
   const refresh = () => client.invalidateQueries({ queryKey: ['reservations'] })
-  const bulk = useMutation({ mutationFn: async (status: ReservationStatus) => reservationApi.bulkStatus(status,
-    (result.data?.content ?? []).filter(({ id }) => selected.has(id)).map(({ id, version }) => ({ id, version }))),
+  const bulk = useMutation({ mutationFn: async ({ status, reason }: { status: ReservationStatus; reason?: string }) => reservationApi.bulkStatus(status,
+    (result.data?.content ?? []).filter(({ id }) => selected.has(id)).map(({ id, version }) => ({ id, version })), reason),
   onSuccess: async (response) => {
     setBulkSummary(`${response.succeeded} uspešno, ${response.failed} neuspešno.`)
     setSelected(new Set()); await refresh()
@@ -55,8 +57,8 @@ export function ReservationsPage() {
         <option value="createdAt:DESC">Najnoviji zahtev</option></select></label>
     </div>
     <SelectionBar count={selected.size} summary={bulkSummary}>
-      <Button loading={bulk.isPending} onClick={() => bulk.mutate('CONFIRMED')}>Potvrdi izabrane</Button>
-      <Button variant="danger" loading={bulk.isPending} onClick={() => bulk.mutate('CANCELLED')}>Otkaži izabrane</Button>
+      <Button loading={bulk.isPending} onClick={() => bulk.mutate({ status: 'CONFIRMED' })}>Potvrdi izabrane</Button>
+      <Button variant="danger" loading={bulk.isPending} onClick={() => setCancelOpen(true)}>Otkaži izabrane</Button>
     </SelectionBar>
     {result.isLoading ? <Skeleton lines={6} label="Učitavanje rezervacija" /> :
       !result.data?.content.length ? <EmptyState title="Nema rezervacija" description="Promenite filtere ili period." /> :
@@ -75,5 +77,12 @@ export function ReservationsPage() {
       <button disabled={!result.data || filters.page + 1 >= result.data.totalPages} onClick={() => url.set({ page: String(filters.page + 1) })}>Sledeća</button></div>
     <ReservationDetailsDrawer reservationId={url.state.reservationId || null}
       onClose={() => url.set({ reservationId: '' }, true)} />
+    <ActionDialog open={cancelOpen} title="Otkaži izabrane rezervacije"
+      description="Svaka dozvoljena promena biće odmah sačuvana i evidentirana."
+      confirmLabel="Otkaži rezervacije" reasonLabel="Razlog" reasonRequired danger loading={bulk.isPending}
+      onClose={() => setCancelOpen(false)} onConfirm={(reason) => {
+        if (!reason) return
+        bulk.mutate({ status: 'CANCELLED', reason }, { onSuccess: () => setCancelOpen(false) })
+      }} />
   </main>
 }

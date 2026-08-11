@@ -37,23 +37,23 @@ class SavedViewIntegrationTest {
         MvcResult created = mockMvc.perform(post("/api/v1/saved-views")
                         .header("Authorization", bearer(first)).contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"resourceType":"ORDERS","name":"Hitno",
+                                {"resourceType":"CUSTOMERS","name":"Hitno",
                                  "query":{"status":"CREATED","page":"2"}}
                                 """))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.version").value(0)).andReturn();
         var node = new tools.jackson.databind.ObjectMapper().readTree(created.getResponse().getContentAsByteArray());
         String id = node.get("id").asText();
 
-        mockMvc.perform(get("/api/v1/saved-views?resourceType=ORDERS").header("Authorization", bearer(second)))
+        mockMvc.perform(get("/api/v1/saved-views?resourceType=CUSTOMERS").header("Authorization", bearer(second)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$").isEmpty());
         mockMvc.perform(patch("/api/v1/saved-views/{id}", id).header("Authorization", bearer(second))
                         .contentType(MediaType.APPLICATION_JSON).content("""
-                                {"resourceType":"ORDERS","name":"Tuđ","query":{},"version":0}
+                                {"resourceType":"CUSTOMERS","name":"Tuđ","query":{},"version":0}
                                 """))
                 .andExpect(status().isNotFound());
         mockMvc.perform(patch("/api/v1/saved-views/{id}", id).header("Authorization", bearer(first))
                         .contentType(MediaType.APPLICATION_JSON).content("""
-                                {"resourceType":"ORDERS","name":"Novo","query":{"status":"READY"},"version":0}
+                                {"resourceType":"CUSTOMERS","name":"Novo","query":{"active":"true"},"version":0}
                                 """))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.version").value(1));
         mockMvc.perform(delete("/api/v1/saved-views/{id}?version=0", id).header("Authorization", bearer(first)))

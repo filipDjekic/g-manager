@@ -1,12 +1,16 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { apiErrorMessage } from '../api/client'
 import { workingHoursApi } from '../api/workingHoursApi'
+import { timeOffApi } from '../api/timeOffApi'
+import { userApi } from '../api/userApi'
 import { workingHoursExceptionSchema } from '../workingHours/workingHoursSchema'
 import type {
   WorkingHours,
   WorkingHoursException,
   WorkingHoursExceptionInput,
 } from '../types/workingHours.types'
+import type { TimeOff, TimeOffStatus } from '../types/timeOff.types'
+import type { UserResponse } from '../types/user.types'
 
 const dayNames: Record<string, string> = {
   MONDAY: 'Ponedeljak',
@@ -29,6 +33,9 @@ export function SettingsPage() {
     new Date(Date.now() + 86400000).toISOString().slice(0, 10))
   const [hours, setHours] = useState<WorkingHours[]>([])
   const [exceptions, setExceptions] = useState<WorkingHoursException[]>([])
+  const [employees, setEmployees] = useState<UserResponse[]>([])
+  const [timeOff, setTimeOff] = useState<TimeOff[]>([])
+  const [timeOffForm, setTimeOffForm] = useState({ employeeId: '', startsAt: '', endsAt: '', reason: '' })
   const [exceptionForm, setExceptionForm] =
     useState<WorkingHoursExceptionInput>(emptyException)
   const [editingException, setEditingException] =
@@ -37,10 +44,15 @@ export function SettingsPage() {
   const [message, setMessage] = useState('')
 
   useEffect(() => {
-    void Promise.all([workingHoursApi.list(), workingHoursApi.listExceptions()])
-      .then(([weeklyHours, futureExceptions]) => {
+    void Promise.all([
+      workingHoursApi.list(), workingHoursApi.listExceptions(), userApi.employees(), timeOffApi.list(),
+    ])
+      .then(([weeklyHours, futureExceptions, employeeList, timeOffList]) => {
         setHours(weeklyHours)
         setExceptions(futureExceptions)
+        setEmployees(employeeList)
+        setTimeOff(timeOffList)
+        setTimeOffForm((current) => ({ ...current, employeeId: current.employeeId || employeeList[0]?.id || '' }))
       })
       .catch((cause) =>
         setError(apiErrorMessage(cause, 'Podešavanja nije moguće učitati.')))
@@ -129,6 +141,37 @@ export function SettingsPage() {
     }
   }
 
+  async function createTimeOff(event: FormEvent) {
+    event.preventDefault()
+    if (new Date(timeOffForm.endsAt) <= new Date(timeOffForm.startsAt)) {
+      setError('Kraj odsustva mora biti posle početka.')
+      return
+    }
+    try {
+      await timeOffApi.create({
+        ...timeOffForm,
+        startsAt: new Date(timeOffForm.startsAt).toISOString(),
+        endsAt: new Date(timeOffForm.endsAt).toISOString(),
+      })
+      setTimeOff(await timeOffApi.list())
+      setTimeOffForm((current) => ({ employeeId: current.employeeId, startsAt: '', endsAt: '', reason: '' }))
+      setError('')
+      setMessage('Zahtev za odsustvo je sačuvan.')
+    } catch (cause) {
+      setError(apiErrorMessage(cause, 'Odsustvo nije moguće sačuvati.'))
+    }
+  }
+
+  async function decideTimeOff(item: TimeOff, status: TimeOffStatus) {
+    try {
+      await timeOffApi.decide(item, status)
+      setTimeOff(await timeOffApi.list())
+      setError('')
+    } catch (cause) {
+      setError(apiErrorMessage(cause, 'Status odsustva nije moguće promeniti.'))
+    }
+  }
+
   return (
     <main className="workspace">
       <div className="page-heading">
@@ -186,6 +229,37 @@ export function SettingsPage() {
                 : `${exception.overrideOpenTime?.slice(0, 5)}–${exception.overrideCloseTime?.slice(0, 5)}`}</small></div>
             <div className="form-actions"><button type="button" onClick={() => startExceptionEdit(exception)}>Izmeni</button>
               <button className="danger-button" type="button" onClick={() => void removeException(exception)}>Obriši</button></div>
+          </article>)}
+        </section>
+      </div>
+      <div className="panel-grid settings-grid">
+        <form className="panel" onSubmit={createTimeOff}>
+          <h2>Novo odsustvo zaposlenog</h2>
+          <label>Zaposleni<select required value={timeOffForm.employeeId}
+            onChange={(event) => setTimeOffForm({ ...timeOffForm, employeeId: event.target.value })}>
+            <option value="" disabled>Izaberite zaposlenog</option>
+            {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}
+          </select></label>
+          <label>Početak<input type="datetime-local" required value={timeOffForm.startsAt}
+            onChange={(event) => setTimeOffForm({ ...timeOffForm, startsAt: event.target.value })} /></label>
+          <label>Kraj<input type="datetime-local" required value={timeOffForm.endsAt}
+            onChange={(event) => setTimeOffForm({ ...timeOffForm, endsAt: event.target.value })} /></label>
+          <label>Razlog<input maxLength={500} required value={timeOffForm.reason}
+            onChange={(event) => setTimeOffForm({ ...timeOffForm, reason: event.target.value })} /></label>
+          <button type="submit">Sačuvaj zahtev</button>
+        </form>
+        <section className="panel">
+          <h2>Odsustva zaposlenih</h2>
+          {!timeOff.length && <p className="empty-state compact">Nema zahteva za odsustvo.</p>}
+          {timeOff.map((item) => <article className="exception-row" key={item.id}>
+            <div><strong>{employees.find((employee) => employee.id === item.employeeId)?.name ?? item.employeeId}</strong>
+              <p>{item.reason}</p><small>{new Date(item.startsAt).toLocaleString()} – {new Date(item.endsAt).toLocaleString()} · {item.status}</small></div>
+            <div className="form-actions">
+              {item.status === 'PENDING' && <><button type="button" onClick={() => void decideTimeOff(item, 'APPROVED')}>Odobri</button>
+                <button className="secondary-button" type="button" onClick={() => void decideTimeOff(item, 'REJECTED')}>Odbij</button></>}
+              {(item.status === 'PENDING' || item.status === 'APPROVED') &&
+                <button className="danger-button" type="button" onClick={() => void decideTimeOff(item, 'CANCELLED')}>Otkaži</button>}
+            </div>
           </article>)}
         </section>
       </div>

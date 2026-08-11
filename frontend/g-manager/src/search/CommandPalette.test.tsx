@@ -7,7 +7,7 @@ import { CommandPalette } from './CommandPalette'
 
 vi.mock('./useGlobalSearch', () => ({
   useGlobalSearch: () => ({
-    results: [{ type: 'ORDER', id: '123', title: 'Narudžbina 123', subtitle: 'CREATED', url: '/my-orders?focus=123', favorite: false }],
+    results: [{ type: 'ORDER', id: '123', title: 'Narudžbina 123', subtitle: 'CREATED', url: '/my-orders?focus=123', action: { kind: 'NAVIGATE', label: 'Otvori narudžbinu', url: '/my-orders?focus=123' }, favorite: false }],
     favorites: [], recents: [], loading: false, error: '',
   }),
 }))

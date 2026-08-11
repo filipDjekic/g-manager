@@ -9,6 +9,7 @@ import { reservationApi } from '../api/reservationApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
 import { Button, EmptyState, TableShell } from '../components/ui'
+import { ActionDialog } from '../components/ui/ActionDialog'
 import { currentBusinessMonth } from '../dashboard/dateRange'
 import type { DashboardAttention, DashboardToday, DashboardTrends, DashboardWidgetPreference, DashboardWorkload } from '../types/dashboard.types'
 import type { ReservationStatus } from '../types/reservation.types'
@@ -42,6 +43,9 @@ export function DashboardPage() {
   const [attention, setAttention] = useState<DashboardAttention | null>(null)
   const [preferences, setPreferences] = useState(defaults)
   const [loading, setLoading] = useState(true); const [error, setError] = useState('')
+  const [reservationAction, setReservationAction] = useState<{
+    id: string; version: number; status: ReservationStatus
+  } | null>(null)
 
   useEffect(() => {
     const request = management
@@ -82,8 +86,8 @@ export function DashboardPage() {
     catch (cause) { setError(apiErrorMessage(cause, 'Radni dan nije moguće osvežiti.')) }
   }
 
-  async function changeAppointment(id: string, version: number, status: ReservationStatus) {
-    try { await reservationApi.changeStatus({ id, version }, status); await refreshToday() }
+  async function changeAppointment(id: string, version: number, status: ReservationStatus, reason?: string) {
+    try { await reservationApi.changeStatus({ id, version }, status, reason); setReservationAction(null); await refreshToday() }
     catch (cause) { setError(apiErrorMessage(cause, 'Termin nije moguće ažurirati.')) }
   }
 
@@ -108,7 +112,9 @@ export function DashboardPage() {
             <div><strong>{item.serviceName}</strong><p>{item.customerName}</p><small>{item.status}</small></div>
             <div className="card-actions">{item.allowedActions.map((action) => <Button key={action}
               variant={action === 'CANCELLED' || action === 'REJECTED' ? 'danger' : 'primary'}
-              onClick={() => void changeAppointment(item.id, item.version, action)}>{actionLabel[action] ?? action}</Button>)}</div>
+              onClick={() => action === 'CANCELLED' || action === 'REJECTED'
+                ? setReservationAction({ id: item.id, version: item.version, status: action })
+                : void changeAppointment(item.id, item.version, action)}>{actionLabel[action] ?? action}</Button>)}</div>
           </article>)}</div>}
       </section>
       <section className="today-section"><h2>Slobodni intervali</h2>
@@ -127,7 +133,15 @@ export function DashboardPage() {
       <section className="today-section"><h2>Zahteva pažnju</h2>
         {!today?.attentionNotifications.length ? <p className="empty-state">Nema novih obaveštenja za danas.</p>
           : <ul className="attention-list">{today.attentionNotifications.map((item) => <li key={item.id}><strong>{item.title}</strong><span>{item.body}</span></li>)}</ul>}
-      </section></main>
+      </section>
+      <ActionDialog open={Boolean(reservationAction)}
+        title={`${reservationAction ? actionLabel[reservationAction.status] : ''} termin`}
+        description="Promena će odmah biti sačuvana i evidentirana."
+        confirmLabel={reservationAction ? actionLabel[reservationAction.status] ?? 'Potvrdi' : 'Potvrdi'}
+        reasonLabel="Razlog" reasonRequired danger onClose={() => setReservationAction(null)}
+        onConfirm={(reason) => reservationAction && reason && void changeAppointment(
+          reservationAction.id, reservationAction.version, reservationAction.status, reason)} />
+    </main>
   }
 
   const statuses = Object.entries(trends?.reservationsByStatus ?? {}) as [ReservationStatus, number][]

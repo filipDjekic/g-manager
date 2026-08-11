@@ -14,8 +14,8 @@ vi.mock('../api/notificationApi', () => ({
 describe('NotificationCenter', () => {
   beforeEach(() => {
     vi.mocked(notificationApi.list).mockResolvedValue({ unreadCount: 1, notifications: [{ id: 'n1', type: 'ORDER_STATUS_CHANGED',
-      priority: 'NORMAL', title: 'Promenjen status', body: 'Narudžbina je završena.', read: false, createdAt: '2026-08-10T10:00:00Z' }] })
-    vi.mocked(notificationApi.read).mockResolvedValue({ id: 'n1', type: 'ORDER_STATUS_CHANGED', priority: 'NORMAL', title: '', body: '', read: true, createdAt: '' })
+      priority: 'NORMAL', title: 'Promenjen status', body: 'Narudžbina je završena.', read: false, createdAt: '2026-08-10T10:00:00Z', action: { kind: 'NAVIGATE', label: 'Otvori narudžbinu', url: '/my-orders?focus=1' } }] })
+    vi.mocked(notificationApi.read).mockResolvedValue({ id: 'n1', type: 'ORDER_STATUS_CHANGED', priority: 'NORMAL', title: '', body: '', read: true, createdAt: '', action: null })
   })
   it('shows unread state, supports keyboard reading and has no serious accessibility violations', async () => {
     const user = userEvent.setup(); const { container } = render(<MemoryRouter><NotificationCenter /></MemoryRouter>)
@@ -30,5 +30,14 @@ describe('NotificationCenter', () => {
     await user.click(screen.getByRole('button', { name: 'Označi pročitano' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Status čitanja nije sačuvan.')
     expect(screen.getByRole('button', { name: 'Obaveštenja, 1 nepročitanih' })).toBeVisible()
+  })
+  it('keeps the center usable when an action target became stale', async () => {
+    vi.mocked(notificationApi.open).mockRejectedValueOnce(new Error('stale target'))
+    const user = userEvent.setup()
+    render(<MemoryRouter><NotificationCenter /></MemoryRouter>)
+    await user.click(await screen.findByRole('button', { name: 'Obaveštenja, 1 nepročitanih' }))
+    await user.click(screen.getByRole('button', { name: /Otvori narudžbinu/ }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Povezani resurs više nije dostupan.')
+    expect(screen.getByRole('dialog')).toBeVisible()
   })
 })

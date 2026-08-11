@@ -7,6 +7,7 @@ import com.game_manager.gm.common.search.SearchResourceType;
 import com.game_manager.gm.common.search.SearchSource;
 import com.game_manager.gm.common.security.AuthenticatedUser;
 import com.game_manager.gm.common.security.CurrentUserProvider;
+import com.game_manager.gm.common.web.NavigationActionResponse;
 import com.game_manager.gm.search.dto.SearchPreferenceRequest;
 import com.game_manager.gm.search.dto.SearchResponse;
 import com.game_manager.gm.search.dto.SearchResultResponse;
@@ -122,6 +123,7 @@ public class SearchService {
     }
     private String key(SearchEntry entry) { return entry.type() + ":" + entry.id(); }
     private SearchResultResponse response(SearchEntry entry, boolean favorite) {
-        return new SearchResultResponse(entry.type(), entry.id(), entry.title(), entry.subtitle(), entry.url(), favorite);
+        return new SearchResultResponse(entry.type(), entry.id(), entry.title(), entry.subtitle(), entry.url(),
+                NavigationActionResponse.forResource(entry.type(), entry.url()), favorite);
     }
 }

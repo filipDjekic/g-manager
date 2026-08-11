@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { apiErrorMessage } from '../api/client'
+import { isConflictResponse } from '../api/idempotency'
 import { reservationApi } from '../api/reservationApi'
 import { ActionDialog } from '../components/ui/ActionDialog'
 import { Button, Drawer, ErrorState, Skeleton } from '../components/ui'
@@ -40,6 +41,9 @@ export function ReservationDetailsDrawer({ reservationId, onClose, onChanged }: 
         Promise.resolve(onChanged?.()),
       ])
     },
+    onError: async (error) => {
+      if (isConflictResponse(error)) await detail.refetch()
+    },
   })
   const value = detail.data
   const title = value ? `${value.serviceName} · ${formatBusinessDateTime(value.startTime)}` : 'Detalji rezervacije'
@@ -63,8 +67,9 @@ export function ReservationDetailsDrawer({ reservationId, onClose, onChanged }: 
           <div><dt>Izmenjeno</dt><dd>{formatBusinessDateTime(value.updatedAt)}</dd></div>
         </dl>
         {value.history.length > 0 && <section><h3>Istorija</h3><ol className="reservation-history">
-          {value.history.map((item) => <li key={`${item.action}-${item.occurredAt}`}>
-            Status promenjen · {formatBusinessDateTime(item.occurredAt)}</li>)}
+          {value.history.map((item) => <li key={`${item.fromStatus}-${item.toStatus}-${item.occurredAt}`}>
+            {labels[item.fromStatus]} → {labels[item.toStatus]} · {formatBusinessDateTime(item.occurredAt)}
+            {item.reason && <span> · Razlog: {item.reason}</span>}</li>)}
         </ol></section>}
         {value.allowedActions.length > 0 && <div className="card-actions">
           {value.allowedActions.map((next) => <Button type="button" key={next}
@@ -76,7 +81,8 @@ export function ReservationDetailsDrawer({ reservationId, onClose, onChanged }: 
     <ActionDialog open={Boolean(action)} title={`${action ? actionLabels[action] : ''} rezervaciju`}
       description="Promena će odmah biti sačuvana i evidentirana."
       confirmLabel={action ? actionLabels[action] ?? 'Potvrdi' : 'Potvrdi'}
-      reasonLabel={action === 'REJECTED' || action === 'CANCELLED' ? 'Razlog ili napomena (opciono)' : undefined}
+      reasonLabel={action === 'REJECTED' || action === 'CANCELLED' ? 'Razlog' : undefined}
+      reasonRequired={action === 'REJECTED' || action === 'CANCELLED'}
       danger={action === 'REJECTED' || action === 'CANCELLED'} loading={transition.isPending}
       onClose={() => setAction(null)} onConfirm={(note) => action && transition.mutate({ next: action, note })} />
     {transition.error && <p className="error-banner" role="alert">

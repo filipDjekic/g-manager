@@ -34,7 +34,7 @@ describe('useGlobalSearch', () => {
 
   it('loads isolated favorites and recents when the palette opens without a query', async () => {
     vi.mocked(searchApi.preferences)
-      .mockResolvedValueOnce([{ type: 'CATALOG', id: '1', title: 'Omiljeno', subtitle: '', url: '/catalog', favorite: true }])
+      .mockResolvedValueOnce([{ type: 'CATALOG', id: '1', title: 'Omiljeno', subtitle: '', url: '/catalog', action: { kind: 'NAVIGATE', label: 'Otvori stavku kataloga', url: '/catalog' }, favorite: true }])
       .mockResolvedValueOnce([])
     const { result } = renderHook(() => useGlobalSearch(true, ''))
 
