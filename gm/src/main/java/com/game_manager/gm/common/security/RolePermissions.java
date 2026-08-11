@@ -37,6 +37,7 @@ public final class RolePermissions {
         permissions.put(Role.ADMIN, immutableWithProfile(
                 Permission.USER_LIST, Permission.USER_CREATE, Permission.USER_DEACTIVATE,
                 Permission.USER_DELETE, Permission.USER_RESTORE, Permission.CUSTOMER_READ,
+                Permission.CUSTOMER_CRM_MANAGE,
                 Permission.CATALOG_MANAGE, Permission.CATALOG_DELETE, Permission.CATALOG_RESTORE,
                 Permission.AUDIT_READ, Permission.WORKING_HOURS_MANAGE,
                 Permission.RESERVATION_READ_ALL, Permission.RESERVATION_CHANGE_STATUS,
@@ -48,6 +49,7 @@ public final class RolePermissions {
         permissions.put(Role.OWNER, immutableWithProfile(
                 Permission.USER_LIST, Permission.USER_CREATE, Permission.USER_DEACTIVATE,
                 Permission.USER_DELETE, Permission.USER_RESTORE, Permission.CUSTOMER_READ,
+                Permission.CUSTOMER_CRM_MANAGE,
                 Permission.CATALOG_MANAGE, Permission.CATALOG_DELETE, Permission.CATALOG_RESTORE,
                 Permission.AUDIT_READ, Permission.WORKING_HOURS_MANAGE,
                 Permission.RESERVATION_READ_ALL, Permission.RESERVATION_CHANGE_STATUS,

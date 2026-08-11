@@ -30,12 +30,25 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class ReservationController {
     private final ReservationService reservationService;
+    private final RecurrenceService recurrenceService;
     private final BulkOperationExecutor bulkOperationExecutor;
 
     @PostMapping
     public ResponseEntity<ReservationResponse> create(
             @Valid @RequestBody CreateReservationRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(reservationService.create(request));
+    }
+
+    @PostMapping("/recurrence/preview")
+    public com.game_manager.gm.reservation.dto.RecurrencePreviewResponse previewRecurrence(
+            @Valid @RequestBody com.game_manager.gm.reservation.dto.RecurrenceRequest request) {
+        return recurrenceService.preview(request);
+    }
+
+    @PostMapping("/recurrence")
+    public ResponseEntity<com.game_manager.gm.reservation.dto.RecurrenceCreateResponse> createRecurrence(
+            @Valid @RequestBody com.game_manager.gm.reservation.dto.RecurrenceRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(recurrenceService.create(request));
     }
 
     @GetMapping("/me")

@@ -9,8 +9,10 @@ public final class DatabaseCleaner {
             "background_job_attempts", "background_jobs",
             "idempotency_keys", "audit_events", "notification_delivery_attempts",
             "notifications", "notification_preferences", "order_items", "orders",
+            "customer_crm_profile_tags", "customer_crm_notes", "customer_crm_profiles", "customer_crm_tags",
             "waitlist_offers", "waitlist_entries", "employee_time_off",
-            "reservations", "refresh_tokens", "security_events", "users");
+            "reservations", "reservation_recurrence_series",
+            "refresh_tokens", "security_events", "users");
 
     private DatabaseCleaner() {
     }

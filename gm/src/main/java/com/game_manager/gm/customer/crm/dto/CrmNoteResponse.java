@@ -1,0 +1,2 @@
+package com.game_manager.gm.customer.crm.dto;import com.game_manager.gm.customer.crm.CustomerCrmNote;import java.time.Instant;import java.util.UUID;
+public record CrmNoteResponse(UUID id,String body,UUID createdBy,Instant createdAt,Instant updatedAt,Instant expiresAt,Long version){public static CrmNoteResponse from(CustomerCrmNote n){return new CrmNoteResponse(n.getId(),n.getBody(),n.getCreatedBy(),n.getCreatedAt(),n.getUpdatedAt(),n.getExpiresAt(),n.getVersion());}}

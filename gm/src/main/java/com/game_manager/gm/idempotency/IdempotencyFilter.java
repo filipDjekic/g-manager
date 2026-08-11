@@ -36,7 +36,8 @@ public class IdempotencyFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         return !"POST".equals(request.getMethod())
                 || !("/api/v1/reservations".equals(request.getRequestURI())
-                || "/api/v1/orders".equals(request.getRequestURI()));
+                || "/api/v1/orders".equals(request.getRequestURI())
+                || "/api/v1/reservations/recurrence".equals(request.getRequestURI()));
     }
 
     @Override

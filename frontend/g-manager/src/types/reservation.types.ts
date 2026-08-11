@@ -6,6 +6,7 @@ export interface Reservation {
   customerId: string
   employeeId: string
   serviceId: string
+  recurrenceSeriesId?: string | null
   startTime: string
   endTime: string
   status: ReservationStatus
@@ -46,6 +47,19 @@ export interface CreateReservationInput {
   startTime: string
   note?: string
 }
+
+export type RecurrenceFrequency = 'WEEKLY' | 'MONTHLY'
+export type RecurrenceConflictPolicy = 'ALL_OR_NOTHING' | 'SKIP_CONFLICTS'
+export interface RecurrenceInput extends CreateReservationInput {
+  employeeId: string
+  frequency: RecurrenceFrequency
+  interval: number
+  occurrences: number
+  conflictPolicy: RecurrenceConflictPolicy
+}
+export interface RecurrenceOccurrence { startTime: string; endTime: string; available: boolean; reason: string | null }
+export interface RecurrencePreview { timezone: string; occurrences: RecurrenceOccurrence[] }
+export interface RecurrenceCreateResult { seriesId: string; created: Reservation[]; skipped: RecurrenceOccurrence[] }
 
 export interface CalendarReservation {
   id: string

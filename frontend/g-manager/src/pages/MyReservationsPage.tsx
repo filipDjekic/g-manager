@@ -14,6 +14,7 @@ import { ReservationDetailsDrawer } from '../reservations/ReservationDetailsDraw
 import type { CatalogItem } from '../types/catalog.types'
 import type { PageResponse } from '../types/api.types'
 import type { Reservation, ReservationStatus } from '../types/reservation.types'
+import type { RecurrenceConflictPolicy, RecurrenceFrequency, RecurrencePreview } from '../types/reservation.types'
 import type { UserResponse } from '../types/user.types'
 import type { WaitlistEntry } from '../types/waitlist.types'
 
@@ -34,6 +35,12 @@ export function MyReservationsPage() {
   const [date, setDate] = useState('')
   const [selectedStart, setSelectedStart] = useState('')
   const [note, setNote] = useState('')
+  const [recurring, setRecurring] = useState(false)
+  const [frequency, setFrequency] = useState<RecurrenceFrequency>('WEEKLY')
+  const [recurrenceInterval, setRecurrenceInterval] = useState(1)
+  const [occurrences, setOccurrences] = useState(4)
+  const [conflictPolicy, setConflictPolicy] = useState<RecurrenceConflictPolicy>('ALL_OR_NOTHING')
+  const [recurrencePreview, setRecurrencePreview] = useState<RecurrencePreview | null>(null)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -94,19 +101,31 @@ export function MyReservationsPage() {
     setSubmitting(true)
     setError('')
     try {
-      await reservationApi.create({
+      const baseInput = {
         serviceId,
         employeeId: employeeChoice === 'ANY' ? undefined : employeeChoice,
         startTime: selectedStart,
         note: note || undefined,
-      }, createAttempt.current.begin())
+      }
+      if (recurring) {
+        if (employeeChoice === 'ANY' || employeeChoice === 'UNSELECTED') return
+        const created = await reservationApi.createRecurrence({
+          ...baseInput, employeeId: employeeChoice, frequency, interval: recurrenceInterval,
+          occurrences, conflictPolicy,
+        }, createAttempt.current.begin())
+        setMessage(`Kreirano rezervacija: ${created.created.length}; preskočeno: ${created.skipped.length}.`)
+      } else {
+        await reservationApi.create(baseInput, createAttempt.current.begin())
+        setMessage('Termin je rezervisan i čeka potvrdu.')
+      }
       createAttempt.current.succeeded()
       setServiceId('')
       setEmployeeChoice('UNSELECTED')
       setDate('')
       setSelectedStart('')
       setNote('')
-      setMessage('Termin je rezervisan i čeka potvrdu.')
+      setRecurring(false)
+      setRecurrencePreview(null)
       await loadMine()
     } catch (cause) {
       createAttempt.current.failed(cause)
@@ -120,6 +139,19 @@ export function MyReservationsPage() {
     } finally {
       submitInFlight.current = false
       setSubmitting(false)
+    }
+  }
+
+  async function previewRecurrence() {
+    if (!selectedStart || employeeChoice === 'ANY' || employeeChoice === 'UNSELECTED') return
+    try {
+      setRecurrencePreview(await reservationApi.previewRecurrence({
+        serviceId, employeeId: employeeChoice, startTime: selectedStart, note: note || undefined,
+        frequency, interval: recurrenceInterval, occurrences, conflictPolicy,
+      }))
+      setError('')
+    } catch (cause) {
+      setError(apiErrorMessage(cause, 'Ponavljanje nije moguće pregledati.'))
     }
   }
 
@@ -200,11 +232,29 @@ export function MyReservationsPage() {
       {selectedStart && <div className="booking-step"><span>5</span><label>Napomena (opciono)<textarea maxLength={500}
         value={note} onChange={(event) => setNote(event.target.value)} /></label></div>}
 
-      {selectedStart && <div className="booking-step booking-review"><span>6</span><section aria-labelledby="booking-review-title">
+      {selectedStart && employeeChoice !== 'ANY' && <div className="booking-step"><span>6</span><fieldset>
+        <legend>Ponavljanje</legend><label className="inline-toggle"><input type="checkbox" checked={recurring}
+          onChange={(event) => { setRecurring(event.target.checked); setRecurrencePreview(null) }} /> Ponavljajući termini</label>
+        {recurring && <><label>Učestalost<select value={frequency} onChange={(event) => { setFrequency(event.target.value as RecurrenceFrequency); setRecurrencePreview(null) }}>
+          <option value="WEEKLY">Nedeljno</option><option value="MONTHLY">Mesečno</option></select></label>
+          <label>Interval<input type="number" min="1" max="4" value={recurrenceInterval}
+            onChange={(event) => { setRecurrenceInterval(Number(event.target.value)); setRecurrencePreview(null) }} /></label>
+          <label>Broj termina<input type="number" min="2" max="20" value={occurrences}
+            onChange={(event) => { setOccurrences(Number(event.target.value)); setRecurrencePreview(null) }} /></label>
+          <label>Konflikti<select value={conflictPolicy} onChange={(event) => { setConflictPolicy(event.target.value as RecurrenceConflictPolicy); setRecurrencePreview(null) }}>
+            <option value="ALL_OR_NOTHING">Ne kreiraj seriju ako postoji konflikt</option>
+            <option value="SKIP_CONFLICTS">Preskoči konfliktne termine</option></select></label>
+          <Button type="button" variant="secondary" onClick={() => void previewRecurrence()}>Pregledaj ponavljanje</Button>
+          {recurrencePreview && <ul>{recurrencePreview.occurrences.map((item) => <li key={item.startTime}>
+            {formatBusinessDateTime(item.startTime)} — {item.available ? 'Dostupno' : `Konflikt: ${item.reason}`}</li>)}</ul>}</>}
+      </fieldset></div>}
+
+      {selectedStart && <div className="booking-step booking-review"><span>{recurring ? '7' : '6'}</span><section aria-labelledby="booking-review-title">
         <h2 id="booking-review-title">Proverite termin</h2>
         <dl><div><dt>Usluga</dt><dd>{service?.name}</dd></div><div><dt>Zaposleni</dt><dd>{employeeLabel}</dd></div>
           <div><dt>Termin</dt><dd>{formatBusinessDateTime(selectedStart)}</dd></div></dl>
-        <Button type="submit" loading={submitting}>Potvrdi termin</Button>
+        <Button type="submit" loading={submitting} disabled={recurring && !recurrencePreview}>
+          {recurring ? 'Kreiraj seriju' : 'Potvrdi termin'}</Button>
       </section></div>}
     </form>
 
