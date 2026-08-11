@@ -3,6 +3,7 @@ import type { PageResponse } from '../types/api.types'
 import type {
   CreateReservationInput,
   Reservation,
+  ReservationDetail,
   ReservationStatus,
 } from '../types/reservation.types'
 import type { BulkItem, BulkOperationResponse } from '../types/bulk.types'
@@ -29,8 +30,10 @@ export const reservationApi = {
   list: (params: ReservationFilters) =>
     apiClient.get<PageResponse<Reservation>>('/reservations', { params })
       .then(({ data }) => data),
+  detail: (id: string) =>
+    apiClient.get<ReservationDetail>(`/reservations/${id}`).then(({ data }) => data),
   changeStatus: (
-    reservation: Reservation,
+    reservation: Pick<Reservation, 'id' | 'version'>,
     status: ReservationStatus,
     note?: string,
   ) => apiClient.patch<Reservation>(`/reservations/${reservation.id}/status`, {

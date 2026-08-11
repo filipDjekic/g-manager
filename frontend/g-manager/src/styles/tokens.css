@@ -8,8 +8,11 @@
   --color-primary: #6ee7b7; --color-primary-strong: #34d399; --color-on-primary: #052e23;
   --color-danger: #fda4af; --color-danger-bg: rgb(190 18 60 / 24%);
   --color-success: #a7f3d0; --color-success-bg: rgb(5 150 105 / 20%);
+  --color-warning: #fde68a; --color-warning-bg: rgb(180 83 9 / 22%);
+  --color-info: #bae6fd; --color-info-bg: rgb(3 105 161 / 22%);
   --focus-ring: 0 0 0 3px rgb(52 211 153 / 45%);
-  --control-height: 2.75rem; --content-width: 70rem;
+  --control-height: 2.75rem; --content-width: 70rem; --sidebar-width: 16.5rem;
+  --shadow-raised: 0 12px 32px rgb(0 0 0 / 18%);
   color-scheme: dark;
 }
 
@@ -19,6 +22,8 @@
   --color-primary: #047857; --color-primary-strong: #065f46; --color-on-primary: #fff;
   --color-danger: #9f1239; --color-danger-bg: #ffe4e6;
   --color-success: #065f46; --color-success-bg: #d1fae5;
+  --color-warning: #92400e; --color-warning-bg: #fef3c7;
+  --color-info: #075985; --color-info-bg: #e0f2fe;
   color-scheme: light;
 }
 

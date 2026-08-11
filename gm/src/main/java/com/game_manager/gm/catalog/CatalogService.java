@@ -226,6 +226,12 @@ public class CatalogService {
         return item;
     }
 
+    @Transactional(readOnly = true)
+    public CatalogReference getReference(UUID id) {
+        CatalogItem item = requireItem(id);
+        return new CatalogReference(item.getId(), item.getName(), item.getDurationMinutes());
+    }
+
     private CatalogItem requireItem(UUID id) {
         return catalogRepository.findById(id)
                 .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND, "Catalog item not found"));

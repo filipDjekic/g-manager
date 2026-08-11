@@ -16,21 +16,29 @@ public class ReservationAuthorizationPolicy {
 
     public void requireTransition(
             AuthenticatedUser actor, Reservation reservation, ReservationStatus target) {
-        boolean management = actor.role() == Role.ADMIN || actor.role() == Role.OWNER;
-        boolean employeeOwner = actor.role() == Role.EMPLOYEE
-                && actor.id().equals(reservation.getEmployeeId());
-        boolean customerOwner = actor.role() == Role.CUSTOMER
-                && actor.id().equals(reservation.getCustomerId());
-        boolean permitted = switch (target) {
-            case CONFIRMED, REJECTED, COMPLETED -> management || employeeOwner;
-            case CANCELLED -> management || customerOwner;
-            case PENDING -> false;
-        };
-        if (!permitted) {
+        if (!canTransition(actor, reservation, target)) {
+            boolean employeeOwner = actor.role() == Role.EMPLOYEE
+                    && actor.id().equals(reservation.getEmployeeId());
+            boolean customerOwner = actor.role() == Role.CUSTOMER
+                    && actor.id().equals(reservation.getCustomerId());
             denialLogger.denied(Permission.RESERVATION_CHANGE_STATUS, actor, "reservation",
                     customerOwner ? "customer-owner" : employeeOwner ? "assigned-employee" : "unrelated");
             throw new ApplicationException(HttpStatus.FORBIDDEN,
                     "This reservation action is not permitted");
         }
+    }
+
+    public boolean canTransition(
+            AuthenticatedUser actor, Reservation reservation, ReservationStatus target) {
+        boolean management = actor.role() == Role.ADMIN || actor.role() == Role.OWNER;
+        boolean employeeOwner = actor.role() == Role.EMPLOYEE
+                && actor.id().equals(reservation.getEmployeeId());
+        boolean customerOwner = actor.role() == Role.CUSTOMER
+                && actor.id().equals(reservation.getCustomerId());
+        return switch (target) {
+            case CONFIRMED, REJECTED, COMPLETED -> management || employeeOwner;
+            case CANCELLED -> management || customerOwner;
+            case PENDING -> false;
+        };
     }
 }

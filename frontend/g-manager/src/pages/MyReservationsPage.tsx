@@ -11,8 +11,11 @@ import type { Reservation, ReservationStatus } from '../types/reservation.types'
 import type { UserResponse } from '../types/user.types'
 import type { WorkingHours } from '../types/workingHours.types'
 import { IdempotencyKeyManager, isConflictResponse } from '../api/idempotency'
+import { useSearchParams } from 'react-router-dom'
+import { ReservationDetailsDrawer } from '../reservations/ReservationDetailsDrawer'
 
 export function MyReservationsPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [result, setResult] = useState<PageResponse<Reservation> | null>(null)
   const [services, setServices] = useState<CatalogItem[]>([])
   const [employees, setEmployees] = useState<UserResponse[]>([])
@@ -77,17 +80,6 @@ export function MyReservationsPage() {
     }
   }
 
-  async function cancel(reservation: Reservation) {
-    if (reservation.status === 'CONFIRMED'
-        && !window.confirm('Za potvrđene termine važi cutoff za otkazivanje. Nastaviti?')) return
-    try {
-      await reservationApi.changeStatus(reservation, 'CANCELLED')
-      await loadMine()
-    } catch (cause) {
-      setError(apiErrorMessage(cause, 'Termin nije moguće otkazati.'))
-    }
-  }
-
   return (
     <main className="workspace">
       <div className="page-heading"><div><p className="eyebrow">Zakazivanje</p><h1>Moji termini</h1></div></div>
@@ -130,13 +122,22 @@ export function MyReservationsPage() {
           <div><strong>{formatBusinessDateTime(reservation.startTime)}</strong>
             <p>{services.find((service) => service.id === reservation.serviceId)?.name ?? 'Usluga'}</p></div>
           <span className="status-badge neutral">{reservation.status}</span>
-          {(reservation.status === 'PENDING' || reservation.status === 'CONFIRMED')
-            && <button className="danger-button" type="button" onClick={() => void cancel(reservation)}>Otkaži</button>}
+          <button type="button" onClick={() => {
+            const next = new URLSearchParams(searchParams)
+            next.set('reservationId', reservation.id)
+            setSearchParams(next)
+          }}>Detalji</button>
         </article>)}
       </section>
       <div className="pagination"><button disabled={page === 0} onClick={() => setPage(page - 1)}>Prethodna</button>
         <span>Strana {page + 1} od {Math.max(result?.totalPages ?? 1, 1)}</span>
         <button disabled={!result || page + 1 >= result.totalPages} onClick={() => setPage(page + 1)}>Sledeća</button></div>
+      <ReservationDetailsDrawer reservationId={searchParams.get('reservationId')} onChanged={loadMine}
+        onClose={() => {
+          const next = new URLSearchParams(searchParams)
+          next.delete('reservationId')
+          setSearchParams(next, { replace: true })
+        }} />
     </main>
   )
 }
