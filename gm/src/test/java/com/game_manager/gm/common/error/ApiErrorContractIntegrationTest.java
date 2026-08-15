@@ -23,19 +23,19 @@ class ApiErrorContractIntegrationTest {
 
     @Test
     void validationErrorsAreStructuredAndDoNotEchoRejectedValues() throws Exception {
-        mockMvc.perform(post("/api/v1/auth/register")
+        mockMvc.perform(post("/api/v1/auth/activate")
                         .header("X-Request-Id", "validation-contract")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"\",\"email\":\"secret-invalid-email\",\"password\":\"x\"}"))
+                        .content("{\"activationSecret\":\"\",\"password\":\"x\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(header().string("X-Request-Id", "validation-contract"))
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.message").value("Request validation failed"))
                 .andExpect(jsonPath("$.requestId").value("validation-contract"))
-                .andExpect(jsonPath("$.fieldErrors", hasSize(3)))
-                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'email')]").exists())
+                .andExpect(jsonPath("$.fieldErrors", hasSize(2)))
+                .andExpect(jsonPath("$.fieldErrors[?(@.field == 'activationSecret')]").exists())
                 .andExpect(content().string(org.hamcrest.Matchers.not(
-                        org.hamcrest.Matchers.containsString("secret-invalid-email"))));
+                        org.hamcrest.Matchers.containsString("activationSecret\":\""))));
     }
 
     @Test

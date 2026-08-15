@@ -12,6 +12,7 @@ export interface CustomerListItem {
   completedOrderCount: number
   completedOrderRevenue: number
   lastActivityAt: string | null
+  version: number
 }
 
 export interface CustomerReservationHistory {
@@ -36,6 +37,19 @@ export interface CustomerDetail {
 }
 
 export type CustomerPage = PageResponse<CustomerListItem>
+
+export interface CustomerOnboarding {
+  id: string
+  name: string
+  email: string
+  active: boolean
+  version: number
+  activationSecret: string
+  activationExpiresAt: string
+}
+
+export interface CustomerInput { name: string; email: string }
+export interface CustomerUpdateInput extends CustomerInput { version: number }
 
 export interface CustomerCrmNote {
   id: string

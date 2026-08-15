@@ -1,9 +1,8 @@
 package com.game_manager.gm.events;
 
 public enum DomainEventType {
-    USER_REGISTERED,
-    SESSION_STARTED,
-    SESSION_ENDED,
+    AUTH_SESSION_STARTED,
+    AUTH_SESSION_ENDED,
     USER_CREATED,
     USER_PROFILE_UPDATED,
     USER_PASSWORD_CHANGED,

@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://g-manager.local/contracts/gaming-machine-protocol-v1.schema.json",
+  "title": "G-Manager machine protocol envelope v1",
+  "description": "Stage 1 contract only. Runtime endpoints are introduced in later stages.",
+  "oneOf": [
+    { "$ref": "#/$defs/stationSnapshot" },
+    { "$ref": "#/$defs/stationCommand" },
+    { "$ref": "#/$defs/commandAcknowledgement" }
+  ],
+  "$defs": {
+    "uuid": { "type": "string", "format": "uuid" },
+    "instant": { "type": "string", "format": "date-time" },
+    "stationSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "stationId", "serverTime", "commandCursor"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "stationId": { "$ref": "#/$defs/uuid" },
+        "serverTime": { "$ref": "#/$defs/instant" },
+        "commandCursor": { "type": "integer", "minimum": 0 },
+        "session": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["sessionId", "customerId", "startedAt", "endsAt", "status"],
+          "properties": {
+            "sessionId": { "$ref": "#/$defs/uuid" },
+            "customerId": { "$ref": "#/$defs/uuid" },
+            "startedAt": { "$ref": "#/$defs/instant" },
+            "endsAt": { "$ref": "#/$defs/instant" },
+            "status": { "enum": ["ACTIVE", "EXPIRED", "TERMINATED"] }
+          }
+        }
+      }
+    },
+    "stationCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "stationId", "sequence", "commandId", "type", "correlationId"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "stationId": { "$ref": "#/$defs/uuid" },
+        "sequence": { "type": "integer", "minimum": 1 },
+        "commandId": { "$ref": "#/$defs/uuid" },
+        "type": { "enum": ["SESSION_STARTED", "SESSION_EXTENDED", "SESSION_TERMINATED", "CONFIG_UPDATED", "LOCK"] },
+        "correlationId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "payload": { "type": "object" }
+      }
+    },
+    "commandAcknowledgement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "stationId", "sequence", "commandId", "outcome", "enforcedAt"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "stationId": { "$ref": "#/$defs/uuid" },
+        "sequence": { "type": "integer", "minimum": 1 },
+        "commandId": { "$ref": "#/$defs/uuid" },
+        "outcome": { "enum": ["APPLIED", "ALREADY_APPLIED", "FAILED"] },
+        "enforcedAt": { "$ref": "#/$defs/instant" },
+        "failureCode": { "type": ["string", "null"], "maxLength": 80 }
+      }
+    }
+  }
+}

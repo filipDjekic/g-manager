@@ -4,6 +4,12 @@ Status dokumenta: `PLANNED`
 Datum: 2026-08-02  
 Osnova: `CURRENT_STATE_AND_GAP_ANALYSIS.md`
 
+> Product track za staff-managed customer naloge, runtime gaming sesije i
+> zaključani Windows Gaming PC Client planiran je zasebno u
+> [`GAMING_SESSION_AND_PC_CLIENT_ROADMAP.md`](GAMING_SESSION_AND_PC_CLIENT_ROADMAP.md).
+> Taj dokument koristi platformu iz Stage-ova 1–27 i ima sopstveni Stage 1–11
+> namespace; komanda za izvršenje mora eksplicitno navesti taj roadmap.
+
 Ovo je autoritativni dokument za buduću komandu „Izvrši kompletan Stage N
 prema prethodno definisanom planu“. Stage se ne sme proširivati na sledeći
 stage osim minimalnog tehničkog preduslova opisanog pravilima izvršavanja.

@@ -60,6 +60,7 @@ public class CustomerService {
                 customer.createdAt(), reservations == null ? 0 : reservations.reservationCount(),
                 reservations == null ? 0 : reservations.completedCount(), orders == null ? 0 : orders.orderCount(),
                 orders == null ? 0 : orders.completedOrderCount(),
-                orders == null ? BigDecimal.ZERO : orders.completedRevenue(), lastActivity);
+                orders == null ? BigDecimal.ZERO : orders.completedRevenue(), lastActivity,
+                customer.version());
     }
 }

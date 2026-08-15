@@ -19,7 +19,7 @@ import tools.jackson.databind.ObjectMapper;
 @ActiveProfiles("test")
 class OpenApiContractIntegrationTest {
     private static final Set<String> REQUIRED_PATHS = Set.of(
-            "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/refresh",
+            "/api/v1/auth/activate", "/api/v1/auth/login", "/api/v1/auth/refresh",
             "/api/v1/auth/logout", "/api/v1/catalog", "/api/v1/catalog/{id}",
             "/api/v1/catalog/{id}/activate", "/api/v1/catalog/{id}/deactivate",
             "/api/v1/catalog/{id}/image", "/api/v1/dashboard/summary",
@@ -42,6 +42,7 @@ class OpenApiContractIntegrationTest {
             "/api/v1/features", "/api/v1/features/bootstrap", "/api/v1/features/{flag}",
             "/api/v1/orders", "/api/v1/orders/me",
             "/api/v1/customers", "/api/v1/customers/{id}",
+            "/api/v1/customers/{id}/deactivate",
             "/api/v1/orders/{id}/status", "/api/v1/reservations",
             "/api/v1/reservations/me", "/api/v1/reservations/{id}/status",
             "/api/v1/users", "/api/v1/users/me", "/api/v1/users/me/password",
@@ -50,7 +51,7 @@ class OpenApiContractIntegrationTest {
             "/api/v1/working-hours/{dayOfWeek}", "/api/v1/working-hours/exceptions",
             "/api/v1/working-hours/exceptions/{id}");
     private static final Set<String> PUBLIC_PATHS = Set.of(
-            "/api/v1/auth/register", "/api/v1/auth/login",
+            "/api/v1/auth/activate", "/api/v1/auth/login",
             "/api/v1/auth/refresh", "/api/v1/auth/logout");
 
     @Autowired MockMvc mockMvc;

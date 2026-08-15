@@ -30,6 +30,8 @@ public final class RolePermissions {
                 Permission.RESERVATION_CHANGE_STATUS, Permission.ORDER_CREATE,
                 Permission.ORDER_READ_OWN, Permission.ORDER_CHANGE_STATUS));
         permissions.put(Role.EMPLOYEE, immutableWithProfile(
+                Permission.CUSTOMER_READ, Permission.CUSTOMER_CREATE,
+                Permission.CUSTOMER_UPDATE_LIMITED, Permission.CUSTOMER_DEACTIVATE,
                 Permission.RESERVATION_READ_ALL, Permission.RESERVATION_CHANGE_STATUS,
                 Permission.ORDER_READ_ALL, Permission.ORDER_CHANGE_STATUS,
                 Permission.DASHBOARD_OPERATIONAL, Permission.REPORT_READ,
@@ -37,6 +39,8 @@ public final class RolePermissions {
         permissions.put(Role.ADMIN, immutableWithProfile(
                 Permission.USER_LIST, Permission.USER_CREATE, Permission.USER_DEACTIVATE,
                 Permission.USER_DELETE, Permission.USER_RESTORE, Permission.CUSTOMER_READ,
+                Permission.CUSTOMER_CREATE, Permission.CUSTOMER_UPDATE_LIMITED,
+                Permission.CUSTOMER_DEACTIVATE,
                 Permission.CUSTOMER_CRM_MANAGE,
                 Permission.CATALOG_MANAGE, Permission.CATALOG_DELETE, Permission.CATALOG_RESTORE,
                 Permission.AUDIT_READ, Permission.WORKING_HOURS_MANAGE,
@@ -50,6 +54,8 @@ public final class RolePermissions {
         permissions.put(Role.OWNER, immutableWithProfile(
                 Permission.USER_LIST, Permission.USER_CREATE, Permission.USER_DEACTIVATE,
                 Permission.USER_DELETE, Permission.USER_RESTORE, Permission.CUSTOMER_READ,
+                Permission.CUSTOMER_CREATE, Permission.CUSTOMER_UPDATE_LIMITED,
+                Permission.CUSTOMER_DEACTIVATE,
                 Permission.CUSTOMER_CRM_MANAGE,
                 Permission.CATALOG_MANAGE, Permission.CATALOG_DELETE, Permission.CATALOG_RESTORE,
                 Permission.AUDIT_READ, Permission.WORKING_HOURS_MANAGE,

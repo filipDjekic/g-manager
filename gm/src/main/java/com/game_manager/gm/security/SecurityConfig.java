@@ -62,7 +62,7 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/metrics/**").hasAuthority("METRICS_READ")
                         .requestMatchers(HttpMethod.GET, "/media/**").permitAll()
                         .requestMatchers(HttpMethod.POST,
-                                "/api/v1/auth/register",
+                                "/api/v1/auth/activate",
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/refresh",
                                 "/api/v1/auth/logout").permitAll()
@@ -82,9 +82,14 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/users/*").hasAuthority("USER_DELETE")
                         .requestMatchers(HttpMethod.POST, "/api/v1/users/*/restore").hasAuthority("USER_RESTORE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/users/deleted").hasAuthority("USER_RESTORE")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/customers/**").hasAuthority("CUSTOMER_READ")
                         .requestMatchers("/api/v1/customers/*/crm/**", "/api/v1/customers/*/crm")
                             .hasAuthority("CUSTOMER_CRM_MANAGE")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/customers/**").hasAuthority("CUSTOMER_READ")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/customers").hasAuthority("CUSTOMER_CREATE")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/customers/*")
+                            .hasAuthority("CUSTOMER_UPDATE_LIMITED")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/customers/*/deactivate")
+                            .hasAuthority("CUSTOMER_DEACTIVATE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/audit-events/**").hasAuthority("AUDIT_READ")
                         .requestMatchers("/api/v1/saved-views/**").authenticated()
                         .requestMatchers("/api/v1/search/**", "/api/v1/search").authenticated()
@@ -98,6 +103,9 @@ public class SecurityConfig {
                             .hasAuthority("FEATURE_FLAG_MANAGE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/catalog/**").hasAuthority("CATALOG_READ")
                         .requestMatchers(HttpMethod.GET, "/api/v1/availability").hasAuthority("CATALOG_READ")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/resources/**")
+                            .hasAuthority("RESOURCE_READ")
+                        .requestMatchers("/api/v1/resources/**").hasAuthority("RESOURCE_MANAGE")
                         .requestMatchers("/api/v1/catalog/**").hasAuthority("CATALOG_MANAGE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/working-hours/**").hasAuthority("WORKING_HOURS_READ")
                         .requestMatchers("/api/v1/working-hours/**").hasAuthority("WORKING_HOURS_MANAGE")

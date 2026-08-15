@@ -2,7 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, useMemo, useRef, useState } from 'react'
 import { apiErrorMessage } from '../api/client'
 import { customerApi } from '../api/customerApi'
-import { Button, Drawer, EmptyState, ErrorState, Skeleton, TableShell } from '../components/ui'
+import { hasCapability } from '../auth/capabilities'
+import { useAuthStore } from '../auth/authStore'
+import { Button, Drawer, EmptyState, ErrorState, Modal, Skeleton, TableShell } from '../components/ui'
 import { SavedViewBar } from '../components/lists/SavedViewBar'
 import { useListUrlState } from '../lists/useListUrlState'
 import { queryKeys } from '../query/queryKeys'
@@ -13,6 +15,8 @@ const allowed = ['search', 'active', 'page', 'customerId'] as const
 const money = new Intl.NumberFormat('sr-RS', { style: 'currency', currency: 'RSD' })
 
 export function CustomersPage() {
+  const user = useAuthStore((state) => state.user)
+  const canManageCrm = hasCapability(user, 'CUSTOMER_CRM_MANAGE')
   const detailOpener = useRef<HTMLButtonElement>(null)
   const url = useListUrlState(defaults, allowed)
   const filters = useMemo(() => ({
@@ -28,9 +32,42 @@ export function CustomersPage() {
   const [note, setNote] = useState('')
   const [tag, setTag] = useState('')
   const [crmError, setCrmError] = useState('')
+  const [createOpen, setCreateOpen] = useState(false)
+  const [customerName, setCustomerName] = useState('')
+  const [customerEmail, setCustomerEmail] = useState('')
+  const [customerError, setCustomerError] = useState('')
+  const [activation, setActivation] = useState<{ secret: string; expiresAt: string } | null>(null)
   const crm = useQuery({ queryKey: ['customers', 'crm', selectedId, crmSearch],
-    queryFn: () => customerApi.crm(selectedId, crmSearch || undefined), enabled: Boolean(selectedId) })
+    queryFn: () => customerApi.crm(selectedId, crmSearch || undefined),
+    enabled: Boolean(selectedId) && canManageCrm })
   const close = () => url.set({ customerId: '' })
+
+  async function createCustomer(event: FormEvent) {
+    event.preventDefault(); setCustomerError('')
+    try {
+      const created = await customerApi.create({ name: customerName.trim(), email: customerEmail.trim() })
+      setActivation({ secret: created.activationSecret, expiresAt: created.activationExpiresAt })
+      setCustomerName(''); setCustomerEmail(''); await list.refetch()
+    } catch (cause) { setCustomerError(apiErrorMessage(cause, 'Klijenta nije moguće kreirati.')) }
+  }
+
+  async function editCustomer() {
+    if (!detail.data) return
+    const name = window.prompt('Ime klijenta', detail.data.customer.name)?.trim()
+    if (!name) return
+    const email = window.prompt('Email klijenta', detail.data.customer.email)?.trim()
+    if (!email) return
+    try {
+      await customerApi.update(detail.data.customer.id, { name, email, version: detail.data.customer.version })
+      await Promise.all([detail.refetch(), list.refetch()])
+    } catch (cause) { setCustomerError(apiErrorMessage(cause, 'Klijenta nije moguće izmeniti.')) }
+  }
+
+  async function deactivateCustomer() {
+    if (!detail.data || !window.confirm('Deaktivirati ovog klijenta?')) return
+    try { await customerApi.deactivate(detail.data.customer.id); close(); await list.refetch() }
+    catch (cause) { setCustomerError(apiErrorMessage(cause, 'Klijenta nije moguće deaktivirati.')) }
+  }
 
   async function addNote(event: FormEvent) {
     event.preventDefault(); if (!selectedId || !note.trim()) return
@@ -59,7 +96,10 @@ export function CustomersPage() {
   }
 
   return <main className="workspace customer-workspace">
-    <div className="page-heading"><div><p className="eyebrow">Ljudi</p><h1>Klijenti</h1></div></div>
+    <div className="page-heading"><div><p className="eyebrow">Ljudi</p><h1>Klijenti</h1></div>
+      {hasCapability(user, 'CUSTOMER_CREATE') && <Button onClick={() => { setActivation(null); setCreateOpen(true) }}>
+        Novi klijent</Button>}</div>
+    {customerError && <p className="error-banner" role="alert">{customerError}</p>}
     <div className="filter-bar customer-filters">
       <label>Pretraga<input value={url.state.search} placeholder="Ime ili email"
         onChange={(event) => url.set({ search: event.target.value, page: '0' }, true)} /></label>
@@ -85,10 +125,17 @@ export function CustomersPage() {
         <ErrorState message={apiErrorMessage(detail.error, 'Detalje klijenta nije moguće učitati.')} action={<Button onClick={() => detail.refetch()}>Pokušaj ponovo</Button>} /> : detail.data && <div className="customer-detail">
           <p>{detail.data.customer.email}</p><p><strong>Status:</strong> {detail.data.customer.active ? 'Aktivan' : 'Neaktivan'}</p>
           <p><strong>Registrovan:</strong> {formatBusinessDateTime(detail.data.customer.registeredAt)}</p>
+          <div className="form-actions">
+            <Button disabled title="Dostupno nakon Stage-a 3">Pokreni gaming sesiju</Button>
+            {hasCapability(user, 'CUSTOMER_UPDATE_LIMITED') && <Button variant="secondary"
+              onClick={() => void editCustomer()}>Izmeni podatke</Button>}
+            {detail.data.customer.active && hasCapability(user, 'CUSTOMER_DEACTIVATE') &&
+              <Button variant="danger" onClick={() => void deactivateCustomer()}>Deaktiviraj</Button>}
+          </div>
           <div className="customer-kpis"><article><strong>{detail.data.customer.completedAppointmentCount}</strong><span>Završeni termini</span></article>
             <article><strong>{detail.data.customer.completedOrderCount}</strong><span>Završene narudžbine</span></article>
             <article><strong>{money.format(detail.data.customer.completedOrderRevenue)}</strong><span>Ostvaren prihod</span></article></div>
-          <section className="customer-crm"><h3>CRM beleške i tagovi</h3>
+          {canManageCrm && <section className="customer-crm"><h3>CRM beleške i tagovi</h3>
             {crmError && <p className="error-banner" role="alert">{crmError}</p>}
             <label>Pretraži CRM<input value={crmSearch} onChange={(event) => setCrmSearch(event.target.value)} /></label>
             <form onSubmit={addTag}><label>Novi tag<input maxLength={60} value={tag} onChange={(event) => setTag(event.target.value)} /></label>
@@ -101,12 +148,26 @@ export function CustomersPage() {
               <article className="exception-row" key={item.id}><div><p>{item.body}</p><small>Zadržava se do {formatBusinessDateTime(item.expiresAt)}</small></div>
                 <div className="form-actions"><Button type="button" variant="secondary" onClick={() => void editNote(item)}>Izmeni</Button>
                   <Button type="button" variant="danger" onClick={() => void removeNote(item)}>Obriši</Button></div></article>)}
-          </section>
+          </section>}
           <section><h3>Termini</h3>{detail.data.reservations.length ? <ul className="history-list">{detail.data.reservations.map((item) =>
             <li key={item.id}><strong>{item.serviceName}</strong><span>{formatBusinessDateTime(item.startTime)} · {item.status}</span></li>)}</ul> : <p>Nema istorije termina.</p>}</section>
           <section><h3>Narudžbine</h3>{detail.data.orders.length ? <ul className="history-list">{detail.data.orders.map((item) =>
             <li key={item.id}><strong>{money.format(item.totalPrice)}</strong><span>{formatBusinessDateTime(item.createdAt)} · {item.status}</span></li>)}</ul> : <p>Nema istorije narudžbina.</p>}</section>
         </div>}
     </Drawer>
+    <Modal open={createOpen} title={activation ? 'Aktivacioni podaci' : 'Novi klijent'}
+      onClose={() => { setCreateOpen(false); setActivation(null) }}>
+      {activation ? <div><p>Aktivacioni kod se prikazuje samo sada. Bezbedno ga predajte klijentu.</p>
+        <output className="activation-secret">{activation.secret}</output>
+        <p>Važi do {formatBusinessDateTime(activation.expiresAt)}.</p>
+        <Button onClick={() => { setCreateOpen(false); setActivation(null) }}>Zatvori</Button></div>
+        : <form className="form-grid" onSubmit={createCustomer}>
+          <label>Ime<input required maxLength={120} value={customerName}
+            onChange={(event) => setCustomerName(event.target.value)} /></label>
+          <label>Email<input required type="email" maxLength={180} value={customerEmail}
+            onChange={(event) => setCustomerEmail(event.target.value)} /></label>
+          <Button type="submit" disabled={!customerName.trim() || !customerEmail.trim()}>Kreiraj klijenta</Button>
+        </form>}
+    </Modal>
   </main>
 }

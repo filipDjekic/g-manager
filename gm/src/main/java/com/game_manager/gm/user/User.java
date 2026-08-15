@@ -39,6 +39,9 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private boolean active = true;
 
+    @Column(name = "must_change_password", nullable = false)
+    private boolean mustChangePassword;
+
     @Column(name = "avatar_url", length = 500)
     private String avatarUrl;
 

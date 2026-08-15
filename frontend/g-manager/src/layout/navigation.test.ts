@@ -15,7 +15,7 @@ const paths = (role: 'OWNER' | 'ADMIN' | 'EMPLOYEE' | 'CUSTOMER', values = flags
 describe('role-aware product navigation', () => {
   it('gives customers a focused task navigation without management links', () => {
     expect(paths('CUSTOMER')).toEqual(expect.arrayContaining([
-      '/catalog', '/my-reservations', '/my-orders', '/profile', '/notification-preferences',
+      '/catalog', '/resources', '/my-reservations', '/my-orders', '/profile', '/notification-preferences',
     ]))
     expect(paths('CUSTOMER')).not.toEqual(expect.arrayContaining(['/dashboard', '/users', '/audit', '/reports']))
     expect(homeForRole('CUSTOMER')).toBe('/catalog')
@@ -26,6 +26,8 @@ describe('role-aware product navigation', () => {
     expect(groups[0]).toMatchObject({ label: 'Danas' })
     expect(groups[0].items[0]).toMatchObject({ to: '/dashboard' })
     expect(paths('EMPLOYEE')).toContain('/calendar')
+    expect(paths('EMPLOYEE')).toContain('/resources')
+    expect(paths('EMPLOYEE')).toContain('/customers')
     expect(paths('EMPLOYEE')).not.toContain('/users')
     expect(homeForRole('EMPLOYEE')).toBe('/dashboard')
   })

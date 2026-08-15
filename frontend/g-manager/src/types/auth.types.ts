@@ -2,7 +2,8 @@ export type Role = 'OWNER' | 'ADMIN' | 'EMPLOYEE' | 'CUSTOMER'
 export type Permission =
   | 'PROFILE_READ' | 'PROFILE_UPDATE' | 'EMPLOYEE_LIST'
   | 'USER_LIST' | 'USER_CREATE' | 'USER_DEACTIVATE'
-  | 'USER_DELETE' | 'USER_RESTORE' | 'CUSTOMER_READ' | 'CUSTOMER_CRM_MANAGE'
+  | 'USER_DELETE' | 'USER_RESTORE' | 'CUSTOMER_READ' | 'CUSTOMER_CREATE'
+  | 'CUSTOMER_UPDATE_LIMITED' | 'CUSTOMER_DEACTIVATE' | 'CUSTOMER_CRM_MANAGE'
   | 'CATALOG_READ' | 'CATALOG_MANAGE' | 'CATALOG_DELETE' | 'CATALOG_RESTORE'
   | 'AUDIT_READ'
   | 'WORKING_HOURS_READ' | 'WORKING_HOURS_MANAGE'
@@ -36,17 +37,9 @@ export interface LoginRequest {
   password: string
 }
 
-export interface RegisterRequest {
-  name: string
-  email: string
+export interface ActivateCustomerRequest {
+  activationSecret: string
   password: string
-}
-
-export interface RegistrationResponse {
-  id: string
-  name: string
-  email: string
-  role: 'CUSTOMER'
 }
 
 export interface SessionInfo {

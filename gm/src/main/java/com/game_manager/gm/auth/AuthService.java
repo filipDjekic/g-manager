@@ -2,13 +2,10 @@ package com.game_manager.gm.auth;
 
 import com.game_manager.gm.auth.dto.AuthResponse;
 import com.game_manager.gm.auth.dto.LoginRequest;
-import com.game_manager.gm.auth.dto.RegisterRequest;
-import com.game_manager.gm.auth.dto.RegistrationResponse;
 import com.game_manager.gm.auth.dto.UserSummary;
 import com.game_manager.gm.common.error.ApplicationException;
 import com.game_manager.gm.common.config.GManagerProperties;
 import com.game_manager.gm.security.JwtService;
-import com.game_manager.gm.common.security.Role;
 import com.game_manager.gm.user.User;
 import com.game_manager.gm.user.UserRepository;
 import org.springframework.http.HttpStatus;
@@ -80,27 +77,11 @@ public class AuthService {
     }
 
     @Transactional
-    public RegistrationResponse register(RegisterRequest request) {
-        String email = normalizeEmail(request.email());
-        if (userRepository.existsByEmailIgnoreCase(email)) {
-            throw new ApplicationException(HttpStatus.CONFLICT, "Email is already registered");
-        }
-        User user = new User();
-        user.setName(request.name().trim());
-        user.setEmail(email);
-        user.setPasswordHash(passwordEncoder.encode(request.password()));
-        user.setRole(Role.CUSTOMER);
-        user.setActive(true);
-        User saved = userRepository.save(user);
-        outboxWriter.write(DomainEventType.USER_REGISTERED, "USER", saved.getId(),
-                Map.of("active", saved.isActive()));
-        return new RegistrationResponse(saved.getId(), saved.getName(), saved.getEmail(), saved.getRole());
-    }
-
-    @Transactional
     public Session login(LoginRequest request, SessionRequestMetadata metadata) {
         User user = userRepository.findByEmailIgnoreCase(normalizeEmail(request.email()))
-                .filter(User::isActive).orElse(null);
+                .filter(User::isActive)
+                .filter(value -> !value.isMustChangePassword())
+                .orElse(null);
         if (user == null) {
             securityEventRecorder.record(null, null, SecurityEventType.LOGIN_FAILURE, metadata);
             throw invalidCredentials();
@@ -110,7 +91,7 @@ public class AuthService {
             throw invalidCredentials();
         }
         Session session = createSession(user, metadata);
-        outboxWriter.write(DomainEventType.SESSION_STARTED, "USER", user.getId(),
+        outboxWriter.write(DomainEventType.AUTH_SESSION_STARTED, "USER", user.getId(),
                 Map.of("sessionId", session.sessionId().toString()));
         securityEventRecorder.record(user.getId(), session.sessionId(),
                 SecurityEventType.LOGIN_SUCCESS, metadata);
@@ -138,7 +119,7 @@ public class AuthService {
             token.revoke(null);
             securityEventRepository.save(new SecurityEvent(token.getUserId(), token.getSessionId(),
                     SecurityEventType.LOGOUT, token.getDeviceLabel(), token.getIpHash()));
-            outboxWriter.write(DomainEventType.SESSION_ENDED, "USER", token.getUserId(),
+            outboxWriter.write(DomainEventType.AUTH_SESSION_ENDED, "USER", token.getUserId(),
                     Map.of("scope", "CURRENT"));
         });
     }
@@ -167,7 +148,7 @@ public class AuthService {
         refreshTokenRepository.revokeAllBySessionId(token.getSessionId());
         securityEventRepository.save(new SecurityEvent(userId, token.getSessionId(),
                 SecurityEventType.SESSION_REVOKED, token.getDeviceLabel(), token.getIpHash()));
-        outboxWriter.write(DomainEventType.SESSION_ENDED, "USER", userId,
+        outboxWriter.write(DomainEventType.AUTH_SESSION_ENDED, "USER", userId,
                 Map.of("scope", current ? "CURRENT" : "SELECTED"));
         return current;
     }
@@ -178,7 +159,7 @@ public class AuthService {
         revocationService.revokeAllSessionsInCurrentTransaction(userId);
         securityEventRepository.save(new SecurityEvent(userId, null,
                 SecurityEventType.ALL_SESSIONS_REVOKED, "All devices", zeroIpHash()));
-        outboxWriter.write(DomainEventType.SESSION_ENDED, "USER", userId,
+        outboxWriter.write(DomainEventType.AUTH_SESSION_ENDED, "USER", userId,
                 Map.of("scope", "ALL"));
     }
 

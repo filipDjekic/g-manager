@@ -42,9 +42,11 @@ const employee: NavigationGroup[] = [
   { label: 'Operativa', items: [
     { label: 'Moji termini', to: '/reservations', capability: 'RESERVATION_READ_ALL' },
     { label: 'Kalendar', to: '/calendar', capability: 'RESERVATION_READ_ALL' },
+    { label: 'Mapa resursa', to: '/resources', capability: 'RESOURCE_READ' },
     { label: 'Narudžbine', to: '/orders', capability: 'ORDER_READ_ALL' },
   ] },
   { label: 'Alati', items: [
+    { label: 'Klijenti', to: '/customers', capability: 'CUSTOMER_READ' },
     { label: 'Katalog', to: '/catalog', capability: 'CATALOG_READ' },
     { label: 'Izveštaji', to: '/reports', capability: 'REPORT_READ', flag: 'REPORTS' },
     { label: 'Workflow', to: '/workflows', capability: 'WORKFLOW_SUBMIT', flag: 'WORKFLOWS' },

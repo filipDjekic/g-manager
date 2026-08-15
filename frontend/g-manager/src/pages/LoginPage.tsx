@@ -52,7 +52,7 @@ export function LoginPage() {
       </FormField>
       {serverError && <ErrorState title="Prijava nije uspela" message={serverError} />}
       <Button type="submit" loading={form.formState.isSubmitting}>Prijavi se</Button>
-      <p>Nemaš nalog? <Link to="/register">Registruj se</Link></p>
+      <p>Dobili ste aktivacioni kod? <Link to="/activate">Aktivirajte nalog</Link></p>
     </form></Card>
   </main>
 }

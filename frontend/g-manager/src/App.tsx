@@ -16,7 +16,7 @@ const lazyPage = <T extends Record<K, ComponentType>, K extends keyof T>(
 ) => lazy(() => loader().then((module) => ({ default: module[name] })))
 
 const LoginPage = lazyPage(() => import('./pages/LoginPage'), 'LoginPage')
-const RegisterPage = lazyPage(() => import('./pages/RegisterPage'), 'RegisterPage')
+const ActivatePage = lazyPage(() => import('./pages/ActivatePage'), 'ActivatePage')
 const SessionPage = lazyPage(() => import('./pages/SessionPage'), 'SessionPage')
 const ProfilePage = lazyPage(() => import('./pages/ProfilePage'), 'ProfilePage')
 const UserManagementPage = lazyPage(() => import('./pages/UserManagementPage'), 'UserManagementPage')
@@ -59,7 +59,7 @@ function App() {
       <Suspense fallback={<RouteLoading />}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/activate" element={<ActivatePage />} />
           <Route path="/unauthorized" element={<main className="screen-message">Nemate dozvolu za ovu stranicu.</main>} />
           <Route element={<ProtectedRoute />}>
             <Route element={<AppShell />}>
@@ -70,6 +70,8 @@ function App() {
                 <Route path="catalog" element={<CatalogPage />} />
                 <Route path="notification-preferences" element={<NotificationPreferencesPage />} />
                 <Route path="documents" element={<DocumentsPage />} />
+              </Route>
+              <Route element={<CapabilityGuard anyOf={['RESOURCE_READ']} />}>
                 <Route path="resources" element={<ResourcesPage />} />
               </Route>
               <Route element={<CapabilityGuard anyOf={['USER_LIST']} />}>

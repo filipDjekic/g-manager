@@ -67,15 +67,15 @@ class MySqlSchemaIT {
         cleanSchema();
         Flyway.configure()
                 .dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
-                .target(MigrationVersion.fromVersion("10"))
+                .target(MigrationVersion.fromVersion("27"))
                 .load()
                 .migrate();
 
-        assertThat(currentVersion()).isEqualTo("10");
+        assertThat(currentVersion()).isEqualTo("27");
         flyway.migrate();
 
-        assertThat(currentVersion()).isEqualTo("13");
-        log.info("MySQL V7-to-latest migration completed in {} ms", elapsedMillis(startedAt));
+        assertThat(currentVersion()).isEqualTo("29");
+        log.info("MySQL V27-to-latest migration completed in {} ms", elapsedMillis(startedAt));
     }
 
     @Test
@@ -84,7 +84,7 @@ class MySqlSchemaIT {
         long startedAt = System.nanoTime();
         cleanSchema();
         assertThat(flyway.migrate().success).isTrue();
-        assertThat(currentVersion()).isEqualTo("22");
+        assertThat(currentVersion()).isEqualTo("29");
         assertThat(entityManagerFactory.getMetamodel().getEntities()).isNotEmpty();
         log.info("MySQL empty-to-latest migration completed in {} ms", elapsedMillis(startedAt));
     }
@@ -95,13 +95,19 @@ class MySqlSchemaIT {
         assertThat(constraintNames("FOREIGN KEY"))
                 .contains("fk_refresh_tokens_user", "fk_reservations_customer",
                         "fk_reservations_employee", "fk_reservations_service",
-                        "fk_order_items_order", "fk_order_items_product");
+                        "fk_order_items_order", "fk_order_items_product",
+                        "fk_resource_area", "fk_resource_service",
+                        "fk_reservation_location", "fk_reservation_resource",
+                        "fk_customer_activation_user", "fk_customer_activation_creator");
         assertThat(constraintNames("CHECK"))
                 .contains("chk_catalog_price_positive", "chk_reservation_interval",
                         "chk_order_item_quantity");
         assertThat(indexNames("reservations"))
                 .contains("idx_reservation_employee_time", "idx_reservation_status_time",
-                        "idx_reservations_customer_status_time");
+                        "idx_reservations_customer_status_time",
+                        "idx_reservation_resource_time", "idx_reservation_location_time");
+        assertThat(indexNames("physical_resources"))
+                .contains("uk_resource_code", "idx_resource_service");
         assertThat(indexNames("orders"))
                 .contains("idx_orders_customer_created", "idx_orders_status_created",
                         "idx_orders_handler_created");
@@ -113,6 +119,8 @@ class MySqlSchemaIT {
                 .contains("idx_outbox_claim", "idx_outbox_aggregate");
         assertThat(indexNames("background_jobs"))
                 .contains("idx_background_jobs_claim", "idx_background_jobs_lease");
+        assertThat(indexNames("customer_activation_tokens"))
+                .contains("uk_customer_activation_token_hash", "idx_customer_activation_user");
 
         Map<String, Object> plan = jdbc.queryForMap(
                 "EXPLAIN SELECT * FROM reservations WHERE employee_id = ? AND status = ? "
