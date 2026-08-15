@@ -5,6 +5,7 @@ const routeNames: Record<string, string> = {
   '/': 'Aktivne sesije', '/sessions': 'Aktivne sesije', '/login': 'Prijava',
   '/activate': 'Aktivacija naloga', '/unauthorized': 'Nedozvoljen pristup',
   '/profile': 'Moj profil', '/catalog': 'Katalog', '/employees': 'Zaposleni', '/customers': 'Klijenti',
+  '/stations': 'Gaming stanice',
   '/settings': 'Radno vreme', '/my-reservations': 'Moji termini',
   '/my-orders': 'Moje narudžbine', '/dashboard': 'Dashboard', '/notification-preferences': 'Podešavanja obaveštenja',
   '/reservations': 'Rezervacije', '/orders': 'Narudžbine', '/users': 'Korisnici',

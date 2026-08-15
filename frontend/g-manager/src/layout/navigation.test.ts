@@ -28,6 +28,7 @@ describe('role-aware product navigation', () => {
     expect(paths('EMPLOYEE')).toContain('/calendar')
     expect(paths('EMPLOYEE')).toContain('/resources')
     expect(paths('EMPLOYEE')).toContain('/customers')
+    expect(paths('EMPLOYEE')).toContain('/stations')
     expect(paths('EMPLOYEE')).not.toContain('/users')
     expect(homeForRole('EMPLOYEE')).toBe('/dashboard')
   })
@@ -40,6 +41,7 @@ describe('role-aware product navigation', () => {
     expect(groups.flatMap((group) => group.items.map((item) => item.to))).not.toContain('/reports')
     expect(paths('OWNER')).toContain('/calendar')
     expect(paths('OWNER')).toContain('/customers')
+    expect(paths('OWNER')).toContain('/stations')
     expect(navigationFor(authUser('OWNER', { permissions: ['PROFILE_READ'] }), flags)
       .flatMap((group) => group.items.map((item) => item.to))).toEqual([
         '/documents', '/profile', '/sessions', '/notification-preferences',
