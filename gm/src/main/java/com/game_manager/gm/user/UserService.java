@@ -86,7 +86,8 @@ public class UserService {
     }
 
     private static CustomerReference customerReference(User user) {
-        return new CustomerReference(user.getId(), user.getName(), user.getEmail(), user.isActive(), user.getCreatedAt());
+        return new CustomerReference(user.getId(), user.getName(), user.getEmail(), user.isActive(),
+                user.getCreatedAt(), user.getVersion());
     }
 
     @Transactional(readOnly = true)
@@ -120,6 +121,7 @@ public class UserService {
                     HttpStatus.BAD_REQUEST, "New password must differ from the current password");
         }
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        user.setMustChangePassword(false);
         userRepository.save(user);
         refreshTokenRevocationService.revokeAllSessions(user.getId());
         auditWriter.write("USER_PASSWORD_CHANGED", "USER", user.getId(),

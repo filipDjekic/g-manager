@@ -1,9 +1,8 @@
 import { publicClient } from './client'
 import type {
   AuthResponse,
+  ActivateCustomerRequest,
   LoginRequest,
-  RegisterRequest,
-  RegistrationResponse,
   SessionInfo,
   SecurityEventInfo,
 } from '../types/auth.types'
@@ -14,9 +13,8 @@ export const authApi = {
     const { data } = await publicClient.post<AuthResponse>('/auth/login', request)
     return data
   },
-  async register(request: RegisterRequest): Promise<RegistrationResponse> {
-    const { data } = await publicClient.post<RegistrationResponse>('/auth/register', request)
-    return data
+  async activate(request: ActivateCustomerRequest): Promise<void> {
+    await publicClient.post('/auth/activate', request)
   },
   async logout(): Promise<void> {
     await publicClient.post('/auth/logout')

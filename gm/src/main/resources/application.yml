@@ -120,6 +120,16 @@ app:
     audit-retention-days: ${AUDIT_RETENTION_DAYS:365}
   reservations:
     cancellation-cutoff-minutes: ${CANCELLATION_CUTOFF_MINUTES:60}
+  customers:
+    activation-ttl-hours: ${CUSTOMER_ACTIVATION_TTL_HOURS:24}
+  gaming-session:
+    minimum-duration-minutes: ${GAMING_SESSION_MINIMUM_DURATION_MINUTES:15}
+    default-duration-minutes: ${GAMING_SESSION_DEFAULT_DURATION_MINUTES:120}
+    maximum-duration-minutes: ${GAMING_SESSION_MAXIMUM_DURATION_MINUTES:480}
+    maximum-extension-minutes: ${GAMING_SESSION_MAXIMUM_EXTENSION_MINUTES:120}
+    heartbeat-interval-seconds: ${GAMING_SESSION_HEARTBEAT_INTERVAL_SECONDS:10}
+    offline-grace-seconds: ${GAMING_SESSION_OFFLINE_GRACE_SECONDS:60}
+    warning-threshold-minutes: ${GAMING_SESSION_WARNING_THRESHOLD_MINUTES:15,5,1}
   notifications:
     email-enabled: ${NOTIFICATION_EMAIL_ENABLED:false}
     delivery-batch-size: ${NOTIFICATION_DELIVERY_BATCH_SIZE:25}

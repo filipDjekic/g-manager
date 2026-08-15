@@ -4,6 +4,12 @@ Datum analize: 2026-08-02
 Izvor istine: kod, migracije, build fajlovi i testovi u repozitorijumu. Postojeće
 specifikacije su korišćene samo za poređenje.
 
+> Istorijska napomena: dokument predstavlja snapshot od 2026-08-02. Kasniji kod
+> već sadrži permission policy, audit/outbox/jobs, SSE notifikacije, production
+> delivery artefakte, customer CRM i fizički resource model. Aktuelna analiza za
+> gaming-session/Windows Client track nalazi se u
+> [`GAMING_SESSION_AND_PC_CLIENT_ROADMAP.md`](GAMING_SESSION_AND_PC_CLIENT_ROADMAP.md).
+
 ## Izvršni rezime
 
 G-Manager je funkcionalan MVP modularnog monolita za lokalni biznis. Backend je

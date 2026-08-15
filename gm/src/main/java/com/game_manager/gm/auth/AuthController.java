@@ -2,12 +2,12 @@ package com.game_manager.gm.auth;
 
 import com.game_manager.gm.auth.dto.AuthResponse;
 import com.game_manager.gm.auth.dto.LoginRequest;
-import com.game_manager.gm.auth.dto.RegisterRequest;
-import com.game_manager.gm.auth.dto.RegistrationResponse;
+import com.game_manager.gm.auth.dto.ActivateCustomerRequest;
 import com.game_manager.gm.auth.dto.SessionResponse;
 import com.game_manager.gm.auth.dto.SecurityEventResponse;
 import com.game_manager.gm.common.error.ApplicationException;
 import com.game_manager.gm.common.config.GManagerProperties;
+import com.game_manager.gm.customer.CustomerAccountService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -38,27 +38,29 @@ public class AuthController {
     private final SessionMetadataFactory metadataFactory;
     private final boolean secureCookie;
     private final Duration refreshTtl;
+    private final CustomerAccountService customerAccountService;
 
     public AuthController(
             AuthService authService,
             RateLimitService rateLimitService,
             SessionMetadataFactory metadataFactory,
-            GManagerProperties properties
+            GManagerProperties properties,
+            CustomerAccountService customerAccountService
     ) {
         this.authService = authService;
         this.rateLimitService = rateLimitService;
         this.metadataFactory = metadataFactory;
         this.secureCookie = properties.jwt().secureCookie();
         this.refreshTtl = Duration.ofDays(properties.jwt().refreshTokenDays());
+        this.customerAccountService = customerAccountService;
     }
 
-    @PostMapping("/register")
-    ResponseEntity<RegistrationResponse> register(
-            @Valid @RequestBody RegisterRequest request,
-            HttpServletRequest servletRequest
-    ) {
-        rateLimitService.checkRegistration(clientIp(servletRequest));
-        return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
+    @PostMapping("/activate")
+    ResponseEntity<Void> activate(@Valid @RequestBody ActivateCustomerRequest request,
+            HttpServletRequest servletRequest) {
+        rateLimitService.checkActivation(clientIp(servletRequest));
+        customerAccountService.activate(request);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/login")

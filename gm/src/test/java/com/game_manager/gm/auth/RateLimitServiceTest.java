@@ -26,10 +26,10 @@ class RateLimitServiceTest {
     void limitsRegistrationsByIpToTenPerHour() {
         RateLimitService service = new RateLimitService(Clock.systemUTC());
         for (int attempt = 0; attempt < 10; attempt++) {
-            service.checkRegistration("192.0.2.1");
+            service.checkActivation("192.0.2.1");
         }
 
-        assertThatThrownBy(() -> service.checkRegistration("192.0.2.1"))
+        assertThatThrownBy(() -> service.checkActivation("192.0.2.1"))
                 .isInstanceOf(ApplicationException.class)
                 .extracting("status")
                 .isEqualTo(org.springframework.http.HttpStatus.TOO_MANY_REQUESTS);

@@ -1,6 +1,7 @@
 package com.game_manager.gm.auth;
 
 import com.game_manager.gm.common.config.GManagerProperties;
+import com.game_manager.gm.common.security.Role;
 import com.game_manager.gm.user.User;
 import com.game_manager.gm.user.UserRepository;
 import jakarta.servlet.http.Cookie;
@@ -39,7 +40,7 @@ class AuthFlowIntegrationTest {
     private PasswordEncoder passwordEncoder;
 
     @Test
-    void registerLoginRotateLogoutAndDetectRefreshReuse() throws Exception {
+    void loginRotateLogoutAndDetectRefreshReuse() throws Exception {
         String email = "auth-" + UUID.randomUUID() + "@example.com";
         register(email);
 
@@ -73,19 +74,12 @@ class AuthFlowIntegrationTest {
     }
 
     @Test
-    void registrationIsCustomerOnlyAndDuplicateEmailIsConflict() throws Exception {
+    void publicRegistrationIsUnavailable() throws Exception {
         String email = "customer-" + UUID.randomUUID() + "@example.com";
-        register(email);
-        User user = userRepository.findByEmailIgnoreCase(email).orElseThrow();
-        assertThat(user.getRole().name()).isEqualTo("CUSTOMER");
-        assertThat(user.isActive()).isTrue();
-        assertThat(user.getPasswordHash()).doesNotContain("StrongPass1!");
-
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(registerBody(email.toUpperCase())))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.status").value(409));
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -161,13 +155,14 @@ class AuthFlowIntegrationTest {
         assertThat(owner.getPasswordHash()).isNotEqualTo(password);
     }
 
-    private void register(String email) throws Exception {
-        mockMvc.perform(post("/api/v1/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(registerBody(email)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.role").value("CUSTOMER"))
-                .andExpect(jsonPath("$.passwordHash").doesNotExist());
+    private void register(String email) {
+        User user = new User();
+        user.setName("Auth Customer");
+        user.setEmail(email);
+        user.setPasswordHash(passwordEncoder.encode("StrongPass1!"));
+        user.setRole(Role.CUSTOMER);
+        user.setActive(true);
+        userRepository.saveAndFlush(user);
     }
 
     private MvcResult login(String email, String password) throws Exception {

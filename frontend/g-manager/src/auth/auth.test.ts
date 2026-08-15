@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { loginSchema, registerSchema } from './schemas'
+import { activationSchema, loginSchema } from './schemas'
 import { useAuthStore } from './authStore'
 
 describe('auth contracts', () => {
@@ -19,12 +19,11 @@ describe('auth contracts', () => {
     expect(useAuthStore.getState()).toMatchObject({ accessToken: 'access-token', user, isInitializing: false })
   })
 
-  it('matches backend login and registration validation boundaries', () => {
+  it('matches backend login and activation validation boundaries', () => {
     expect(loginSchema.safeParse({ email: 'bad', password: 'short' }).success).toBe(false)
-    expect(registerSchema.safeParse({ name: '', email: 'bad', password: 'short' }).success).toBe(false)
-    expect(registerSchema.safeParse({
-      name: 'Valid Customer',
-      email: 'customer@example.com',
+    expect(activationSchema.safeParse({ activationSecret: '', password: 'short' }).success).toBe(false)
+    expect(activationSchema.safeParse({
+      activationSecret: 'one-time-activation-secret',
       password: 'StrongPass1!',
     }).success).toBe(true)
   })

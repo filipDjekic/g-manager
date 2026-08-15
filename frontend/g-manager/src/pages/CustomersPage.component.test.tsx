@@ -21,11 +21,11 @@ describe('CustomersPage', () => {
       http.post('/api/v1/customers/customer-1/crm/notes', async ({ request }) => { const body = await request.json() as { body: string }; crmNotes = [{ id: 'note-1', body: body.body, createdBy: 'owner-1', createdAt: '2026-08-11T08:00:00Z', updatedAt: '2026-08-11T08:00:00Z', expiresAt: '2028-08-11T08:00:00Z', version: 0 }]; return HttpResponse.json(crmNotes[0], { status: 201 }) }),
       http.get('/api/v1/saved-views', () => HttpResponse.json([])),
       http.get('/api/v1/customers', () => HttpResponse.json({ content: [{ id: 'customer-1', name: 'Mila Jović', email: 'mila@example.test',
-        active: true, registeredAt: '2026-01-01T10:00:00Z', reservationCount: 2, completedAppointmentCount: 1,
+        active: true, registeredAt: '2026-01-01T10:00:00Z', version: 0, reservationCount: 2, completedAppointmentCount: 1,
         orderCount: 2, completedOrderCount: 1, completedOrderRevenue: 1200, lastActivityAt: '2026-08-10T08:00:00Z' }],
       page: 0, size: 20, totalElements: 1, totalPages: 1 })),
       http.get('/api/v1/customers/customer-1', () => HttpResponse.json({ customer: { id: 'customer-1', name: 'Mila Jović', email: 'mila@example.test',
-        active: true, registeredAt: '2026-01-01T10:00:00Z', reservationCount: 2, completedAppointmentCount: 1,
+        active: true, registeredAt: '2026-01-01T10:00:00Z', version: 0, reservationCount: 2, completedAppointmentCount: 1,
         orderCount: 2, completedOrderCount: 1, completedOrderRevenue: 1200, lastActivityAt: '2026-08-10T08:00:00Z' },
       reservations: [{ id: 'reservation-1', serviceName: 'Masaža', startTime: '2026-08-10T08:00:00Z', endTime: '2026-08-10T09:00:00Z', status: 'COMPLETED' }],
       orders: [{ id: 'order-1', status: 'COMPLETED', totalPrice: 1200, createdAt: '2026-08-09T08:00:00Z' }] })),
@@ -50,10 +50,10 @@ describe('CustomersPage', () => {
 
   it('renders a customer with no history without invented data', async () => {
     server.use(http.get('/api/v1/customers/customer-empty/crm', () => HttpResponse.json({ customerId: 'customer-empty', version: 0, notes: [], tags: [] })), http.get('/api/v1/saved-views', () => HttpResponse.json([])), http.get('/api/v1/customers', () => HttpResponse.json({ content: [{ id: 'customer-empty', name: 'Novi klijent', email: 'novi@example.test',
-      active: true, registeredAt: '2026-08-11T08:00:00Z', reservationCount: 0, completedAppointmentCount: 0,
+      active: true, registeredAt: '2026-08-11T08:00:00Z', version: 0, reservationCount: 0, completedAppointmentCount: 0,
       orderCount: 0, completedOrderCount: 0, completedOrderRevenue: 0, lastActivityAt: null }], page: 0, size: 20, totalElements: 1, totalPages: 1 })),
     http.get('/api/v1/customers/customer-empty', () => HttpResponse.json({ customer: { id: 'customer-empty', name: 'Novi klijent', email: 'novi@example.test',
-      active: true, registeredAt: '2026-08-11T08:00:00Z', reservationCount: 0, completedAppointmentCount: 0,
+      active: true, registeredAt: '2026-08-11T08:00:00Z', version: 0, reservationCount: 0, completedAppointmentCount: 0,
       orderCount: 0, completedOrderCount: 0, completedOrderRevenue: 0, lastActivityAt: null }, reservations: [], orders: [] })))
     renderPage()
     await userEvent.click(await screen.findByRole('button', { name: 'Detalji' }))

@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 
 const routeNames: Record<string, string> = {
   '/': 'Aktivne sesije', '/sessions': 'Aktivne sesije', '/login': 'Prijava',
-  '/register': 'Registracija', '/unauthorized': 'Nedozvoljen pristup',
+  '/activate': 'Aktivacija naloga', '/unauthorized': 'Nedozvoljen pristup',
   '/profile': 'Moj profil', '/catalog': 'Katalog', '/employees': 'Zaposleni', '/customers': 'Klijenti',
   '/settings': 'Radno vreme', '/my-reservations': 'Moji termini',
   '/my-orders': 'Moje narudžbine', '/dashboard': 'Dashboard', '/notification-preferences': 'Podešavanja obaveštenja',

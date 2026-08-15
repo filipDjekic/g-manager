@@ -26,8 +26,8 @@ public class RateLimitService {
         check("login:" + ip + ":" + email.toLowerCase(), 5, Duration.ofMinutes(10));
     }
 
-    public void checkRegistration(String ip) {
-        check("register:" + ip, 10, Duration.ofHours(1));
+    public void checkActivation(String ip) {
+        check("activation:" + ip, 10, Duration.ofHours(1));
     }
 
     public void checkOperationalCreate(UUID userId, String endpoint) {

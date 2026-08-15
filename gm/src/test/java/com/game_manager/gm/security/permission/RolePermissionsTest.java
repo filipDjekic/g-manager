@@ -14,16 +14,22 @@ class RolePermissionsTest {
         assertThat(RolePermissions.forRole(Role.CUSTOMER)).containsExactlyInAnyOrder(
                 Permission.PROFILE_READ, Permission.PROFILE_UPDATE, Permission.EMPLOYEE_LIST,
                 Permission.CATALOG_READ, Permission.WORKING_HOURS_READ,
+                Permission.RESOURCE_READ,
                 Permission.RESERVATION_CREATE, Permission.RESERVATION_READ_OWN,
                 Permission.RESERVATION_CHANGE_STATUS, Permission.ORDER_CREATE,
                 Permission.ORDER_READ_OWN, Permission.ORDER_CHANGE_STATUS);
         assertThat(RolePermissions.forRole(Role.EMPLOYEE))
                 .contains(Permission.RESERVATION_READ_ALL, Permission.ORDER_READ_ALL,
-                        Permission.DASHBOARD_OPERATIONAL)
+                        Permission.DASHBOARD_OPERATIONAL, Permission.RESOURCE_READ,
+                        Permission.CUSTOMER_READ, Permission.CUSTOMER_CREATE,
+                        Permission.CUSTOMER_UPDATE_LIMITED, Permission.CUSTOMER_DEACTIVATE)
                 .doesNotContain(Permission.USER_LIST, Permission.DASHBOARD_SUMMARY);
         assertThat(RolePermissions.forRole(Role.ADMIN))
                 .contains(Permission.USER_LIST, Permission.USER_CREATE,
-                        Permission.CATALOG_MANAGE, Permission.DASHBOARD_SUMMARY)
+                        Permission.CATALOG_MANAGE, Permission.DASHBOARD_SUMMARY,
+                        Permission.RESOURCE_READ, Permission.RESOURCE_MANAGE,
+                        Permission.CUSTOMER_CREATE, Permission.CUSTOMER_UPDATE_LIMITED,
+                        Permission.CUSTOMER_DEACTIVATE)
                 .doesNotContain(Permission.ORDER_CREATE, Permission.RESERVATION_CREATE);
         assertThat(RolePermissions.forRole(Role.OWNER))
                 .containsAll(RolePermissions.forRole(Role.ADMIN));

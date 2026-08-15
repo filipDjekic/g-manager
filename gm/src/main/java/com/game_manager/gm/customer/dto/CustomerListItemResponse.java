@@ -8,4 +8,4 @@ public record CustomerListItemResponse(
         UUID id, String name, String email, boolean active, Instant registeredAt,
         long reservationCount, long completedAppointmentCount,
         long orderCount, long completedOrderCount, BigDecimal completedOrderRevenue,
-        Instant lastActivityAt) {}
+        Instant lastActivityAt, long version) {}
