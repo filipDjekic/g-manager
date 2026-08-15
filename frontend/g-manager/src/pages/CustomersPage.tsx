@@ -2,11 +2,15 @@ import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, useMemo, useRef, useState } from 'react'
 import { apiErrorMessage } from '../api/client'
 import { customerApi } from '../api/customerApi'
+import { gamingSessionApi } from '../api/gamingSessionApi'
+import { stationApi } from '../api/stationApi'
+import { IdempotencyKeyManager } from '../api/idempotency'
 import { hasCapability } from '../auth/capabilities'
 import { useAuthStore } from '../auth/authStore'
 import { Button, Drawer, EmptyState, ErrorState, Modal, Skeleton, TableShell } from '../components/ui'
 import { SavedViewBar } from '../components/lists/SavedViewBar'
 import { useListUrlState } from '../lists/useListUrlState'
+import { useNavigate } from 'react-router-dom'
 import { queryKeys } from '../query/queryKeys'
 import { formatBusinessDateTime } from '../reservations/dateTime'
 
@@ -15,6 +19,7 @@ const allowed = ['search', 'active', 'page', 'customerId'] as const
 const money = new Intl.NumberFormat('sr-RS', { style: 'currency', currency: 'RSD' })
 
 export function CustomersPage() {
+  const navigate = useNavigate()
   const user = useAuthStore((state) => state.user)
   const canManageCrm = hasCapability(user, 'CUSTOMER_CRM_MANAGE')
   const detailOpener = useRef<HTMLButtonElement>(null)
@@ -37,6 +42,12 @@ export function CustomersPage() {
   const [customerEmail, setCustomerEmail] = useState('')
   const [customerError, setCustomerError] = useState('')
   const [activation, setActivation] = useState<{ secret: string; expiresAt: string } | null>(null)
+  const [startOpen, setStartOpen] = useState(false)
+  const [stationId, setStationId] = useState('')
+  const [durationMinutes, setDurationMinutes] = useState(120)
+  const startKey = useRef(new IdempotencyKeyManager())
+  const stationOptions = useQuery({ queryKey:['stations','start-options'], queryFn:stationApi.overview,
+    enabled:startOpen })
   const crm = useQuery({ queryKey: ['customers', 'crm', selectedId, crmSearch],
     queryFn: () => customerApi.crm(selectedId, crmSearch || undefined),
     enabled: Boolean(selectedId) && canManageCrm })
@@ -67,6 +78,13 @@ export function CustomersPage() {
     if (!detail.data || !window.confirm('Deaktivirati ovog klijenta?')) return
     try { await customerApi.deactivate(detail.data.customer.id); close(); await list.refetch() }
     catch (cause) { setCustomerError(apiErrorMessage(cause, 'Klijenta nije moguće deaktivirati.')) }
+  }
+
+  async function startGamingSession(event:FormEvent) {
+    event.preventDefault(); if(!detail.data||!stationId)return; setCustomerError('')
+    try { await gamingSessionApi.start({customerId:detail.data.customer.id,resourceId:stationId,durationMinutes},startKey.current.begin())
+      startKey.current.succeeded();setStartOpen(false);close();navigate('/gaming-sessions') }
+    catch(cause){startKey.current.failed(cause);setCustomerError(apiErrorMessage(cause,'Gaming sesiju nije moguće pokrenuti.'))}
   }
 
   async function addNote(event: FormEvent) {
@@ -126,7 +144,8 @@ export function CustomersPage() {
           <p>{detail.data.customer.email}</p><p><strong>Status:</strong> {detail.data.customer.active ? 'Aktivan' : 'Neaktivan'}</p>
           <p><strong>Registrovan:</strong> {formatBusinessDateTime(detail.data.customer.registeredAt)}</p>
           <div className="form-actions">
-            <Button disabled title="Dostupno nakon Stage-a 3">Pokreni gaming sesiju</Button>
+            {hasCapability(user, 'GAMING_SESSION_START') && <Button disabled={!detail.data.customer.active}
+              onClick={() => setStartOpen(true)}>Pokreni gaming sesiju</Button>}
             {hasCapability(user, 'CUSTOMER_UPDATE_LIMITED') && <Button variant="secondary"
               onClick={() => void editCustomer()}>Izmeni podatke</Button>}
             {detail.data.customer.active && hasCapability(user, 'CUSTOMER_DEACTIVATE') &&
@@ -168,6 +187,16 @@ export function CustomersPage() {
             onChange={(event) => setCustomerEmail(event.target.value)} /></label>
           <Button type="submit" disabled={!customerName.trim() || !customerEmail.trim()}>Kreiraj klijenta</Button>
         </form>}
+    </Modal>
+    <Modal open={startOpen} title="Pokreni gaming sesiju" onClose={() => setStartOpen(false)}>
+      <form className="form-grid" onSubmit={startGamingSession}>
+        <label>Slobodna stanica<select required value={stationId} onChange={(event)=>setStationId(event.target.value)}>
+          <option value="">Izaberite stanicu</option>{stationOptions.data?.filter((value)=>value.effectiveStatus==='AVAILABLE'&&value.applicationProfileId)
+            .map((value)=><option key={value.resourceId} value={value.resourceId}>{value.resourceName} · {value.applicationProfileName}</option>)}</select></label>
+        <label>Trajanje u minutima<input type="number" min={15} max={480} value={durationMinutes}
+          onChange={(event)=>setDurationMinutes(Number(event.target.value))}/></label>
+        <Button type="submit" disabled={!stationId}>Pokreni</Button>
+      </form>
     </Modal>
   </main>
 }

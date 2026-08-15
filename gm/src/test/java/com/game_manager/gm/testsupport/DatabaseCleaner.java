@@ -11,7 +11,7 @@ public final class DatabaseCleaner {
             "notifications", "notification_preferences", "order_items", "orders",
             "customer_crm_profile_tags", "customer_crm_notes", "customer_crm_profiles", "customer_crm_tags",
             "waitlist_offers", "waitlist_entries", "employee_time_off",
-            "reservations", "reservation_recurrence_series",
+            "gaming_sessions", "reservations", "reservation_recurrence_series",
             "customer_activation_tokens", "gaming_station_profiles", "application_profile_entries",
             "application_profiles", "application_definitions",
             "user_location_assignments", "physical_resources", "areas", "locations",

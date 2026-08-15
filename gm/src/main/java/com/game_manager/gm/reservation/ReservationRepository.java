@@ -11,6 +11,9 @@ import org.springframework.data.repository.query.Param;
 
 public interface ReservationRepository
         extends JpaRepository<Reservation, UUID>, JpaSpecificationExecutor<Reservation> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from Reservation r where r.id = :id")
+    java.util.Optional<Reservation> findByIdForUpdate(@Param("id") UUID id);
     @Query("""
             select r from Reservation r
             where r.employeeId = :employeeId
