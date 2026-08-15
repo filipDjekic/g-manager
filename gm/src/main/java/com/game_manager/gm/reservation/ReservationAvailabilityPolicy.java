@@ -29,6 +29,16 @@ public class ReservationAvailabilityPolicy {
                 && timeOffPolicy.isAvailable(employeeId, start, end);
     }
 
+    public void requireResourceAvailable(UUID resourceId, Instant start, Instant end, UUID excludeId) {
+        if (!isResourceAvailable(resourceId, start, end, excludeId)) {
+            throw new ApplicationException(HttpStatus.CONFLICT, "Resource is unavailable at this time");
+        }
+    }
+
+    public boolean isResourceAvailable(UUID resourceId, Instant start, Instant end, UUID excludeId) {
+        return repository.findResourceConflicting(resourceId,start,end,NON_BLOCKING,excludeId).isEmpty();
+    }
+
     public List<ReservationBusyInterval> busyIntervals(
             Collection<UUID> employeeIds, Instant from, Instant to) {
         if (employeeIds.isEmpty()) return List.of();

@@ -7,6 +7,7 @@ import java.util.UUID;
 
 public record WorkingHoursResponse(
         UUID id,
+        UUID locationId,
         DayOfWeek dayOfWeek,
         LocalTime openTime,
         LocalTime closeTime,
@@ -16,7 +17,7 @@ public record WorkingHoursResponse(
 ) {
     public static WorkingHoursResponse from(WorkingHours hours) {
         return new WorkingHoursResponse(
-                hours.getId(), hours.getDayOfWeek(), hours.getOpenTime(), hours.getCloseTime(),
+                hours.getId(), hours.getLocationId(), hours.getDayOfWeek(), hours.getOpenTime(), hours.getCloseTime(),
                 hours.isActive(), hours.spansMidnight(), hours.getVersion());
     }
 }

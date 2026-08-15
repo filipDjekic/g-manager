@@ -6,6 +6,8 @@ export interface Reservation {
   customerId: string
   employeeId: string
   serviceId: string
+  locationId?: string | null
+  resourceId?: string | null
   recurrenceSeriesId?: string | null
   startTime: string
   endTime: string
@@ -44,6 +46,7 @@ export interface ReservationDetail {
 export interface CreateReservationInput {
   employeeId?: string
   serviceId: string
+  resourceId?: string
   startTime: string
   note?: string
 }

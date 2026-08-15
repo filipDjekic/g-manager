@@ -49,7 +49,9 @@ BEGIN
     DELETE n FROM customer_crm_notes n JOIN customer_crm_profiles p ON p.id=n.profile_id WHERE p.customer_id LIKE '10000000-0000-0000-0000-%';
     DELETE FROM customer_crm_profiles WHERE customer_id LIKE '10000000-0000-0000-0000-%';
     DELETE FROM waitlist_offers WHERE id LIKE '84100000-0000-0000-0000-%';
+    DELETE FROM waitlist_offers WHERE resource_id LIKE '28200000-0000-0000-0000-%';
     DELETE FROM waitlist_entries WHERE id LIKE '84000000-0000-0000-0000-%';
+    DELETE FROM waitlist_entries WHERE resource_id LIKE '28200000-0000-0000-0000-%';
     DELETE FROM employee_time_off WHERE id LIKE '83000000-0000-0000-0000-%';
     DELETE FROM report_schedules WHERE owner_id LIKE '10000000-0000-0000-0000-%';
     DELETE FROM report_templates WHERE owner_id LIKE '10000000-0000-0000-0000-%';
@@ -58,6 +60,13 @@ BEGIN
     DELETE FROM order_items WHERE id LIKE '51000000-0000-0000-0000-%';
     DELETE FROM orders WHERE id LIKE '50000000-0000-0000-0000-%';
     DELETE FROM reservations WHERE id LIKE '40000000-0000-0000-0000-%';
+    DELETE FROM reservations WHERE resource_id LIKE '28200000-0000-0000-0000-%';
+    DELETE FROM working_hours_exceptions WHERE location_id LIKE '28000000-0000-0000-0000-%';
+    DELETE FROM working_hours WHERE location_id LIKE '28000000-0000-0000-0000-%';
+    DELETE FROM user_location_assignments WHERE location_id LIKE '28000000-0000-0000-0000-%';
+    DELETE FROM physical_resources WHERE id LIKE '28200000-0000-0000-0000-%';
+    DELETE FROM areas WHERE id LIKE '28100000-0000-0000-0000-%';
+    DELETE FROM locations WHERE id LIKE '28000000-0000-0000-0000-%';
     DELETE FROM reservation_recurrence_series WHERE id LIKE '30000000-0000-0000-0000-%';
     DELETE FROM working_hours_exceptions WHERE id LIKE '22000000-0000-0000-0000-%';
     INSERT INTO users (id,name,email,password_hash,role,active,avatar_url,created_at,updated_at,version,deleted_at,deleted_by,deletion_reason) VALUES
@@ -98,6 +107,33 @@ BEGIN
     ('20000000-0000-0000-0000-000000000107','USB-C kabl','Kabl za punjenje, 1m.','PRODUCT',900.00,NULL,TRUE,NULL,UTC_TIMESTAMP(6)-INTERVAL 120 DAY,UTC_TIMESTAMP(6),0,NULL,NULL,NULL),
     ('20000000-0000-0000-0000-000000000108','Stari promo paket','Arhivirana promotivna stavka.','PRODUCT',350.00,NULL,FALSE,NULL,UTC_TIMESTAMP(6)-INTERVAL 200 DAY,UTC_TIMESTAMP(6)-INTERVAL 30 DAY,0,NULL,NULL,NULL)
     ON DUPLICATE KEY UPDATE name=VALUES(name),description=VALUES(description),type=VALUES(type),price=VALUES(price),duration_minutes=VALUES(duration_minutes),active=VALUES(active),deleted_at=NULL,deleted_by=NULL,deletion_reason=NULL,updated_at=UTC_TIMESTAMP(6);
+
+    INSERT INTO locations (id,code,name,address,description,timezone,active,created_at,updated_at,version) VALUES
+    ('28000000-0000-0000-0000-000000000001','NOVI-BEOGRAD','G-Manager Arena Novi Beograd','Bulevar umetnosti 12, Beograd','Glavna igraonica sa PC, konzolnom i simulator zonom.','Europe/Belgrade',TRUE,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0),
+    ('28000000-0000-0000-0000-000000000002','ZEMUN','G-Manager Arena Zemun','Glavna 88, Zemun','Kompaktna lokacija za konzole i timske sesije.','Europe/Belgrade',TRUE,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0);
+    INSERT INTO working_hours (id,location_id,day_of_week,open_time,close_time,active,created_at,updated_at,version)
+      SELECT UUID(),'28000000-0000-0000-0000-000000000001',day_of_week,open_time,close_time,active,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0 FROM working_hours WHERE location_id IS NULL;
+    INSERT INTO working_hours (id,location_id,day_of_week,open_time,close_time,active,created_at,updated_at,version)
+      SELECT UUID(),'28000000-0000-0000-0000-000000000002',day_of_week,CASE WHEN day_of_week IN ('SATURDAY','SUNDAY') THEN '11:00:00' ELSE '14:00:00' END,'23:00:00',active,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0 FROM working_hours WHERE location_id IS NULL;
+    INSERT INTO areas (id,location_id,code,name,description,active,display_order,map_width,map_height,created_at,updated_at,version) VALUES
+    ('28100000-0000-0000-0000-000000000001','28000000-0000-0000-0000-000000000001','PC-ARENA','PC Arena','Glavna sala sa 240 Hz stanicama.',TRUE,1,1200,700,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0),
+    ('28100000-0000-0000-0000-000000000002','28000000-0000-0000-0000-000000000001','CONSOLE','Console Lounge','PS5 i VIP deo.',TRUE,2,900,600,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0),
+    ('28100000-0000-0000-0000-000000000003','28000000-0000-0000-0000-000000000002','ZEMUN-LOUNGE','Zemun Lounge','Konzolna zona.',TRUE,1,900,520,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0);
+    SET v_i=1;
+    WHILE v_i<=12 DO
+      INSERT INTO physical_resources (id,area_id,service_id,code,name,resource_type,description,active,bookable,capacity,display_order,map_x,map_y,map_width,map_height,rotation,created_at,updated_at,version)
+      VALUES (CONCAT('28200000-0000-0000-0000-',LPAD(v_i,12,'0')),'28100000-0000-0000-0000-000000000001','20000000-0000-0000-0000-000000000001',CONCAT('PC-',LPAD(v_i,2,'0')),CONCAT('Gaming PC ',LPAD(v_i,2,'0')),'GAMING_PC','Ryzen 7, RTX grafika, 240 Hz monitor',TRUE,TRUE,1,v_i,40+MOD(v_i-1,6)*185,60+FLOOR((v_i-1)/6)*260,150,100,0,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0);
+      SET v_i=v_i+1;
+    END WHILE;
+    INSERT INTO physical_resources (id,area_id,service_id,code,name,resource_type,description,active,bookable,capacity,display_order,map_x,map_y,map_width,map_height,rotation,created_at,updated_at,version) VALUES
+    ('28200000-0000-0000-0000-000000000101','28100000-0000-0000-0000-000000000002','20000000-0000-0000-0000-000000000002','PS5-01','PlayStation 5 Sofa 1','PLAYSTATION','PS5, OLED ekran i četiri kontrolera',TRUE,TRUE,4,1,60,80,240,140,0,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0),
+    ('28200000-0000-0000-0000-000000000102','28100000-0000-0000-0000-000000000002','20000000-0000-0000-0000-000000000003','SIM-01','Racing Simulator 1','SIMULATOR','Direct-drive volan i ultrawide ekran',TRUE,TRUE,1,2,390,80,180,260,0,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0),
+    ('28200000-0000-0000-0000-000000000103','28100000-0000-0000-0000-000000000002','20000000-0000-0000-0000-000000000004','VIP-01','VIP soba Alpha','VIP_ROOM','Privatna soba za tim i goste',TRUE,TRUE,8,3,620,70,230,300,0,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0),
+    ('28200000-0000-0000-0000-000000000201','28100000-0000-0000-0000-000000000003','20000000-0000-0000-0000-000000000002','PS5-Z01','PlayStation Zemun 1','PLAYSTATION','PS5 stanica za četiri igrača',TRUE,TRUE,4,1,80,80,240,140,0,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0);
+    INSERT INTO user_location_assignments (id,user_id,location_id,active,created_at,updated_at,version) VALUES
+    ('28300000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000003','28000000-0000-0000-0000-000000000001',TRUE,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0),
+    ('28300000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000004','28000000-0000-0000-0000-000000000001',TRUE,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0),
+    ('28300000-0000-0000-0000-000000000003','10000000-0000-0000-0000-000000000005','28000000-0000-0000-0000-000000000002',TRUE,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0);
 
     UPDATE working_hours SET open_time='12:00:00',close_time='23:00:00',active=TRUE,updated_at=UTC_TIMESTAMP(6),version=version+1 WHERE day_of_week IN ('MONDAY','TUESDAY','WEDNESDAY','THURSDAY');
     UPDATE working_hours SET open_time='12:00:00',close_time='01:00:00',active=TRUE,updated_at=UTC_TIMESTAMP(6),version=version+1 WHERE day_of_week='FRIDAY';

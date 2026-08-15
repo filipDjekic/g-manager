@@ -33,6 +33,14 @@ public class Reservation extends BaseEntity {
     private UUID serviceId;
 
     @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "location_id", length = 36)
+    private UUID locationId;
+
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "resource_id", length = 36)
+    private UUID resourceId;
+
+    @JdbcTypeCode(SqlTypes.CHAR)
     @Column(name = "recurrence_series_id", length = 36)
     private UUID recurrenceSeriesId;
 

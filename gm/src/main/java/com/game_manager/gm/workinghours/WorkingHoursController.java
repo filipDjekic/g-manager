@@ -28,15 +28,16 @@ public class WorkingHoursController {
     private final WorkingHoursService workingHoursService;
 
     @GetMapping
-    public List<WorkingHoursResponse> list() {
-        return workingHoursService.list();
+    public List<WorkingHoursResponse> list(@RequestParam(required = false) UUID locationId) {
+        return workingHoursService.list(locationId);
     }
 
     @PutMapping("/{dayOfWeek}")
     public WorkingHoursResponse update(
             @PathVariable DayOfWeek dayOfWeek,
+            @RequestParam(required = false) UUID locationId,
             @Valid @RequestBody UpdateWorkingHoursRequest request) {
-        return workingHoursService.update(dayOfWeek, request);
+        return workingHoursService.update(locationId, dayOfWeek, request);
     }
 
     @GetMapping("/exceptions")

@@ -8,6 +8,9 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import java.time.DayOfWeek;
 import java.time.LocalTime;
+import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -19,8 +22,11 @@ import lombok.Setter;
 @NoArgsConstructor
 public class WorkingHours extends BaseEntity {
     @Enumerated(EnumType.STRING)
-    @Column(name = "day_of_week", nullable = false, unique = true, length = 10)
+    @Column(name = "day_of_week", nullable = false, length = 10)
     private DayOfWeek dayOfWeek;
+
+    @JdbcTypeCode(SqlTypes.CHAR) @Column(name = "location_id", length = 36)
+    private UUID locationId;
 
     @Column(name = "open_time", nullable = false)
     private LocalTime openTime;

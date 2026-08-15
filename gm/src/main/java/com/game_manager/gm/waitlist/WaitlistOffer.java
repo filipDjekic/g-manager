@@ -16,6 +16,7 @@ import org.hibernate.type.SqlTypes;
 public class WaitlistOffer extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "entry_id") private WaitlistEntry entry;
     @JdbcTypeCode(SqlTypes.CHAR) @Column(name = "employee_id", nullable = false, length = 36) private UUID employeeId;
+    @JdbcTypeCode(SqlTypes.CHAR) @Column(name = "resource_id", length = 36) private UUID resourceId;
     @Column(name = "expires_at", nullable = false) private Instant expiresAt;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private WaitlistOfferStatus status;
     @JdbcTypeCode(SqlTypes.CHAR) @Column(name = "reservation_id", length = 36) private UUID reservationId;

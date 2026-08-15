@@ -40,8 +40,17 @@ public class WorkingHoursService {
     @Transactional(readOnly = true)
     @PreAuthorize("hasAuthority('WORKING_HOURS_READ')")
     public List<WorkingHoursResponse> list() {
+        return list(null);
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('WORKING_HOURS_READ')")
+    public List<WorkingHoursResponse> list(UUID locationId) {
         currentUserProvider.requireCurrentUser();
-        return workingHoursRepository.findAll().stream()
+        List<WorkingHours> values = locationId == null ? workingHoursRepository.findAll().stream()
+                .filter(value -> value.getLocationId() == null).toList()
+                : workingHoursRepository.findByLocationIdOrderByDayOfWeek(locationId);
+        return values.stream()
                 .sorted(Comparator.comparingInt(hours -> hours.getDayOfWeek().getValue()))
                 .map(WorkingHoursResponse::from)
                 .toList();
@@ -51,12 +60,21 @@ public class WorkingHoursService {
     @PreAuthorize("hasAuthority('WORKING_HOURS_MANAGE')")
     public WorkingHoursResponse update(
             DayOfWeek dayOfWeek, UpdateWorkingHoursRequest request) {
+        return update(null, dayOfWeek, request);
+    }
+
+    @Transactional
+    @PreAuthorize("hasAuthority('WORKING_HOURS_MANAGE')")
+    public WorkingHoursResponse update(
+            UUID locationId, DayOfWeek dayOfWeek, UpdateWorkingHoursRequest request) {
         requireManagement();
         validateInterval(request.openTime(), request.closeTime(), HttpStatus.BAD_REQUEST);
-        WorkingHours hours = workingHoursRepository.findByDayOfWeek(dayOfWeek)
+        WorkingHours hours = (locationId == null ? workingHoursRepository.findByDayOfWeek(dayOfWeek)
+                : workingHoursRepository.findByLocationIdAndDayOfWeek(locationId, dayOfWeek))
                 .orElseGet(() -> {
                     WorkingHours created = new WorkingHours();
                     created.setDayOfWeek(dayOfWeek);
+                    created.setLocationId(locationId);
                     return created;
                 });
         requireVersionIfProvided(hours, request.version());
@@ -134,14 +152,19 @@ public class WorkingHoursService {
 
     @Transactional(readOnly = true)
     public void validateWithinWorkingHours(Instant startTime, Instant endTime) {
+        validateWithinWorkingHours(null, startTime, endTime);
+    }
+
+    @Transactional(readOnly = true)
+    public void validateWithinWorkingHours(UUID locationId, Instant startTime, Instant endTime) {
         if (startTime == null || endTime == null || !endTime.isAfter(startTime)) {
             throw new ApplicationException(HttpStatus.BAD_REQUEST, "Reservation interval is not valid");
         }
         ZoneId businessZone = properties.businessZone();
         ZonedDateTime localStart = startTime.atZone(businessZone);
         LocalDate localDate = localStart.toLocalDate();
-        Shift today = shiftFor(localDate);
-        Shift yesterday = shiftFor(localDate.minusDays(1));
+        Shift today = shiftFor(locationId, localDate);
+        Shift yesterday = shiftFor(locationId, localDate.minusDays(1));
 
         Shift activeShift = containsStart(today, startTime)
                 ? today
@@ -177,8 +200,14 @@ public class WorkingHoursService {
     }
 
     private Shift shiftFor(LocalDate date) {
+        return shiftFor(null, date);
+    }
+
+    private Shift shiftFor(UUID locationId, LocalDate date) {
         ZoneId businessZone = properties.businessZone();
-        WorkingHoursException exception = exceptionRepository.findByDate(date).orElse(null);
+        WorkingHoursException exception = locationId == null ? exceptionRepository.findByDate(date).orElse(null)
+                : exceptionRepository.findByLocationIdAndDate(locationId, date)
+                        .orElseGet(() -> exceptionRepository.findByDate(date).orElse(null));
         if (exception != null && exception.isFullDayClosed()) {
             return null;
         }
@@ -188,8 +217,10 @@ public class WorkingHoursService {
             open = exception.getOverrideOpenTime();
             close = exception.getOverrideCloseTime();
         } else {
-            WorkingHours hours = workingHoursRepository.findByDayOfWeek(date.getDayOfWeek())
-                    .orElse(null);
+            WorkingHours hours = locationId == null
+                    ? workingHoursRepository.findByDayOfWeek(date.getDayOfWeek()).orElse(null)
+                    : workingHoursRepository.findByLocationIdAndDayOfWeek(locationId, date.getDayOfWeek())
+                            .orElseGet(() -> workingHoursRepository.findByDayOfWeek(date.getDayOfWeek()).orElse(null));
             if (hours == null || !hours.isActive()) {
                 return null;
             }

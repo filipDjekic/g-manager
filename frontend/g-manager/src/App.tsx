@@ -35,6 +35,7 @@ const DocumentsPage = lazyPage(() => import('./pages/DocumentsPage'), 'Documents
 const ReportsPage = lazyPage(() => import('./pages/ReportsPage'), 'ReportsPage')
 const WorkflowsPage = lazyPage(() => import('./pages/WorkflowsPage'), 'WorkflowsPage')
 const FeatureFlagsPage = lazyPage(() => import('./pages/FeatureFlagsPage'), 'FeatureFlagsPage')
+const ResourcesPage = lazyPage(() => import('./pages/ResourcesPage'), 'ResourcesPage')
 
 function RouteLoading() {
   return <p className="screen-message" role="status">Učitavanje stranice…</p>
@@ -69,6 +70,7 @@ function App() {
                 <Route path="catalog" element={<CatalogPage />} />
                 <Route path="notification-preferences" element={<NotificationPreferencesPage />} />
                 <Route path="documents" element={<DocumentsPage />} />
+                <Route path="resources" element={<ResourcesPage />} />
               </Route>
               <Route element={<CapabilityGuard anyOf={['USER_LIST']} />}>
                 <Route path="employees" element={<UserManagementPage employeesOnly />} />
