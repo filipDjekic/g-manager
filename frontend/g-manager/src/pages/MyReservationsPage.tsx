@@ -31,6 +31,7 @@ export function MyReservationsPage() {
   const [status, setStatus] = useState<ReservationStatus | ''>('')
   const [serviceId, setServiceId] = useState(() => searchParams.get('serviceId')
     ?? sessionStorage.getItem('gmanager.catalog-selection') ?? '')
+  const [resourceId] = useState(() => searchParams.get('resourceId') ?? '')
   const [employeeChoice, setEmployeeChoice] = useState<EmployeeChoice>('UNSELECTED')
   const [date, setDate] = useState('')
   const [selectedStart, setSelectedStart] = useState('')
@@ -103,6 +104,7 @@ export function MyReservationsPage() {
     try {
       const baseInput = {
         serviceId,
+        resourceId: resourceId || undefined,
         employeeId: employeeChoice === 'ANY' ? undefined : employeeChoice,
         startTime: selectedStart,
         note: note || undefined,
@@ -158,7 +160,7 @@ export function MyReservationsPage() {
   async function joinWaitlist() {
     if (!serviceId || !date || !waitlistTime || employeeChoice === 'ANY' || employeeChoice === 'UNSELECTED') return
     try {
-      await waitlistApi.join({ serviceId, employeeId: employeeChoice, desiredStart: businessLocalToInstant(`${date}T${waitlistTime}`) })
+      await waitlistApi.join({ serviceId, employeeId: employeeChoice, resourceId: resourceId || undefined, desiredStart: businessLocalToInstant(`${date}T${waitlistTime}`) })
       setWaitlist(await waitlistApi.mine())
       setWaitlistTime('')
       setError('')

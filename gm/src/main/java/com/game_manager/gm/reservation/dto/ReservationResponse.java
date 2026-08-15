@@ -10,6 +10,8 @@ public record ReservationResponse(
         UUID customerId,
         UUID employeeId,
         UUID serviceId,
+        UUID locationId,
+        UUID resourceId,
         UUID recurrenceSeriesId,
         Instant startTime,
         Instant endTime,
@@ -22,7 +24,7 @@ public record ReservationResponse(
     public static ReservationResponse from(Reservation reservation) {
         return new ReservationResponse(
                 reservation.getId(), reservation.getCustomerId(), reservation.getEmployeeId(),
-                reservation.getServiceId(), reservation.getRecurrenceSeriesId(), reservation.getStartTime(), reservation.getEndTime(),
+                reservation.getServiceId(), reservation.getLocationId(), reservation.getResourceId(), reservation.getRecurrenceSeriesId(), reservation.getStartTime(), reservation.getEndTime(),
                 reservation.getStatus(), reservation.getNote(), reservation.getCreatedAt(),
                 reservation.getUpdatedAt(), reservation.getVersion());
     }

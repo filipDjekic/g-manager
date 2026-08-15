@@ -9,7 +9,7 @@ public final class RolePermissions {
     private static final Set<Permission> PROFILE = EnumSet.of(
             Permission.PROFILE_READ, Permission.PROFILE_UPDATE,
             Permission.CATALOG_READ, Permission.WORKING_HOURS_READ,
-            Permission.EMPLOYEE_LIST);
+            Permission.EMPLOYEE_LIST, Permission.RESOURCE_READ);
     private static final Map<Role, Set<Permission>> BY_ROLE = buildPermissions();
 
     private RolePermissions() {
@@ -40,6 +40,7 @@ public final class RolePermissions {
                 Permission.CUSTOMER_CRM_MANAGE,
                 Permission.CATALOG_MANAGE, Permission.CATALOG_DELETE, Permission.CATALOG_RESTORE,
                 Permission.AUDIT_READ, Permission.WORKING_HOURS_MANAGE,
+                Permission.RESOURCE_MANAGE,
                 Permission.RESERVATION_READ_ALL, Permission.RESERVATION_CHANGE_STATUS,
                 Permission.ORDER_READ_ALL, Permission.ORDER_CHANGE_STATUS,
                 Permission.DASHBOARD_SUMMARY, Permission.DASHBOARD_OPERATIONAL,
@@ -52,6 +53,7 @@ public final class RolePermissions {
                 Permission.CUSTOMER_CRM_MANAGE,
                 Permission.CATALOG_MANAGE, Permission.CATALOG_DELETE, Permission.CATALOG_RESTORE,
                 Permission.AUDIT_READ, Permission.WORKING_HOURS_MANAGE,
+                Permission.RESOURCE_MANAGE,
                 Permission.RESERVATION_READ_ALL, Permission.RESERVATION_CHANGE_STATUS,
                 Permission.ORDER_READ_ALL, Permission.ORDER_CHANGE_STATUS,
                 Permission.DASHBOARD_SUMMARY, Permission.DASHBOARD_OPERATIONAL,

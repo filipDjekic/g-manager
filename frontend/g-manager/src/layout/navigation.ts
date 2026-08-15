@@ -11,6 +11,7 @@ const management: NavigationGroup[] = [
   { label: 'Poslovanje', items: [
     { label: 'Rezervacije', to: '/reservations', capability: 'RESERVATION_READ_ALL' },
     { label: 'Kalendar', to: '/calendar', capability: 'RESERVATION_READ_ALL' },
+    { label: 'Resursi i mapa', to: '/resources', capability: 'RESOURCE_READ' },
     { label: 'Narudžbine', to: '/orders', capability: 'ORDER_READ_ALL' },
     { label: 'Katalog', to: '/catalog', capability: 'CATALOG_READ' },
   ] },
@@ -56,7 +57,7 @@ const employee: NavigationGroup[] = [
 ]
 
 const customer: NavigationGroup[] = [
-  { label: 'Istraži', items: [{ label: 'Katalog', to: '/catalog', capability: 'CATALOG_READ' }] },
+  { label: 'Istraži', items: [{ label: 'Katalog', to: '/catalog', capability: 'CATALOG_READ' }, { label: 'Mapa resursa', to: '/resources', capability: 'RESOURCE_READ' }] },
   { label: 'Moje aktivnosti', items: [
     { label: 'Termini i zakazivanje', to: '/my-reservations', capability: 'RESERVATION_READ_OWN' },
     { label: 'Moje narudžbine', to: '/my-orders', capability: 'ORDER_READ_OWN' },

@@ -27,6 +27,8 @@ import com.game_manager.gm.events.OutboxWriter;
 import com.game_manager.gm.user.User;
 import com.game_manager.gm.user.UserRepository;
 import com.game_manager.gm.workinghours.WorkingHoursService;
+import com.game_manager.gm.resource.PhysicalResource;
+import com.game_manager.gm.resource.ResourceManagementService;
 import java.time.Instant;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -65,6 +67,7 @@ public class ReservationService {
     private final AuditHistoryReader auditHistoryReader;
     private final OutboxWriter outboxWriter;
     private final Clock clock;
+    private final ResourceManagementService resourceService;
 
     @Transactional
     @PreAuthorize("hasAuthority('RESERVATION_CREATE')")
@@ -90,13 +93,23 @@ public class ReservationService {
                     HttpStatus.UNPROCESSABLE_ENTITY, "Catalog item is not a service");
         }
         Instant endTime = request.startTime().plus(service.getDurationMinutes(), ChronoUnit.MINUTES);
-        workingHoursService.validateWithinWorkingHours(request.startTime(), endTime);
         User employee = selectEmployee(request.employeeId(), request.startTime(), endTime);
+        PhysicalResource resource = null;
+        if (request.resourceId() != null) {
+            resource = resourceService.lockBookable(request.resourceId(), request.serviceId());
+            availabilityPolicy.requireResourceAvailable(resource.getId(), request.startTime(), endTime, null);
+        }
+        workingHoursService.validateWithinWorkingHours(resource == null ? null : resourceService.locationId(resource),
+                request.startTime(), endTime);
 
         Reservation reservation = new Reservation();
         reservation.setCustomerId(customerId);
         reservation.setEmployeeId(employee.getId());
         reservation.setServiceId(request.serviceId());
+        if (resource != null) {
+            reservation.setResourceId(resource.getId());
+            reservation.setLocationId(resourceService.locationId(resource));
+        }
         reservation.setRecurrenceSeriesId(recurrenceSeriesId);
         reservation.setStartTime(request.startTime());
         reservation.setEndTime(endTime);
@@ -233,6 +246,11 @@ public class ReservationService {
             availabilityPolicy.requireAvailable(
                     reservation.getEmployeeId(), reservation.getStartTime(),
                     reservation.getEndTime(), reservation.getId());
+            if (reservation.getResourceId() != null) {
+                resourceService.lockBookable(reservation.getResourceId(), reservation.getServiceId());
+                availabilityPolicy.requireResourceAvailable(reservation.getResourceId(),
+                        reservation.getStartTime(), reservation.getEndTime(), reservation.getId());
+            }
         }
 
         reservation.setStatus(request.status());
