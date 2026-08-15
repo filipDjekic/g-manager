@@ -8,6 +8,7 @@ import com.game_manager.gm.catalog.*;
 import com.game_manager.gm.common.security.Role;
 import com.game_manager.gm.resource.*;
 import com.game_manager.gm.station.*;
+import com.game_manager.gm.gamingsession.command.*;
 import com.game_manager.gm.user.*;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
@@ -33,6 +34,7 @@ class GamingSessionIntegrationTest {
     @Autowired CatalogRepository catalog; @Autowired LocationRepository locations; @Autowired AreaRepository areas;
     @Autowired PhysicalResourceRepository resources; @Autowired ApplicationProfileRepository profiles;
     @Autowired GamingStationProfileRepository stations; @Autowired GamingSessionRepository sessions;
+    @Autowired StationCommandRepository stationCommands;
     @Autowired JdbcTemplate jdbc; private final ObjectMapper json = new ObjectMapper();
 
     @Test void commandsAreIdempotentAndExtensionKeepsAggregateIdentity() throws Exception {
@@ -46,16 +48,22 @@ class GamingSessionIntegrationTest {
                 .header("Idempotency-Key",key).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated()).andExpect(header().string("Idempotency-Replayed","true")).andReturn();
         JsonNode started=node(first); assertThat(node(replay).get("id").asText()).isEqualTo(started.get("id").asText());
+        assertThat(stationCommands.findByStationIdAndSequenceGreaterThanOrderBySequence(
+                station.resource().getId(), 0L)).extracting(StationCommand::getSequence).containsExactly(1L);
         String id=started.get("id").asText(); long version=started.get("version").asLong();
         MvcResult extended=mvc.perform(post("/api/v1/gaming-sessions/{id}/extend",id)
                 .header("Authorization",bearer(token)).header("Idempotency-Key",UUID.randomUUID())
                 .contentType(MediaType.APPLICATION_JSON).content("{\"minutes\":30,\"version\":"+version+"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(id)).andReturn();
         long extendedVersion=node(extended).get("version").asLong();
+        assertThat(stationCommands.findByStationIdAndSequenceGreaterThanOrderBySequence(
+                station.resource().getId(), 0L)).extracting(StationCommand::getSequence).containsExactly(1L, 2L);
         mvc.perform(post("/api/v1/gaming-sessions/{id}/terminate",id).header("Authorization",bearer(token))
                 .header("Idempotency-Key",UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"reason\":\"Customer requested logout\",\"version\":"+extendedVersion+"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("TERMINATED"));
+        assertThat(stationCommands.findByStationIdAndSequenceGreaterThanOrderBySequence(
+                station.resource().getId(), 0L)).extracting(StationCommand::getSequence).containsExactly(1L, 2L, 3L);
         assertThat(sessions.count()).isEqualTo(1);
     }
 

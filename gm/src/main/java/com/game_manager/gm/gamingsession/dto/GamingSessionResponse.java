@@ -8,7 +8,7 @@ public record GamingSessionResponse(
         UUID id, UUID customerId, UUID resourceId, UUID locationId, UUID reservationId,
         UUID startedBy, Instant startedAt, Instant endsAt, Instant endedAt,
         GamingSessionStatus status, String terminationReason, long remainingSeconds,
-        Instant serverTime, Long version
+        Instant serverTime, Long version, Long lastCommandSequence
 ) {
     public static GamingSessionResponse from(GamingSession value, Instant serverTime) {
         long remaining = value.getStatus() == GamingSessionStatus.ACTIVE
@@ -16,6 +16,6 @@ public record GamingSessionResponse(
         return new GamingSessionResponse(value.getId(), value.getCustomerId(), value.getResourceId(),
                 value.getLocationId(), value.getReservationId(), value.getStartedBy(), value.getStartedAt(),
                 value.getEndsAt(), value.getEndedAt(), value.getStatus(), value.getTerminationReason(),
-                remaining, serverTime, value.getVersion());
+                remaining, serverTime, value.getVersion(), value.getLastCommandSequence());
     }
 }

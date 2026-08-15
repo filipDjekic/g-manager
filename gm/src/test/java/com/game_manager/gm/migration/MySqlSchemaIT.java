@@ -74,7 +74,7 @@ class MySqlSchemaIT {
         assertThat(currentVersion()).isEqualTo("27");
         flyway.migrate();
 
-        assertThat(currentVersion()).isEqualTo("31");
+        assertThat(currentVersion()).isEqualTo("32");
         log.info("MySQL V27-to-latest migration completed in {} ms", elapsedMillis(startedAt));
     }
 
@@ -84,7 +84,7 @@ class MySqlSchemaIT {
         long startedAt = System.nanoTime();
         cleanSchema();
         assertThat(flyway.migrate().success).isTrue();
-        assertThat(currentVersion()).isEqualTo("31");
+        assertThat(currentVersion()).isEqualTo("32");
         assertThat(entityManagerFactory.getMetamodel().getEntities()).isNotEmpty();
         log.info("MySQL empty-to-latest migration completed in {} ms", elapsedMillis(startedAt));
     }
@@ -104,6 +104,9 @@ class MySqlSchemaIT {
                         "fk_profile_entry_profile", "fk_profile_entry_definition",
                         "fk_gaming_session_customer", "fk_gaming_session_resource",
                         "fk_gaming_session_location", "fk_gaming_session_started_by");
+        assertThat(constraintNames("FOREIGN KEY"))
+                .contains("fk_station_command_station", "fk_station_command_session",
+                        "fk_station_command_sequence_station");
         assertThat(constraintNames("CHECK"))
                 .contains("chk_catalog_price_positive", "chk_reservation_interval",
                         "chk_order_item_quantity");
@@ -131,6 +134,10 @@ class MySqlSchemaIT {
         assertThat(indexNames("gaming_sessions"))
                 .contains("idx_gaming_session_resource_status", "idx_gaming_session_customer_status",
                         "idx_gaming_session_active_expiry");
+        assertThat(indexNames("station_commands"))
+                .contains("uk_station_command_sequence", "idx_station_command_cursor",
+                        "idx_station_command_ack", "idx_station_command_retention",
+                        "idx_station_command_session");
 
         Map<String, Object> plan = jdbc.queryForMap(
                 "EXPLAIN SELECT * FROM reservations WHERE employee_id = ? AND status = ? "

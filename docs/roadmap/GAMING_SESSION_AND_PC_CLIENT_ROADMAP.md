@@ -361,6 +361,14 @@ Stage 4 i postojeći jobs/outbox.
 ### Definition of Done
 Jobs/outbox/command integration testovi i metrike prolaze.
 
+### Izvršni status (2026-08-15)
+
+`IMPLEMENTED`: V32 durable station command projekcija sa monotonim per-station
+sequence cursor-om, transakcione komande za sve session promene, lease-recoverable
+expiration i reconciliation jobs, acknowledged-command retention, metrike i
+outbox-to-SSE invalidacija employee session upita su implementirani. Machine
+poll/ack endpointi i OS enforcement nisu uvedeni.
+
 ## Stage 6 — Employee gaming operations dashboard
 
 ### Cilj
@@ -403,6 +411,14 @@ Stages 4–5.
 
 ### Definition of Done
 Dashboard, API, accessibility i relevantni E2E prolaze.
+
+### Izvršni status (2026-08-15)
+
+`IMPLEMENTED`: location-scoped gaming operations board API, backend-derived
+station status/actions, customer/session projekcija sa jednim `serverTime`,
+responsive station grid, quick customer start, +30/+60/custom extension, manual
+termination, SSE query invalidation, periodični resync i Stage 6 test scenariji su
+implementirani. Machine API i Gaming Client nisu uvedeni.
 
 ## Stage 7 — Machine enrollment i autentifikovani protocol
 

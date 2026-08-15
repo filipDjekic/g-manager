@@ -11,9 +11,9 @@ je jedini izvor istine; frontend ne menja status na osnovu lokalnog tajmera.
 | `ACTIVE` | extend | `ACTIVE` | Menja `endsAt` istog agregata; ne kreira novu sesiju. |
 | `ACTIVE` | terminate | `TERMINATED` | Zahteva razlog i postavlja `endedAt` iz backend `Clock`-a. |
 
-`EXPIRED` je rezervisano terminalno stanje. Automatski prelaz u to stanje pripada
-Stage-u 5 i nije deo Stage-a 4. Terminalna sesija se ne može produžiti niti ponovo
-završiti.
+`EXPIRED` je terminalno stanje koje Stage 5 worker postavlja kada `endsAt` više nije
+u budućnosti. Worker zaključava dospele redove u batch-u i ponovljeno izvršenje je
+bez efekta. Terminalna sesija se ne može produžiti niti ponovo završiti.
 
 Start transakcija zaključava customer red pre resource reda. Nakon zaključavanja
 ponovo proverava customer, station readiness, location scope i postojeću aktivnu
@@ -48,6 +48,7 @@ Uspešne promene pišu management audit zapise i outbox događaje:
 - `GAMING_SESSION_STARTED`
 - `GAMING_SESSION_EXTENDED`
 - `GAMING_SESSION_TERMINATED`
+- `GAMING_SESSION_EXPIRED`
 
 Payload ne sadrži tajne. Start beleži customer, resource, location i kraj;
 extension prethodni i novi kraj; termination vreme završetka i razlog.
