@@ -5,6 +5,7 @@ import com.game_manager.gm.common.error.ApplicationException;
 import com.game_manager.gm.common.security.*;
 import com.game_manager.gm.events.*;
 import com.game_manager.gm.gamingsession.dto.*;
+import com.game_manager.gm.gamingsession.command.*;
 import com.game_manager.gm.reservation.*;
 import com.game_manager.gm.resource.*;
 import com.game_manager.gm.user.*;
@@ -31,6 +32,7 @@ public class GamingSessionService {
     private final Clock clock;
     private final AuditWriter audit;
     private final OutboxWriter outbox;
+    private final StationCommandWriter commands;
 
     @Transactional
     @PreAuthorize("hasAuthority('GAMING_SESSION_START')")
@@ -59,12 +61,16 @@ public class GamingSessionService {
         session.setLocationId(locationId); session.setReservationId(reservation == null ? null : reservation.getId());
         session.setStartedBy(actor.id()); session.setStartedAt(now); session.setEndsAt(now.plus(duration));
         session.setStatus(GamingSessionStatus.ACTIVE); session = sessions.saveAndFlush(session);
+        long commandSequence = commands.write(session, StationCommandType.SESSION_STARTED);
+        session = sessions.saveAndFlush(session);
         audit.write("GAMING_SESSION_STARTED", "GAMING_SESSION", session.getId(), null,
                 Map.of("customerId", customer.getId(), "resourceId", resource.getId(),
-                        "endsAt", session.getEndsAt()), null, AuditVisibility.MANAGEMENT);
+                        "endsAt", session.getEndsAt(), "commandSequence", commandSequence), null,
+                AuditVisibility.MANAGEMENT);
         outbox.write(DomainEventType.GAMING_SESSION_STARTED, "GAMING_SESSION", session.getId(),
                 Map.of("customerId", customer.getId(), "resourceId", resource.getId(),
-                        "locationId", locationId, "endsAt", session.getEndsAt()));
+                        "locationId", locationId, "endsAt", session.getEndsAt(),
+                        "commandSequence", commandSequence));
         return GamingSessionResponse.from(session, now);
     }
 
@@ -75,12 +81,16 @@ public class GamingSessionService {
         GamingSession session = locked(id); locations.requireAccess(actor, session.getLocationId());
         version(session, request.version()); Instant previousEnd = session.getEndsAt();
         session.setEndsAt(transitions.extendedEnd(session, request.minutes()));
+        session = sessions.saveAndFlush(session);
+        long commandSequence = commands.write(session, StationCommandType.SESSION_EXTENDED);
         session = sessions.saveAndFlush(session); Instant now = clock.instant();
         audit.write("GAMING_SESSION_EXTENDED", "GAMING_SESSION", id,
-                Map.of("endsAt", previousEnd), Map.of("endsAt", session.getEndsAt()),
+                Map.of("endsAt", previousEnd), Map.of("endsAt", session.getEndsAt(),
+                        "commandSequence", commandSequence),
                 null, AuditVisibility.MANAGEMENT);
         outbox.write(DomainEventType.GAMING_SESSION_EXTENDED, "GAMING_SESSION", id,
-                Map.of("previousEndsAt", previousEnd, "endsAt", session.getEndsAt()));
+                Map.of("previousEndsAt", previousEnd, "endsAt", session.getEndsAt(),
+                        "commandSequence", commandSequence));
         return GamingSessionResponse.from(session, now);
     }
 
@@ -92,12 +102,16 @@ public class GamingSessionService {
         version(session, request.version()); transitions.requireActive(session); Instant now = clock.instant();
         session.setStatus(GamingSessionStatus.TERMINATED); session.setEndedAt(now);
         session.setTerminationReason(request.reason().trim()); session = sessions.saveAndFlush(session);
+        long commandSequence = commands.write(session, StationCommandType.SESSION_TERMINATED);
+        session = sessions.saveAndFlush(session);
         audit.write("GAMING_SESSION_TERMINATED", "GAMING_SESSION", id,
                 Map.of("status", GamingSessionStatus.ACTIVE.name(), "endsAt", session.getEndsAt()),
-                Map.of("status", session.getStatus().name(), "endedAt", now), request.reason(),
+                Map.of("status", session.getStatus().name(), "endedAt", now,
+                        "commandSequence", commandSequence), request.reason(),
                 AuditVisibility.MANAGEMENT);
         outbox.write(DomainEventType.GAMING_SESSION_TERMINATED, "GAMING_SESSION", id,
-                Map.of("endedAt", now, "reason", request.reason().trim()));
+                Map.of("endedAt", now, "reason", request.reason().trim(),
+                        "commandSequence", commandSequence));
         return GamingSessionResponse.from(session, now);
     }
 

@@ -19,6 +19,7 @@ async function installApi(page: Page, role: Role, aiEnabled = false, reservation
   let reservationStatus = 'PENDING'
   let reservationConflictReturned = false
   let orderTransitioned = false
+  let gamingSessionActive = false
   const savedViews: Array<{ id: string; resourceType: string; name: string; query: Record<string, string>; version: number }> = []
 
   await page.route('**/api/v1/**', async (route: Route) => {
@@ -178,6 +179,26 @@ async function installApi(page: Page, role: Role, aiEnabled = false, reservation
     if (path === '/users/employees') return json({ ...emptyPage, size: 100, content: [{
       ...user('EMPLOYEE'), id: 'employee-1', version: 0,
     }] })
+    if (path === '/gaming-sessions/stream') return route.fulfill({ status: 503, body: '' })
+    if (path === '/gaming-operations/board') return json({ serverTime: '2028-03-16T10:00:00Z', stations: [{
+      resourceId: 'station-1', resourceCode: 'PC-01', resourceName: 'Arena PC 01', locationId: 'location-1',
+      status: gamingSessionActive ? 'ACTIVE' : 'AVAILABLE', clientEnabled: false,
+      sessionId: gamingSessionActive ? 'gaming-session-1' : null, customerId: gamingSessionActive ? 'customer-1' : null,
+      customerDisplayName: gamingSessionActive ? 'CUSTOMER E2E' : null,
+      startedAt: gamingSessionActive ? '2028-03-16T10:00:00Z' : null,
+      endsAt: gamingSessionActive ? '2028-03-16T12:00:00Z' : null,
+      remainingSeconds: gamingSessionActive ? 7200 : 0, sessionVersion: gamingSessionActive ? 1 : null,
+      allowedActions: gamingSessionActive ? ['EXTEND', 'TERMINATE'] : ['START'],
+    }] })
+    if (path === '/customers' && request.method() === 'GET') return json({ ...emptyPage, size: 8,
+      totalElements: 1, totalPages: 1, content: [{ id: 'customer-1', name: 'CUSTOMER E2E',
+        email: 'customer@example.test', active: true, registeredAt: '2028-01-01T10:00:00Z',
+        reservationCount: 0, completedAppointmentCount: 0, orderCount: 0, completedOrderCount: 0,
+        completedOrderRevenue: 0, lastActivityAt: null, version: 0 }] })
+    if (path === '/gaming-sessions' && request.method() === 'POST') {
+      gamingSessionActive = true
+      return json({ id: 'gaming-session-1', status: 'ACTIVE', version: 1 }, 201)
+    }
     if (path === '/working-hours') return json([])
     return json(emptyPage)
   })
@@ -272,6 +293,19 @@ test('employee performs an order status transition', async ({ page }) => {
   await takeOrder.focus()
   await takeOrder.press('Enter')
   await expect(page.getByRole('article').getByText('IN_PROGRESS')).toBeVisible()
+})
+
+test('employee starts a gaming session from the location-scoped station board', async ({ page }) => {
+  await installApi(page, 'EMPLOYEE')
+  await login(page, 'EMPLOYEE')
+  await page.goto('/gaming-sessions')
+  await expect(page.getByRole('heading', { name: 'Kontrola gaming stanica' })).toBeVisible()
+  await page.getByRole('button', { name: 'Pokreni sesiju' }).click()
+  await page.getByLabel('Brza pretraga klijenta').fill('CUSTOMER')
+  await page.getByRole('option', { name: /CUSTOMER E2E/ }).click()
+  await page.getByRole('button', { name: /Pokreni za CUSTOMER E2E/ }).click()
+  await expect(page.getByText('Aktivna sesija')).toBeVisible()
+  await expect(page.getByText('CUSTOMER E2E')).toBeVisible()
 })
 
 test('employee completes daily work from the Today workspace', async ({ page }) => {

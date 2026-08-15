@@ -1,0 +1,34 @@
+[
+  {
+    "stationId": "10000000-0000-0000-0000-000000000001",
+    "sessionId": "20000000-0000-0000-0000-000000000001",
+    "sequence": 41,
+    "commandType": "SESSION_STARTED",
+    "payloadVersion": 1,
+    "payload": {
+      "sessionId": "20000000-0000-0000-0000-000000000001",
+      "stationId": "10000000-0000-0000-0000-000000000001",
+      "customerId": "30000000-0000-0000-0000-000000000001",
+      "status": "ACTIVE",
+      "startedAt": "2026-08-15T10:00:00Z",
+      "endsAt": "2026-08-15T12:00:00Z",
+      "endedAt": null
+    }
+  },
+  {
+    "stationId": "10000000-0000-0000-0000-000000000001",
+    "sessionId": "20000000-0000-0000-0000-000000000001",
+    "sequence": 42,
+    "commandType": "SESSION_TERMINATED",
+    "payloadVersion": 1,
+    "payload": {
+      "sessionId": "20000000-0000-0000-0000-000000000001",
+      "stationId": "10000000-0000-0000-0000-000000000001",
+      "customerId": "30000000-0000-0000-0000-000000000001",
+      "status": "EXPIRED",
+      "startedAt": "2026-08-15T10:00:00Z",
+      "endsAt": "2026-08-15T12:00:00Z",
+      "endedAt": "2026-08-15T12:00:00Z"
+    }
+  }
+]

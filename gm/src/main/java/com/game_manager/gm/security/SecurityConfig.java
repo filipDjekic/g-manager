@@ -115,6 +115,8 @@ public class SecurityConfig {
                             .hasAuthority("APPLICATION_PROFILE_MANAGE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/gaming-sessions/**",
                                 "/api/v1/gaming-sessions").hasAuthority("GAMING_SESSION_READ")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/gaming-operations/board")
+                            .hasAuthority("GAMING_SESSION_READ")
                         .requestMatchers(HttpMethod.POST, "/api/v1/gaming-sessions")
                             .hasAuthority("GAMING_SESSION_START")
                         .requestMatchers(HttpMethod.POST, "/api/v1/gaming-sessions/*/extend")

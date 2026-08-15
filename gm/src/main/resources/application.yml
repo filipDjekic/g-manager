@@ -130,6 +130,10 @@ app:
     heartbeat-interval-seconds: ${GAMING_SESSION_HEARTBEAT_INTERVAL_SECONDS:10}
     offline-grace-seconds: ${GAMING_SESSION_OFFLINE_GRACE_SECONDS:60}
     warning-threshold-minutes: ${GAMING_SESSION_WARNING_THRESHOLD_MINUTES:15,5,1}
+    expiration-schedule-millis: ${GAMING_SESSION_EXPIRATION_SCHEDULE_MILLIS:10000}
+    reconciliation-initial-delay-millis: ${GAMING_SESSION_RECONCILIATION_INITIAL_DELAY_MILLIS:30000}
+    reconciliation-schedule-millis: ${GAMING_SESSION_RECONCILIATION_SCHEDULE_MILLIS:300000}
+    command-retention-days: ${GAMING_SESSION_COMMAND_RETENTION_DAYS:30}
   notifications:
     email-enabled: ${NOTIFICATION_EMAIL_ENABLED:false}
     delivery-batch-size: ${NOTIFICATION_DELIVERY_BATCH_SIZE:25}

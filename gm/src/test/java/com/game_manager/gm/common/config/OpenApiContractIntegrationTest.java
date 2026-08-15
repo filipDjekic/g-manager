@@ -49,6 +49,8 @@ class OpenApiContractIntegrationTest {
             "/api/v1/stations/application-profiles/{id}",
             "/api/v1/gaming-sessions", "/api/v1/gaming-sessions/{id}",
             "/api/v1/gaming-sessions/{id}/extend", "/api/v1/gaming-sessions/{id}/terminate",
+            "/api/v1/gaming-sessions/stream",
+            "/api/v1/gaming-operations/board",
             "/api/v1/orders/{id}/status", "/api/v1/reservations",
             "/api/v1/reservations/me", "/api/v1/reservations/{id}/status",
             "/api/v1/users", "/api/v1/users/me", "/api/v1/users/me/password",

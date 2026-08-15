@@ -23,4 +23,5 @@ public class GamingSession extends BaseEntity {
     @Column(name = "ended_at") private Instant endedAt;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private GamingSessionStatus status;
     @Column(name = "termination_reason", length = 500) private String terminationReason;
+    @Column(name = "last_command_sequence") private Long lastCommandSequence;
 }

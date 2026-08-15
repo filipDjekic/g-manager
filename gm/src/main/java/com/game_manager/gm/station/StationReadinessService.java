@@ -70,6 +70,9 @@ public class StationReadinessService {
                         "Gaming station is not configured"));
         if (station.getOperationalStatus() != StationOperationalStatus.AVAILABLE)
             throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY, "Gaming station is not available");
+        if (station.isClientEnabled() && (station.getLastHeartbeatAt() == null
+                || !station.getLastHeartbeatAt().plusSeconds(station.getOfflineGraceSeconds()).isAfter(clock.instant())))
+            throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY, "Gaming station client is offline");
         if (station.getApplicationProfileId() == null)
             throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,
                     "Gaming station has no application profile");
