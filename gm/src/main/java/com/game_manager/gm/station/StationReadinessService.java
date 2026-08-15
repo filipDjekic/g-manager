@@ -63,6 +63,19 @@ public class StationReadinessService {
         }).toList();
     }
 
+    @Transactional(readOnly = true)
+    public void requireReadyForSession(UUID resourceId) {
+        GamingStationProfile station = stations.findByResourceId(resourceId)
+                .orElseThrow(() -> new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,
+                        "Gaming station is not configured"));
+        if (station.getOperationalStatus() != StationOperationalStatus.AVAILABLE)
+            throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY, "Gaming station is not available");
+        if (station.getApplicationProfileId() == null)
+            throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Gaming station has no application profile");
+        requireActiveProfile(station.getApplicationProfileId());
+    }
+
     @Transactional
     @PreAuthorize("hasAuthority('STATION_MAINTENANCE')")
     public StationOverview saveStation(UUID resourceId, StationProfileRequest request) {

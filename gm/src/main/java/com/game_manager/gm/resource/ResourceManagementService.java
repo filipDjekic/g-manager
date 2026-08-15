@@ -45,6 +45,7 @@ public class ResourceManagementService {
  public ResourceView updateResource(UUID id,ResourceRequest r){PhysicalResource v=resource(id);version(v.getVersion(),r.version());requireService(r.serviceId());apply(v,r);return ResourceView.from(resources.saveAndFlush(v));}
  @Transactional(readOnly=true) public PhysicalResource requireBookable(UUID id,UUID serviceId){PhysicalResource v=resource(id);requireBookableState(v,serviceId);return v;}
  @Transactional public PhysicalResource lockBookable(UUID id,UUID serviceId){PhysicalResource v=resources.findLocked(id).orElseThrow(()->new ApplicationException(HttpStatus.NOT_FOUND,"Resource not found"));requireBookableState(v,serviceId);return v;}
+ @Transactional public PhysicalResource lockGamingStation(UUID id){PhysicalResource v=resources.findLocked(id).orElseThrow(()->new ApplicationException(HttpStatus.NOT_FOUND,"Gaming station not found"));if(v.getType()!=ResourceType.GAMING_PC)throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Selected resource is not a gaming PC");requireBookableState(v,v.getServiceId());return v;}
  public UUID locationId(PhysicalResource r){return area(r.getAreaId()).getLocationId();}
  private Location location(UUID id){return locations.findById(id).orElseThrow(()->new ApplicationException(HttpStatus.NOT_FOUND,"Location not found"));}
  private Area area(UUID id){return areas.findById(id).orElseThrow(()->new ApplicationException(HttpStatus.NOT_FOUND,"Area not found"));}

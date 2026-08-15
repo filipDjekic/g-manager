@@ -310,6 +310,14 @@ Stages 2 i 3.
 ### Definition of Done
 Lifecycle API, migracija, testovi i audit/outbox integracija prolaze bez Client-a.
 
+### Izvršni status (2026-08-15)
+
+`IMPLEMENTED`: V31 session schema, autoritativni start/extend/terminate agregat,
+determinističko zaključavanje customer/resource redova, location scope, RBAC,
+idempotency, audit/outbox, station `IN_SESSION` projekcija i minimalni employee
+start/detail UI su implementirani. Automatsko isticanje, command log, SSE session
+događaji i Gaming Client ostaju u narednim Stage-ovima.
+
 ## Stage 5 — Automatsko isticanje, command log i projekcije
 
 ### Cilj

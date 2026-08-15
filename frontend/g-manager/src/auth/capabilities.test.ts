@@ -10,6 +10,7 @@ describe('capability model', () => {
     expect(roleCapabilities.EMPLOYEE).toContain('ORDER_READ_ALL')
     expect(roleCapabilities.EMPLOYEE).toContain('CUSTOMER_CREATE')
     expect(roleCapabilities.EMPLOYEE).toContain('STATION_READ')
+    expect(roleCapabilities.EMPLOYEE).toContain('GAMING_SESSION_START')
     expect(roleCapabilities.EMPLOYEE).not.toContain('APPLICATION_PROFILE_MANAGE')
     expect(roleCapabilities.EMPLOYEE).not.toContain('USER_LIST')
     expect(roleCapabilities.ADMIN).toContain('USER_LIST')

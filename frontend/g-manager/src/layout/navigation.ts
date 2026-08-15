@@ -13,6 +13,7 @@ const management: NavigationGroup[] = [
     { label: 'Kalendar', to: '/calendar', capability: 'RESERVATION_READ_ALL' },
     { label: 'Resursi i mapa', to: '/resources', capability: 'RESOURCE_READ' },
     { label: 'Gaming stanice', to: '/stations', capability: 'STATION_READ' },
+    { label: 'Gaming sesije', to: '/gaming-sessions', capability: 'GAMING_SESSION_READ' },
     { label: 'Narudžbine', to: '/orders', capability: 'ORDER_READ_ALL' },
     { label: 'Katalog', to: '/catalog', capability: 'CATALOG_READ' },
   ] },
@@ -45,6 +46,7 @@ const employee: NavigationGroup[] = [
     { label: 'Kalendar', to: '/calendar', capability: 'RESERVATION_READ_ALL' },
     { label: 'Mapa resursa', to: '/resources', capability: 'RESOURCE_READ' },
     { label: 'Gaming stanice', to: '/stations', capability: 'STATION_READ' },
+    { label: 'Gaming sesije', to: '/gaming-sessions', capability: 'GAMING_SESSION_READ' },
     { label: 'Narudžbine', to: '/orders', capability: 'ORDER_READ_ALL' },
   ] },
   { label: 'Alati', items: [

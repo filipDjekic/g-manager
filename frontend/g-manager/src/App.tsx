@@ -37,6 +37,7 @@ const WorkflowsPage = lazyPage(() => import('./pages/WorkflowsPage'), 'Workflows
 const FeatureFlagsPage = lazyPage(() => import('./pages/FeatureFlagsPage'), 'FeatureFlagsPage')
 const ResourcesPage = lazyPage(() => import('./pages/ResourcesPage'), 'ResourcesPage')
 const StationsPage = lazyPage(() => import('./pages/StationsPage'), 'StationsPage')
+const GamingSessionsPage = lazyPage(() => import('./pages/GamingSessionsPage'), 'GamingSessionsPage')
 
 function RouteLoading() {
   return <p className="screen-message" role="status">Učitavanje stranice…</p>
@@ -77,6 +78,9 @@ function App() {
               </Route>
               <Route element={<CapabilityGuard anyOf={['STATION_READ']} />}>
                 <Route path="stations" element={<StationsPage />} />
+              </Route>
+              <Route element={<CapabilityGuard anyOf={['GAMING_SESSION_READ']} />}>
+                <Route path="gaming-sessions" element={<GamingSessionsPage />} />
               </Route>
               <Route element={<CapabilityGuard anyOf={['USER_LIST']} />}>
                 <Route path="employees" element={<UserManagementPage employeesOnly />} />

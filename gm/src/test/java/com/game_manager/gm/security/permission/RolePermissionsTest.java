@@ -23,7 +23,9 @@ class RolePermissionsTest {
                         Permission.DASHBOARD_OPERATIONAL, Permission.RESOURCE_READ,
                         Permission.CUSTOMER_READ, Permission.CUSTOMER_CREATE,
                         Permission.CUSTOMER_UPDATE_LIMITED, Permission.CUSTOMER_DEACTIVATE,
-                        Permission.STATION_READ)
+                        Permission.STATION_READ, Permission.GAMING_SESSION_READ,
+                        Permission.GAMING_SESSION_START, Permission.GAMING_SESSION_EXTEND,
+                        Permission.GAMING_SESSION_TERMINATE)
                 .doesNotContain(Permission.USER_LIST, Permission.DASHBOARD_SUMMARY);
         assertThat(RolePermissions.forRole(Role.ADMIN))
                 .contains(Permission.USER_LIST, Permission.USER_CREATE,
