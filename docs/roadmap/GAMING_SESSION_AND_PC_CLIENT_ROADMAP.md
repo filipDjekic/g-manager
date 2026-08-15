@@ -259,6 +259,12 @@ Stage 1.
 ### Definition of Done
 Station readiness verticala je upotrebljiva bez Client-a i pokrivena testovima.
 
+### Izvršni status (2026-08-15)
+
+`IMPLEMENTED`: V30 station/application schema, station readiness CRUD, izvedeni status
+projection port, booking zaštita, RBAC, application policy editor i employee read-only
+overview/map indikatori su implementirani. Gaming session, machine API i Client nisu uvedeni.
+
 ## Stage 4 — Authoritative gaming-session lifecycle
 
 ### Cilj

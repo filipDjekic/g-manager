@@ -22,14 +22,16 @@ class RolePermissionsTest {
                 .contains(Permission.RESERVATION_READ_ALL, Permission.ORDER_READ_ALL,
                         Permission.DASHBOARD_OPERATIONAL, Permission.RESOURCE_READ,
                         Permission.CUSTOMER_READ, Permission.CUSTOMER_CREATE,
-                        Permission.CUSTOMER_UPDATE_LIMITED, Permission.CUSTOMER_DEACTIVATE)
+                        Permission.CUSTOMER_UPDATE_LIMITED, Permission.CUSTOMER_DEACTIVATE,
+                        Permission.STATION_READ)
                 .doesNotContain(Permission.USER_LIST, Permission.DASHBOARD_SUMMARY);
         assertThat(RolePermissions.forRole(Role.ADMIN))
                 .contains(Permission.USER_LIST, Permission.USER_CREATE,
                         Permission.CATALOG_MANAGE, Permission.DASHBOARD_SUMMARY,
                         Permission.RESOURCE_READ, Permission.RESOURCE_MANAGE,
                         Permission.CUSTOMER_CREATE, Permission.CUSTOMER_UPDATE_LIMITED,
-                        Permission.CUSTOMER_DEACTIVATE)
+                        Permission.CUSTOMER_DEACTIVATE, Permission.STATION_READ,
+                        Permission.STATION_MAINTENANCE, Permission.APPLICATION_PROFILE_MANAGE)
                 .doesNotContain(Permission.ORDER_CREATE, Permission.RESERVATION_CREATE);
         assertThat(RolePermissions.forRole(Role.OWNER))
                 .containsAll(RolePermissions.forRole(Role.ADMIN));

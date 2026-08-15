@@ -106,6 +106,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/resources/**")
                             .hasAuthority("RESOURCE_READ")
                         .requestMatchers("/api/v1/resources/**").hasAuthority("RESOURCE_MANAGE")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/stations/**", "/api/v1/stations")
+                            .hasAuthority("STATION_READ")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/stations/*/profile")
+                            .hasAuthority("STATION_MAINTENANCE")
+                        .requestMatchers("/api/v1/stations/applications/**",
+                                "/api/v1/stations/application-profiles/**")
+                            .hasAuthority("APPLICATION_PROFILE_MANAGE")
                         .requestMatchers("/api/v1/catalog/**").hasAuthority("CATALOG_MANAGE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/working-hours/**").hasAuthority("WORKING_HOURS_READ")
                         .requestMatchers("/api/v1/working-hours/**").hasAuthority("WORKING_HOURS_MANAGE")

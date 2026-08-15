@@ -106,9 +106,10 @@ export function ResourcesPage() {
                 height: `${value.height / area.mapHeight * 100}%`,
                 transform: `rotate(${value.rotation}deg)`, border: '1px solid currentColor',
                 borderRadius: 8, background: value.status === 'AVAILABLE' ? '#dcfce7'
-                  : value.status === 'OCCUPIED' ? '#fee2e2' : '#e5e7eb' }}>
-              {value.name}</button>)}
-          </div><p aria-live="polite">Zeleno: slobodno · crveno: zauzeto · sivo: van funkcije</p>
+                  : value.status === 'OCCUPIED' ? '#fee2e2'
+                    : value.status === 'MAINTENANCE' ? '#fef3c7' : '#e5e7eb' }}>
+              {value.name}<small>{value.status}</small></button>)}
+          </div><p aria-live="polite">Zeleno: slobodno · crveno: zauzeto · žuto: održavanje · sivo: van funkcije</p>
         </section>}</>}
   </main>
 }
