@@ -39,7 +39,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus
   endpoint:
     health:
       probes:
@@ -48,7 +48,7 @@ management:
         liveness:
           include: livenessState,ping
         readiness:
-          include: readinessState,db,outbox,backgroundJobs
+          include: readinessState,db,outbox,backgroundJobs,machineProtocol
   metrics:
     tags:
       application: ${spring.application.name}
@@ -139,10 +139,19 @@ app:
     status: ${GAMING_CLIENT_STATUS:DEVELOPMENT}
     download-url: ${GAMING_CLIENT_DOWNLOAD_URL:/downloads/gmanager-client/GManager.Client.zip}
     sha256: ${GAMING_CLIENT_SHA256:UNPUBLISHED}
+    minimum-version: ${GAMING_CLIENT_MINIMUM_VERSION:0.1.0}
+    package-signing-subject: ${GAMING_CLIENT_PACKAGE_SIGNING_SUBJECT:UNPUBLISHED}
     policy-signing-private-key: ${STATION_POLICY_SIGNING_PRIVATE_KEY:}
     policy-signing-key-id: ${STATION_POLICY_SIGNING_KEY_ID:development-unconfigured}
     lease-duration-seconds: ${STATION_LEASE_DURATION_SECONDS:30}
     offline-grace-seconds: ${STATION_OFFLINE_GRACE_SECONDS:30}
+    command-lag-warning-seconds: ${STATION_COMMAND_LAG_WARNING_SECONDS:60}
+    metrics-refresh-millis: ${STATION_METRICS_REFRESH_MILLIS:15000}
+    retention:
+      nonce-days: ${STATION_NONCE_RETENTION_DAYS:7}
+      heartbeat-days: ${STATION_HEARTBEAT_RETENTION_DAYS:30}
+      audit-days: ${STATION_AUDIT_RETENTION_DAYS:90}
+      cleanup-cron: ${STATION_RETENTION_CLEANUP_CRON:0 20 3 * * *}
   notifications:
     email-enabled: ${NOTIFICATION_EMAIL_ENABLED:false}
     delivery-batch-size: ${NOTIFICATION_DELIVERY_BATCH_SIZE:25}

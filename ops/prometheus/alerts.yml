@@ -33,6 +33,34 @@ groups:
         annotations:
           summary: Background job queue contains dead jobs
           runbook_url: https://github.com/filipDjekic/g-manager/blob/main/ops/runbooks/observability.txt
+      - alert: GManagerMachineCommandLag
+        expr: gmanager_machine_commands_oldest_lag_seconds > 60
+        for: 2m
+        labels: { severity: warning }
+        annotations: { summary: "Gaming Client command acknowledgement is delayed", runbook_url: "https://github.com/filipDjekic/g-manager/blob/main/ops/runbooks/observability.txt" }
+      - alert: GManagerMachineStationOffline
+        expr: gmanager_machine_stations_offline > 0
+        for: 2m
+        labels: { severity: warning }
+        annotations: { summary: "One or more managed gaming stations are offline", runbook_url: "https://github.com/filipDjekic/g-manager/blob/main/ops/runbooks/observability.txt" }
+      - alert: GManagerMachineLockPending
+        expr: gmanager_machine_stations_lock_pending > 0
+        for: 1m
+        labels: { severity: critical }
+        annotations: { summary: "A gaming station has not acknowledged local lock", runbook_url: "https://github.com/filipDjekic/g-manager/blob/main/ops/runbooks/observability.txt" }
+      - alert: GManagerExpiredSessionUnacknowledged
+        expr: gmanager_machine_sessions_expired_unacknowledged > 0
+        for: 1m
+        labels: { severity: critical }
+        annotations: { summary: "An expired session is not safely locked", runbook_url: "https://github.com/filipDjekic/g-manager/blob/main/ops/runbooks/observability.txt" }
+      - alert: GManagerMachineEnrollmentFailures
+        expr: increase(gmanager_machine_enrollment_failures_total[10m]) >= 5
+        labels: { severity: warning }
+        annotations: { summary: "Repeated Gaming Client enrollment failures", runbook_url: "https://github.com/filipDjekic/g-manager/blob/main/ops/runbooks/observability.txt" }
+      - alert: GManagerMachineAuthenticationFailures
+        expr: increase(gmanager_machine_authentication_failures_total[10m]) >= 20
+        labels: { severity: warning }
+        annotations: { summary: "Repeated machine authentication failures", runbook_url: "https://github.com/filipDjekic/g-manager/blob/main/ops/runbooks/observability.txt" }
       - alert: GManagerObservabilityTest
         expr: vector(1)
         for: 0m

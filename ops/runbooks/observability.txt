@@ -18,6 +18,16 @@ fix the consumer cause, then use the controlled replay operation.
 GManagerBackgroundJobDead: inspect job type, job ID, attempt outcome and requestId.
 Fix the handler cause before using the explicit retry operation.
 
+GManagerMachineCommandLag / GManagerMachineLockPending /
+GManagerExpiredSessionUnacknowledged: open Gaming operativa, inspect station
+history and record the displayed Support ID. Verify the Client service and LAN
+route. Use force-lock, then physical lock confirmation only after an employee
+has inspected the station. Never mark a station safe from monitoring alone.
+
+GManagerMachineStationOffline: verify power, LAN, TLS trust and Windows Service.
+Authentication/enrollment failure alerts require certificate/key validity and
+rotation-window review; do not copy enrollment tokens or machine JWTs to tickets.
+
 GManagerObservabilityTest: this synthetic alert proves rule evaluation and the
 runbook link. Silence or remove only in an environment where test alerts are
 routed separately and validated by another controlled injection.

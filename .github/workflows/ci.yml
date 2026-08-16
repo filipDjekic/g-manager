@@ -17,6 +17,23 @@ env:
   NODE_VERSION: '22'
 
 jobs:
+  gaming-client:
+    name: Gaming Client quality and dependency policy
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4
+        with: { dotnet-version: '10.0.x' }
+      - run: dotnet restore GManager.Client.slnx
+        working-directory: client
+      - run: dotnet build GManager.Client.slnx --no-restore -warnaserror
+        working-directory: client
+      - run: dotnet test GManager.Client.slnx --no-build
+        working-directory: client
+      - run: dotnet list GManager.Client.slnx package --vulnerable --include-transitive
+        working-directory: client
+
   contract:
     name: CI contract
     runs-on: ubuntu-24.04

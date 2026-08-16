@@ -21,6 +21,31 @@ permissions:
   packages: write
 
 jobs:
+  gaming-client:
+    name: Signed Windows Gaming Client
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4
+        with: { dotnet-version: '10.0.x' }
+      - name: Import ephemeral code-signing certificate
+        shell: pwsh
+        env:
+          SIGNING_PFX_BASE64: ${{ secrets.GAMING_CLIENT_SIGNING_PFX_BASE64 }}
+          SIGNING_PFX_PASSWORD: ${{ secrets.GAMING_CLIENT_SIGNING_PFX_PASSWORD }}
+        run: |
+          $bytes=[Convert]::FromBase64String($env:SIGNING_PFX_BASE64)
+          $certificate=New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($bytes,$env:SIGNING_PFX_PASSWORD,'PersistKeySet')
+          $store=New-Object System.Security.Cryptography.X509Certificates.X509Store('My','CurrentUser');$store.Open('ReadWrite');$store.Add($certificate);$store.Close()
+          "SIGNING_THUMBPRINT=$($certificate.Thumbprint)" >> $env:GITHUB_ENV
+      - name: Publish, Authenticode sign and package
+        working-directory: client/packaging
+        shell: pwsh
+        run: ./publish.ps1 -CertificateThumbprint $env:SIGNING_THUMBPRINT -Version '${{ github.ref_name }}'
+      - name: Upload signed client candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with: { name: gmanager-client-signed, path: 'client/artifacts/GManager.Client.*', if-no-files-found: error }
+
   images:
     name: Build, SBOM and image policy
     runs-on: ubuntu-24.04
@@ -72,6 +97,12 @@ jobs:
       AI_PROVIDER: ${{ vars.AI_PROVIDER }}
       AI_ENDPOINT: ${{ vars.AI_ENDPOINT }}
       AI_MODEL: ${{ vars.AI_MODEL }}
+      STATION_POLICY_SIGNING_KEY_ID: ${{ vars.STATION_POLICY_SIGNING_KEY_ID }}
+      GAMING_CLIENT_VERSION: ${{ vars.GAMING_CLIENT_VERSION }}
+      GAMING_CLIENT_MINIMUM_VERSION: ${{ vars.GAMING_CLIENT_MINIMUM_VERSION }}
+      GAMING_CLIENT_DOWNLOAD_URL: ${{ vars.GAMING_CLIENT_DOWNLOAD_URL }}
+      GAMING_CLIENT_SHA256: ${{ vars.GAMING_CLIENT_SHA256 }}
+      GAMING_CLIENT_PACKAGE_SIGNING_SUBJECT: ${{ vars.GAMING_CLIENT_PACKAGE_SIGNING_SUBJECT }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Materialize runner-only secrets
@@ -85,6 +116,7 @@ jobs:
           S3_SECRET_KEY: ${{ secrets.DOCUMENT_S3_SECRET_KEY }}
           BACKUP_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          STATION_POLICY_SIGNING_PRIVATE_KEY: ${{ secrets.STATION_POLICY_SIGNING_PRIVATE_KEY }}
         run: |
           install -d -m 0700 secrets
           printf %s "$JWT_SECRET" > secrets/jwt_secret
@@ -95,6 +127,7 @@ jobs:
           printf %s "$S3_SECRET_KEY" > secrets/document_s3_secret_key
           printf %s "$BACKUP_KEY" > secrets/backup_encryption_key
           printf %s "$AI_API_KEY" > secrets/ai_api_key
+          printf %s "$STATION_POLICY_SIGNING_PRIVATE_KEY" > secrets/station_policy_signing_private_key
           chmod 0600 secrets/*
       - name: Deploy through migration, restore and smoke gates
         run: ./ops/deploy/deploy.sh

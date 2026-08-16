@@ -57,7 +57,14 @@ services:
       AI_PROVIDER: ${AI_PROVIDER:-disabled}
       AI_ENDPOINT: ${AI_ENDPOINT:-}
       AI_MODEL: ${AI_MODEL:-not-configured}
-    secrets: [jwt_secret, db_username, db_password, document_s3_access_key, document_s3_secret_key, ai_api_key]
+      STATION_POLICY_SIGNING_KEY_ID: ${STATION_POLICY_SIGNING_KEY_ID:?STATION_POLICY_SIGNING_KEY_ID is required}
+      GAMING_CLIENT_VERSION: ${GAMING_CLIENT_VERSION:?GAMING_CLIENT_VERSION is required}
+      GAMING_CLIENT_MINIMUM_VERSION: ${GAMING_CLIENT_MINIMUM_VERSION:?GAMING_CLIENT_MINIMUM_VERSION is required}
+      GAMING_CLIENT_STATUS: RELEASED
+      GAMING_CLIENT_DOWNLOAD_URL: ${GAMING_CLIENT_DOWNLOAD_URL:?GAMING_CLIENT_DOWNLOAD_URL is required}
+      GAMING_CLIENT_SHA256: ${GAMING_CLIENT_SHA256:?GAMING_CLIENT_SHA256 is required}
+      GAMING_CLIENT_PACKAGE_SIGNING_SUBJECT: ${GAMING_CLIENT_PACKAGE_SIGNING_SUBJECT:?GAMING_CLIENT_PACKAGE_SIGNING_SUBJECT is required}
+    secrets: [jwt_secret, db_username, db_password, document_s3_access_key, document_s3_secret_key, ai_api_key, station_policy_signing_private_key]
     volumes: [document_data:/data/uploads]
     networks: [data, edge]
     depends_on: { mysql: { condition: service_healthy } }
@@ -123,7 +130,8 @@ services:
       APP_RELEASE: ${APP_RELEASE:?APP_RELEASE is required}-restore-drill
       DOCUMENT_STORAGE_BACKEND: local
       MANAGEMENT_SERVER_ADDRESS: 0.0.0.0
-    secrets: [jwt_secret, db_username, db_password]
+      STATION_POLICY_SIGNING_KEY_ID: ${STATION_POLICY_SIGNING_KEY_ID:?STATION_POLICY_SIGNING_KEY_ID is required}
+    secrets: [jwt_secret, db_username, db_password, station_policy_signing_private_key]
     networks: [data]
     depends_on: { mysql: { condition: service_healthy } }
     security_opt: [no-new-privileges:true]
@@ -145,6 +153,7 @@ secrets:
   document_s3_secret_key: { file: ./secrets/document_s3_secret_key }
   backup_encryption_key: { file: ./secrets/backup_encryption_key }
   ai_api_key: { file: ./secrets/ai_api_key }
+  station_policy_signing_private_key: { file: ./secrets/station_policy_signing_private_key }
 configs:
   mysql_init:
     file: ./mysql-init.sh
