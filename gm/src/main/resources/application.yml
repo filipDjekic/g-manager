@@ -141,6 +141,8 @@ app:
     sha256: ${GAMING_CLIENT_SHA256:UNPUBLISHED}
     policy-signing-private-key: ${STATION_POLICY_SIGNING_PRIVATE_KEY:}
     policy-signing-key-id: ${STATION_POLICY_SIGNING_KEY_ID:development-unconfigured}
+    lease-duration-seconds: ${STATION_LEASE_DURATION_SECONDS:30}
+    offline-grace-seconds: ${STATION_OFFLINE_GRACE_SECONDS:30}
   notifications:
     email-enabled: ${NOTIFICATION_EMAIL_ENABLED:false}
     delivery-batch-size: ${NOTIFICATION_DELIVERY_BATCH_SIZE:25}

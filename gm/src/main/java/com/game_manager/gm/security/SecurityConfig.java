@@ -132,6 +132,9 @@ public class SecurityConfig {
                             .hasAuthority("GAMING_SESSION_EXTEND")
                         .requestMatchers(HttpMethod.POST, "/api/v1/gaming-sessions/*/terminate")
                             .hasAuthority("GAMING_SESSION_TERMINATE")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/gaming-operations/stations/*/force-lock",
+                                "/api/v1/gaming-operations/stations/*/confirm-locked")
+                            .hasAuthority("GAMING_SESSION_TERMINATE")
                         .requestMatchers("/api/v1/catalog/**").hasAuthority("CATALOG_MANAGE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/working-hours/**").hasAuthority("WORKING_HOURS_READ")
                         .requestMatchers("/api/v1/working-hours/**").hasAuthority("WORKING_HOURS_MANAGE")

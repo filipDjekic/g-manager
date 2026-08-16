@@ -18,10 +18,12 @@ public class StationCommandWriter {
     private final ObjectMapper json;
     private final Clock clock;
     private final Duration retention;
+    private final com.game_manager.gm.machine.StationEnforcementProjectionService enforcement;
 
     public StationCommandWriter(JdbcTemplate jdbc, ObjectMapper json, Clock clock,
-            @Value("${app.gaming-session.command-retention-days:30}") long retentionDays) {
-        this.jdbc = jdbc; this.json = json; this.clock = clock; this.retention = Duration.ofDays(retentionDays);
+            @Value("${app.gaming-session.command-retention-days:30}") long retentionDays,
+            com.game_manager.gm.machine.StationEnforcementProjectionService enforcement) {
+        this.jdbc = jdbc; this.json = json; this.clock = clock; this.retention = Duration.ofDays(retentionDays);this.enforcement=enforcement;
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -48,6 +50,7 @@ public class StationCommandWriter {
                 type.name(), json.writeValueAsString(payload), correlation, Timestamp.from(now),
                 Timestamp.from(now.plus(retention)), Timestamp.from(now), Timestamp.from(now));
         session.setLastCommandSequence(sequence);
+        enforcement.commandIssued(session,type,sequence);
         return sequence;
     }
 
@@ -63,7 +66,8 @@ public class StationCommandWriter {
         if (session.getStatus().name().equals("ACTIVE")
                 ? !(actualType.equals(StationCommandType.SESSION_STARTED.name())
                     || actualType.equals(StationCommandType.SESSION_EXTENDED.name()))
-                : !actualType.equals(StationCommandType.SESSION_TERMINATED.name())) return false;
+                : !(actualType.equals(StationCommandType.SESSION_TERMINATED.name())
+                    || actualType.equals(StationCommandType.FORCE_LOCK.name()))) return false;
         var payload = json.readTree(String.valueOf(row.get("payload")));
         String projectedEndedAt = payload.path("endedAt").isNull() ? null : payload.path("endedAt").asText();
         return session.getEndsAt().toString().equals(payload.path("endsAt").asText())

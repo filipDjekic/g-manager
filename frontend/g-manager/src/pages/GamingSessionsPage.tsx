@@ -49,6 +49,7 @@ export function GamingSessionsPage(){
     try{await gamingSessionApi.terminate(endStation.sessionId,reason.trim(),endStation.sessionVersion,actionKey.current.begin());actionKey.current.succeeded();setEndStation(null);setReason('');await refresh()}
     catch(cause){actionKey.current.failed(cause);setError(apiErrorMessage(cause,'Sesiju nije moguće završiti.'));await refresh()}
     finally{setBusy('')}}
+  async function recovery(station:GamingStationCard,confirm:boolean){setBusy(`recovery-${station.resourceId}`);setError('');try{if(confirm)await gamingSessionApi.confirmLocked(station.resourceId);else await gamingSessionApi.forceLock(station.resourceId);await refresh()}catch(cause){setError(apiErrorMessage(cause,'Recovery akcija nije uspela.'))}finally{setBusy('')}}
 
   return <main className="workspace gaming-operations"><div className="page-heading"><div><p className="eyebrow">Gaming operativa</p>
     <h1>Kontrola gaming stanica</h1><p>Stanja i vremena se automatski usklađuju sa serverom.</p></div>
@@ -59,6 +60,7 @@ export function GamingSessionsPage(){
       <section className="gaming-station-grid" aria-label="Gaming stanice">{board.data.stations.map(station=><article key={station.resourceId}
         className={`gaming-station-card gaming-station-card--${station.status.toLowerCase().replace('_','-')}`}>
         <header><div><small>{station.resourceCode}</small><h2>{station.resourceName}</h2></div><span className="gaming-station-status">{statusLabel[station.status]}</span></header>
+        <p className={station.staleHeartbeat?'warning-banner':''}>Client enforcement: <strong>{station.enforcementStatus}</strong>{station.staleHeartbeat?' · heartbeat je zastareo':''}{station.lastLockAckAt&&<> · poslednji LOCK_ACK <time dateTime={station.lastLockAckAt}>{formatBusinessDateTime(station.lastLockAckAt)}</time></>}</p>
         {station.status==='ACTIVE'?<div className="gaming-session-summary"><p><span>Klijent</span><strong>{station.customerDisplayName??station.customerId}</strong></p>
           <p><span>Početak</span><time dateTime={station.startedAt}>{station.startedAt&&formatBusinessDateTime(station.startedAt)}</time></p>
           <p><span>Kraj</span><time dateTime={station.endsAt}>{station.endsAt&&formatBusinessDateTime(station.endsAt)}</time></p>
@@ -68,7 +70,9 @@ export function GamingSessionsPage(){
           {station.allowedActions.includes('EXTEND')&&<><Button variant="secondary" loading={busy===`extend-${station.resourceId}`} onClick={()=>void extend(station,30)}>+30 min</Button>
             <Button variant="secondary" loading={busy===`extend-${station.resourceId}`} onClick={()=>void extend(station,60)}>+60 min</Button>
             <Button variant="secondary" onClick={()=>{setCustomStation(station);setCustomMinutes(30)}}>Drugo…</Button></>}
-          {station.allowedActions.includes('TERMINATE')&&<Button variant="danger" onClick={()=>{setEndStation(station);setReason('')}}>Završi</Button>}</footer>
+          {station.allowedActions.includes('TERMINATE')&&<Button variant="danger" onClick={()=>{setEndStation(station);setReason('')}}>Završi</Button>}
+          {station.allowedActions.includes('FORCE_LOCK')&&<Button variant="danger" loading={busy===`recovery-${station.resourceId}`} onClick={()=>void recovery(station,false)}>Ponovo pošalji force-lock</Button>}
+          {station.allowedActions.includes('CONFIRM_LOCKED')&&<Button variant="secondary" loading={busy===`recovery-${station.resourceId}`} onClick={()=>{if(window.confirm('Potvrdite samo nakon fizičke provere da je stanica zaključana.'))void recovery(station,true)}}>Potvrdi fizički lock</Button>}</footer>
       </article>)}</section>}
 
     <Modal open={startStation!==null} title={`Pokreni sesiju · ${startStation?.resourceName??''}`} onClose={()=>setStartStation(null)}>

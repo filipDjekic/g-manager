@@ -74,7 +74,7 @@ class MySqlSchemaIT {
         assertThat(currentVersion()).isEqualTo("27");
         flyway.migrate();
 
-        assertThat(currentVersion()).isEqualTo("35");
+        assertThat(currentVersion()).isEqualTo("36");
         log.info("MySQL V27-to-latest migration completed in {} ms", elapsedMillis(startedAt));
     }
 
@@ -84,7 +84,7 @@ class MySqlSchemaIT {
         long startedAt = System.nanoTime();
         cleanSchema();
         assertThat(flyway.migrate().success).isTrue();
-        assertThat(currentVersion()).isEqualTo("35");
+        assertThat(currentVersion()).isEqualTo("36");
         assertThat(entityManagerFactory.getMetamodel().getEntities()).isNotEmpty();
         log.info("MySQL empty-to-latest migration completed in {} ms", elapsedMillis(startedAt));
     }

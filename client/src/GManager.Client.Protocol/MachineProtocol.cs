@@ -6,6 +6,11 @@ public interface IMachineProtocolClient {
  Task<MachineToken> AuthenticateAsync(Guid identityId,IChallengeSigner signer,CancellationToken ct);
  Task<SessionSnapshot> SnapshotAsync(string bearer,CancellationToken ct);
  Task<SignedStationPolicy> ConfigurationAsync(string bearer,CancellationToken ct);
+ Task<SignedSessionLease> LeaseAsync(string bearer,CancellationToken ct);
+ Task<IReadOnlyList<MachineCommand>> CommandsAsync(string bearer,long afterSequence,CancellationToken ct);
+ Task AckAsync(string bearer,long sequence,CancellationToken ct);
+ Task LockAckAsync(string bearer,Guid sessionId,long sequence,Guid? leaseId,string reason,CancellationToken ct);
+ Task HeartbeatAsync(string bearer,Heartbeat heartbeat,CancellationToken ct);
  Task<CustomerSession> LoginAsync(string bearer,string email,string password,CancellationToken ct);
  Task LogoutAsync(string bearer,Guid sessionId,CancellationToken ct);
 }
@@ -15,12 +20,21 @@ public sealed record CustomerSession(Guid SessionId,Guid StationId,Guid Customer
 public sealed record SignedStationPolicy(string Payload,string Algorithm,string KeyId,string Signature);
 public sealed record StationPolicy(Guid StationId,Guid ProfileId,long ConfigurationVersion,DateTimeOffset IssuedAt,IReadOnlyList<PolicyApplication> Applications);
 public sealed record PolicyApplication(string Code,string Name,string Type,string ExecutablePath,string? Publisher,string? PublisherCertificateThumbprint,string? ExecutableSha256,string? MinimumFileVersion,string? Arguments,bool RequiredProcess,bool AutoStart,int LaunchOrder,string? DependencyGroup);
+public sealed record SignedSessionLease(string Payload,string Algorithm,string KeyId,string Signature);
+public sealed record SessionLease(Guid LeaseId,Guid StationId,Guid? SessionId,Guid? CustomerId,DateTimeOffset? SessionEndsAt,long ConfigurationVersion,DateTimeOffset IssuedAt,DateTimeOffset ExpiresAt,DateTimeOffset GraceEndsAt,long CommandCursor,string Directive);
+public sealed record MachineCommand(long Sequence,string Type,int PayloadVersion,string Payload,DateTimeOffset AvailableAt);
+public sealed record Heartbeat(string ClientVersion,string Status,long LastCommandSequence,string EnforcementStatus,Guid? SessionId,Guid? LeaseId,long ConfigurationVersion);
 internal sealed record ChallengeRequest(Guid IdentityId);internal sealed record Challenge(Guid ChallengeId,Guid IdentityId,string Nonce,DateTimeOffset ExpiresAt,string SigningFormat);internal sealed record TokenRequest(Guid IdentityId,Guid ChallengeId,string Nonce,string Signature);
 public sealed class MachineProtocolClient(HttpClient http):IMachineProtocolClient {
  public async Task<EnrollmentResult> EnrollAsync(string token,IChallengeSigner signer,string version,CancellationToken ct)=>await Post<EnrollmentResult>("api/v1/machine/enroll",new{enrollmentToken=token,publicKeyBase64=signer.PublicKeyBase64,clientVersion=version},null,ct);
  public async Task<MachineToken> AuthenticateAsync(Guid id,IChallengeSigner signer,CancellationToken ct){var c=await Post<Challenge>("api/v1/machine/auth/challenge",new ChallengeRequest(id),null,ct);var value=$"{c.ChallengeId}:{c.IdentityId}:{c.Nonce}";return await Post<MachineToken>("api/v1/machine/auth/token",new TokenRequest(id,c.ChallengeId,c.Nonce,signer.Sign(value)),null,ct);}
  public Task<SessionSnapshot> SnapshotAsync(string bearer,CancellationToken ct)=>Get<SessionSnapshot>("api/v1/machine/snapshot",bearer,ct);
  public Task<SignedStationPolicy> ConfigurationAsync(string bearer,CancellationToken ct)=>Get<SignedStationPolicy>("api/v1/machine/configuration",bearer,ct);
+ public Task<SignedSessionLease> LeaseAsync(string bearer,CancellationToken ct)=>Get<SignedSessionLease>("api/v1/machine/lease",bearer,ct);
+ public Task<IReadOnlyList<MachineCommand>> CommandsAsync(string bearer,long afterSequence,CancellationToken ct)=>Get<IReadOnlyList<MachineCommand>>($"api/v1/machine/commands?afterSequence={afterSequence}",bearer,ct);
+ public async Task AckAsync(string bearer,long sequence,CancellationToken ct)=>_ = await Post<object>($"api/v1/machine/commands/{sequence}/ack",new{},bearer,ct);
+ public async Task LockAckAsync(string bearer,Guid sessionId,long sequence,Guid? leaseId,string reason,CancellationToken ct)=>_ = await Post<object>("api/v1/machine/enforcement/lock-ack",new{sessionId,commandSequence=sequence,leaseId,reason},bearer,ct);
+ public async Task HeartbeatAsync(string bearer,Heartbeat heartbeat,CancellationToken ct)=>_ = await Post<object>("api/v1/machine/heartbeat",heartbeat,bearer,ct);
  public Task<CustomerSession> LoginAsync(string bearer,string email,string password,CancellationToken ct)=>Post<CustomerSession>("api/v1/machine/session-login",new{email,password},bearer,ct);
  public async Task LogoutAsync(string bearer,Guid sessionId,CancellationToken ct)=>_ = await Post<object>("api/v1/machine/session-logout",new{sessionId},bearer,ct);
  async Task<T> Get<T>(string path,string token,CancellationToken ct){using var request=new HttpRequestMessage(HttpMethod.Get,path);request.Headers.Authorization=new AuthenticationHeaderValue("Bearer",token);using var response=await http.SendAsync(request,ct);response.EnsureSuccessStatusCode();return (await response.Content.ReadFromJsonAsync<T>(cancellationToken:ct))!;}
