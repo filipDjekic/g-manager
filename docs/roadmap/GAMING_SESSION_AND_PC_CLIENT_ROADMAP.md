@@ -464,6 +464,15 @@ Stages 3 i 5.
 ### Definition of Done
 Machine protocol radi kroz test harness, bez employee credentials.
 
+### Izvršni status (2026-08-16)
+
+`IMPLEMENTED`: V33 enrollment/identity/challenge/heartbeat schema, one-time
+INITIAL/ROTATION kodovi, Ed25519 challenge-response, zaseban station-scoped machine
+JWT/filter, rotation overlap i revoke, heartbeat/snapshot/poll/idempotent ack API,
+identity-keyed rate limiting, management UI i headless protocol harness su
+implementirani. Windows Service, Shell i session-bound customer login ostaju u
+Stage-u 8.
+
 ## Stage 8 — Windows Service i fullscreen Shell vertical slice
 
 ### Cilj

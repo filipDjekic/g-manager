@@ -1,0 +1,1 @@
+$ErrorActionPreference='Stop';Unregister-ScheduledTask -TaskName 'GManagerClientShell' -Confirm:$false -ErrorAction SilentlyContinue;sc.exe stop GManagerClient;sc.exe delete GManagerClient;Write-Host 'Service i Shell startup su uklonjeni. DPAPI identity ostaje u ProgramData\GManager\Client radi bezbednog oporavka; obrišite ga ručno samo pri decommission postupku.'

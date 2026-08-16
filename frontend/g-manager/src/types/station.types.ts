@@ -4,12 +4,12 @@ export type ApplicationType = 'LAUNCHER' | 'GAME' | 'HELPER'
 
 export interface ApplicationDefinition {
   id:string;code:string;name:string;type:ApplicationType;executablePath:string
-  publisher?:string;executableSha256?:string;defaultArguments?:string;active:boolean;version:number
+  publisher?:string;publisherCertificateThumbprint?:string;executableSha256?:string;minimumFileVersion?:string;defaultArguments?:string;active:boolean;version:number
 }
 export interface ApplicationDefinitionInput extends Omit<ApplicationDefinition, 'id'|'version'> { version?:number }
 export interface ApplicationProfileEntry {
   id:string;applicationDefinitionId:string;applicationName:string;applicationType:ApplicationType
-  requiredProcess:boolean;autoStart:boolean;launchOrder:number;argumentsOverride?:string;version:number
+  requiredProcess:boolean;autoStart:boolean;launchOrder:number;argumentsOverride?:string;dependencyGroup?:string;version:number
 }
 export interface ApplicationProfile {
   id:string;code:string;name:string;description?:string;active:boolean
@@ -17,7 +17,7 @@ export interface ApplicationProfile {
 }
 export interface ApplicationProfileInput {
   code:string;name:string;description?:string;active:boolean;version?:number
-  entries:Array<{applicationDefinitionId:string;requiredProcess:boolean;autoStart:boolean;launchOrder:number;argumentsOverride?:string}>
+  entries:Array<{applicationDefinitionId:string;requiredProcess:boolean;autoStart:boolean;launchOrder:number;argumentsOverride?:string;dependencyGroup?:string}>
 }
 export interface StationOverview {
   stationProfileId?:string;resourceId:string;resourceCode:string;resourceName:string
@@ -30,3 +30,8 @@ export interface StationProfileInput {
   operationalStatus:StationOperationalStatus;applicationProfileId?:string;clientEnabled:boolean
   heartbeatIntervalSeconds:number;offlineGraceSeconds:number;version?:number
 }
+export type MachineIdentityStatus = 'ACTIVE'|'ROTATING'|'REVOKED'
+export interface MachineIdentity { id:string;stationId:string;keyVersion:number;status:MachineIdentityStatus
+  publicKeyFingerprint:string;enrolledAt:string;overlapExpiresAt?:string;revokedAt?:string;lastAuthenticatedAt?:string }
+export interface EnrollmentToken { tokenId:string;stationId:string;purpose:'INITIAL'|'ROTATION';enrollmentToken:string;expiresAt:string }
+export interface GamingClientPackage { version:string;status:string;downloadUrl:string;sha256:string }

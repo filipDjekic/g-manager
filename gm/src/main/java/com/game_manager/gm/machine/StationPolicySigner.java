@@ -1,0 +1,6 @@
+package com.game_manager.gm.machine;
+import com.game_manager.gm.common.error.ApplicationException;import java.security.*;import java.security.spec.PKCS8EncodedKeySpec;import java.util.Base64;import org.springframework.beans.factory.annotation.Value;import org.springframework.http.HttpStatus;import org.springframework.stereotype.Component;
+@Component public class StationPolicySigner {private final String encodedKey;private final String keyId;public StationPolicySigner(@Value("${app.gaming-client.policy-signing-private-key:}")String encodedKey,@Value("${app.gaming-client.policy-signing-key-id:unconfigured}")String keyId){this.encodedKey=encodedKey;this.keyId=keyId;}
+ public String sign(byte[] payload){if(encodedKey.isBlank())throw new ApplicationException(HttpStatus.SERVICE_UNAVAILABLE,"Station policy signing key is not configured");try{PrivateKey key=KeyFactory.getInstance("Ed25519").generatePrivate(new PKCS8EncodedKeySpec(Base64.getDecoder().decode(encodedKey.replaceAll("\\s",""))));Signature signer=Signature.getInstance("Ed25519");signer.initSign(key);signer.update(payload);return Base64.getUrlEncoder().withoutPadding().encodeToString(signer.sign());}catch(GeneralSecurityException|IllegalArgumentException e){throw new ApplicationException(HttpStatus.SERVICE_UNAVAILABLE,"Station policy signing key is invalid");}}
+ public String keyId(){return keyId;}
+}

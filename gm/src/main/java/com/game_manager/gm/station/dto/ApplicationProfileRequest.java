@@ -18,6 +18,7 @@ public record ApplicationProfileRequest(
             boolean requiredProcess,
             boolean autoStart,
             @PositiveOrZero int launchOrder,
-            @Size(max = 1000) String argumentsOverride
+            @Size(max = 1000) String argumentsOverride,
+            @Pattern(regexp = "^[A-Za-z0-9_-]{1,60}$") String dependencyGroup
     ) {}
 }

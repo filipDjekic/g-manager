@@ -21,4 +21,5 @@ public class ApplicationProfileEntry extends BaseEntity {
     @Column(name = "auto_start", nullable = false) private boolean autoStart;
     @Column(name = "launch_order", nullable = false) private int launchOrder;
     @Column(name = "arguments_override", length = 1000) private String argumentsOverride;
+    @Column(name = "dependency_group", length = 60) private String dependencyGroup;
 }

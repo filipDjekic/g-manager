@@ -1,6 +1,6 @@
 import { apiClient } from './client'
 import type { ApplicationDefinition, ApplicationDefinitionInput, ApplicationProfile,
-  ApplicationProfileInput, StationOverview, StationProfileInput } from '../types/station.types'
+  ApplicationProfileInput, EnrollmentToken, GamingClientPackage, MachineIdentity, StationOverview, StationProfileInput } from '../types/station.types'
 
 export const stationApi = {
   overview: () => apiClient.get<StationOverview[]>('/stations').then(({ data }) => data),
@@ -20,4 +20,9 @@ export const stationApi = {
     apiClient.put<ApplicationProfile>(`/stations/application-profiles/${id}`, request).then(({ data }) => data),
   deleteProfile: (id:string, version:number) =>
     apiClient.delete(`/stations/application-profiles/${id}`, { params:{ version } }),
+  machineIdentities: (stationId:string) => apiClient.get<MachineIdentity[]>(`/stations/${stationId}/machine-identity`).then(({data})=>data),
+  createEnrollmentToken: (stationId:string) => apiClient.post<EnrollmentToken>(`/stations/${stationId}/machine-identity/enrollment-token`).then(({data})=>data),
+  createRotationToken: (stationId:string) => apiClient.post<EnrollmentToken>(`/stations/${stationId}/machine-identity/rotation-token`).then(({data})=>data),
+  revokeMachineIdentities: (stationId:string) => apiClient.post(`/stations/${stationId}/machine-identity/revoke`),
+  clientPackage: () => apiClient.get<GamingClientPackage>('/stations/client-package').then(({data})=>data),
 }

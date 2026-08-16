@@ -74,7 +74,7 @@ class MySqlSchemaIT {
         assertThat(currentVersion()).isEqualTo("27");
         flyway.migrate();
 
-        assertThat(currentVersion()).isEqualTo("32");
+        assertThat(currentVersion()).isEqualTo("35");
         log.info("MySQL V27-to-latest migration completed in {} ms", elapsedMillis(startedAt));
     }
 
@@ -84,7 +84,7 @@ class MySqlSchemaIT {
         long startedAt = System.nanoTime();
         cleanSchema();
         assertThat(flyway.migrate().success).isTrue();
-        assertThat(currentVersion()).isEqualTo("32");
+        assertThat(currentVersion()).isEqualTo("35");
         assertThat(entityManagerFactory.getMetamodel().getEntities()).isNotEmpty();
         log.info("MySQL empty-to-latest migration completed in {} ms", elapsedMillis(startedAt));
     }
@@ -107,6 +107,10 @@ class MySqlSchemaIT {
         assertThat(constraintNames("FOREIGN KEY"))
                 .contains("fk_station_command_station", "fk_station_command_session",
                         "fk_station_command_sequence_station");
+        assertThat(constraintNames("FOREIGN KEY"))
+                .contains("fk_enrollment_station", "fk_enrollment_creator",
+                        "fk_machine_identity_station", "fk_machine_identity_enroller",
+                        "fk_machine_challenge_identity", "fk_station_heartbeat_identity");
         assertThat(constraintNames("CHECK"))
                 .contains("chk_catalog_price_positive", "chk_reservation_interval",
                         "chk_order_item_quantity");
@@ -138,6 +142,13 @@ class MySqlSchemaIT {
                 .contains("uk_station_command_sequence", "idx_station_command_cursor",
                         "idx_station_command_ack", "idx_station_command_retention",
                         "idx_station_command_session");
+        assertThat(indexNames("station_enrollment_tokens"))
+                .contains("uk_enrollment_token_hash", "idx_enrollment_station_status_expiry");
+        assertThat(indexNames("station_machine_identities"))
+                .contains("uk_machine_station_key_version", "uk_machine_public_fingerprint",
+                        "idx_machine_identity_station_status");
+        assertThat(indexNames("station_auth_challenges"))
+                .contains("uk_machine_challenge_nonce", "idx_machine_challenge_identity_expiry");
 
         Map<String, Object> plan = jdbc.queryForMap(
                 "EXPLAIN SELECT * FROM reservations WHERE employee_id = ? AND status = ? "

@@ -122,7 +122,7 @@ public class StationReadinessService {
         validateDefinition(request, null); ApplicationDefinition value = new ApplicationDefinition();
         apply(value, request); value = definitions.saveAndFlush(value);
         audit.write("APPLICATION_DEFINITION_CREATED", "APPLICATION_DEFINITION", value.getId(), null,
-                Map.of("code", value.getCode(), "type", value.getType().name()), null, AuditVisibility.MANAGEMENT);
+                definitionAudit(value), null, AuditVisibility.MANAGEMENT);
         return DefinitionView.from(value);
     }
 
@@ -133,7 +133,7 @@ public class StationReadinessService {
         validateDefinition(request, id); apply(value, request);
         value = definitions.saveAndFlush(value);
         audit.write("APPLICATION_DEFINITION_UPDATED", "APPLICATION_DEFINITION", value.getId(), null,
-                Map.of("code", value.getCode(), "type", value.getType().name()), null, AuditVisibility.MANAGEMENT);
+                definitionAudit(value), null, AuditVisibility.MANAGEMENT);
         return DefinitionView.from(value);
     }
 
@@ -167,7 +167,7 @@ public class StationReadinessService {
         apply(profile, request); profile = profiles.saveAndFlush(profile);
         ProfileView result = replaceEntries(profile, request.entries());
         audit.write("APPLICATION_PROFILE_CREATED", "APPLICATION_PROFILE", profile.getId(), null,
-                Map.of("code", profile.getCode(), "configurationVersion", profile.getConfigurationVersion()),
+                profileAudit(profile, request.entries()),
                 null, AuditVisibility.MANAGEMENT); return result;
     }
 
@@ -179,7 +179,7 @@ public class StationReadinessService {
         profile.setConfigurationVersion(profile.getConfigurationVersion() + 1);
         profiles.saveAndFlush(profile); ProfileView result = replaceEntries(profile, request.entries());
         audit.write("APPLICATION_PROFILE_UPDATED", "APPLICATION_PROFILE", profile.getId(), null,
-                Map.of("code", profile.getCode(), "configurationVersion", profile.getConfigurationVersion()),
+                profileAudit(profile, request.entries()),
                 null, AuditVisibility.MANAGEMENT); return result;
     }
 
@@ -203,7 +203,7 @@ public class StationReadinessService {
             ApplicationProfileEntry value = new ApplicationProfileEntry(); value.setProfileId(profile.getId());
             value.setApplicationDefinitionId(item.applicationDefinitionId()); value.setRequiredProcess(item.requiredProcess());
             value.setAutoStart(item.autoStart()); value.setLaunchOrder(item.launchOrder());
-            value.setArgumentsOverride(trim(item.argumentsOverride())); return entries.save(value);
+            value.setArgumentsOverride(trim(item.argumentsOverride()));value.setDependencyGroup(trim(item.dependencyGroup())); return entries.save(value);
         }).toList(); entries.flush(); return view(profile, saved, byId);
     }
 
@@ -214,6 +214,7 @@ public class StationReadinessService {
         if (!path.matches("(?i)^[a-z]:\\\\.+\\.exe$") || path.contains("*") || path.contains("?"))
             throw new ApplicationException(HttpStatus.BAD_REQUEST, "Executable path must be an absolute Windows .exe path");
         if ((request.publisher() == null || request.publisher().isBlank())
+                && (request.publisherCertificateThumbprint() == null || request.publisherCertificateThumbprint().isBlank())
                 && (request.executableSha256() == null || request.executableSha256().isBlank()))
             throw new ApplicationException(HttpStatus.BAD_REQUEST, "Publisher or executable SHA-256 is required");
     }
@@ -229,6 +230,16 @@ public class StationReadinessService {
             throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY, "Profile references an unavailable application");
         if (selected.stream().noneMatch(value -> value.getType() == ApplicationType.GAME))
             throw new ApplicationException(HttpStatus.BAD_REQUEST, "Application profile must include at least one game");
+        if (request.entries().stream().map(ApplicationProfileRequest.Entry::argumentsOverride).filter(Objects::nonNull)
+                .anyMatch(value -> value.indexOf('\0') >= 0 || value.contains("\r") || value.contains("\n")))
+            throw new ApplicationException(HttpStatus.BAD_REQUEST, "Application arguments must be a single command-line value");
+        Set<String> gameGroups=selected.stream().filter(value->value.getType()==ApplicationType.GAME).map(ApplicationDefinition::getId)
+                .map(gameId->request.entries().stream().filter(entry->entry.applicationDefinitionId().equals(gameId)).findFirst().map(ApplicationProfileRequest.Entry::dependencyGroup).orElse(null)).filter(Objects::nonNull).collect(Collectors.toSet());
+        if(selected.stream().filter(value->value.getType()==ApplicationType.LAUNCHER).anyMatch(value->{
+            String group=request.entries().stream().filter(entry->entry.applicationDefinitionId().equals(value.getId()))
+                    .map(ApplicationProfileRequest.Entry::dependencyGroup).findFirst().orElse(null);
+            return group==null||!gameGroups.contains(group);}))
+            throw new ApplicationException(HttpStatus.BAD_REQUEST,"Every launcher must share a dependency group with an explicitly allowed game");
     }
 
     private StationOverview overviewFor(PhysicalResource resource, GamingStationProfile station, ApplicationProfile profile) {
@@ -261,8 +272,10 @@ public class StationReadinessService {
     private ApplicationDefinition definition(UUID id) { return definitions.findById(id).orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND, "Application definition not found")); }
     private static void version(Long actual, Long expected) { if (expected == null || !actual.equals(expected)) conflict(); }
     private static void conflict() { throw new ApplicationException(HttpStatus.CONFLICT, "Configuration was changed; refresh and try again"); }
-    private static void apply(ApplicationDefinition value, ApplicationDefinitionRequest request) { value.setCode(request.code().trim()); value.setName(request.name().trim()); value.setType(request.type()); value.setExecutablePath(request.executablePath().trim()); value.setPublisher(trim(request.publisher())); value.setExecutableSha256(request.executableSha256() == null ? null : request.executableSha256().toLowerCase(Locale.ROOT)); value.setDefaultArguments(trim(request.defaultArguments())); value.setActive(request.active()); }
+    private static void apply(ApplicationDefinition value, ApplicationDefinitionRequest request) { value.setCode(request.code().trim()); value.setName(request.name().trim()); value.setType(request.type()); value.setExecutablePath(request.executablePath().trim()); value.setPublisher(trim(request.publisher()));value.setPublisherCertificateThumbprint(request.publisherCertificateThumbprint()==null?null:request.publisherCertificateThumbprint().toUpperCase(Locale.ROOT)); value.setExecutableSha256(request.executableSha256() == null ? null : request.executableSha256().toLowerCase(Locale.ROOT));value.setMinimumFileVersion(trim(request.minimumFileVersion())); value.setDefaultArguments(trim(request.defaultArguments())); value.setActive(request.active()); }
     private static void apply(ApplicationProfile value, ApplicationProfileRequest request) { value.setCode(request.code().trim()); value.setName(request.name().trim()); value.setDescription(trim(request.description())); value.setActive(request.active()); }
-    private static ProfileView view(ApplicationProfile profile, List<ApplicationProfileEntry> values, Map<UUID, ApplicationDefinition> byId) { return new ProfileView(profile.getId(), profile.getCode(), profile.getName(), profile.getDescription(), profile.isActive(), profile.getConfigurationVersion(), profile.getVersion(), values.stream().map(value -> { ApplicationDefinition definition = byId.get(value.getApplicationDefinitionId()); return new ProfileEntryView(value.getId(), value.getApplicationDefinitionId(), definition.getName(), definition.getType(), value.isRequiredProcess(), value.isAutoStart(), value.getLaunchOrder(), value.getArgumentsOverride(), value.getVersion()); }).toList()); }
+    private static ProfileView view(ApplicationProfile profile, List<ApplicationProfileEntry> values, Map<UUID, ApplicationDefinition> byId) { return new ProfileView(profile.getId(), profile.getCode(), profile.getName(), profile.getDescription(), profile.isActive(), profile.getConfigurationVersion(), profile.getVersion(), values.stream().map(value -> { ApplicationDefinition definition = byId.get(value.getApplicationDefinitionId()); return new ProfileEntryView(value.getId(), value.getApplicationDefinitionId(), definition.getName(), definition.getType(), value.isRequiredProcess(), value.isAutoStart(), value.getLaunchOrder(), value.getArgumentsOverride(),value.getDependencyGroup(), value.getVersion()); }).toList()); }
     private static String trim(String value) { return value == null || value.isBlank() ? null : value.trim(); }
+    private static Map<String,Object> definitionAudit(ApplicationDefinition value){Map<String,Object> result=new LinkedHashMap<>();result.put("code",value.getCode());result.put("type",value.getType().name());result.put("executablePath",value.getExecutablePath());result.put("trustMode",value.getExecutableSha256()!=null?"SHA256":value.getPublisherCertificateThumbprint()!=null?"CERTIFICATE":"PUBLISHER");result.put("minimumFileVersion",Objects.toString(value.getMinimumFileVersion(),""));return result;}
+    private static Map<String,Object> profileAudit(ApplicationProfile profile,List<ApplicationProfileRequest.Entry> values){return Map.of("code",profile.getCode(),"configurationVersion",profile.getConfigurationVersion(),"entryCount",values.size(),"dependencyGroups",values.stream().map(ApplicationProfileRequest.Entry::dependencyGroup).filter(Objects::nonNull).distinct().sorted().toList());}
 }

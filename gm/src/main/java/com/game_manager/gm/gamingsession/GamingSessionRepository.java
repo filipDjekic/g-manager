@@ -10,6 +10,7 @@ import java.time.Instant;
 public interface GamingSessionRepository extends JpaRepository<GamingSession, UUID> {
     boolean existsByCustomerIdAndStatus(UUID customerId, GamingSessionStatus status);
     boolean existsByResourceIdAndStatus(UUID resourceId, GamingSessionStatus status);
+    Optional<GamingSession> findByResourceIdAndStatus(UUID resourceId, GamingSessionStatus status);
     List<GamingSession> findByStatusOrderByStartedAtDesc(GamingSessionStatus status);
     List<GamingSession> findByResourceIdInAndStatus(Collection<UUID> resourceIds, GamingSessionStatus status);
 

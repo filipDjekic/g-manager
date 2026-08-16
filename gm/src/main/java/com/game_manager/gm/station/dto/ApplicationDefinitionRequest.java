@@ -9,7 +9,9 @@ public record ApplicationDefinitionRequest(
         @NotNull ApplicationType type,
         @NotBlank @Size(max = 500) String executablePath,
         @Size(max = 255) String publisher,
+        @Pattern(regexp = "(?i)^[0-9a-f]{40,64}$") String publisherCertificateThumbprint,
         @Pattern(regexp = "(?i)^[0-9a-f]{64}$") String executableSha256,
+        @Pattern(regexp = "^[0-9]+(\\.[0-9]+){1,3}$") String minimumFileVersion,
         @Size(max = 1000) String defaultArguments,
         boolean active,
         Long version

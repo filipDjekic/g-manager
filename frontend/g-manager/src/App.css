@@ -123,6 +123,7 @@ table caption {
 .gaming-customer-results { display: grid; max-height: 16rem; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
 .gaming-customer-results button { display: grid; gap: .2rem; padding: var(--space-3); border-block-end: 1px solid var(--color-border); color: var(--color-text); background: transparent; text-align: start; }
 .gaming-customer-results button:hover, .gaming-customer-results button.selected { background: var(--color-surface-raised); outline: 2px solid var(--color-primary); outline-offset: -2px; }
+.secret-display { display: block; max-width: 100%; overflow-wrap: anywhere; padding: var(--space-3); border-radius: var(--radius-md); background: var(--color-surface-raised); user-select: all; }
 .preference-row { display: grid; grid-template-columns: minmax(16rem, 1fr) auto auto; align-items: center; gap: var(--space-4); padding: var(--space-4) 0; border-bottom: 1px solid var(--color-border); }
 .preference-row p { margin: var(--space-1) 0 0; color: var(--color-text-muted); }
 .command-palette mark { color: inherit; background: var(--color-success-bg); }
@@ -387,3 +388,5 @@ th { color: #a7c5ba; }
   .session-card { grid-template-columns: 1fr; }
   .customer-kpis { grid-template-columns: 1fr; }
 }
+.policy-preview { display:grid; gap:.35rem; margin-top:.5rem; }
+.policy-preview small { display:block; overflow-wrap:anywhere; }

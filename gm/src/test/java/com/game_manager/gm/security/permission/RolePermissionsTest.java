@@ -33,7 +33,8 @@ class RolePermissionsTest {
                         Permission.RESOURCE_READ, Permission.RESOURCE_MANAGE,
                         Permission.CUSTOMER_CREATE, Permission.CUSTOMER_UPDATE_LIMITED,
                         Permission.CUSTOMER_DEACTIVATE, Permission.STATION_READ,
-                        Permission.STATION_MAINTENANCE, Permission.APPLICATION_PROFILE_MANAGE)
+                        Permission.STATION_MAINTENANCE, Permission.APPLICATION_PROFILE_MANAGE,
+                        Permission.MACHINE_IDENTITY_MANAGE)
                 .doesNotContain(Permission.ORDER_CREATE, Permission.RESERVATION_CREATE);
         assertThat(RolePermissions.forRole(Role.OWNER))
                 .containsAll(RolePermissions.forRole(Role.ADMIN));
