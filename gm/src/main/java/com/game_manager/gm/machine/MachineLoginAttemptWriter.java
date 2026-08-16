@@ -1,0 +1,4 @@
+package com.game_manager.gm.machine;
+import java.time.*;import java.util.UUID;import lombok.RequiredArgsConstructor;import org.springframework.stereotype.Service;import org.springframework.transaction.annotation.*;
+@Service @RequiredArgsConstructor public class MachineLoginAttemptWriter {private final StationSessionLoginAttemptRepository repository;private final Clock clock;
+ @Transactional(propagation=Propagation.REQUIRES_NEW)public void write(MachinePrincipal machine,UUID sessionId,UUID customerId,String identifierHash,StationSessionLoginOutcome outcome){StationSessionLoginAttempt a=new StationSessionLoginAttempt();a.setIdentityId(machine.identityId());a.setStationId(machine.stationId());a.setSessionId(sessionId);a.setCustomerId(customerId);a.setIdentifierHash(identifierHash);a.setOutcome(outcome);a.setOccurredAt(clock.instant());repository.saveAndFlush(a);}}

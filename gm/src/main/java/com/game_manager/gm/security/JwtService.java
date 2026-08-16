@@ -40,6 +40,7 @@ public class JwtService {
         Instant expiresAt = issuedAt.plus(accessTokenTtl);
         String value = Jwts.builder()
                 .subject(userId.toString())
+                .claim("token_type", "USER")
                 .issuedAt(Date.from(issuedAt))
                 .expiration(Date.from(expiresAt))
                 .signWith(key)
@@ -49,9 +50,31 @@ public class JwtService {
 
     public UUID parseUserId(String token) {
         Claims claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
+        if (!"USER".equals(claims.get("token_type", String.class))) throw new IllegalArgumentException("Not a user token");
         return UUID.fromString(claims.getSubject());
+    }
+
+    public IssuedToken issueMachine(UUID identityId, UUID stationId, long keyVersion) {
+        Instant issuedAt = clock.instant(); Instant expiresAt = issuedAt.plus(Duration.ofMinutes(5));
+        String value = Jwts.builder().subject(identityId.toString()).audience().add("g-manager-machine").and()
+                .claim("token_type", "MACHINE").claim("station_id", stationId.toString())
+                .claim("key_version", keyVersion).claim("scope", "MACHINE_PROTOCOL")
+                .issuedAt(Date.from(issuedAt)).expiration(Date.from(expiresAt)).signWith(key).compact();
+        return new IssuedToken(value, expiresAt);
+    }
+
+    public MachineTokenClaims parseMachine(String token) {
+        Claims claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
+        if (!"MACHINE".equals(claims.get("token_type", String.class))
+                || claims.getAudience() == null || !claims.getAudience().contains("g-manager-machine")
+                || !"MACHINE_PROTOCOL".equals(claims.get("scope", String.class)))
+            throw new IllegalArgumentException("Not a machine token");
+        return new MachineTokenClaims(UUID.fromString(claims.getSubject()),
+                UUID.fromString(claims.get("station_id", String.class)),
+                ((Number) claims.get("key_version")).longValue());
     }
 
     public record IssuedToken(String value, Instant expiresAt) {
     }
+    public record MachineTokenClaims(UUID identityId, UUID stationId, long keyVersion) {}
 }

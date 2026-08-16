@@ -16,6 +16,8 @@ describe('capability model', () => {
     expect(roleCapabilities.ADMIN).toContain('USER_LIST')
     expect(roleCapabilities.ADMIN).toContain('RESOURCE_MANAGE')
     expect(roleCapabilities.ADMIN).toContain('APPLICATION_PROFILE_MANAGE')
+    expect(roleCapabilities.ADMIN).toContain('MACHINE_IDENTITY_MANAGE')
+    expect(roleCapabilities.EMPLOYEE).not.toContain('MACHINE_IDENTITY_MANAGE')
     expect(roleCapabilities.OWNER).toContain('USER_DEACTIVATE')
   })
 

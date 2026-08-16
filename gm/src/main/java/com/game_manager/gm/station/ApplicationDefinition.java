@@ -15,7 +15,9 @@ public class ApplicationDefinition extends BaseEntity {
     @Column(name = "application_type", nullable = false, length = 20) private ApplicationType type;
     @Column(name = "executable_path", nullable = false, length = 500) private String executablePath;
     @Column(length = 255) private String publisher;
+    @Column(name = "publisher_certificate_thumbprint", length = 64) private String publisherCertificateThumbprint;
     @Column(name = "executable_sha256", length = 64) private String executableSha256;
+    @Column(name = "minimum_file_version", length = 50) private String minimumFileVersion;
     @Column(name = "default_arguments", length = 1000) private String defaultArguments;
     @Column(nullable = false) private boolean active = true;
 }

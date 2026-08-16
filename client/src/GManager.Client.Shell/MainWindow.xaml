@@ -1,0 +1,10 @@
+<Window x:Class="GManager.Client.Shell.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" WindowStyle="None" WindowState="Maximized" ResizeMode="NoResize" Topmost="True" Background="#07111F" Foreground="White" Title="G-Manager">
+ <Grid><Border Width="520" Padding="44" Background="#111D2E" CornerRadius="18"><StackPanel>
+  <TextBlock Text="G-MANAGER" Foreground="#54D4A0" FontWeight="Bold" FontSize="18"/><TextBlock x:Name="Heading" Text="Stanica je zaključana" FontSize="32" FontWeight="Bold" Margin="0,28,0,8"/>
+  <TextBlock x:Name="Connectivity" Text="Povezivanje sa serverom" Foreground="#A8B6C8" Margin="0,0,0,24"/><TextBlock x:Name="Countdown" FontSize="48" FontWeight="Bold" Margin="0,0,0,18"/>
+  <StackPanel x:Name="Applications" Margin="0,0,0,14"/>
+  <TextBox x:Name="Email" Height="44" Margin="0,0,0,10" ToolTip="Email"/><PasswordBox x:Name="Password" Height="44" Margin="0,0,0,16"/>
+  <Button x:Name="Login" Height="46" Content="Prijavi se" Click="Login_Click" Background="#54D4A0"/><Button x:Name="Logout" Height="42" Content="Odjavi se" Click="Logout_Click" Visibility="Collapsed" Margin="0,12,0,0"/>
+  <TextBlock x:Name="Error" Foreground="#FF8A8A" TextWrapping="Wrap" Margin="0,16,0,0"/>
+ </StackPanel></Border></Grid>
+</Window>

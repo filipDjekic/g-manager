@@ -32,6 +32,20 @@ class JwtServiceTest {
                 .hasMessage("JWT_SECRET must contain at least 32 UTF-8 bytes");
     }
 
+    @Test
+    void machineTokenHasSeparateTypeAudienceStationAndScope() {
+        JwtService service = new JwtService(properties("test-secret-with-at-least-32-utf8-bytes"));
+        UUID identity = UUID.randomUUID(), station = UUID.randomUUID();
+        String token = service.issueMachine(identity, station, 3).value();
+        JwtService.MachineTokenClaims claims = service.parseMachine(token);
+        assertThat(claims.identityId()).isEqualTo(identity);
+        assertThat(claims.stationId()).isEqualTo(station);
+        assertThat(claims.keyVersion()).isEqualTo(3);
+        assertThatThrownBy(() -> service.parseUserId(token)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.parseMachine(service.issue(UUID.randomUUID()).value()))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
     private static GManagerProperties properties(String secret) {
         return new GManagerProperties(
                 java.time.ZoneId.of("Europe/Belgrade"),

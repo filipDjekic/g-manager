@@ -8,6 +8,15 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RateLimitServiceTest {
+    @Test
+    void machineLimitIsPartitionedByIdentityRatherThanIp() {
+        RateLimitService service = new RateLimitService(Clock.systemUTC());
+        UUID first = UUID.randomUUID(), second = UUID.randomUUID();
+        for (int index = 0; index < 120; index++) service.checkMachine(first, "poll");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.checkMachine(first, "poll"))
+                .isInstanceOf(com.game_manager.gm.common.error.ApplicationException.class);
+        service.checkMachine(second, "poll");
+    }
 
     @Test
     void limitsLoginByIpAndEmailToFiveAttempts() {

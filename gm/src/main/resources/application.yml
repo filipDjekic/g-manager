@@ -134,6 +134,13 @@ app:
     reconciliation-initial-delay-millis: ${GAMING_SESSION_RECONCILIATION_INITIAL_DELAY_MILLIS:30000}
     reconciliation-schedule-millis: ${GAMING_SESSION_RECONCILIATION_SCHEDULE_MILLIS:300000}
     command-retention-days: ${GAMING_SESSION_COMMAND_RETENTION_DAYS:30}
+  gaming-client:
+    version: ${GAMING_CLIENT_VERSION:0.1.0-dev}
+    status: ${GAMING_CLIENT_STATUS:DEVELOPMENT}
+    download-url: ${GAMING_CLIENT_DOWNLOAD_URL:/downloads/gmanager-client/GManager.Client.zip}
+    sha256: ${GAMING_CLIENT_SHA256:UNPUBLISHED}
+    policy-signing-private-key: ${STATION_POLICY_SIGNING_PRIVATE_KEY:}
+    policy-signing-key-id: ${STATION_POLICY_SIGNING_KEY_ID:development-unconfigured}
   notifications:
     email-enabled: ${NOTIFICATION_EMAIL_ENABLED:false}
     delivery-batch-size: ${NOTIFICATION_DELIVERY_BATCH_SIZE:25}

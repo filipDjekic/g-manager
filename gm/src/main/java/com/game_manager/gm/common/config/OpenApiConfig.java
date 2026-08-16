@@ -22,9 +22,12 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class OpenApiConfig {
     private static final String BEARER_AUTH = "bearerAuth";
+    private static final String MACHINE_BEARER_AUTH = "machineBearerAuth";
     private static final Set<String> PUBLIC_PATHS = Set.of(
             "/api/v1/auth/activate", "/api/v1/auth/login",
-            "/api/v1/auth/refresh", "/api/v1/auth/logout");
+            "/api/v1/auth/refresh", "/api/v1/auth/logout",
+            "/api/v1/machine/enroll", "/api/v1/machine/auth/challenge",
+            "/api/v1/machine/auth/token");
 
     @Bean
     OpenAPI gManagerOpenApi() {
@@ -34,7 +37,11 @@ public class OpenApiConfig {
                 .addSecuritySchemes(BEARER_AUTH, new SecurityScheme()
                         .type(SecurityScheme.Type.HTTP)
                         .scheme("bearer")
-                        .bearerFormat("JWT"));
+                        .bearerFormat("JWT"))
+                .addSecuritySchemes(MACHINE_BEARER_AUTH, new SecurityScheme()
+                        .type(SecurityScheme.Type.HTTP).scheme("bearer")
+                        .bearerFormat("Machine JWT")
+                        .description("Short-lived station-scoped JWT issued after Ed25519 challenge response"));
         resolved.referencedSchemas.forEach(components::addSchemas);
         if (resolved.schema != null) {
             components.addSchemas("ApiError", resolved.schema);
@@ -57,9 +64,8 @@ public class OpenApiConfig {
                 item.readOperations().forEach(operation -> {
                     standardErrors.forEach((status, description) ->
                             operation.getResponses().putIfAbsent(status, errorResponse(description)));
-                    if (!PUBLIC_PATHS.contains(path)) {
-                        operation.addSecurityItem(new SecurityRequirement().addList(BEARER_AUTH));
-                    }
+                    if (!PUBLIC_PATHS.contains(path)) operation.addSecurityItem(new SecurityRequirement()
+                            .addList(path.startsWith("/api/v1/machine/") ? MACHINE_BEARER_AUTH : BEARER_AUTH));
                 }));
     }
 

@@ -38,6 +38,14 @@ public class RateLimitService {
         check("search:" + userId, 60, Duration.ofMinutes(1));
     }
 
+    public void checkMachine(UUID identityId, String operation) {
+        check("machine:" + identityId + ":" + operation, 120, Duration.ofMinutes(1));
+    }
+
+    public void checkMachineCustomerLogin(UUID identityId) {
+        check("machine-customer-login:" + identityId, 5, Duration.ofMinutes(10));
+    }
+
     private void check(String key, int limit, Duration window) {
         Instant now = clock.instant();
         Deque<Instant> values = attempts.computeIfAbsent(key, ignored -> new ArrayDeque<>());

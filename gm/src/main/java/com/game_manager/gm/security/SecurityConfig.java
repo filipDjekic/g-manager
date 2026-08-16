@@ -29,19 +29,22 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final GManagerProperties properties;
     private final FeatureFlagHttpFilter featureFlagHttpFilter;
+    private final com.game_manager.gm.machine.MachineAuthenticationFilter machineAuthenticationFilter;
 
     public SecurityConfig(
             ApiErrorFactory apiErrorFactory,
             ObjectMapper objectMapper,
             JwtAuthenticationFilter jwtAuthenticationFilter,
             GManagerProperties properties,
-            FeatureFlagHttpFilter featureFlagHttpFilter
+            FeatureFlagHttpFilter featureFlagHttpFilter,
+            com.game_manager.gm.machine.MachineAuthenticationFilter machineAuthenticationFilter
     ) {
         this.apiErrorFactory = apiErrorFactory;
         this.objectMapper = objectMapper;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.properties = properties;
         this.featureFlagHttpFilter = featureFlagHttpFilter;
+        this.machineAuthenticationFilter = machineAuthenticationFilter;
     }
 
     @Bean
@@ -61,6 +64,9 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/actuator/metrics/**").hasAuthority("METRICS_READ")
                         .requestMatchers(HttpMethod.GET, "/media/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/machine/enroll",
+                                "/api/v1/machine/auth/challenge", "/api/v1/machine/auth/token").permitAll()
+                        .requestMatchers("/api/v1/machine/**").hasAuthority("MACHINE_PROTOCOL")
                         .requestMatchers(HttpMethod.POST,
                                 "/api/v1/auth/activate",
                                 "/api/v1/auth/login",
@@ -106,6 +112,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/resources/**")
                             .hasAuthority("RESOURCE_READ")
                         .requestMatchers("/api/v1/resources/**").hasAuthority("RESOURCE_MANAGE")
+                        .requestMatchers("/api/v1/stations/*/machine-identity/**",
+                                "/api/v1/stations/*/machine-identity")
+                            .hasAuthority("MACHINE_IDENTITY_MANAGE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/stations/**", "/api/v1/stations")
                             .hasAuthority("STATION_READ")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/stations/*/profile")
@@ -151,6 +160,7 @@ public class SecurityConfig {
                         .hasAuthority("DASHBOARD_SUMMARY")
                         .anyRequest().denyAll())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(machineAuthenticationFilter, JwtAuthenticationFilter.class)
                 .addFilterAfter(featureFlagHttpFilter, JwtAuthenticationFilter.class)
                 .headers(headers -> headers
                         .contentTypeOptions(contentType -> {})
@@ -175,6 +185,14 @@ public class SecurityConfig {
     @Bean
     FilterRegistrationBean<JwtAuthenticationFilter> jwtFilterRegistration(JwtAuthenticationFilter filter) {
         FilterRegistrationBean<JwtAuthenticationFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    FilterRegistrationBean<com.game_manager.gm.machine.MachineAuthenticationFilter> machineFilterRegistration(
+            com.game_manager.gm.machine.MachineAuthenticationFilter filter) {
+        FilterRegistrationBean<com.game_manager.gm.machine.MachineAuthenticationFilter> registration = new FilterRegistrationBean<>(filter);
         registration.setEnabled(false);
         return registration;
     }
