@@ -1,1 +1,1 @@
-package com.game_manager.gm.machine;import java.util.UUID;import org.springframework.data.jpa.repository.JpaRepository;public interface StationReconciliationAuditRepository extends JpaRepository<StationReconciliationAudit,UUID>{}
+package com.game_manager.gm.machine;import java.util.*;import org.springframework.data.jpa.repository.JpaRepository;public interface StationReconciliationAuditRepository extends JpaRepository<StationReconciliationAudit,UUID>{List<StationReconciliationAudit> findTop50ByStationIdOrderByOccurredAtDesc(UUID stationId);}

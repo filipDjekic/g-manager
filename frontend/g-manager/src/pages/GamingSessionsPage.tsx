@@ -27,9 +27,11 @@ export function GamingSessionsPage(){
   const [customer,setCustomer]=useState<CustomerListItem|null>(null);const [duration,setDuration]=useState(120)
   const [customStation,setCustomStation]=useState<GamingStationCard|null>(null);const [customMinutes,setCustomMinutes]=useState(30)
   const [endStation,setEndStation]=useState<GamingStationCard|null>(null);const [reason,setReason]=useState('')
+  const [historyStation,setHistoryStation]=useState<GamingStationCard|null>(null)
   const [error,setError]=useState('');const [busy,setBusy]=useState('')
   const startKey=useRef(new IdempotencyKeyManager());const actionKey=useRef(new IdempotencyKeyManager())
   const customers=useQuery({queryKey:['gaming-customer-search',search],queryFn:()=>customerApi.list({search:search||undefined,active:true,page:0,size:8}),enabled:startStation!==null})
+  const history=useQuery({queryKey:['gaming-operations','history',historyStation?.resourceId],queryFn:()=>gamingSessionApi.history(historyStation!.resourceId),enabled:historyStation!==null})
   const refresh=()=>queryClient.invalidateQueries({queryKey:['gaming-operations']})
   useEffect(()=>connectGamingSessionStream(()=>{void refresh()}),[queryClient])
 
@@ -55,6 +57,7 @@ export function GamingSessionsPage(){
     <h1>Kontrola gaming stanica</h1><p>Stanja i vremena se automatski usklađuju sa serverom.</p></div>
     {board.data&&<time dateTime={board.data.serverTime}>Sinhronizovano: {formatBusinessDateTime(board.data.serverTime)}</time>}</div>
     {error&&<p className="error-banner" role="alert">{error}</p>}
+    {board.data&&<section className="operational-summary" aria-label="Stavke koje zahtevaju pažnju"><p><strong>{board.data.stations.filter(value=>value.status==='OFFLINE').length}</strong> Offline</p><p><strong>{board.data.stations.filter(value=>value.status==='LOCK_PENDING').length}</strong> Lock pending</p><p><strong>{board.data.stations.filter(value=>value.status==='EXPIRED').length}</strong> Isteklo</p></section>}
     {board.isLoading?<Skeleton lines={8} label="Učitavanje gaming stanica"/>:board.error?<ErrorState message={apiErrorMessage(board.error,'Gaming tabla nije dostupna.')} action={<Button onClick={()=>board.refetch()}>Pokušaj ponovo</Button>}/>:!board.data?.stations.length?
       <EmptyState title="Nema dostupnih stanica" description="Nijedna gaming stanica nije dodeljena vašim lokacijama."/>:
       <section className="gaming-station-grid" aria-label="Gaming stanice">{board.data.stations.map(station=><article key={station.resourceId}
@@ -67,6 +70,7 @@ export function GamingSessionsPage(){
           <Countdown station={station} serverTime={board.data.serverTime}/></div>:
           <p className="gaming-station-message">{station.status==='AVAILABLE'?'Spremna za novu sesiju':station.status==='LOCK_PENDING'?'Sačekajte potvrdu lokalnog zaključavanja.':station.status==='EXPIRED'?'Prethodna sesija je istekla.':'Pokretanje sesije trenutno nije dozvoljeno.'}</p>}
         <footer className="form-actions">{station.allowedActions.includes('START')&&<Button onClick={()=>openStart(station)}>Pokreni sesiju</Button>}
+          <Button variant="secondary" onClick={()=>setHistoryStation(station)}>Istorija i support ID</Button>
           {station.allowedActions.includes('EXTEND')&&<><Button variant="secondary" loading={busy===`extend-${station.resourceId}`} onClick={()=>void extend(station,30)}>+30 min</Button>
             <Button variant="secondary" loading={busy===`extend-${station.resourceId}`} onClick={()=>void extend(station,60)}>+60 min</Button>
             <Button variant="secondary" onClick={()=>{setCustomStation(station);setCustomMinutes(30)}}>Drugo…</Button></>}
@@ -87,5 +91,8 @@ export function GamingSessionsPage(){
     <Modal open={endStation!==null} title={`Završi sesiju · ${endStation?.resourceName??''}`} onClose={()=>setEndStation(null)}><form className="form-grid" onSubmit={terminate}>
       <label htmlFor="gaming-end-reason">Razlog završetka<textarea id="gaming-end-reason" autoFocus required maxLength={500} value={reason} onChange={event=>setReason(event.target.value)}/></label>
       <Button type="submit" variant="danger" loading={busy==='terminate'} disabled={!reason.trim()}>Potvrdi završetak</Button></form></Modal>
+    <Modal open={historyStation!==null} title={`Istorija stanice · ${historyStation?.resourceName??''}`} onClose={()=>setHistoryStation(null)}>
+      {history.isLoading?<Skeleton lines={5} label="Učitavanje istorije"/>:history.error?<ErrorState message={apiErrorMessage(history.error,'Istorija stanice nije dostupna.')}/>:!history.data?.entries.length?<EmptyState title="Nema istorije" description="Za ovu stanicu još nema komandi ili enforcement događaja."/>:<ol className="timeline-list">{history.data.entries.map((entry,index)=><li key={`${entry.occurredAt}-${entry.commandSequence??index}`}><time dateTime={entry.occurredAt}>{formatBusinessDateTime(entry.occurredAt)}</time> <strong>{entry.action}</strong> <span>{entry.status}</span>{entry.commandSequence!==undefined&&<small> Komanda #{entry.commandSequence}</small>}{entry.correlationId&&<code title="Prosledite ovaj ID podršci">Support ID: {entry.correlationId}</code>}{entry.details&&<p>{entry.details}</p>}</li>)}</ol>}
+    </Modal>
   </main>
 }

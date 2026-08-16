@@ -1,6 +1,6 @@
 import { apiClient } from './client'
 import { useAuthStore } from '../auth/authStore'
-import type { GamingOperationsBoard, GamingSession, GamingSessionEvent, StartGamingSessionInput } from '../types/gamingSession.types'
+import type { GamingOperationsBoard, GamingSession, GamingSessionEvent, StartGamingSessionInput, StationHistory } from '../types/gamingSession.types'
 
 const command = (key:string) => ({ headers:{ 'Idempotency-Key':key } })
 export const gamingSessionApi = {
@@ -16,6 +16,7 @@ export const gamingSessionApi = {
     apiClient.post<GamingSession>(`/gaming-sessions/${id}/terminate`,{reason,version},command(key)).then(({data}) => data),
   forceLock: (stationId:string) => apiClient.post(`/gaming-operations/stations/${stationId}/force-lock`),
   confirmLocked: (stationId:string) => apiClient.post(`/gaming-operations/stations/${stationId}/confirm-locked`),
+  history: (stationId:string) => apiClient.get<StationHistory>(`/gaming-operations/stations/${stationId}/history`).then(({data})=>data),
 }
 
 export function connectGamingSessionStream(onEvent:(event:GamingSessionEvent)=>void) {

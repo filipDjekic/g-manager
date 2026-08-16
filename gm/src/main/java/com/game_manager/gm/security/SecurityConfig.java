@@ -64,6 +64,7 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/actuator/metrics/**").hasAuthority("METRICS_READ")
                         .requestMatchers(HttpMethod.GET, "/media/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/stations/client-package").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/machine/enroll",
                                 "/api/v1/machine/auth/challenge", "/api/v1/machine/auth/token").permitAll()
                         .requestMatchers("/api/v1/machine/**").hasAuthority("MACHINE_PROTOCOL")
@@ -125,6 +126,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/gaming-sessions/**",
                                 "/api/v1/gaming-sessions").hasAuthority("GAMING_SESSION_READ")
                         .requestMatchers(HttpMethod.GET, "/api/v1/gaming-operations/board")
+                            .hasAuthority("GAMING_SESSION_READ")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/gaming-operations/stations/*/history")
                             .hasAuthority("GAMING_SESSION_READ")
                         .requestMatchers(HttpMethod.POST, "/api/v1/gaming-sessions")
                             .hasAuthority("GAMING_SESSION_START")

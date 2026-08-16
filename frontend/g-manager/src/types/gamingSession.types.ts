@@ -17,3 +17,5 @@ export interface GamingStationCard {
   remainingSeconds:number;sessionVersion?:number;allowedActions:GamingStationAction[]
 }
 export interface GamingOperationsBoard { serverTime:string;stations:GamingStationCard[] }
+export interface StationHistoryEntry { occurredAt:string;category:'COMMAND'|'ENFORCEMENT';action:string;status:string;commandSequence?:number;correlationId?:string;details?:string }
+export interface StationHistory { serverTime:string;stationId:string;entries:StationHistoryEntry[] }

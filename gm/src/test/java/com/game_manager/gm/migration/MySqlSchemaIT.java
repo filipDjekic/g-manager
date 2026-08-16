@@ -67,15 +67,15 @@ class MySqlSchemaIT {
         cleanSchema();
         Flyway.configure()
                 .dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
-                .target(MigrationVersion.fromVersion("27"))
+                .target(MigrationVersion.fromVersion("35"))
                 .load()
                 .migrate();
 
-        assertThat(currentVersion()).isEqualTo("27");
+        assertThat(currentVersion()).isEqualTo("35");
         flyway.migrate();
 
         assertThat(currentVersion()).isEqualTo("36");
-        log.info("MySQL V27-to-latest migration completed in {} ms", elapsedMillis(startedAt));
+        log.info("MySQL previous-release-to-latest migration completed in {} ms", elapsedMillis(startedAt));
     }
 
     @Test
@@ -111,6 +111,9 @@ class MySqlSchemaIT {
                 .contains("fk_enrollment_station", "fk_enrollment_creator",
                         "fk_machine_identity_station", "fk_machine_identity_enroller",
                         "fk_machine_challenge_identity", "fk_station_heartbeat_identity");
+        assertThat(constraintNames("FOREIGN KEY"))
+                .contains("fk_enforcement_station", "fk_enforcement_identity", "fk_enforcement_session",
+                        "fk_reconciliation_station", "fk_reconciliation_session", "fk_reconciliation_actor");
         assertThat(constraintNames("CHECK"))
                 .contains("chk_catalog_price_positive", "chk_reservation_interval",
                         "chk_order_item_quantity");

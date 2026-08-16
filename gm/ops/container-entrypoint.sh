@@ -4,6 +4,7 @@ read_secret() { var="$1"; file="$2"; eval "value=\${$var:-}"; [ -n "$value" ] &&
 read_secret JWT_SECRET "${JWT_SECRET_FILE:-/run/secrets/jwt_secret}"
 read_secret DB_USERNAME "${DB_USERNAME_FILE:-/run/secrets/db_username}"
 read_secret DB_PASSWORD "${DB_PASSWORD_FILE:-/run/secrets/db_password}"
+read_secret STATION_POLICY_SIGNING_PRIVATE_KEY "${STATION_POLICY_SIGNING_PRIVATE_KEY_FILE:-/run/secrets/station_policy_signing_private_key}"
 [ -n "${DB_URL:-}" ] && [ -n "${CANONICAL_ORIGIN:-}" ] && [ -n "${APP_RELEASE:-}" ] || { echo "DB_URL, CANONICAL_ORIGIN and APP_RELEASE are required" >&2; exit 1; }
 if [ "${DOCUMENT_STORAGE_BACKEND:-}" = "s3" ]; then
   read_secret DOCUMENT_S3_ACCESS_KEY "${DOCUMENT_S3_ACCESS_KEY_FILE:-/run/secrets/document_s3_access_key}"

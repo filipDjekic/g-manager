@@ -28,6 +28,7 @@ public class GamingOperationsBoardService {
     private final com.game_manager.gm.machine.StationClientEnforcementRepository enforcementStates;
     private final StationCommandWriter commandWriter;
     private final com.game_manager.gm.machine.StationEnforcementProjectionService enforcement;
+    private final com.game_manager.gm.machine.StationReconciliationAuditRepository reconciliationAudit;
 
     @Transactional(readOnly = true)
     @PreAuthorize("hasAuthority('GAMING_SESSION_READ')")
@@ -56,6 +57,12 @@ public class GamingOperationsBoardService {
                 .toList();
         return new GamingOperationsBoardResponse(now, cards);
     }
+
+    @Transactional(readOnly=true) @PreAuthorize("hasAuthority('GAMING_SESSION_READ')")
+    public StationHistoryResponse history(UUID stationId){AuthenticatedUser actor=currentUser.requireCurrentUser();StationOverview station=stationReadiness.overview().stream().filter(value->value.resourceId().equals(stationId)).findFirst().orElseThrow();locations.requireAccess(actor,station.locationId());
+        var auditEntries=reconciliationAudit.findTop50ByStationIdOrderByOccurredAtDesc(stationId).stream().map(value->new StationHistoryResponse.Entry(value.getOccurredAt(),"ENFORCEMENT",value.getAction(),value.getResultingStatus(),value.getCommandSequence(),null,value.getDetails()));
+        var commandEntries=commands.findTop50ByStationIdOrderBySequenceDesc(stationId).stream().map(value->new StationHistoryResponse.Entry(value.getAvailableAt(),"COMMAND",value.getCommandType().name(),value.getAcknowledgedAt()==null?"PENDING":"ACKNOWLEDGED",value.getSequence(),value.getCorrelationId(),null));
+        var entries=java.util.stream.Stream.concat(auditEntries,commandEntries).sorted(java.util.Comparator.comparing(StationHistoryResponse.Entry::occurredAt).reversed()).limit(50).toList();return new StationHistoryResponse(clock.instant(),stationId,entries);}
 
     private GamingOperationsBoardResponse.StationCard card(StationOverview station, GamingSession latest,
             StationCommand latestCommand,com.game_manager.gm.machine.StationClientEnforcement enforcementState, Map<UUID,User> customers, AuthenticatedUser actor, Instant now) {

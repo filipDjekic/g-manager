@@ -7,5 +7,6 @@ public interface StationCommandRepository extends JpaRepository<StationCommand, 
     Optional<StationCommand> findByStationIdAndSequence(UUID stationId, Long sequence);
     List<StationCommand> findByStationIdAndSequenceGreaterThanOrderBySequence(UUID stationId, Long sequence);
     List<StationCommand> findByStationIdInOrderByStationIdAscSequenceDesc(Collection<UUID> stationIds);
+    List<StationCommand> findTop50ByStationIdOrderBySequenceDesc(UUID stationId);
     long deleteByExpiresAtBeforeAndAcknowledgedAtIsNotNull(java.time.Instant cutoff);
 }
