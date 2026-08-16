@@ -13,7 +13,7 @@ const statuses:GamingStationBoardStatus[]=['AVAILABLE','ACTIVE','MAINTENANCE','O
 const labels=['Dostupna','Aktivna sesija','Održavanje','Offline','Sesija istekla','Čeka zaključavanje','Penzionisana']
 function response():GamingOperationsBoard{return{serverTime:'2026-08-15T12:00:00Z',stations:statuses.map((status,index)=>({
   resourceId:`station-${index}`,resourceCode:`PC-${index}`,resourceName:`Stanica ${index}`,locationId:'location-1',status,
-  clientEnabled:false,remainingSeconds:status==='ACTIVE'?3600:0,sessionId:status==='ACTIVE'?'session-1':undefined,
+  clientEnabled:false,staleHeartbeat:false,enforcementStatus:status==='LOCK_PENDING'?'LOCK_PENDING':'LOCKED',remainingSeconds:status==='ACTIVE'?3600:0,sessionId:status==='ACTIVE'?'session-1':undefined,
   customerId:status==='ACTIVE'?'customer-1':undefined,customerDisplayName:status==='ACTIVE'?'Milica Manager':undefined,
   startedAt:status==='ACTIVE'?'2026-08-15T11:00:00Z':undefined,endsAt:status==='ACTIVE'?'2026-08-15T13:00:00Z':undefined,
   sessionVersion:status==='ACTIVE'?4:undefined,allowedActions:(status==='ACTIVE'?['EXTEND','TERMINATE']:status==='AVAILABLE'?['START']:[]) as GamingStationAction[],

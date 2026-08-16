@@ -14,6 +14,8 @@ export const gamingSessionApi = {
     apiClient.post<GamingSession>(`/gaming-sessions/${id}/extend`,{minutes,version},command(key)).then(({data}) => data),
   terminate: (id:string,reason:string,version:number,key:string) =>
     apiClient.post<GamingSession>(`/gaming-sessions/${id}/terminate`,{reason,version},command(key)).then(({data}) => data),
+  forceLock: (stationId:string) => apiClient.post(`/gaming-operations/stations/${stationId}/force-lock`),
+  confirmLocked: (stationId:string) => apiClient.post(`/gaming-operations/stations/${stationId}/confirm-locked`),
 }
 
 export function connectGamingSessionStream(onEvent:(event:GamingSessionEvent)=>void) {

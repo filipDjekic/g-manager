@@ -1,0 +1,1 @@
+package com.game_manager.gm.machine;import java.util.*;import org.springframework.data.jpa.repository.JpaRepository;public interface StationClientEnforcementRepository extends JpaRepository<StationClientEnforcement,UUID>{List<StationClientEnforcement> findByStationIdIn(Collection<UUID> stationIds);}

@@ -9,3 +9,4 @@ Runtime state and logs live under `%ProgramData%\GManager\Client`; Event Viewer 
 The downloadable artifact URL, version, status and SHA-256 are supplied by `GAMING_CLIENT_DOWNLOAD_URL`, `GAMING_CLIENT_VERSION`, `GAMING_CLIENT_STATUS` and `GAMING_CLIENT_SHA256`.
 
 Application-control authoring, supported Windows editions, signing-key separation and rollback are defined in `POLICY.md`.
+Offline lease behavior, deterministic restart recovery and operator procedures are defined in `FAILURE_RECOVERY.md`.

@@ -29,6 +29,7 @@ public class StationReadinessService {
     private final StationRuntimeProjectionPort runtimeProjection;
     private final Clock clock;
     private final AuditWriter audit;
+    private final com.game_manager.gm.machine.StationEnforcementProjectionService enforcement;
 
     @Transactional(readOnly = true)
     @PreAuthorize("hasAuthority('STATION_READ')")
@@ -77,6 +78,8 @@ public class StationReadinessService {
             throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,
                     "Gaming station has no application profile");
         requireActiveProfile(station.getApplicationProfileId());
+        if (station.isClientEnabled() && !enforcement.safeForNewSession(resourceId))
+            throw new ApplicationException(HttpStatus.CONFLICT,"Gaming station has not acknowledged a safe local lock");
     }
 
     @Transactional
