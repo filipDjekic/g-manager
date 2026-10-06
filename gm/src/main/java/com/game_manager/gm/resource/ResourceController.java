@@ -10,6 +10,9 @@ import org.springframework.web.bind.annotation.*;
 @RestController @RequestMapping("/api/v1/resources") @RequiredArgsConstructor
 public class ResourceController {
  private final ResourceManagementService service;
+ private final LocationAccessService access;
+ @GetMapping("/locations/{id}/employees") public List<LocationAccessService.Assignment> employeeAccess(@PathVariable UUID id){return access.list(id);}
+ @PutMapping("/locations/{id}/employees/{employeeId}") public LocationAccessService.Assignment employeeAccess(@PathVariable UUID id,@PathVariable UUID employeeId,@Valid @RequestBody LocationAccessService.AssignmentRequest r){return access.set(id,employeeId,r);}
  @GetMapping("/locations") public List<LocationView> locations(){return service.locations();}
  @PostMapping("/locations") @ResponseStatus(HttpStatus.CREATED) public LocationView createLocation(@Valid @RequestBody LocationRequest r){return service.createLocation(r);}
  @PutMapping("/locations/{id}") public LocationView updateLocation(@PathVariable UUID id,@Valid @RequestBody LocationRequest r){return service.updateLocation(id,r);}

@@ -43,6 +43,12 @@ public class GlobalExceptionHandler {
         return response(exception.getStatus(), exception.getMessage(), request);
     }
 
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    ResponseEntity<ApiError> handleAccessDenied(org.springframework.security.access.AccessDeniedException exception,
+            HttpServletRequest request) {
+        return response(HttpStatus.FORBIDDEN, ErrorCode.ACCESS_DENIED, "Access is denied", List.of(), request);
+    }
+
     @ExceptionHandler(OptimisticLockingFailureException.class)
     ResponseEntity<ApiError> handleOptimisticLock(
             OptimisticLockingFailureException exception, HttpServletRequest request) {

@@ -27,4 +27,11 @@ public class GamingSessionLocationPolicy {
                 actor.id().toString(), locationId.toString());
         return count != null && count > 0;
     }
+
+    public java.util.Set<UUID> assignedLocations(AuthenticatedUser actor) {
+        if (actor.role() != Role.EMPLOYEE) return java.util.Set.of();
+        return new java.util.HashSet<>(jdbc.query(
+                "SELECT location_id FROM user_location_assignments WHERE user_id = ? AND active = TRUE",
+                (row, index) -> UUID.fromString(row.getString("location_id")), actor.id().toString()));
+    }
 }

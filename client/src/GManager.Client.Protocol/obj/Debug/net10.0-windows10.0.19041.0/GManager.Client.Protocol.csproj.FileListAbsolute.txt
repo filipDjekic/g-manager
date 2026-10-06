@@ -1,0 +1,16 @@
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Protocol\bin\Debug\net10.0-windows10.0.19041.0\GManager.Client.Protocol.deps.json
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Protocol\bin\Debug\net10.0-windows10.0.19041.0\GManager.Client.Protocol.dll
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Protocol\bin\Debug\net10.0-windows10.0.19041.0\GManager.Client.Protocol.pdb
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Protocol\bin\Debug\net10.0-windows10.0.19041.0\GManager.Client.Domain.dll
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Protocol\bin\Debug\net10.0-windows10.0.19041.0\GManager.Client.Domain.pdb
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Protocol\obj\Debug\net10.0-windows10.0.19041.0\GManager.Client.Protocol.csproj.AssemblyReference.cache
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Protocol\obj\Debug\net10.0-windows10.0.19041.0\GManager.Client.Protocol.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Protocol\obj\Debug\net10.0-windows10.0.19041.0\GManager.Client.Protocol.AssemblyInfoInputs.cache
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Protocol\obj\Debug\net10.0-windows10.0.19041.0\GManager.Client.Protocol.AssemblyInfo.cs
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Protocol\obj\Debug\net10.0-windows10.0.19041.0\GManager.Client.Protocol.csproj.CoreCompileInputs.cache
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Protocol\obj\Debug\net10.0-windows10.0.19041.0\GManager.Client.Protocol.sourcelink.json
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Protocol\obj\Debug\net10.0-windows10.0.19041.0\GManager.473E6EE8.Up2Date
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Protocol\obj\Debug\net10.0-windows10.0.19041.0\GManager.Client.Protocol.dll
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Protocol\obj\Debug\net10.0-windows10.0.19041.0\refint\GManager.Client.Protocol.dll
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Protocol\obj\Debug\net10.0-windows10.0.19041.0\GManager.Client.Protocol.pdb
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Protocol\obj\Debug\net10.0-windows10.0.19041.0\ref\GManager.Client.Protocol.dll

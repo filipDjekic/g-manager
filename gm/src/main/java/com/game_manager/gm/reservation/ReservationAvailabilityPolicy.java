@@ -44,4 +44,7 @@ public class ReservationAvailabilityPolicy {
         if (employeeIds.isEmpty()) return List.of();
         return repository.findBlockingBetween(employeeIds, from, to, NON_BLOCKING);
     }
+    public List<ReservationBusyInterval> resourceBusyIntervals(UUID resourceId, Instant from, Instant to) {
+        return repository.findResourceBlockingBetween(resourceId, from, to, NON_BLOCKING);
+    }
 }

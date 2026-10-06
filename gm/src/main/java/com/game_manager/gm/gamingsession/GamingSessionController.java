@@ -25,6 +25,9 @@ public class GamingSessionController {
             @Valid @RequestBody TerminateGamingSessionRequest request) { return service.terminate(id, request); }
     @GetMapping("/{id}") public GamingSessionResponse get(@PathVariable UUID id) { return service.get(id); }
     @GetMapping public List<GamingSessionResponse> active() { return service.active(); }
+    @GetMapping("/me") public List<GamingSessionVisitResponse> mine() { return service.myVisits(); }
+    @GetMapping("/customer/{customerId}") public List<GamingSessionVisitResponse> customerVisits(
+            @PathVariable UUID customerId) { return service.customerVisits(customerId); }
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter stream() { return realtime.connect(); }
 }

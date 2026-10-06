@@ -14,7 +14,23 @@ public interface GamingSessionRepository extends JpaRepository<GamingSession, UU
     List<GamingSession> findByStatusOrderByStartedAtDesc(GamingSessionStatus status);
     List<GamingSession> findByResourceIdInAndStatus(Collection<UUID> resourceIds, GamingSessionStatus status);
 
-    @Query("select s from GamingSession s where s.resourceId in :resourceIds order by s.resourceId, s.startedAt desc")
+    @Query("""
+            select new com.game_manager.gm.gamingsession.dto.GamingSessionVisitResponse(
+                s.id, s.resourceId, r.name, s.locationId, s.startedAt, s.endsAt, s.endedAt, s.status, :now)
+            from GamingSession s join com.game_manager.gm.resource.PhysicalResource r on r.id = s.resourceId
+            where s.customerId = :customerId and (:allLocations = true or s.locationId in :locationIds)
+            order by s.startedAt desc, s.id desc
+            """)
+    List<com.game_manager.gm.gamingsession.dto.GamingSessionVisitResponse> customerVisits(
+            @Param("customerId") UUID customerId, @Param("allLocations") boolean allLocations,
+            @Param("locationIds") Collection<UUID> locationIds, @Param("now") Instant now, Pageable pageable);
+
+    @Query("""
+            select s from GamingSession s where s.resourceId in :resourceIds
+            and not exists (select newer.id from GamingSession newer
+                where newer.resourceId = s.resourceId and newer.startedAt > s.startedAt)
+            order by s.resourceId, s.startedAt desc
+            """)
     List<GamingSession> findLatestCandidates(@Param("resourceIds") Collection<UUID> resourceIds);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

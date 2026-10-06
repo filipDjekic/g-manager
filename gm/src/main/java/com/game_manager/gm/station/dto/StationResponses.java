@@ -32,5 +32,18 @@ public final class StationResponses {
             StationOperationalStatus operationalStatus, StationEffectiveStatus effectiveStatus,
             UUID applicationProfileId, String applicationProfileName, long configurationVersion,
             boolean clientEnabled, int heartbeatIntervalSeconds, int offlineGraceSeconds,
-            Instant lastHeartbeatAt, String clientVersion, UUID activeSessionId, Long version) {}
+            Instant lastHeartbeatAt, String clientVersion, UUID activeSessionId, Long version,
+            String locationName, String areaName) {
+        public StationOverview(UUID stationProfileId, UUID resourceId, String resourceCode,
+                String resourceName, UUID areaId, UUID locationId,
+                StationOperationalStatus operationalStatus, StationEffectiveStatus effectiveStatus,
+                UUID applicationProfileId, String applicationProfileName, long configurationVersion,
+                boolean clientEnabled, int heartbeatIntervalSeconds, int offlineGraceSeconds,
+                Instant lastHeartbeatAt, String clientVersion, UUID activeSessionId, Long version) {
+            this(stationProfileId, resourceId, resourceCode, resourceName, areaId, locationId,
+                    operationalStatus, effectiveStatus, applicationProfileId, applicationProfileName,
+                    configurationVersion, clientEnabled, heartbeatIntervalSeconds, offlineGraceSeconds,
+                    lastHeartbeatAt, clientVersion, activeSessionId, version, null, null);
+        }
+    }
 }

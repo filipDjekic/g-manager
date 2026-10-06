@@ -9,6 +9,8 @@ import { NotificationCenter } from '../notification/NotificationCenter'
 import { ConnectivityBanner } from '../pwa/ConnectivityBanner'
 import { useFeatureStore } from '../feature/featureStore'
 import { navigationFor } from './navigation'
+import { NavigationIcon } from './NavigationIcon'
+import { hasCapability } from '../auth/capabilities'
 
 function Navigation({ close }: { close?: () => void }) {
   const user = useAuthStore((state) => state.user)
@@ -18,7 +20,7 @@ function Navigation({ close }: { close?: () => void }) {
     {navigationFor(user, flags).map((group) => <section className="navigation-group" key={group.label}>
       <h2>{group.label}</h2>
       {group.items.map((item) => <NavLink key={`${item.label}-${item.to}`} to={item.to}
-        onClick={close}>{item.label}</NavLink>)}
+        title={item.label} onClick={close}><NavigationIcon to={item.to} /><span>{item.label}</span></NavLink>)}
     </section>)}
   </nav>
 }
@@ -42,26 +44,36 @@ export function AppShell() {
   const clearSession = useAuthStore((state) => state.clearSession)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem('gmanager.sidebar-collapsed') === 'true' } catch { return false }
+  })
+  function toggleSidebar() {
+    setCollapsed(!collapsed)
+    try { localStorage.setItem('gmanager.sidebar-collapsed', String(!collapsed)) } catch { /* optional preference */ }
+  }
 
   async function logout() {
     setIsLoggingOut(true)
     try { await authApi.logout() } finally { clearSession() }
   }
 
-  return <div className="app-shell">
+  return <div className={`app-shell${collapsed ? ' sidebar-collapsed' : ''}${user?.role === 'CUSTOMER' ? ' customer-shell' : ''}`}>
     <ConnectivityBanner />
     <header className="shell-topbar">
       <Button className="mobile-menu-button" variant="secondary" type="button"
         aria-expanded={menuOpen} aria-controls="mobile-navigation" onClick={() => setMenuOpen(true)}>Meni</Button>
-      <NavLink className="shell-brand" to="/">G-Manager</NavLink>
+      <NavLink className="shell-brand" to="/"><span className="brand-mark" aria-hidden="true">G</span> G-Manager</NavLink>
       <div className="shell-actions">
+        {hasCapability(user, 'GAMING_SESSION_READ') && <NavLink className="shell-quick-action" to="/gaming-sessions">Gaming operativa</NavLink>}
         <CommandPalette />
         <NotificationCenter />
-        <span className="shell-user"><strong>{user?.name}</strong><small>{user?.role}</small></span>
+        <span className="shell-user"><strong>{user?.name}</strong><small>{user?.role === 'OWNER' ? 'Vlasnik' : user?.role === 'ADMIN' ? 'Administrator' : user?.role === 'EMPLOYEE' ? 'Zaposleni' : 'Klijent'}</small></span>
         <Button type="button" variant="secondary" onClick={logout} loading={isLoggingOut}>Odjavi se</Button>
       </div>
     </header>
     <aside className="desktop-navigation" aria-label="Bočna navigacija">
+      <Button className="sidebar-toggle" variant="secondary" aria-expanded={!collapsed}
+        aria-label={collapsed ? 'Proširi navigaciju' : 'Sažmi navigaciju'} onClick={toggleSidebar}>{collapsed ? '»' : '«'}<span> Sažmi navigaciju</span></Button>
       <Navigation />
       <PreferenceControls />
     </aside>

@@ -75,4 +75,5 @@ export interface CalendarReservation {
   status: ReservationStatus
   version: number
   allowedActions: ReservationStatus[]
+  resourceId?:string;resourceName?:string
 }

@@ -4,7 +4,9 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { MemoryRouter } from 'react-router-dom'
 import { axe } from 'vitest-axe'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { useAuthStore } from '../auth/authStore'
+import { authUser } from '../test/fixtures'
 import { server } from '../test/server'
 import { CustomersPage } from './CustomersPage'
 
@@ -14,6 +16,7 @@ function renderPage(initialEntry = '/') {
 }
 
 describe('CustomersPage', () => {
+  beforeEach(() => useAuthStore.setState({ user: authUser('OWNER'), accessToken: 'owner-token', isInitializing: false }))
   it('shows reliable KPIs and opens readable customer history', async () => {
     let crmNotes: Array<Record<string, unknown>> = []
     server.use(

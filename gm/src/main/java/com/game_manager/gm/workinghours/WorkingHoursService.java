@@ -185,7 +185,12 @@ public class WorkingHoursService {
 
     @Transactional(readOnly = true)
     public AvailabilityWindow availabilityWindow(LocalDate date) {
-        Shift shift = shiftFor(date);
+        return availabilityWindow(null, date);
+    }
+
+    @Transactional(readOnly = true)
+    public AvailabilityWindow availabilityWindow(UUID locationId, LocalDate date) {
+        Shift shift = shiftFor(locationId, date);
         return shift == null ? null : new AvailabilityWindow(shift.open(), shift.close());
     }
 

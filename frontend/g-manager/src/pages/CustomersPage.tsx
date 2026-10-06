@@ -3,14 +3,16 @@ import { type FormEvent, useMemo, useRef, useState } from 'react'
 import { apiErrorMessage } from '../api/client'
 import { customerApi } from '../api/customerApi'
 import { gamingSessionApi } from '../api/gamingSessionApi'
-import { stationApi } from '../api/stationApi'
-import { IdempotencyKeyManager } from '../api/idempotency'
+import { waitlistApi } from '../api/waitlistApi'
+import { StartSessionDialog } from '../gaming/StartSessionDialog'
+import { GamingVisitList } from '../gaming/GamingVisitList'
 import { hasCapability } from '../auth/capabilities'
 import { useAuthStore } from '../auth/authStore'
-import { Button, Drawer, EmptyState, ErrorState, Modal, Skeleton, TableShell } from '../components/ui'
+import { Badge, Button, Drawer, EmptyState, ErrorState, Modal, Skeleton, TableShell } from '../components/ui'
+import { ActionDialog } from '../components/ui/ActionDialog'
 import { SavedViewBar } from '../components/lists/SavedViewBar'
 import { useListUrlState } from '../lists/useListUrlState'
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { queryKeys } from '../query/queryKeys'
 import { formatBusinessDateTime } from '../reservations/dateTime'
 
@@ -19,7 +21,6 @@ const allowed = ['search', 'active', 'page', 'customerId'] as const
 const money = new Intl.NumberFormat('sr-RS', { style: 'currency', currency: 'RSD' })
 
 export function CustomersPage() {
-  const navigate = useNavigate()
   const user = useAuthStore((state) => state.user)
   const canManageCrm = hasCapability(user, 'CUSTOMER_CRM_MANAGE')
   const detailOpener = useRef<HTMLButtonElement>(null)
@@ -43,48 +44,45 @@ export function CustomersPage() {
   const [customerError, setCustomerError] = useState('')
   const [activation, setActivation] = useState<{ secret: string; expiresAt: string } | null>(null)
   const [startOpen, setStartOpen] = useState(false)
-  const [stationId, setStationId] = useState('')
-  const [durationMinutes, setDurationMinutes] = useState(120)
-  const startKey = useRef(new IdempotencyKeyManager())
-  const stationOptions = useQuery({ queryKey:['stations','start-options'], queryFn:stationApi.overview,
-    enabled:startOpen })
+  const [editing, setEditing] = useState<{name:string;email:string}|null>(null)
+  const [deactivating, setDeactivating] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const visits = useQuery({queryKey:['gaming-visits','customer',selectedId],queryFn:()=>gamingSessionApi.customerVisits(selectedId),
+    enabled:!!selectedId && hasCapability(user,'GAMING_SESSION_READ')})
+  const queue = useQuery({queryKey:['waitlist','customer',selectedId],queryFn:()=>waitlistApi.operational({customerId:selectedId,page:0,size:5}),
+    enabled:!!selectedId && hasCapability(user,'RESERVATION_READ_ALL')})
   const crm = useQuery({ queryKey: ['customers', 'crm', selectedId, crmSearch],
     queryFn: () => customerApi.crm(selectedId, crmSearch || undefined),
     enabled: Boolean(selectedId) && canManageCrm })
   const close = () => url.set({ customerId: '' })
 
   async function createCustomer(event: FormEvent) {
-    event.preventDefault(); setCustomerError('')
+    event.preventDefault(); if(busy)return;setBusy(true);setCustomerError('')
     try {
       const created = await customerApi.create({ name: customerName.trim(), email: customerEmail.trim() })
       setActivation({ secret: created.activationSecret, expiresAt: created.activationExpiresAt })
       setCustomerName(''); setCustomerEmail(''); await list.refetch()
     } catch (cause) { setCustomerError(apiErrorMessage(cause, 'Klijenta nije moguće kreirati.')) }
+    finally {setBusy(false)}
   }
 
-  async function editCustomer() {
-    if (!detail.data) return
-    const name = window.prompt('Ime klijenta', detail.data.customer.name)?.trim()
-    if (!name) return
-    const email = window.prompt('Email klijenta', detail.data.customer.email)?.trim()
-    if (!email) return
+  async function editCustomer(event:FormEvent) {
+    event.preventDefault();if (!detail.data || !editing || busy) return
+    setBusy(true);setCustomerError('')
     try {
-      await customerApi.update(detail.data.customer.id, { name, email, version: detail.data.customer.version })
+      await customerApi.update(detail.data.customer.id, { name:editing.name.trim(), email:editing.email.trim(), version: detail.data.customer.version })
+      setEditing(null)
       await Promise.all([detail.refetch(), list.refetch()])
     } catch (cause) { setCustomerError(apiErrorMessage(cause, 'Klijenta nije moguće izmeniti.')) }
+    finally {setBusy(false)}
   }
 
   async function deactivateCustomer() {
-    if (!detail.data || !window.confirm('Deaktivirati ovog klijenta?')) return
-    try { await customerApi.deactivate(detail.data.customer.id); close(); await list.refetch() }
+    if (!detail.data || busy) return
+    setBusy(true);setCustomerError('')
+    try { await customerApi.deactivate(detail.data.customer.id); setDeactivating(false);close(); await list.refetch() }
     catch (cause) { setCustomerError(apiErrorMessage(cause, 'Klijenta nije moguće deaktivirati.')) }
-  }
-
-  async function startGamingSession(event:FormEvent) {
-    event.preventDefault(); if(!detail.data||!stationId)return; setCustomerError('')
-    try { await gamingSessionApi.start({customerId:detail.data.customer.id,resourceId:stationId,durationMinutes},startKey.current.begin())
-      startKey.current.succeeded();setStartOpen(false);close();navigate('/gaming-sessions') }
-    catch(cause){startKey.current.failed(cause);setCustomerError(apiErrorMessage(cause,'Gaming sesiju nije moguće pokrenuti.'))}
+    finally {setBusy(false)}
   }
 
   async function addNote(event: FormEvent) {
@@ -138,22 +136,31 @@ export function CustomersPage() {
     <div className="pagination"><button disabled={filters.page === 0} onClick={() => url.set({ page: String(filters.page - 1) })}>Prethodna</button>
       <span>Strana {filters.page + 1} od {Math.max(list.data?.totalPages ?? 1, 1)}</span>
       <button disabled={!list.data || filters.page + 1 >= list.data.totalPages} onClick={() => url.set({ page: String(filters.page + 1) })}>Sledeća</button></div>
-    <Drawer open={Boolean(selectedId)} title={detail.data?.customer.name ?? 'Detalji klijenta'} onClose={close} returnFocusRef={detailOpener}>
+    <Drawer size="wide" open={Boolean(selectedId) && !startOpen && !editing && !deactivating} title={detail.data?.customer.name ?? 'Detalji klijenta'} onClose={close} returnFocusRef={detailOpener}>
       {detail.isLoading ? <Skeleton lines={6} label="Učitavanje detalja klijenta" /> : detail.error ?
         <ErrorState message={apiErrorMessage(detail.error, 'Detalje klijenta nije moguće učitati.')} action={<Button onClick={() => detail.refetch()}>Pokušaj ponovo</Button>} /> : detail.data && <div className="customer-detail">
-          <p>{detail.data.customer.email}</p><p><strong>Status:</strong> {detail.data.customer.active ? 'Aktivan' : 'Neaktivan'}</p>
+          {customerError && <p className="error-banner" role="alert">{customerError}</p>}
+          <p>{detail.data.customer.email}</p><Badge tone={detail.data.customer.active?'success':'neutral'}>{detail.data.customer.active ? 'Aktivan nalog' : 'Neaktivan nalog'}</Badge>
           <p><strong>Registrovan:</strong> {formatBusinessDateTime(detail.data.customer.registeredAt)}</p>
           <div className="form-actions">
-            {hasCapability(user, 'GAMING_SESSION_START') && <Button disabled={!detail.data.customer.active}
+            {hasCapability(user, 'GAMING_SESSION_START') && <Button disabled={!detail.data.customer.active || !!visits.data?.some(v=>v.status==='ACTIVE')}
               onClick={() => setStartOpen(true)}>Pokreni gaming sesiju</Button>}
             {hasCapability(user, 'CUSTOMER_UPDATE_LIMITED') && <Button variant="secondary"
-              onClick={() => void editCustomer()}>Izmeni podatke</Button>}
+              onClick={() => {setCustomerError('');setEditing({name:detail.data!.customer.name,email:detail.data!.customer.email})}}>Izmeni podatke</Button>}
             {detail.data.customer.active && hasCapability(user, 'CUSTOMER_DEACTIVATE') &&
-              <Button variant="danger" onClick={() => void deactivateCustomer()}>Deaktiviraj</Button>}
+              <Button variant="danger" onClick={() => {setCustomerError('');setDeactivating(true)}}>Deaktiviraj</Button>}
           </div>
           <div className="customer-kpis"><article><strong>{detail.data.customer.completedAppointmentCount}</strong><span>Završeni termini</span></article>
             <article><strong>{detail.data.customer.completedOrderCount}</strong><span>Završene narudžbine</span></article>
             <article><strong>{money.format(detail.data.customer.completedOrderRevenue)}</strong><span>Ostvaren prihod</span></article></div>
+          {hasCapability(user,'GAMING_SESSION_READ') && <section><h3>Gaming sesije</h3>
+            {visits.isLoading?<Skeleton lines={3}/>:visits.error?<ErrorState message="Gaming istorija nije dostupna." action={<Button onClick={()=>visits.refetch()}>Pokušaj ponovo</Button>}/>:<GamingVisitList visits={visits.data??[]} staff />}
+          </section>}
+          {hasCapability(user,'RESERVATION_READ_ALL') && <section><h3>Lista čekanja</h3>
+            {queue.isLoading?<Skeleton lines={2}/>:queue.error?<ErrorState message="Lista čekanja nije dostupna." action={<Button onClick={()=>queue.refetch()}>Pokušaj ponovo</Button>}/>:!queue.data?.content.length?<p>Nema aktivnih prijava na listi čekanja.</p>:<>
+              <ul className="history-list">{queue.data.content.map(entry=><li key={entry.id}><strong>{entry.serviceName}</strong><span>{formatBusinessDateTime(entry.desiredStart)}</span><Badge tone={entry.status==='OFFERED'?'success':'warning'}>{entry.status==='OFFERED'?'Ponuda poslata':'Čeka termin'}</Badge></li>)}</ul>
+              <Link to={`/waitlist?customerId=${selectedId}`}>Sve prijave · {queue.data.totalElements}</Link></>}
+          </section>}
           {canManageCrm && <section className="customer-crm"><h3>CRM beleške i tagovi</h3>
             {crmError && <p className="error-banner" role="alert">{crmError}</p>}
             <label>Pretraži CRM<input value={crmSearch} onChange={(event) => setCrmSearch(event.target.value)} /></label>
@@ -163,7 +170,7 @@ export function CustomersPage() {
               onClick={() => void removeTag(value)}>{value} ×</Button>)}</div>
             <form onSubmit={addNote}><label>Nova beleška<textarea maxLength={1000} value={note}
               onChange={(event) => setNote(event.target.value)} /></label><Button type="submit" disabled={!note.trim()}>Sačuvaj belešku</Button></form>
-            {crm.isLoading ? <Skeleton lines={2} label="Učitavanje CRM podataka" /> : crm.data?.notes.map((item) =>
+            {crm.isLoading ? <Skeleton lines={2} label="Učitavanje CRM podataka" /> : crm.error ? <ErrorState message="CRM podaci nisu dostupni." action={<Button onClick={()=>crm.refetch()}>Pokušaj ponovo</Button>}/> : crm.data?.notes.map((item) =>
               <article className="exception-row" key={item.id}><div><p>{item.body}</p><small>Zadržava se do {formatBusinessDateTime(item.expiresAt)}</small></div>
                 <div className="form-actions"><Button type="button" variant="secondary" onClick={() => void editNote(item)}>Izmeni</Button>
                   <Button type="button" variant="danger" onClick={() => void removeNote(item)}>Obriši</Button></div></article>)}
@@ -185,18 +192,17 @@ export function CustomersPage() {
             onChange={(event) => setCustomerName(event.target.value)} /></label>
           <label>Email<input required type="email" maxLength={180} value={customerEmail}
             onChange={(event) => setCustomerEmail(event.target.value)} /></label>
-          <Button type="submit" disabled={!customerName.trim() || !customerEmail.trim()}>Kreiraj klijenta</Button>
+          {customerError && <p className="error-banner" role="alert">{customerError}</p>}
+          <Button type="submit" loading={busy} disabled={!customerName.trim() || !customerEmail.trim()}>Kreiraj klijenta</Button>
         </form>}
     </Modal>
-    <Modal open={startOpen} title="Pokreni gaming sesiju" onClose={() => setStartOpen(false)}>
-      <form className="form-grid" onSubmit={startGamingSession}>
-        <label>Slobodna stanica<select required value={stationId} onChange={(event)=>setStationId(event.target.value)}>
-          <option value="">Izaberite stanicu</option>{stationOptions.data?.filter((value)=>value.effectiveStatus==='AVAILABLE'&&value.applicationProfileId)
-            .map((value)=><option key={value.resourceId} value={value.resourceId}>{value.resourceName} · {value.applicationProfileName}</option>)}</select></label>
-        <label>Trajanje u minutima<input type="number" min={15} max={480} value={durationMinutes}
-          onChange={(event)=>setDurationMinutes(Number(event.target.value))}/></label>
-        <Button type="submit" disabled={!stationId}>Pokreni</Button>
-      </form>
-    </Modal>
+    {startOpen && detail.data && <StartSessionDialog customer={detail.data.customer} onClose={()=>setStartOpen(false)} onStarted={()=>{void visits.refetch()}}/>}
+    <Modal open={!!editing} title="Izmeni podatke klijenta" onClose={()=>{if(!busy)setEditing(null)}}><form className="form-grid" onSubmit={editCustomer}>
+      {customerError && <p className="error-banner" role="alert">{customerError}</p>}
+      <label>Ime<input required maxLength={120} disabled={busy} value={editing?.name??''} onChange={e=>setEditing(current=>current&&{...current,name:e.target.value})}/></label>
+      <label>Email<input required type="email" maxLength={180} disabled={busy} value={editing?.email??''} onChange={e=>setEditing(current=>current&&{...current,email:e.target.value})}/></label>
+      <Button type="submit" loading={busy}>Sačuvaj podatke</Button></form></Modal>
+    <ActionDialog open={deactivating} title="Deaktiviraj klijenta" description={`${detail.data?.customer.name??''}: nalog će biti deaktiviran. ${customerError}`}
+      confirmLabel="Deaktiviraj" danger loading={busy} onClose={()=>{if(!busy)setDeactivating(false)}} onConfirm={()=>void deactivateCustomer()}/>
   </main>
 }

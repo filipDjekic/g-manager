@@ -4,7 +4,7 @@ import com.game_manager.gm.common.entity.BaseEntity;import jakarta.persistence.*
 public class StationMachineIdentity extends BaseEntity {
  @JdbcTypeCode(SqlTypes.CHAR)@Column(name="station_id",nullable=false,length=36)private UUID stationId;
  @Column(name="public_key_base64",nullable=false,columnDefinition="TEXT")private String publicKeyBase64;
- @Column(name="public_key_fingerprint",nullable=false,length=64,unique=true)private String publicKeyFingerprint;
+ @JdbcTypeCode(SqlTypes.CHAR)@Column(name="public_key_fingerprint",nullable=false,length=64,unique=true)private String publicKeyFingerprint;
  @Column(name="key_version",nullable=false)private Long keyVersion;
  @Enumerated(EnumType.STRING)@Column(nullable=false,length=20)private MachineIdentityStatus status;
  @Column(name="enrolled_at",nullable=false)private Instant enrolledAt;@Column(name="overlap_expires_at")private Instant overlapExpiresAt;

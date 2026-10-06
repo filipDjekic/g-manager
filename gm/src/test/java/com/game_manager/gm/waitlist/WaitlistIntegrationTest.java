@@ -30,7 +30,23 @@ class WaitlistIntegrationTest {
     @Autowired JdbcTemplate jdbc; @Autowired WaitlistService service;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    @BeforeEach void clean(){DatabaseCleaner.clean(jdbc);}
+    @BeforeEach void clean(){DatabaseCleaner.clean(jdbc);jdbc.update("DELETE FROM working_hours_exceptions");}
+
+    @Test void operationalQueueIsPrivateAndEmployeesSeeOnlyTheirOwnEntries() throws Exception {
+        Setup setup=setup();User waiting=user(Role.CUSTOMER),competitor=user(Role.CUSTOMER),unrelated=user(Role.EMPLOYEE);
+        reserve(login(competitor),setup);join(login(waiting),setup);
+        mvc.perform(get("/api/v1/waitlist")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/waitlist").header("Authorization",bearer(login(waiting))))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/waitlist").header("Authorization",bearer(login(unrelated))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
+        mvc.perform(get("/api/v1/waitlist").header("Authorization",bearer(login(setup.employee()))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].serviceName").value("Waitlist service"))
+                .andExpect(jsonPath("$.content[0].customerId").value(waiting.getId().toString()));
+        mvc.perform(get("/api/v1/waitlist").header("Authorization",bearer(login(setup.owner()))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
+    }
 
     @Test void oldestCustomerGetsOnePrivateOfferAndAcceptanceIsIdempotent() throws Exception {
         Setup setup=setup();User first=user(Role.CUSTOMER),second=user(Role.CUSTOMER);

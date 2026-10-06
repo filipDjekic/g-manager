@@ -22,7 +22,7 @@ class GamingOperationsBoardServiceTest {
         AuthenticatedUser actor=new AuthenticatedUser(UUID.randomUUID(),"employee@example.test",Role.EMPLOYEE);
         StationOverview assigned=station(UUID.randomUUID(),UUID.randomUUID()), hidden=station(UUID.randomUUID(),UUID.randomUUID());
         when(current.requireCurrentUser()).thenReturn(actor);when(readiness.overview()).thenReturn(List.of(assigned,hidden));
-        when(locations.canAccess(actor,assigned.locationId())).thenReturn(true);when(locations.canAccess(actor,hidden.locationId())).thenReturn(false);
+        when(locations.assignedLocations(actor)).thenReturn(Set.of(assigned.locationId()));
         when(sessions.findLatestCandidates(List.of(assigned.resourceId()))).thenReturn(List.of());
         when(commands.findByStationIdInOrderByStationIdAscSequenceDesc(List.of(assigned.resourceId()))).thenReturn(List.of());
         var enforcementStates=mock(com.game_manager.gm.machine.StationClientEnforcementRepository.class);when(enforcementStates.findByStationIdIn(any())).thenReturn(List.of());
@@ -43,7 +43,7 @@ class GamingOperationsBoardServiceTest {
         GamingSession session=new GamingSession();session.setId(UUID.randomUUID());session.setResourceId(station.resourceId());session.setCustomerId(UUID.randomUUID());
         session.setStatus(GamingSessionStatus.ACTIVE);session.setStartedAt(NOW.minusSeconds(1800));session.setEndsAt(NOW.plusSeconds(3600));session.setVersion(7L);
         User customer=new User();customer.setId(session.getCustomerId());customer.setName("Milica Manager");
-        when(current.requireCurrentUser()).thenReturn(actor);when(readiness.overview()).thenReturn(List.of(station));when(locations.canAccess(actor,station.locationId())).thenReturn(true);
+        when(current.requireCurrentUser()).thenReturn(actor);when(readiness.overview()).thenReturn(List.of(station));when(locations.assignedLocations(actor)).thenReturn(Set.of(station.locationId()));
         when(sessions.findLatestCandidates(List.of(station.resourceId()))).thenReturn(List.of(session));when(commands.findByStationIdInOrderByStationIdAscSequenceDesc(any())).thenReturn(List.of());
         when(users.findAllById(List.of(customer.getId()))).thenReturn(List.of(customer));
         var enforcementStates=mock(com.game_manager.gm.machine.StationClientEnforcementRepository.class);when(enforcementStates.findByStationIdIn(any())).thenReturn(List.of());

@@ -14,3 +14,8 @@ export interface WaitlistEntry {
   reservationId: string | null
   version: number
 }
+export interface WaitlistOperationalEntry {
+  id:string;customerId:string;customerName:string;employeeId:string;employeeName:string
+  serviceId:string;serviceName:string;locationId?:string;locationName?:string;resourceId?:string;resourceName?:string
+  createdAt:string;desiredStart:string;desiredEnd?:string;status:'WAITING'|'OFFERED';offerId?:string;offerExpiresAt?:string
+}

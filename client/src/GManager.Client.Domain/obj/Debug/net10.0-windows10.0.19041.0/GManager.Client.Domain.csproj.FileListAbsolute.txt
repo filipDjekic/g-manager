@@ -1,0 +1,12 @@
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Domain\bin\Debug\net10.0-windows10.0.19041.0\GManager.Client.Domain.deps.json
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Domain\bin\Debug\net10.0-windows10.0.19041.0\GManager.Client.Domain.dll
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Domain\bin\Debug\net10.0-windows10.0.19041.0\GManager.Client.Domain.pdb
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Domain\obj\Debug\net10.0-windows10.0.19041.0\GManager.Client.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Domain\obj\Debug\net10.0-windows10.0.19041.0\GManager.Client.Domain.AssemblyInfoInputs.cache
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Domain\obj\Debug\net10.0-windows10.0.19041.0\GManager.Client.Domain.AssemblyInfo.cs
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Domain\obj\Debug\net10.0-windows10.0.19041.0\GManager.Client.Domain.csproj.CoreCompileInputs.cache
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Domain\obj\Debug\net10.0-windows10.0.19041.0\GManager.Client.Domain.sourcelink.json
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Domain\obj\Debug\net10.0-windows10.0.19041.0\GManager.Client.Domain.dll
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Domain\obj\Debug\net10.0-windows10.0.19041.0\refint\GManager.Client.Domain.dll
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Domain\obj\Debug\net10.0-windows10.0.19041.0\GManager.Client.Domain.pdb
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Domain\obj\Debug\net10.0-windows10.0.19041.0\ref\GManager.Client.Domain.dll

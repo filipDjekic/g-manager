@@ -15,5 +15,7 @@ public record CalendarReservationResponse(
         Instant endTime,
         ReservationStatus status,
         Long version,
-        List<ReservationStatus> allowedActions) {
+        List<ReservationStatus> allowedActions,
+        UUID resourceId,
+        String resourceName) {
 }

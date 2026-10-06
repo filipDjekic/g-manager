@@ -14,6 +14,7 @@ const management: NavigationGroup[] = [
     { label: 'Resursi i mapa', to: '/resources', capability: 'RESOURCE_READ' },
     { label: 'Gaming stanice', to: '/stations', capability: 'STATION_READ' },
     { label: 'Gaming sesije', to: '/gaming-sessions', capability: 'GAMING_SESSION_READ' },
+    { label: 'Lista čekanja', to: '/waitlist', capability: 'RESERVATION_READ_ALL' },
     { label: 'Narudžbine', to: '/orders', capability: 'ORDER_READ_ALL' },
     { label: 'Katalog', to: '/catalog', capability: 'CATALOG_READ' },
   ] },
@@ -27,7 +28,7 @@ const management: NavigationGroup[] = [
     { label: 'Dokumenti', to: '/documents', capability: 'PROFILE_READ' },
   ] },
   { label: 'Sistem', items: [
-    { label: 'Radno vreme', to: '/settings', capability: 'WORKING_HOURS_MANAGE' },
+    { label: 'Podešavanja', to: '/settings', capability: 'WORKING_HOURS_MANAGE' },
     { label: 'Korisnici', to: '/users', capability: 'USER_LIST' },
     { label: 'Audit', to: '/audit', capability: 'AUDIT_READ' },
     { label: 'Feature flags', to: '/features', capability: 'FEATURE_FLAG_MANAGE' },
@@ -47,6 +48,7 @@ const employee: NavigationGroup[] = [
     { label: 'Mapa resursa', to: '/resources', capability: 'RESOURCE_READ' },
     { label: 'Gaming stanice', to: '/stations', capability: 'STATION_READ' },
     { label: 'Gaming sesije', to: '/gaming-sessions', capability: 'GAMING_SESSION_READ' },
+    { label: 'Lista čekanja', to: '/waitlist', capability: 'RESERVATION_READ_ALL' },
     { label: 'Narudžbine', to: '/orders', capability: 'ORDER_READ_ALL' },
   ] },
   { label: 'Alati', items: [
@@ -63,6 +65,7 @@ const employee: NavigationGroup[] = [
 ]
 
 const customer: NavigationGroup[] = [
+  { label: 'Moj prostor', items: [{ label: 'Početna', to: '/home', capability: 'RESERVATION_READ_OWN' }] },
   { label: 'Istraži', items: [{ label: 'Katalog', to: '/catalog', capability: 'CATALOG_READ' }, { label: 'Mapa resursa', to: '/resources', capability: 'RESOURCE_READ' }] },
   { label: 'Moje aktivnosti', items: [
     { label: 'Termini i zakazivanje', to: '/my-reservations', capability: 'RESERVATION_READ_OWN' },
@@ -82,5 +85,5 @@ export function navigationFor(user: AuthUser, flags: FeatureState): NavigationGr
 }
 
 export function homeForRole(role: Role): string {
-  return role === 'CUSTOMER' ? '/catalog' : '/dashboard'
+  return role === 'CUSTOMER' ? '/home' : '/dashboard'
 }

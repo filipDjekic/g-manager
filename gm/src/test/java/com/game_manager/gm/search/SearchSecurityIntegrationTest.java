@@ -75,7 +75,9 @@ class SearchSecurityIntegrationTest {
         mockMvc.perform(get("/api/v1/search?q=CREATED").header("Authorization", bearer(login(employee))))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.results[?(@.type == 'ORDER')]", hasSize(2)));
         mockMvc.perform(get("/api/v1/search").queryParam("q", "First Search").header("Authorization", bearer(login(owner))))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.results[?(@.type == 'USER')]", hasSize(1)));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.results[?(@.type == 'CUSTOMER')]", hasSize(1)));
+        mockMvc.perform(get("/api/v1/search").queryParam("q", first.getEmail()).header("Authorization", bearer(login(employee))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.results[0].url").value("/customers?customerId=" + first.getId()));
         mockMvc.perform(get("/api/v1/search").queryParam("q", "Hidden Search Owner").header("Authorization", bearer(login(admin))))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.results").isEmpty());
     }

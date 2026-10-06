@@ -134,6 +134,27 @@ public class GamingSessionService {
                 .map(value -> GamingSessionResponse.from(value, now)).toList();
     }
 
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('RESERVATION_READ_OWN')")
+    public List<GamingSessionVisitResponse> myVisits() {
+        AuthenticatedUser actor = currentUser.requireCurrentUser();
+        if (actor.role() != Role.CUSTOMER)
+            throw new ApplicationException(HttpStatus.FORBIDDEN, "Customer account is required");
+        return sessions.customerVisits(actor.id(), true, List.of(actor.id()), clock.instant(),
+                org.springframework.data.domain.PageRequest.of(0, 20));
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('GAMING_SESSION_READ')")
+    public List<GamingSessionVisitResponse> customerVisits(UUID customerId) {
+        AuthenticatedUser actor = currentUser.requireCurrentUser();
+        boolean all = actor.role() == Role.OWNER || actor.role() == Role.ADMIN;
+        Set<UUID> assigned = locations.assignedLocations(actor);
+        if (!all && assigned.isEmpty()) return List.of();
+        return sessions.customerVisits(customerId, all, all ? List.of(actor.id()) : assigned, clock.instant(),
+                org.springframework.data.domain.PageRequest.of(0, 20));
+    }
+
     private GamingSession locked(UUID id) { return sessions.findByIdForUpdate(id)
             .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND, "Gaming session not found")); }
     private void version(GamingSession session, Long expected) { if (!session.getVersion().equals(expected))
