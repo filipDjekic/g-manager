@@ -8,6 +8,11 @@ import { useAuthStore } from '../auth/authStore'
 import { authUser } from '../test/fixtures'
 import { server } from '../test/server'
 import { DashboardPage } from './DashboardPage'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+
+function renderPage() {
+  return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter><DashboardPage /></MemoryRouter></QueryClientProvider>)
+}
 
 describe('DashboardPage', () => {
   beforeEach(() => useAuthStore.setState({ user: authUser('OWNER'), accessToken: 'owner-token', isInitializing: false }))
@@ -34,10 +39,10 @@ describe('DashboardPage', () => {
       })),
       http.get('/api/v1/dashboard/widget-preferences', () => HttpResponse.json([])),
     )
-    const { container } = render(<MemoryRouter><DashboardPage /></MemoryRouter>)
+    const { container } = renderPage()
 
     expect(await screen.findByRole('heading', { name: 'Dnevni poslovni trendovi' })).toBeVisible()
-    expect(screen.getByRole('link', { name: 'Rezervacije na čekanju' })).toHaveAttribute('href', expect.stringContaining('status=PENDING'))
+    expect(screen.getByRole('region', { name: 'Zahteva pažnju' }).querySelector('a')).toHaveAttribute('href', expect.stringContaining('status=PENDING'))
     expect(screen.getByRole('table', { name: /Dnevni prihod/ })).toHaveTextContent('300')
     expect(screen.getByRole('link', { name: 'Otvori PENDING rezervacije' })).toHaveAttribute('href', expect.stringContaining('status=PENDING'))
     expect(screen.getByRole('table', { name: /Potvrđeni i završeni/ })).toHaveTextContent('Ana')
@@ -62,7 +67,7 @@ describe('DashboardPage', () => {
         return HttpResponse.json({ id: 'reservation-1', status: 'CONFIRMED', version: 1 })
       }),
     )
-    render(<MemoryRouter><DashboardPage /></MemoryRouter>)
+    renderPage()
 
     expect(await screen.findByRole('heading', { name: 'Moj radni dan' })).toBeVisible()
     expect(screen.getByText('Tretman')).toBeVisible()

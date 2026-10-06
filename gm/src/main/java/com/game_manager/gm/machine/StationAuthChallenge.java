@@ -3,6 +3,6 @@ import com.game_manager.gm.common.entity.BaseEntity;import jakarta.persistence.*
 @Entity @Table(name="station_auth_challenges") @Getter @Setter
 public class StationAuthChallenge extends BaseEntity {
  @JdbcTypeCode(SqlTypes.CHAR)@Column(name="identity_id",nullable=false,length=36)private UUID identityId;
- @Column(name="nonce_hash",nullable=false,length=64,unique=true)private String nonceHash;
+ @JdbcTypeCode(SqlTypes.CHAR)@Column(name="nonce_hash",nullable=false,length=64,unique=true)private String nonceHash;
  @Column(name="expires_at",nullable=false)private Instant expiresAt;@Column(name="consumed_at")private Instant consumedAt;
 }

@@ -20,6 +20,11 @@ public class ResourceManagementService {
  private final com.game_manager.gm.reservation.ReservationAvailabilityPolicy availability;
  private final com.game_manager.gm.station.GamingStationProfileRepository stationProfiles;
 
+ @Transactional(readOnly=true) public Map<UUID,String> resourceNames(Set<UUID> ids){
+  if(ids.isEmpty())return Map.of();
+  return resources.findAllById(ids).stream().collect(java.util.stream.Collectors.toMap(PhysicalResource::getId,PhysicalResource::getName));
+ }
+
  @Transactional(readOnly=true) @PreAuthorize("hasAuthority('RESOURCE_READ')")
  public List<LocationView> locations(){return locations.findAllByOrderByNameAsc().stream().map(LocationView::from).toList();}
  @Transactional @PreAuthorize("hasAuthority('RESOURCE_MANAGE')")

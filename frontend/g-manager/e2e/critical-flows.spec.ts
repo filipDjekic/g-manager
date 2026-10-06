@@ -60,7 +60,11 @@ async function installApi(page: Page, role: Role, aiEnabled = false, reservation
       savedViews.push(view); return json(view, 201)
     }
     if (path === '/users/me') return json(user(role))
-    if (path === '/working-hours/exceptions') return json([])
+    if (path === '/resources/locations' || path === '/stations' || path === '/stations/applications' || path === '/stations/application-profiles') return json([])
+    if (path === '/stations/client-package') return json({status:'DEVELOPMENT',version:'0.1.0-dev',downloadUrl:null,sha256:null})
+    if (path === '/gaming-sessions/me' || path.startsWith('/gaming-sessions/customer/') || path === '/waitlist/me') return json([])
+    if (path === '/waitlist') return json(emptyPage)
+    if (path === '/working-hours/exceptions' || path === '/time-off') return json([])
     if (path === '/reports/definitions') return json([{ key: 'orders', label: 'Orders', metricDefinition: 'Created in range', formats: ['CSV'] }])
     if (path === '/reports' && request.method() === 'GET') return json([{ id: 'report-1', definitionKey: 'orders', format: 'CSV', status: 'COMPLETED', progress: 100, rowCount: 42, documentId: 'document-1', errorMessage: null, snapshotAt: '2028-03-15T10:00:00Z', expiresAt: '2028-03-16T10:00:00Z', version: 1 }])
     if (path === '/reports/schedules') return json([])
@@ -120,7 +124,7 @@ async function installApi(page: Page, role: Role, aiEnabled = false, reservation
     } : emptyPage)
     if (path === '/orders' && request.method() === 'POST') {
       orderCreated = true
-      return json({ id: 'order-1' }, 201)
+      return json({ id: 'order-1', totalPrice: 120, status:'CREATED', version:0, items:[] }, 201)
     }
     if (path === '/orders' && request.method() === 'GET') return json({
       ...emptyPage, totalElements: 1, totalPages: 1, content: [{
@@ -182,7 +186,8 @@ async function installApi(page: Page, role: Role, aiEnabled = false, reservation
     if (path === '/gaming-sessions/stream') return route.fulfill({ status: 503, body: '' })
     if (path === '/gaming-operations/board') return json({ serverTime: '2028-03-16T10:00:00Z', stations: [{
       resourceId: 'station-1', resourceCode: 'PC-01', resourceName: 'Arena PC 01', locationId: 'location-1',
-      status: gamingSessionActive ? 'ACTIVE' : 'AVAILABLE', clientEnabled: false,
+      status: gamingSessionActive ? 'ACTIVE' : 'AVAILABLE', clientEnabled: false, staleHeartbeat: false, enforcementStatus: 'LOCKED',
+      applicationProfileName: 'Arena Standard', locationName: 'Arena Centar', areaName: 'Gaming zona',
       sessionId: gamingSessionActive ? 'gaming-session-1' : null, customerId: gamingSessionActive ? 'customer-1' : null,
       customerDisplayName: gamingSessionActive ? 'CUSTOMER E2E' : null,
       startedAt: gamingSessionActive ? '2028-03-16T10:00:00Z' : null,
@@ -209,20 +214,22 @@ async function login(page: Page, role: Role) {
   await page.getByLabel('Email').fill(`${role.toLowerCase()}@example.test`)
   await page.getByLabel('Lozinka').fill('Synthetic-password-123!')
   await page.getByRole('button', { name: 'Prijavi se' }).click()
-  await expect(page.getByText(`${role} E2E`)).toBeVisible()
+  await expect(page).not.toHaveURL(/\/login/)
 }
 
 async function revealResponsiveNavigation(page: Page) {
   if ((page.viewportSize()?.width ?? 1280) <= 800) {
-    await page.getByRole('button', { name: 'Meni' }).click()
+    await page.getByRole('button', { name: 'Meni', exact: true }).click()
     await expect(page.getByRole('dialog', { name: 'Navigacija' })).toBeVisible()
   }
 }
 
 for (const role of ['OWNER', 'ADMIN', 'EMPLOYEE', 'CUSTOMER'] as const) {
-  test(`${role} auth and navigation smoke`, async ({ page }) => {
+  test(`${role} auth and navigation smoke`, async ({ page }, testInfo) => {
     await installApi(page, role)
     await login(page, role)
+    await page.locator('main h1').first().waitFor()
+    await page.screenshot({ path:testInfo.outputPath(`${role.toLowerCase()}-workspace.png`),fullPage:true })
     await revealResponsiveNavigation(page)
     await expect(page.getByRole('link', { name: 'Profil' })).toBeVisible()
     const results = await new AxeBuilder({ page }).analyze()
@@ -255,7 +262,7 @@ test('customer creates an order and reservation with visible success states', as
   await expect(drawer.getByText('customer-1')).toHaveCount(0)
   await drawer.getByRole('button', { name: 'Otkaži' }).click()
   const confirmation = page.getByRole('dialog', { name: 'Otkaži rezervaciju' })
-  await confirmation.getByLabel('Razlog ili napomena (opciono)').fill('Promena plana')
+  await confirmation.getByLabel('Razlog', { exact: true }).fill('Promena plana')
   await confirmation.getByRole('button', { name: 'Otkaži', exact: true }).click()
   await expect(confirmation).not.toBeVisible()
 })
@@ -295,16 +302,18 @@ test('employee performs an order status transition', async ({ page }) => {
   await expect(page.getByRole('article').getByText('IN_PROGRESS')).toBeVisible()
 })
 
-test('employee starts a gaming session from the location-scoped station board', async ({ page }) => {
+test('employee starts a gaming session from the location-scoped station board', async ({ page }, testInfo) => {
   await installApi(page, 'EMPLOYEE')
   await login(page, 'EMPLOYEE')
   await page.goto('/gaming-sessions')
   await expect(page.getByRole('heading', { name: 'Kontrola gaming stanica' })).toBeVisible()
+  await expect(page.locator('.gaming-station-card')).toHaveCount(1)
+  await page.screenshot({ path:testInfo.outputPath('gaming-board.png'),fullPage:true })
   await page.getByRole('button', { name: 'Pokreni sesiju' }).click()
   await page.getByLabel('Brza pretraga klijenta').fill('CUSTOMER')
-  await page.getByRole('option', { name: /CUSTOMER E2E/ }).click()
+  await page.getByRole('button', { name: /CUSTOMER E2E customer@example.test/ }).click()
   await page.getByRole('button', { name: /Pokreni za CUSTOMER E2E/ }).click()
-  await expect(page.getByText('Aktivna sesija')).toBeVisible()
+  await expect(page.locator('.gaming-station-card').getByText('Aktivna sesija')).toBeVisible()
   await expect(page.getByText('CUSTOMER E2E')).toBeVisible()
 })
 
@@ -322,7 +331,7 @@ test('employee completes daily work from the Today workspace', async ({ page }) 
 test('management attention item opens its authorized operational view', async ({ page }) => {
   await installApi(page, 'OWNER')
   await login(page, 'OWNER')
-  const attention = page.getByRole('link', { name: 'Rezervacije na čekanju' })
+  const attention = page.getByRole('region', { name: 'Zahteva pažnju' }).getByRole('link', { name: 'Rezervacije na čekanju' })
   await expect(attention).toBeVisible()
   await attention.click()
   await expect(page).toHaveURL(/\/reservations\?status=PENDING/)
@@ -356,15 +365,17 @@ test('AI report pilot requires consent and exposes an accessible sourced fallbac
 test('theme density and responsive navigation remain usable at configured viewport', async ({ page }) => {
   await installApi(page, 'CUSTOMER')
   await login(page, 'CUSTOMER')
-  await page.getByLabel('Tema').selectOption('light')
-  await page.getByLabel('Gustina prikaza').selectOption('compact')
+  await revealResponsiveNavigation(page)
+  const width = page.viewportSize()?.width ?? 1280
+  const preferences = width <= 800 ? page.getByRole('dialog', { name: 'Navigacija' }) : page.getByRole('complementary', { name: 'Bočna navigacija' })
+  await preferences.getByLabel('Tema').selectOption('light')
+  await preferences.getByLabel('Gustina prikaza').selectOption('compact')
   await page.reload()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
   await expect(page.locator('html')).toHaveAttribute('data-density', 'compact')
 
-  const width = page.viewportSize()?.width ?? 1280
   if (width <= 800) {
-    const menu = page.getByRole('button', { name: 'Meni' })
+    const menu = page.getByRole('button', { name: 'Meni', exact: true })
     await expect(menu).toBeVisible()
     await menu.click()
     await expect(page.getByRole('dialog', { name: 'Navigacija' })).toBeVisible()
@@ -382,10 +393,11 @@ test('all MVP routes have no serious accessibility findings', async ({ page }) =
   await installApi(page, 'OWNER')
   await login(page, 'OWNER')
   const routes = ['/sessions', '/profile', '/catalog', '/employees', '/settings', '/dashboard',
-    '/reservations', '/orders', '/users', '/audit']
+    '/reservations', '/orders', '/users', '/audit', '/customers', '/resources', '/stations', '/gaming-sessions', '/waitlist']
   for (const route of routes) {
     await page.goto(route)
     await expect(page.locator('main h1')).toBeVisible()
+    await expect(page.getByRole('heading',{name:'Aplikacija trenutno nije dostupna.'})).toHaveCount(0)
     const results = await new AxeBuilder({ page }).analyze()
     expect(results.violations.filter(({ impact }) => impact === 'serious' || impact === 'critical'), route).toEqual([])
   }

@@ -1,6 +1,6 @@
 import { apiClient } from './client'
 
-export type SearchResourceType = 'CATALOG' | 'USER' | 'ORDER' | 'RESERVATION'
+export type SearchResourceType = 'CATALOG' | 'USER' | 'CUSTOMER' | 'RESOURCE' | 'ORDER' | 'RESERVATION'
 export interface NavigationAction { kind: 'NAVIGATE'; label: string; url: string }
 export interface SearchResult {
   type: SearchResourceType; id: string; title: string; subtitle: string; url: string; action: NavigationAction; favorite: boolean

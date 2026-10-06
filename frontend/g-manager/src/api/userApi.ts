@@ -14,7 +14,7 @@ export const userApi = {
     form.append('avatar', avatar)
     return apiClient.post<UserResponse>('/users/me/avatar', form).then(({ data }) => data)
   },
-  list: (params: { page: number; size: number; role?: string; active?: boolean }) =>
+  list: (params: { page: number; size: number; role?: string; active?: boolean; search?: string; sort?: string; direction?: string }) =>
     apiClient.get<PageResponse<UserResponse>>('/users', { params }).then(({ data }) => data),
   create: (request: CreateUserRequest) =>
     apiClient.post<UserResponse>('/users', request).then(({ data }) => data),

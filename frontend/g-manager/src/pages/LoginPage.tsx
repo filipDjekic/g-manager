@@ -11,6 +11,7 @@ import { applyApiFieldErrors } from '../common/applyApiFieldErrors'
 import { Button, Card, ErrorState, FormField, Input } from '../components/ui'
 import { featureApi } from '../api/featureApi'
 import { useFeatureStore } from '../feature/featureStore'
+import { homeForRole } from '../layout/navigation'
 
 type LoginValues = z.infer<typeof loginSchema>
 
@@ -22,7 +23,7 @@ export function LoginPage() {
   const location = useLocation()
   const form = useForm<LoginValues>({ resolver: zodResolver(loginSchema) })
 
-  if (user) return <Navigate to="/" replace />
+  if (user && !form.formState.isSubmitting) return <Navigate to={homeForRole(user.role)} replace />
 
   const submit = form.handleSubmit(async (values) => {
     setServerError(null)
@@ -32,7 +33,7 @@ export function LoginPage() {
       await featureApi.bootstrap().then(useFeatureStore.getState().apply)
         .catch(() => useFeatureStore.getState().reset())
       const from = (location.state as { from?: string } | null)?.from
-      navigate(from && from !== '/login' ? from : '/', { replace: true })
+      navigate(from && from !== '/login' && from !== '/' ? from : homeForRole(response.user.role), { replace: true })
     } catch (error) {
       applyApiFieldErrors(error, form.setError, form.setFocus)
       setServerError(apiErrorMessage(error, 'Prijava trenutno nije dostupna.'))

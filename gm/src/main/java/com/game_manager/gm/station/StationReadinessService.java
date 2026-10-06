@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class StationReadinessService {
     private final PhysicalResourceRepository resources;
     private final AreaRepository areas;
+    private final LocationRepository locationRepository;
     private final GamingStationProfileRepository stations;
     private final ApplicationDefinitionRepository definitions;
     private final ApplicationProfileRepository profiles;
@@ -40,6 +41,9 @@ public class StationReadinessService {
                 .collect(Collectors.toMap(GamingStationProfile::getResourceId, Function.identity()));
         Map<UUID, Area> areaById = areas.findAllById(pcs.stream().map(PhysicalResource::getAreaId).toList())
                 .stream().collect(Collectors.toMap(Area::getId, Function.identity()));
+        Map<UUID, Location> locationById = locationRepository.findAllById(areaById.values().stream()
+                .map(Area::getLocationId).distinct().toList()).stream()
+                .collect(Collectors.toMap(Location::getId, Function.identity()));
         Map<UUID, ApplicationProfile> profileById = profiles.findAllById(stationByResource.values().stream()
                         .map(GamingStationProfile::getApplicationProfileId).filter(Objects::nonNull).toList())
                 .stream().collect(Collectors.toMap(ApplicationProfile::getId, Function.identity()));
@@ -60,7 +64,9 @@ public class StationReadinessService {
                     station == null ? 10 : station.getHeartbeatIntervalSeconds(),
                     station == null ? 60 : station.getOfflineGraceSeconds(),
                     station == null ? null : station.getLastHeartbeatAt(), station == null ? null : station.getClientVersion(),
-                    activeSessionId, station == null ? null : station.getVersion());
+                    activeSessionId, station == null ? null : station.getVersion(),
+                    locationById.containsKey(area.getLocationId()) ? locationById.get(area.getLocationId()).getName() : null,
+                    area.getName());
         }).toList();
     }
 

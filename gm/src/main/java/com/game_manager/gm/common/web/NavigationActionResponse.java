@@ -11,6 +11,8 @@ public record NavigationActionResponse(String kind, String label, String url) {
         String label = switch (type) {
             case CATALOG -> "Otvori stavku kataloga";
             case USER -> "Otvori korisnika";
+            case CUSTOMER -> "Otvori klijenta";
+            case RESOURCE -> "Otvori resurs";
             case ORDER -> "Otvori narudžbinu";
             case RESERVATION -> "Otvori rezervaciju";
         };

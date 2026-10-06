@@ -6,15 +6,15 @@ import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
 import { SavedViewBar } from '../components/lists/SavedViewBar'
 import { SelectionBar } from '../components/lists/SelectionBar'
-import { Button, EmptyState, ErrorState, Skeleton, TableShell } from '../components/ui'
+import { Badge, Button, Drawer, EmptyState, ErrorState, Skeleton, TableShell } from '../components/ui'
 import { useDirtyGuard } from '../forms/useDirtyGuard'
 import { useListUrlState } from '../lists/useListUrlState'
 import { queryKeys } from '../query/queryKeys'
 import type { CreateUserRequest, UserResponse } from '../types/user.types'
 
 interface Props { employeesOnly?: boolean }
-const defaults = { page: '0', active: '', deleted: '', sort: 'createdAt', direction: 'DESC' }
-const allowed = ['page', 'active', 'deleted', 'sort', 'direction'] as const
+const defaults = { page: '0', active: '', deleted: '', sort: 'createdAt', direction: 'DESC', search: '', focus: '' }
+const allowed = ['page', 'active', 'deleted', 'sort', 'direction', 'search', 'focus'] as const
 const emptyForm: CreateUserRequest = { name: '', email: '', password: '', role: 'EMPLOYEE' }
 
 export function UserManagementPage({ employeesOnly = false }: Props) {
@@ -30,7 +30,8 @@ export function UserManagementPage({ employeesOnly = false }: Props) {
   useDirtyGuard(dirty)
   const result = useQuery({ queryKey: queryKeys.users(`${employeesOnly}:${url.query}`), queryFn: () => showDeleted
     ? userApi.deleted(page, 20) : userApi.list({ page, size: 20, role: employeesOnly ? 'EMPLOYEE' : undefined,
-      active: url.state.active === '' ? undefined : url.state.active === 'true' }) })
+      search: url.state.search || undefined, sort: url.state.sort, direction: url.state.direction, active: url.state.active === '' ? undefined : url.state.active === 'true' }) })
+  const focusedUser = result.data?.content.find(user => user.id === url.state.focus)
   const refresh = () => client.invalidateQueries({ queryKey: ['users'] })
   const create = useMutation({ mutationFn: userApi.create, onSuccess: async () => {
     setForm(emptyForm); url.set({ page: '0' }); await refresh()
@@ -58,6 +59,7 @@ export function UserManagementPage({ employeesOnly = false }: Props) {
       <label>Status<select value={url.state.active} onChange={(event) => url.set({ active: event.target.value, page: '0' })}>
         <option value="">Svi</option><option value="true">Aktivni</option><option value="false">Neaktivni</option>
       </select></label>
+      <label>Pretraga<input type="search" value={url.state.search} onChange={event => url.set({ search: event.target.value, page: '0', focus: '' })} placeholder="Ime ili email" /></label>
     </div>
     {!employeesOnly && <SavedViewBar resource="USERS" query={url.queryObject} apply={url.apply} />}
     {error && <ErrorState message={apiErrorMessage(error, 'Operaciju nad korisnicima nije moguće izvršiti.')}
@@ -79,7 +81,7 @@ export function UserManagementPage({ employeesOnly = false }: Props) {
         <th scope="col">Email</th><th scope="col">Uloga</th><th scope="col">Status</th><th scope="col">Akcije</th></tr></thead>
         <tbody>{result.data.content.map((user) => <tr key={user.id}><td data-label="Izbor"><input type="checkbox" checked={selected.has(user.id)}
           disabled={showDeleted || user.id === actor?.id || !user.active} onChange={() => toggle(user.id)} aria-label={`Izaberi korisnika ${user.email}`} /></td>
-          <td data-label="Ime">{user.name}</td><td data-label="Email">{user.email}</td><td data-label="Uloga">{user.role}</td><td data-label="Status">{user.active ? 'Aktivan' : 'Neaktivan'}</td><td data-label="Akcije"><div className="form-actions">{showDeleted
+          <td data-label="Ime"><button className="link-button" onClick={() => url.set({ focus: user.id })}>{user.name}</button></td><td data-label="Email">{user.email}</td><td data-label="Uloga">{user.role}</td><td data-label="Status">{user.active ? 'Aktivan' : 'Neaktivan'}</td><td data-label="Akcije"><div className="form-actions">{showDeleted
             ? <button type="button" onClick={() => void restore(user)}>Vrati</button>
             : <>{user.active && user.id !== actor?.id && <button className="secondary-button" type="button"
               onClick={() => { if (window.confirm(`Deaktivirati nalog ${user.email}?`)) deactivate.mutate(user.id) }}>Deaktiviraj</button>}
@@ -88,5 +90,8 @@ export function UserManagementPage({ employeesOnly = false }: Props) {
     <div className="pagination"><button type="button" disabled={page === 0} onClick={() => url.set({ page: String(page - 1) })}>Prethodna</button>
       <span>Strana {page + 1} od {Math.max(result.data?.totalPages ?? 1, 1)}</span>
       <button type="button" disabled={!result.data || page + 1 >= result.data.totalPages} onClick={() => url.set({ page: String(page + 1) })}>Sledeća</button></div>
+    <Drawer open={!!focusedUser} title={focusedUser?.name ?? 'Korisnik'} onClose={() => url.set({ focus: '' })}>
+      {focusedUser && <dl className="station-detail-grid"><div><dt>Email</dt><dd>{focusedUser.email}</dd></div><div><dt>Uloga</dt><dd>{focusedUser.role}</dd></div><div><dt>Status naloga</dt><dd><Badge tone={focusedUser.active ? 'success' : 'neutral'}>{focusedUser.active ? 'Aktivan' : 'Neaktivan'}</Badge></dd></div></dl>}
+    </Drawer>
   </main>
 }

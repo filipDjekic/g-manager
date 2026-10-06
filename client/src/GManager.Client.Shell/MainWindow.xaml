@@ -1,10 +1,21 @@
-<Window x:Class="GManager.Client.Shell.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" WindowStyle="None" WindowState="Maximized" ResizeMode="NoResize" Topmost="True" Background="#07111F" Foreground="White" Title="G-Manager">
- <Grid><Border Width="520" Padding="44" Background="#111D2E" CornerRadius="18"><StackPanel>
-  <TextBlock Text="G-MANAGER" Foreground="#54D4A0" FontWeight="Bold" FontSize="18"/><TextBlock x:Name="Heading" Text="Stanica je zaključana" FontSize="32" FontWeight="Bold" Margin="0,28,0,8"/>
-  <TextBlock x:Name="Connectivity" Text="Povezivanje sa serverom" Foreground="#A8B6C8" Margin="0,0,0,24"/><TextBlock x:Name="Countdown" FontSize="48" FontWeight="Bold" Margin="0,0,0,18"/>
-  <StackPanel x:Name="Applications" Margin="0,0,0,14"/>
-  <TextBox x:Name="Email" Height="44" Margin="0,0,0,10" ToolTip="Email"/><PasswordBox x:Name="Password" Height="44" Margin="0,0,0,16"/>
-  <Button x:Name="Login" Height="46" Content="Prijavi se" Click="Login_Click" Background="#54D4A0"/><Button x:Name="Logout" Height="42" Content="Odjavi se" Click="Logout_Click" Visibility="Collapsed" Margin="0,12,0,0"/>
-  <TextBlock x:Name="Error" Foreground="#FF8A8A" TextWrapping="Wrap" Margin="0,16,0,0"/>
- </StackPanel></Border></Grid>
+﻿<Window x:Class="GManager.Client.Shell.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" WindowStyle="None" WindowState="Maximized" ResizeMode="NoResize" Topmost="True" Background="{StaticResource AppBackground}" Foreground="{StaticResource PrimaryText}" FontFamily="Segoe UI" Title="G-Manager">
+ <Grid Margin="24">
+  <Border MaxWidth="560" Padding="40" Background="{StaticResource Surface}" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" CornerRadius="20" HorizontalAlignment="Center" VerticalAlignment="Center">
+   <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
+    <TextBlock Text="G-MANAGER" Foreground="{StaticResource Primary}" FontWeight="Bold" FontSize="18"/>
+    <TextBlock Text="VAŠ GAMING PROSTOR" Foreground="{StaticResource Secondary}" FontSize="11" Margin="0,8,0,0"/>
+    <TextBlock x:Name="Heading" Text="Stanica je zaključana" FontSize="30" FontWeight="Bold" Margin="0,28,0,8"/>
+    <TextBlock x:Name="Connectivity" Text="Povezivanje sa servisom…" Foreground="{StaticResource MutedText}" Margin="0,0,0,24"/>
+    <TextBlock x:Name="Countdown" FontSize="52" FontWeight="Bold" Foreground="{StaticResource Primary}" Margin="0,0,0,18" AutomationProperties.Name="Preostalo vreme gaming sesije"/>
+    <StackPanel x:Name="Applications" Margin="0,0,0,14"/>
+    <TextBlock Text="Email" Margin="0,0,0,6" Visibility="{Binding Visibility, ElementName=Email}"/>
+    <TextBox x:Name="Email" Height="46" Margin="0,0,0,14" AutomationProperties.Name="Email"/>
+    <TextBlock Text="Lozinka" Margin="0,0,0,6" Visibility="{Binding Visibility, ElementName=Password}"/>
+    <PasswordBox x:Name="Password" Height="46" Margin="0,0,0,20" AutomationProperties.Name="Lozinka"/>
+    <Button x:Name="Login" Height="48" Content="Prijavi se" Click="Login_Click" Background="{StaticResource Primary}" Foreground="#081722" IsDefault="True"/>
+    <Button x:Name="Logout" Height="44" Content="Odjavi se i zaključi sesiju" Click="Logout_Click" Visibility="Collapsed" Margin="0,12,0,0"/>
+    <TextBlock x:Name="Error" Foreground="{StaticResource Danger}" Margin="0,16,0,0" AutomationProperties.LiveSetting="Polite"/>
+   </StackPanel></ScrollViewer>
+  </Border>
+ </Grid>
 </Window>

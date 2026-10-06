@@ -171,9 +171,16 @@ public class UserService {
     @PreAuthorize("hasAuthority('USER_LIST')")
     public PageResponse<UserResponse> listUsers(
             Role role, Boolean active, int page, int size, String sort, String direction) {
+        return listUsers(role, active, page, size, sort, direction, null);
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('USER_LIST')")
+    public PageResponse<UserResponse> listUsers(
+            Role role, Boolean active, int page, int size, String sort, String direction, String search) {
         AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
         requireManagementRole(actor.role());
-        Specification<User> specification = UserSpecifications.notDeleted();
+        Specification<User> specification = UserSpecifications.notDeleted().and(UserSpecifications.matchesSearch(search));
         if (actor.role() == Role.ADMIN) {
             specification = specification.and(UserSpecifications.adminVisibleOnly(true));
         }

@@ -35,8 +35,10 @@ public class GamingOperationsBoardService {
     public GamingOperationsBoardResponse board(UUID requestedLocationId) {
         AuthenticatedUser actor = currentUser.requireCurrentUser(); Instant now = clock.instant();
         if (requestedLocationId != null) locations.requireAccess(actor, requestedLocationId);
+        Set<UUID> assigned = locations.assignedLocations(actor);
         List<StationOverview> visible = stationReadiness.overview().stream()
-                .filter(station -> locations.canAccess(actor, station.locationId()))
+                .filter(station -> actor.role() == Role.OWNER || actor.role() == Role.ADMIN
+                        || assigned.contains(station.locationId()))
                 .filter(station -> requestedLocationId == null || requestedLocationId.equals(station.locationId()))
                 .toList();
         if (visible.isEmpty()) return new GamingOperationsBoardResponse(now, List.of());
@@ -87,7 +89,13 @@ public class GamingOperationsBoardService {
                 active == null ? null : active.getCustomerId(), customer == null ? null : customer.getName(),
                 active == null ? null : active.getStartedAt(), active == null ? null : active.getEndsAt(),
                 active == null ? 0 : Math.max(0, Duration.between(now, active.getEndsAt()).toSeconds()),
-                active == null ? null : active.getVersion(), Set.copyOf(allowed));
+                active == null ? null : active.getVersion(), Set.copyOf(allowed),
+                station.areaId(), station.operationalStatus(), station.effectiveStatus(),
+                station.applicationProfileName(), station.configurationVersion(), station.clientVersion(),
+                latestCommand == null ? null : latestCommand.getSequence(),
+                latestCommand == null ? null : latestCommand.getCommandType().name(),
+                latestCommand == null ? null : latestCommand.getAvailableAt(),
+                latestCommand == null ? null : latestCommand.getAcknowledgedAt(), station.locationName(), station.areaName());
     }
 
     private GamingStationBoardStatus status(StationOverview station, GamingSession latest,

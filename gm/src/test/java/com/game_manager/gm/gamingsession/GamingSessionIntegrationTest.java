@@ -2,6 +2,7 @@ package com.game_manager.gm.gamingsession;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.game_manager.gm.catalog.*;
@@ -36,6 +37,25 @@ class GamingSessionIntegrationTest {
     @Autowired GamingStationProfileRepository stations; @Autowired GamingSessionRepository sessions;
     @Autowired StationCommandRepository stationCommands;
     @Autowired JdbcTemplate jdbc; private final ObjectMapper json = new ObjectMapper();
+
+    @org.junit.jupiter.api.BeforeEach void clean() { testsupport.DatabaseCleaner.clean(jdbc); }
+
+    @Test void customerHistoryIsPrivateAndStaffHistoryRespectsAssignedLocations() throws Exception {
+        User employee=user(Role.EMPLOYEE), unrelated=user(Role.EMPLOYEE), customer=user(Role.CUSTOMER), other=user(Role.CUSTOMER);
+        Station station=station(); assign(employee,station.locationId()); String token=login(employee);
+        start(token,startBody(customer,station.resource(),60),new CountDownLatch(0),new CountDownLatch(0));
+        mvc.perform(get("/api/v1/gaming-sessions/me").header("Authorization",bearer(login(customer))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].resourceName").value("Gaming PC"));
+        mvc.perform(get("/api/v1/gaming-sessions/me").header("Authorization",bearer(login(other))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(get("/api/v1/gaming-sessions/customer/{id}",customer.getId()).header("Authorization",bearer(login(customer))))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/gaming-sessions/customer/{id}",customer.getId()).header("Authorization",bearer(login(unrelated))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(get("/api/v1/gaming-sessions/customer/{id}",customer.getId()).header("Authorization",bearer(token)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
+    }
 
     @Test void commandsAreIdempotentAndExtensionKeepsAggregateIdentity() throws Exception {
         User employee=user(Role.EMPLOYEE), customer=user(Role.CUSTOMER); Station station=station(); assign(employee,station.locationId());

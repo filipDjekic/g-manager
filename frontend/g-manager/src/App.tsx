@@ -6,6 +6,7 @@ import { CapabilityGuard } from './auth/CapabilityGuard'
 import { RouteAccessibility } from './accessibility/RouteAccessibility'
 import { AppShell } from './layout/AppShell'
 import './App.css'
+import './styles/product.css'
 import { useFeatureStore } from './feature/featureStore'
 import { FeatureUnavailable } from './feature/FeatureUnavailable'
 import { useAuthStore } from './auth/authStore'
@@ -38,6 +39,8 @@ const FeatureFlagsPage = lazyPage(() => import('./pages/FeatureFlagsPage'), 'Fea
 const ResourcesPage = lazyPage(() => import('./pages/ResourcesPage'), 'ResourcesPage')
 const StationsPage = lazyPage(() => import('./pages/StationsPage'), 'StationsPage')
 const GamingSessionsPage = lazyPage(() => import('./pages/GamingSessionsPage'), 'GamingSessionsPage')
+const CustomerHomePage = lazyPage(() => import('./pages/CustomerHomePage'), 'CustomerHomePage')
+const WaitlistPage = lazyPage(() => import('./pages/WaitlistPage'), 'WaitlistPage')
 
 function RouteLoading() {
   return <p className="screen-message" role="status">Učitavanje stranice…</p>
@@ -92,6 +95,7 @@ function App() {
                 <Route path="settings" element={<SettingsPage />} />
               </Route>
               <Route element={<CapabilityGuard anyOf={['RESERVATION_READ_OWN', 'ORDER_READ_OWN']} />}>
+                <Route path="home" element={<CustomerHomePage />} />
                 <Route path="my-reservations" element={<MyReservationsPage />} />
                 <Route path="my-orders" element={<MyOrdersPage />} />
               </Route>
@@ -100,6 +104,9 @@ function App() {
                 <Route path="reservations" element={<ReservationsPage />} />
                 <Route path="calendar" element={<CalendarPage />} />
                 <Route path="orders" element={<OrdersPage />} />
+              </Route>
+              <Route element={<CapabilityGuard anyOf={['RESERVATION_READ_ALL']} />}>
+                <Route path="waitlist" element={<WaitlistPage />} />
               </Route>
               <Route element={<CapabilityGuard anyOf={['USER_LIST']} />}>
                 <Route path="users" element={<UserManagementPage />} />

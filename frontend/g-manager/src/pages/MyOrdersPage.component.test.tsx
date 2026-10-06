@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse, delay } from 'msw'
 import { MemoryRouter } from 'react-router-dom'
@@ -56,7 +56,7 @@ describe('MyOrdersPage persistent checkout', () => {
     await Promise.all([userEvent.click(submit), userEvent.click(submit)])
     expect(await screen.findByText(/Server je potvrdio ukupno 300.00 RSD/)).toBeVisible()
     expect(creates).toBe(1)
-    expect(deleteDraft).toHaveBeenCalled()
+    await waitFor(() => expect(deleteDraft).toHaveBeenCalled())
   })
 
   it('removes an inactive persisted product and keeps cart recoverable after conflict', async () => {

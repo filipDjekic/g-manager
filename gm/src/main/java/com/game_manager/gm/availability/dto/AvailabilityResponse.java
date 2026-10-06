@@ -12,5 +12,7 @@ public record AvailabilityResponse(
         int slotIncrementMinutes,
         LocalDate from,
         LocalDate to,
-        List<EmployeeAvailabilityResponse> employees
+        List<EmployeeAvailabilityResponse> employees,
+        UUID resourceId,
+        String resourceName
 ) {}

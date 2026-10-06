@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -30,6 +31,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -54,6 +56,72 @@ class ResourceIntegrationTest {
     @Autowired private ReservationRepository reservations;
     @Autowired private WorkingHoursRepository workingHours;
     @Autowired private PasswordEncoder passwordEncoder;
+    @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    @BeforeEach void clean() {
+        testsupport.DatabaseCleaner.clean(jdbc);
+        jdbc.update("DELETE FROM working_hours_exceptions");
+    }
+
+    @Test
+    void locationAssignmentRequiresManagementAndRejectsStaleUpdates() throws Exception {
+        User owner=user(Role.OWNER),employee=user(Role.EMPLOYEE),customer=user(Role.CUSTOMER);
+        Setup setup=resource(service());
+        String endpoint="/api/v1/resources/locations/"+setup.location().getId()+"/employees/"+employee.getId();
+        String ownerToken=login(owner),employeeToken=login(employee);
+        mockMvc.perform(put(endpoint).header("Authorization",bearer(employeeToken)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"active\":true}")).andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/resources/locations/{id}/employees",setup.location().getId())
+                .header("Authorization",bearer(login(customer)))).andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/gaming-operations/board").header("Authorization",bearer(employeeToken)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.stations").isEmpty());
+        mockMvc.perform(put(endpoint).header("Authorization",bearer(ownerToken)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"active\":true}")).andExpect(status().isOk()).andExpect(jsonPath("$.version").value(0));
+        mockMvc.perform(get("/api/v1/gaming-operations/board").header("Authorization",bearer(employeeToken)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.stations[*].resourceId",hasItem(setup.resource().getId().toString())));
+        mockMvc.perform(put(endpoint).header("Authorization",bearer(ownerToken)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"active\":false,\"version\":0}")).andExpect(status().isOk()).andExpect(jsonPath("$.version").value(1));
+        mockMvc.perform(put(endpoint).header("Authorization",bearer(ownerToken)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"active\":true,\"version\":0}")).andExpect(status().isConflict());
+        mockMvc.perform(get("/api/v1/gaming-operations/board").header("Authorization",bearer(employeeToken)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.stations").isEmpty());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM audit_events WHERE action='EMPLOYEE_LOCATION_ACCESS_CHANGED'",Integer.class)).isEqualTo(2);
+    }
+
+    @Test
+    void slotsAndRecurringBookingsRespectSelectedResourceAcrossEmployees() throws Exception {
+        User customer=user(Role.CUSTOMER),firstEmployee=user(Role.EMPLOYEE),secondEmployee=user(Role.EMPLOYEE);
+        CatalogItem service=service();Setup setup=resource(service);Instant start=futureStart();configureOpen(start);
+        WorkingHours locationHours=new WorkingHours();locationHours.setLocationId(setup.location().getId());
+        locationHours.setDayOfWeek(start.atZone(ZONE).getDayOfWeek());locationHours.setActive(true);
+        locationHours.setOpenTime(LocalTime.NOON);locationHours.setCloseTime(LocalTime.of(14,0));workingHours.saveAndFlush(locationHours);
+        String token=login(customer);
+        mockMvc.perform(post("/api/v1/reservations").header("Authorization",bearer(token)).header("Idempotency-Key",UUID.randomUUID())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                        {"employeeId":"%s","serviceId":"%s","resourceId":"%s","startTime":"%s"}
+                        """.formatted(firstEmployee.getId(),service.getId(),setup.resource().getId(),start)))
+                .andExpect(status().isCreated());
+        MvcResult available=mockMvc.perform(get("/api/v1/availability").header("Authorization",bearer(token))
+                .param("serviceId",service.getId().toString()).param("employeeId",secondEmployee.getId().toString())
+                .param("resourceId",setup.resource().getId().toString()).param("from",start.atZone(ZONE).toLocalDate().toString())
+                .param("to",start.atZone(ZONE).toLocalDate().toString())).andExpect(status().isOk())
+                .andExpect(jsonPath("$.resourceName").value(setup.resource().getName())).andReturn();
+        var mapper=new tools.jackson.databind.ObjectMapper();var slots=mapper.readTree(available.getResponse().getContentAsByteArray()).at("/employees/0/slots");
+        var starts=new java.util.HashSet<Instant>();slots.forEach(slot->starts.add(Instant.parse(slot.get("startTime").asText())));
+        assertThat(starts).doesNotContain(start,start.minusSeconds(1800)).contains(start.plusSeconds(1800));
+        String recurrence="""
+                {"serviceId":"%s","employeeId":"%s","resourceId":"%s","startTime":"%s",
+                 "frequency":"WEEKLY","interval":1,"occurrences":2,"conflictPolicy":"SKIP_CONFLICTS"}
+                """.formatted(service.getId(),secondEmployee.getId(),setup.resource().getId(),start);
+        mockMvc.perform(post("/api/v1/reservations/recurrence/preview").header("Authorization",bearer(token))
+                .contentType(MediaType.APPLICATION_JSON).content(recurrence)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.occurrences[0].available").value(false));
+        MvcResult created=mockMvc.perform(post("/api/v1/reservations/recurrence").header("Authorization",bearer(token))
+                .header("Idempotency-Key",UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON).content(recurrence))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.created.length()").value(1)).andReturn();
+        String reservationId=mapper.readTree(created.getResponse().getContentAsByteArray()).at("/created/0/id").asText();
+        assertThat(reservations.findById(UUID.fromString(reservationId)).orElseThrow().getResourceId()).isEqualTo(setup.resource().getId());
+    }
 
     @Test
     void resourceEndpointsEnforcePermissionsAndExposeIntervalAvailability() throws Exception {

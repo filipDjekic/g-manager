@@ -25,7 +25,8 @@ public class UserSearchSource implements SearchSource {
     @Override
     public List<SearchEntry> search(AuthenticatedUser actor, String query, int limit) {
         if (!RolePermissions.has(actor.role(), Permission.USER_LIST)) return List.of();
-        var spec = UserSpecifications.notDeleted().and(UserSpecifications.matchesSearch(query));
+        var spec = UserSpecifications.notDeleted().and(UserSpecifications.matchesSearch(query))
+                .and((root, criteria, builder) -> builder.notEqual(root.get("role"), Role.CUSTOMER));
         if (actor.role() == Role.ADMIN) spec = spec.and(UserSpecifications.adminVisibleOnly(true));
         String term = query.toLowerCase(Locale.ROOT);
         return repository.findAll(spec, PageRequest.of(0, Math.min(limit * 3, 30))).stream()
@@ -45,6 +46,8 @@ public class UserSearchSource implements SearchSource {
         int rank = term.isBlank() ? 0 : user.getEmail().equalsIgnoreCase(term) ? 100
                 : name.toLowerCase(Locale.ROOT).startsWith(term) ? 80 : 50;
         return new SearchEntry(type(), user.getId(), name, user.getRole() + " · " + user.getEmail(),
-                "/users?focus=" + user.getId(), rank);
+                user.getRole() == Role.CUSTOMER ? "/customers?customerId=" + user.getId()
+                        : "/users?search=" + java.net.URLEncoder.encode(user.getEmail(), java.nio.charset.StandardCharsets.UTF_8)
+                                + "&focus=" + user.getId(), rank);
     }
 }

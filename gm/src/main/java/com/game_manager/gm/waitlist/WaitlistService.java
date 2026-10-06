@@ -31,6 +31,20 @@ public class WaitlistService {
     private final NotificationService notifications; private final Clock clock;
     private final ResourceManagementService resourceService;
 
+    @Transactional(readOnly = true) @PreAuthorize("hasAuthority('RESERVATION_READ_ALL')")
+    public com.game_manager.gm.common.dto.PageResponse<WaitlistOperationalResponse> operational(
+            WaitlistStatus status, String search, UUID customerId, int page, int size) {
+        AuthenticatedUser actor = currentUser.requireCurrentUser();
+        if (status != null && status != WaitlistStatus.WAITING && status != WaitlistStatus.OFFERED)
+            throw new ApplicationException(HttpStatus.BAD_REQUEST, "Only active waitlist statuses are supported");
+        String value = search == null ? "" : search.trim().toLowerCase(Locale.ROOT);
+        if (value.length() > 100) throw new ApplicationException(HttpStatus.BAD_REQUEST, "Search is too long");
+        return com.game_manager.gm.common.dto.PageResponse.from(entries.operational(
+                status == null ? List.of(WaitlistStatus.WAITING, WaitlistStatus.OFFERED) : List.of(status),
+                clock.instant(), actor.role() == Role.EMPLOYEE ? actor.id() : null, customerId,
+                value.isEmpty() ? "" : "%" + value + "%", PageRequest.of(Math.max(0, page), Math.min(100, Math.max(1, size)))));
+    }
+
     @Transactional(readOnly=true) @PreAuthorize("hasAuthority('RESERVATION_READ_OWN')")
     public List<WaitlistResponse> listMine(){UUID customer=customer().id();return entries.findByCustomerIdOrderByCreatedAtDesc(customer).stream().map(entry->WaitlistResponse.from(entry,offers.findByEntryIdAndStatus(entry.getId(),WaitlistOfferStatus.OFFERED).orElse(null))).toList();}
 

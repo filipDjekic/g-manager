@@ -1,5 +1,13 @@
 const businessZone = 'Europe/Belgrade'
 
+export function businessInstantToLocal(value: string): string {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+    timeZone: businessZone, year:'numeric', month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', hourCycle:'h23',
+  }).formatToParts(new Date(value)).map(part=>[part.type,part.value]))
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`
+}
+
 export function businessLocalToInstant(value: string): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value)
   if (!match) throw new Error('Datum i vreme nisu validni.')

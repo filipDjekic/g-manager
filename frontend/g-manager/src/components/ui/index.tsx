@@ -101,14 +101,20 @@ export function Modal({ open, title, children, onClose, initialFocusRef }: {
   </div>
 }
 
-export function Drawer({ open, title, children, onClose, returnFocusRef }: {
+export function Drawer({ open, title, children, onClose, returnFocusRef, size = 'standard' }: {
   open: boolean; title: string; children: ReactNode; onClose: () => void
   returnFocusRef?: React.RefObject<HTMLElement | null>
+  size?: 'standard' | 'wide'
 }) {
   if (!open) return null
   return <div className="ui-overlay ui-overlay--drawer" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
-    <DialogSurface title={title} onClose={onClose} className="ui-drawer" returnFocusRef={returnFocusRef}>{children}</DialogSurface>
+    <DialogSurface title={title} onClose={onClose} className={`ui-drawer${size === 'wide' ? ' ui-drawer--wide' : ''}`} returnFocusRef={returnFocusRef}>{children}</DialogSurface>
   </div>
+}
+
+export type StatusTone = 'neutral' | 'info' | 'accent' | 'success' | 'warning' | 'danger'
+export function Badge({ children, tone = 'neutral' }: { children: ReactNode; tone?: StatusTone }) {
+  return <span className={`ui-badge ui-badge--${tone}`}>{children}</span>
 }
 
 interface Toast { id: number; message: string; tone: ToastTone }

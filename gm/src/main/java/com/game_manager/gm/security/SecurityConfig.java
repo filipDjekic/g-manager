@@ -123,6 +123,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/stations/applications/**",
                                 "/api/v1/stations/application-profiles/**")
                             .hasAuthority("APPLICATION_PROFILE_MANAGE")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/gaming-sessions/me")
+                        .hasAuthority("RESERVATION_READ_OWN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/gaming-sessions/**",
                                 "/api/v1/gaming-sessions").hasAuthority("GAMING_SESSION_READ")
                         .requestMatchers(HttpMethod.GET, "/api/v1/gaming-operations/board")

@@ -184,13 +184,15 @@ public class ReservationService {
                 .flatMap(value -> java.util.stream.Stream.of(value.getEmployeeId(), value.getCustomerId()))
                 .collect(Collectors.toSet())).stream()
                 .collect(Collectors.toMap(User::getId, Function.identity()));
-        Map<UUID, CatalogReference> services = reservations.stream().map(Reservation::getServiceId).distinct()
-                .collect(Collectors.toMap(Function.identity(), catalogService::getReference));
+        Map<UUID, CatalogReference> services = catalogService.getReferences(reservations.stream()
+                .map(Reservation::getServiceId).collect(Collectors.toSet()));
+        Map<UUID,String> resourceNames = resourceService.resourceNames(reservations.stream()
+                .map(Reservation::getResourceId).filter(java.util.Objects::nonNull).collect(Collectors.toSet()));
         return reservations.stream().map(value -> new CalendarReservationResponse(
                 value.getId(), value.getEmployeeId(), users.get(value.getEmployeeId()).getName(),
                 users.get(value.getCustomerId()).getName(), services.get(value.getServiceId()).name(),
                 value.getStartTime(), value.getEndTime(), value.getStatus(), value.getVersion(),
-                transitionPolicy.allowedActions(actor, value))).toList();
+                transitionPolicy.allowedActions(actor, value), value.getResourceId(), value.getResourceId() == null ? null : resourceNames.get(value.getResourceId()))).toList();
     }
 
     @Transactional(readOnly = true)

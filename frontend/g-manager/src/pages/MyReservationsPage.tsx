@@ -31,7 +31,7 @@ export function MyReservationsPage() {
   const [status, setStatus] = useState<ReservationStatus | ''>('')
   const [serviceId, setServiceId] = useState(() => searchParams.get('serviceId')
     ?? sessionStorage.getItem('gmanager.catalog-selection') ?? '')
-  const [resourceId] = useState(() => searchParams.get('resourceId') ?? '')
+  const [resourceId,setResourceId] = useState(() => searchParams.get('resourceId') ?? '')
   const [employeeChoice, setEmployeeChoice] = useState<EmployeeChoice>('UNSELECTED')
   const [date, setDate] = useState('')
   const [selectedStart, setSelectedStart] = useState('')
@@ -73,10 +73,11 @@ export function MyReservationsPage() {
   }, [page, status])
 
   const availability = useQuery({
-    queryKey: ['availability', serviceId, employeeChoice, date],
+    queryKey: ['availability', serviceId, employeeChoice, date, resourceId],
     queryFn: () => availabilityApi.find({
       serviceId,
       employeeId: employeeChoice === 'ANY' ? undefined : employeeChoice,
+      resourceId:resourceId || undefined,
       from: date,
       to: date,
     }),
@@ -148,7 +149,7 @@ export function MyReservationsPage() {
     if (!selectedStart || employeeChoice === 'ANY' || employeeChoice === 'UNSELECTED') return
     try {
       setRecurrencePreview(await reservationApi.previewRecurrence({
-        serviceId, employeeId: employeeChoice, startTime: selectedStart, note: note || undefined,
+        serviceId, resourceId: resourceId || undefined, employeeId: employeeChoice, startTime: selectedStart, note: note || undefined,
         frequency, interval: recurrenceInterval, occurrences, conflictPolicy,
       }))
       setError('')
@@ -200,7 +201,7 @@ export function MyReservationsPage() {
     {message && <p className="success-banner" role="status">{message}</p>}
     <form className="panel booking-flow" onSubmit={create}>
       <div className="booking-step"><span>1</span><label>Usluga<select required value={serviceId} onChange={(event) => {
-        setServiceId(event.target.value); setEmployeeChoice('UNSELECTED'); setDate(''); setSelectedStart('')
+        setServiceId(event.target.value); setResourceId(''); setEmployeeChoice('UNSELECTED'); setDate(''); setSelectedStart('')
       }}><option value="">Izaberite uslugu</option>{services.map((item) =>
         <option value={item.id} key={item.id}>{item.name} · {item.durationMinutes} min</option>)}</select></label></div>
 
@@ -216,6 +217,7 @@ export function MyReservationsPage() {
         }} /></label></div>}
 
       {date && <div className="booking-step booking-slot-step"><span>4</span><fieldset><legend>Dostupan termin</legend>
+        {resourceId && <p className="search-help">Resurs: {availability.data?.resourceName ?? 'Izabran na mapi'} · prikazuju se samo slobodni slotovi ovog resursa.</p>}
         {availability.isLoading && <Skeleton lines={3} label="Učitavanje dostupnih termina" />}
         {availability.error && <ErrorState message={apiErrorMessage(availability.error, 'Dostupne termine nije moguće učitati.')}
           action={<Button type="button" onClick={() => availability.refetch()}>Pokušaj ponovo</Button>} />}

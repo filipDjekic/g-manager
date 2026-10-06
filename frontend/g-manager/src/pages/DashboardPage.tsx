@@ -8,7 +8,8 @@ import { orderApi } from '../api/orderApi'
 import { reservationApi } from '../api/reservationApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Button, EmptyState, TableShell } from '../components/ui'
+import { Button, EmptyState, ErrorState, Skeleton, TableShell } from '../components/ui'
+import { GamingOverview } from '../gaming/GamingOverview'
 import { ActionDialog } from '../components/ui/ActionDialog'
 import { currentBusinessMonth } from '../dashboard/dateRange'
 import type { DashboardAttention, DashboardToday, DashboardTrends, DashboardWidgetPreference, DashboardWorkload } from '../types/dashboard.types'
@@ -17,7 +18,7 @@ import type { OrderStatus } from '../types/order.types'
 import { formatBusinessDateTime, formatBusinessTime } from '../reservations/dateTime'
 
 const statusColors: Record<ReservationStatus, string> = {
-  PENDING: '#fbbf24', CONFIRMED: '#60a5fa', REJECTED: '#fb7185', CANCELLED: '#94a3b8', COMPLETED: '#6ee7b7',
+  PENDING: 'var(--color-warning)', CONFIRMED: 'var(--color-info)', REJECTED: 'var(--color-danger)', CANCELLED: 'var(--color-text-muted)', COMPLETED: 'var(--color-success)',
 }
 const defaults: DashboardWidgetPreference[] = [
   { widgetKey: 'trends', position: 0, visible: true, threshold: null },
@@ -54,6 +55,28 @@ export function DashboardPage() {
       : dashboardApi.today().then(setToday)
     void request.catch((cause) => setError(apiErrorMessage(cause, 'Dashboard nije moguće učitati.'))).finally(() => setLoading(false))
   }, [initial.from, initial.to, management])
+
+  useEffect(() => {
+    let active = true
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'hidden') return
+      const request = management ? dashboardApi.attention().then((data) => { if (active) setAttention(data) })
+        : dashboardApi.today().then((data) => { if (active) setToday(data) })
+      void request.catch((cause) => { if (active) setError(apiErrorMessage(cause, 'Operativne podatke nije moguće osvežiti.')) })
+    }, 30000)
+    return () => { active = false; window.clearInterval(timer) }
+  }, [management])
+
+  async function retryInitial() {
+    setLoading(true); setError('')
+    try {
+      if (management) {
+        const [a, t, w] = await Promise.all([dashboardApi.attention(), dashboardApi.trends(from, to), dashboardApi.workload(from, to)])
+        setAttention(a); setTrends(t); setWorkload(w)
+      } else setToday(await dashboardApi.today())
+    } catch (cause) { setError(apiErrorMessage(cause, 'Dashboard nije moguće učitati.')) }
+    finally { setLoading(false) }
+  }
 
   async function load(event: FormEvent) {
     event.preventDefault()
@@ -96,7 +119,8 @@ export function DashboardPage() {
     catch (cause) { setError(apiErrorMessage(cause, 'Narudžbinu nije moguće ažurirati.')) }
   }
 
-  if (loading && !trends && !today) return <main className="workspace"><p className="empty-state">Učitavanje dashboarda…</p></main>
+  if (loading && !trends && !today) return <main className="workspace"><Skeleton lines={6} label="Učitavanje dashboarda" /></main>
+  if (!trends && !today && error) return <main className="workspace"><ErrorState message={error} action={<Button onClick={() => void retryInitial()}>Pokušaj ponovo</Button>} />{hasCapability(user,'GAMING_SESSION_READ')&&<GamingOverview />}</main>
   if (!management) {
     const actionLabel: Partial<Record<ReservationStatus | OrderStatus, string>> = {
       CONFIRMED: 'Potvrdi', REJECTED: 'Odbij', CANCELLED: 'Otkaži', COMPLETED: 'Završi',
@@ -105,6 +129,7 @@ export function DashboardPage() {
     return <main className="workspace"><div className="page-heading"><div><p className="eyebrow">Danas · {today?.timezone}</p><h1>Moj radni dan</h1></div>
       <Button variant="secondary" onClick={() => void refreshToday()}>Osveži</Button></div>
       {error && <p className="error-banner" role="alert">{error}</p>}
+      {hasCapability(user,'GAMING_SESSION_READ')&&<GamingOverview />}
       <section className="today-section"><h2>Današnji termini</h2>
         {!today?.appointments.length ? <EmptyState title="Danas nema termina" description="Radni dan je trenutno slobodan." />
           : <div className="today-timeline">{today.appointments.map((item) => <article className="panel today-item" key={item.id}>
@@ -152,6 +177,7 @@ export function DashboardPage() {
       <div className="form-actions"><button type="button" className="secondary-button" onClick={() => void download('current')}>Izvezi prikaz</button>
         <button type="button" className="secondary-button" onClick={() => void download('raw')}>Izvezi raw CSV</button></div></div>
     {error && <p className="error-banner" role="alert">{error}</p>}
+    {hasCapability(user,'GAMING_SESSION_READ')&&<GamingOverview />}
     <section className="attention-overview" aria-labelledby="attention-title">
       <div><h2 id="attention-title">Zahteva pažnju</h2><p>Današnje operativne stavke · {attention?.timezone}. Prag opterećenja {attention?.workloadThresholdPercent}%.</p></div>
       <div className="attention-grid">{attention?.items.map((item) => <article className={`attention-card ${item.severity}`} key={item.key}>
@@ -185,19 +211,19 @@ export function DashboardPage() {
       {visible.has('trends') && <section className="panel chart-panel dashboard-wide"><h2>Dnevni poslovni trendovi</h2>
         <p>Prihod obuhvata samo završene narudžbine po datumu kreiranja; rezervacije su termini čiji početak pripada danu.</p>
         {!trends?.buckets.some((item) => item.completedOrders || item.reservations) ? <p className="empty-state">Nema podataka u periodu.</p> : <div aria-hidden="true" inert><ResponsiveContainer width="100%" height={300}><BarChart data={trends?.buckets}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#315247" /><XAxis dataKey="date" stroke="#a7c5ba" /><YAxis stroke="#a7c5ba" />
-          <Tooltip /><Bar dataKey="completedOrders" name="Završene narudžbine" fill="#6ee7b7" />
-          <Bar dataKey="reservations" name="Rezervacije" fill="#60a5fa" /></BarChart></ResponsiveContainer></div>}
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" /><XAxis dataKey="date" stroke="var(--color-text-muted)" /><YAxis stroke="var(--color-text-muted)" />
+          <Tooltip contentStyle={{ background: 'var(--color-surface-raised)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }} /><Bar dataKey="completedOrders" name="Završene narudžbine" fill="var(--color-primary)" />
+          <Bar dataKey="reservations" name="Rezervacije" fill="var(--color-secondary)" /></BarChart></ResponsiveContainer></div>}
         <TableShell label="Tabelarni podaci dnevnih trendova"><table><caption>Dnevni prihod, završene narudžbine i rezervacije</caption><thead><tr><th>Datum</th><th>Prihod RSD</th><th>Narudžbine</th><th>Rezervacije</th></tr></thead>
           <tbody>{trends?.buckets.map((item) => <tr key={item.date}><th scope="row">{item.date}</th><td>{item.completedRevenue}</td><td>{item.completedOrders}</td><td>{item.reservations}</td></tr>)}</tbody></table></TableShell></section>}
 
       {visible.has('statuses') && <section className="panel chart-panel"><h2>Status rezervacija</h2><p>Broj termina prema trenutnom statusu, za početak termina u izabranom periodu.</p>
-        {!statuses.some(([, count]) => count) ? <p className="empty-state">Nema rezervacija u periodu.</p> : <div aria-hidden="true" inert><ResponsiveContainer width="100%" height={260}><PieChart><Pie data={statuses.map(([name, value]) => ({ name, value }))} dataKey="value" nameKey="name" outerRadius={90}>{statuses.map(([name]) => <Cell key={name} fill={statusColors[name]} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer></div>}
+        {!statuses.some(([, count]) => count) ? <p className="empty-state">Nema rezervacija u periodu.</p> : <div aria-hidden="true" inert><ResponsiveContainer width="100%" height={260}><PieChart><Pie data={statuses.map(([name, value]) => ({ name, value }))} dataKey="value" nameKey="name" outerRadius={90}>{statuses.map(([name]) => <Cell key={name} fill={statusColors[name]} />)}</Pie><Tooltip contentStyle={{ background: 'var(--color-surface-raised)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }} /></PieChart></ResponsiveContainer></div>}
         <TableShell label="Tabelarni podaci statusa rezervacija"><table><caption>Rezervacije po statusu</caption><thead><tr><th>Status</th><th>Broj</th><th>Detalji</th></tr></thead><tbody>{statuses.map(([status, count]) =>
           <tr key={status}><th scope="row">{status}</th><td>{count}</td><td><Link to={`/reservations?status=${status}&from=${from}&to=${to}`}>Otvori {status} rezervacije</Link></td></tr>)}</tbody></table></TableShell></section>}
 
       {visible.has('workload') && <section className="panel chart-panel"><h2>Opterećenje zaposlenih</h2><p>{workload?.capacityDefinition}. Prag upozorenja: {workloadThreshold}%.</p>
-        {!workload?.employees.length ? <p className="empty-state">Nema aktivnih zaposlenih za filter.</p> : <div aria-hidden="true" inert><ResponsiveContainer width="100%" height={260}><BarChart data={workload?.employees}><CartesianGrid strokeDasharray="3 3" stroke="#315247" /><XAxis dataKey="employeeName" stroke="#a7c5ba" /><YAxis domain={[0, 100]} stroke="#a7c5ba" /><Tooltip /><Bar dataKey="utilizationPercent" name="Iskorišćenost %" fill="#fbbf24" /></BarChart></ResponsiveContainer></div>}
+        {!workload?.employees.length ? <p className="empty-state">Nema aktivnih zaposlenih za filter.</p> : <div aria-hidden="true" inert><ResponsiveContainer width="100%" height={260}><BarChart data={workload?.employees}><CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" /><XAxis dataKey="employeeName" stroke="var(--color-text-muted)" /><YAxis domain={[0, 100]} stroke="var(--color-text-muted)" /><Tooltip contentStyle={{ background: 'var(--color-surface-raised)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }} /><Bar dataKey="utilizationPercent" name="Iskorišćenost %" fill="var(--color-warning)" /></BarChart></ResponsiveContainer></div>}
         <TableShell label="Tabelarni podaci opterećenja"><table><caption>Potvrđeni i završeni rezervisani minuti prema dostupnim poslovnim minutima</caption><thead><tr><th>Zaposleni</th><th>Termini</th><th>Rezervisano</th><th>Kapacitet</th><th>Iskorišćenost</th></tr></thead><tbody>{workload?.employees.map((item) =>
           <tr key={item.employeeId} className={item.utilizationPercent !== null && item.utilizationPercent >= workloadThreshold ? 'threshold-exceeded' : undefined}><th scope="row"><Link to={`/reservations?employeeId=${item.employeeId}&from=${from}&to=${to}`}>{item.employeeName}</Link></th><td>{item.reservationCount}</td><td>{item.reservedMinutes} min</td><td>{item.capacityMinutes || 'Nije konfigurisan'}</td><td>{item.utilizationPercent === null ? 'N/D' : `${item.utilizationPercent}%`}</td></tr>)}</tbody></table></TableShell></section>}
     </div>

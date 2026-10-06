@@ -68,11 +68,12 @@ public class UserController {
     public PageResponse<UserResponse> listUsers(
             @RequestParam(required = false) Role role,
             @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt") String sort,
             @RequestParam(defaultValue = "DESC") String direction) {
-        return userService.listUsers(role, active, page, size, sort, direction);
+        return userService.listUsers(role, active, page, size, sort, direction, search);
     }
 
     @GetMapping("/employees")

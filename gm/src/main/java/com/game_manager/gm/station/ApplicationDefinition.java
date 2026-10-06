@@ -16,6 +16,7 @@ public class ApplicationDefinition extends BaseEntity {
     @Column(name = "executable_path", nullable = false, length = 500) private String executablePath;
     @Column(length = 255) private String publisher;
     @Column(name = "publisher_certificate_thumbprint", length = 64) private String publisherCertificateThumbprint;
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.CHAR)
     @Column(name = "executable_sha256", length = 64) private String executableSha256;
     @Column(name = "minimum_file_version", length = 50) private String minimumFileVersion;
     @Column(name = "default_arguments", length = 1000) private String defaultArguments;

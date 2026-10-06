@@ -39,6 +39,15 @@ public interface ReservationRepository
             @Param("excludedStatuses") List<ReservationStatus> excludedStatuses,@Param("excludeId") UUID excludeId);
 
     @Query("""
+            select new com.game_manager.gm.reservation.ReservationBusyInterval(r.employeeId, r.startTime, r.endTime)
+            from Reservation r where r.resourceId = :resourceId and r.status not in :excludedStatuses
+                and r.startTime < :to and r.endTime > :from order by r.startTime
+            """)
+    List<ReservationBusyInterval> findResourceBlockingBetween(@Param("resourceId") UUID resourceId,
+            @Param("from") Instant from, @Param("to") Instant to,
+            @Param("excludedStatuses") List<ReservationStatus> excludedStatuses);
+
+    @Query("""
             select new com.game_manager.gm.reservation.ReservationBusyInterval(
                 r.employeeId, r.startTime, r.endTime)
             from Reservation r

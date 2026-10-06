@@ -1,5 +1,14 @@
 .ui-button { min-height: var(--control-height); display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); padding: var(--space-3) var(--space-4); border: 1px solid transparent; border-radius: var(--radius-md); font: inherit; font-weight: 800; cursor: pointer; }
 .ui-button--primary { color: var(--color-on-primary); background: var(--color-primary); }
+.ui-button--primary:hover:not(:disabled) { background: var(--color-primary-strong); box-shadow: var(--glow-primary); }
+.ui-button--secondary:hover:not(:disabled) { border-color: var(--color-primary); background: var(--color-surface-3); }
+.ui-button--danger:hover:not(:disabled) { border-color: var(--color-danger); }
+.ui-badge { display: inline-flex; align-items: center; gap: var(--space-1); width: fit-content; padding: .25rem .6rem; border: 1px solid var(--color-border); border-radius: 999px; color: var(--color-text-secondary); background: var(--color-surface-raised); font-size: .75rem; font-weight: 700; }
+.ui-badge--info { color: var(--color-info); background: var(--color-info-bg); border-color: color-mix(in srgb, var(--color-info) 35%, transparent); }
+.ui-badge--accent { color: var(--color-secondary); background: var(--color-secondary-bg); border-color: color-mix(in srgb, var(--color-secondary) 35%, transparent); }
+.ui-badge--success { color: var(--color-success); background: var(--color-success-bg); border-color: color-mix(in srgb, var(--color-success) 35%, transparent); }
+.ui-badge--warning { color: var(--color-warning); background: var(--color-warning-bg); border-color: color-mix(in srgb, var(--color-warning) 35%, transparent); }
+.ui-badge--danger { color: var(--color-danger); background: var(--color-danger-bg); border-color: color-mix(in srgb, var(--color-danger) 35%, transparent); }
 .ui-button--secondary { color: var(--color-text); border-color: var(--color-border); background: var(--color-surface-raised); }
 .ui-button--danger { color: var(--color-danger); background: var(--color-danger-bg); }
 .ui-button:disabled { opacity: .55; cursor: not-allowed; }

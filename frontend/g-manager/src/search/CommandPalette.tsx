@@ -6,6 +6,7 @@ import { useGlobalSearch } from './useGlobalSearch'
 
 const labels: Record<SearchResourceType, string> = {
   CATALOG: 'Katalog', USER: 'Korisnici', ORDER: 'Narudžbine', RESERVATION: 'Rezervacije',
+  CUSTOMER: 'Klijenti', RESOURCE: 'Stanice i resursi',
 }
 
 function Highlight({ text, query }: { text: string; query: string }) {

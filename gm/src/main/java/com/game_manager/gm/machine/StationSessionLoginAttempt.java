@@ -6,7 +6,7 @@ public class StationSessionLoginAttempt extends BaseEntity {
  @JdbcTypeCode(SqlTypes.CHAR)@Column(name="station_id",nullable=false,length=36)private UUID stationId;
  @JdbcTypeCode(SqlTypes.CHAR)@Column(name="session_id",length=36)private UUID sessionId;
  @JdbcTypeCode(SqlTypes.CHAR)@Column(name="customer_id",length=36)private UUID customerId;
- @Column(name="identifier_hash",nullable=false,length=64)private String identifierHash;
+ @JdbcTypeCode(SqlTypes.CHAR)@Column(name="identifier_hash",nullable=false,length=64)private String identifierHash;
  @Enumerated(EnumType.STRING)@Column(nullable=false,length=30)private StationSessionLoginOutcome outcome;
  @Column(name="occurred_at",nullable=false)private Instant occurredAt;
 }

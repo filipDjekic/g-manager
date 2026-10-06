@@ -18,4 +18,5 @@ export interface AvailabilityResponse {
   from: string
   to: string
   employees: EmployeeAvailability[]
+  resourceId?:string;resourceName?:string
 }

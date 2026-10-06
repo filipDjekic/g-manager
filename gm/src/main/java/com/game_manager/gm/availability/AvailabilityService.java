@@ -44,6 +44,7 @@ public class AvailabilityService {
     private final ReservationAvailabilityPolicy reservationPolicy;
     private final TimeOffAvailabilityPolicy timeOffPolicy;
     private final Clock clock;
+    private final com.game_manager.gm.resource.ResourceManagementService resourceService;
 
     @Transactional(readOnly = true)
     @PreAuthorize("hasAuthority('CATALOG_READ')")
@@ -55,22 +56,25 @@ public class AvailabilityService {
                     "Catalog item is not a service");
         }
         List<User> employees = employees(query.employeeId());
-        List<WorkingHoursService.AvailabilityWindow> windows = windows(query.from(), query.to());
+        var resource = query.resourceId() == null ? null : resourceService.requireBookable(query.resourceId(), query.serviceId());
+        List<WorkingHoursService.AvailabilityWindow> windows = windows(resource == null ? null : resourceService.locationId(resource), query.from(), query.to());
         List<ReservationBusyInterval> busy = windows.isEmpty() ? List.of()
                 : reservationPolicy.busyIntervals(employees.stream().map(User::getId).toList(),
                         windows.getFirst().open(), windows.getLast().close());
         Map<UUID, List<ReservationBusyInterval>> busyByEmployee = busy.stream()
                 .collect(Collectors.groupingBy(ReservationBusyInterval::employeeId));
+        List<ReservationBusyInterval> resourceBusy = resource == null || windows.isEmpty() ? List.of()
+                : reservationPolicy.resourceBusyIntervals(resource.getId(), windows.getFirst().open(), windows.getLast().close());
         List<TimeOffInterval> timeOff = windows.isEmpty()?List.of():timeOffPolicy.approvedBetween(employees.stream().map(User::getId).toList(),windows.getFirst().open(),windows.getLast().close());
         Map<UUID,List<TimeOffInterval>> timeOffByEmployee=timeOff.stream().collect(Collectors.groupingBy(TimeOffInterval::employeeId));
 
         List<EmployeeAvailabilityResponse> result = employees.stream().map(employee ->
                 new EmployeeAvailabilityResponse(employee.getId(), employee.getName(),
                         slots(windows, service.getDurationMinutes(),
-                                busyByEmployee.getOrDefault(employee.getId(), List.of()),timeOffByEmployee.getOrDefault(employee.getId(),List.of())))).toList();
+                                java.util.stream.Stream.concat(busyByEmployee.getOrDefault(employee.getId(), List.of()).stream(), resourceBusy.stream()).toList(),timeOffByEmployee.getOrDefault(employee.getId(),List.of())))).toList();
         return new AvailabilityResponse(workingHoursService.getBusinessZone().getId(), service.getId(),
                 service.getName(), service.getDurationMinutes(), SLOT_INCREMENT_MINUTES,
-                query.from(), query.to(), result);
+                query.from(), query.to(), result, resource == null ? null : resource.getId(), resource == null ? null : resource.getName());
     }
 
     private List<User> employees(UUID employeeId) {
@@ -87,10 +91,10 @@ public class AvailabilityService {
         return List.of(employee);
     }
 
-    private List<WorkingHoursService.AvailabilityWindow> windows(LocalDate from, LocalDate to) {
+    private List<WorkingHoursService.AvailabilityWindow> windows(UUID locationId, LocalDate from, LocalDate to) {
         List<WorkingHoursService.AvailabilityWindow> windows = new ArrayList<>();
         for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
-            WorkingHoursService.AvailabilityWindow window = workingHoursService.availabilityWindow(date);
+            WorkingHoursService.AvailabilityWindow window = workingHoursService.availabilityWindow(locationId, date);
             if (window != null) windows.add(window);
         }
         return windows;

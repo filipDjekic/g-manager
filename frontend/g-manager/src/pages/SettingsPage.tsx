@@ -3,6 +3,9 @@ import { apiErrorMessage } from '../api/client'
 import { workingHoursApi } from '../api/workingHoursApi'
 import { timeOffApi } from '../api/timeOffApi'
 import { userApi } from '../api/userApi'
+import { Link } from 'react-router-dom'
+import { SetupOverview } from '../settings/SetupOverview'
+import { Button, Skeleton } from '../components/ui'
 import { workingHoursExceptionSchema } from '../workingHours/workingHoursSchema'
 import type {
   WorkingHours,
@@ -42,6 +45,9 @@ export function SettingsPage() {
     useState<WorkingHoursException | null>(null)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [setupLoaded,setSetupLoaded]=useState(false)
+  const [loadAttempt,setLoadAttempt]=useState(0)
+  const [setupLoading,setSetupLoading]=useState(true)
 
   useEffect(() => {
     void Promise.all([
@@ -52,11 +58,13 @@ export function SettingsPage() {
         setExceptions(futureExceptions)
         setEmployees(employeeList)
         setTimeOff(timeOffList)
+        setSetupLoaded(true)
         setTimeOffForm((current) => ({ ...current, employeeId: current.employeeId || employeeList[0]?.id || '' }))
       })
       .catch((cause) =>
         setError(apiErrorMessage(cause, 'Podešavanja nije moguće učitati.')))
-  }, [])
+      .finally(()=>setSetupLoading(false))
+  }, [loadAttempt])
 
   function updateLocal(index: number, patch: Partial<WorkingHours>) {
     setHours((current) => current.map((item, itemIndex) =>
@@ -175,12 +183,16 @@ export function SettingsPage() {
   return (
     <main className="workspace">
       <div className="page-heading">
-        <div><p className="eyebrow">Poslovna pravila</p><h1>Radno vreme</h1></div>
+        <div><p className="eyebrow">Upravljanje igraonicom</p><h1>Podešavanja</h1></div>
         <span>Europe/Belgrade</span>
       </div>
       {error && <p className="error-banner" role="alert">{error}</p>}
+      {!setupLoaded && error && <Button variant="secondary" loading={setupLoading} onClick={()=>{setError('');setSetupLoading(true);setLoadAttempt(value=>value+1)}}>Ponovo učitaj podešavanja</Button>}
+      {!setupLoaded && setupLoading && <Skeleton lines={3} label="Učitavanje podešavanja"/>}
       {message && <p className="success-banner" role="status">{message}</p>}
-      <section className="panel weekly-hours">
+      <nav className="settings-links" aria-label="Oblasti podešavanja"><Link to="/resources">Lokacije i resursi</Link><Link to="/stations">Stanice i profili</Link><Link to="/employees">Zaposleni</Link><a href="#working-hours">Radno vreme</a><Link to="/catalog">Katalog</Link><Link to="/notification-preferences">Obaveštenja</Link><Link to="/sessions">Bezbednost naloga</Link></nav>
+      <SetupOverview hours={hours} employees={employees} loaded={setupLoaded}/>
+      <section id="working-hours" className="panel weekly-hours">
         <h2>Nedeljni raspored</h2>
         {hours.map((item, index) => <div className="hours-row" key={item.dayOfWeek}>
           <strong>{dayNames[item.dayOfWeek]}</strong>

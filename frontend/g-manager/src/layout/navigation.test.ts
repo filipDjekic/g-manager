@@ -18,7 +18,7 @@ describe('role-aware product navigation', () => {
       '/catalog', '/resources', '/my-reservations', '/my-orders', '/profile', '/notification-preferences',
     ]))
     expect(paths('CUSTOMER')).not.toEqual(expect.arrayContaining(['/dashboard', '/users', '/audit', '/reports']))
-    expect(homeForRole('CUSTOMER')).toBe('/catalog')
+    expect(homeForRole('CUSTOMER')).toBe('/home')
   })
 
   it('puts employee operational work first', () => {
