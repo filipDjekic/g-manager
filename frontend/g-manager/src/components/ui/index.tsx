@@ -3,6 +3,7 @@ import {
   type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode,
   type KeyboardEvent as ReactKeyboardEvent, type SelectHTMLAttributes,
 } from 'react'
+import { createPortal } from 'react-dom'
 import './ui.css'
 import { ToastContext, type ToastTone } from './toastContext'
 
@@ -96,9 +97,10 @@ export function Modal({ open, title, children, onClose, initialFocusRef }: {
   initialFocusRef?: React.RefObject<HTMLElement | null>
 }) {
   if (!open) return null
-  return <div className="ui-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+  // Keep fixed positioning relative to the viewport, outside filtered layout containers.
+  return createPortal(<div className="ui-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <DialogSurface title={title} onClose={onClose} className="ui-dialog" initialFocusRef={initialFocusRef}>{children}</DialogSurface>
-  </div>
+  </div>, document.body)
 }
 
 export function Drawer({ open, title, children, onClose, returnFocusRef, size = 'standard' }: {

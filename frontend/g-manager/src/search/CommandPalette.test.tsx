@@ -18,14 +18,14 @@ vi.mock('../api/searchApi', () => ({
 describe('CommandPalette', () => {
   it('opens from the documented shortcut, focuses the combobox and supports keyboard selection', async () => {
     const user = userEvent.setup()
-    const { container } = render(<MemoryRouter><CommandPalette /></MemoryRouter>)
+    const { baseElement } = render(<MemoryRouter><CommandPalette /></MemoryRouter>)
 
     await user.keyboard('{Control>}k{/Control}')
     const input = screen.getByRole('combobox', { name: 'Pretraži G-Manager' })
     expect(input).toHaveFocus()
     await user.type(input, '123')
-    expect(container.querySelector('#search-result-ORDER-123')).toHaveAttribute('aria-current', 'true')
-    expect((await axe(container)).violations.filter(({ impact }) => impact === 'serious' || impact === 'critical').map(({ id }) => id)).toEqual([])
+    expect(baseElement.querySelector('#search-result-ORDER-123')).toHaveAttribute('aria-current', 'true')
+    expect((await axe(baseElement)).violations.filter(({ impact }) => impact === 'serious' || impact === 'critical').map(({ id }) => id)).toEqual([])
 
     await user.keyboard('{Enter}')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()

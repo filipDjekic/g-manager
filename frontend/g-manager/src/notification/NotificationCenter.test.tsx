@@ -18,11 +18,11 @@ describe('NotificationCenter', () => {
     vi.mocked(notificationApi.read).mockResolvedValue({ id: 'n1', type: 'ORDER_STATUS_CHANGED', priority: 'NORMAL', title: '', body: '', read: true, createdAt: '', action: null })
   })
   it('shows unread state, supports keyboard reading and has no serious accessibility violations', async () => {
-    const user = userEvent.setup(); const { container } = render(<MemoryRouter><NotificationCenter /></MemoryRouter>)
+    const user = userEvent.setup(); const { baseElement } = render(<MemoryRouter><NotificationCenter /></MemoryRouter>)
     const bell = await screen.findByRole('button', { name: 'Obaveštenja, 1 nepročitanih' }); await user.click(bell)
     expect(screen.getByText('Narudžbina je završena.')).toBeVisible(); await user.click(screen.getByRole('button', { name: 'Označi pročitano' }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Obaveštenja, 0 nepročitanih' })).toBeVisible())
-    expect((await axe(container)).violations.filter(({ impact }) => impact === 'serious' || impact === 'critical')).toHaveLength(0)
+    expect((await axe(baseElement)).violations.filter(({ impact }) => impact === 'serious' || impact === 'critical')).toHaveLength(0)
   })
   it('rolls optimistic read state back when persistence fails', async () => {
     vi.mocked(notificationApi.read).mockRejectedValueOnce(new Error('offline')); const user = userEvent.setup()
