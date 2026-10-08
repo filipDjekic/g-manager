@@ -66,6 +66,10 @@ public class ReservationController {
     @GetMapping
     public PageResponse<ReservationResponse> list(
             @RequestParam(required = false) UUID employeeId,
+            @RequestParam(defaultValue="ALL") ReservationScope scope,
+            @RequestParam(required=false) UUID resourceId,
+            @RequestParam(required=false) UUID locationId,
+            @RequestParam(required=false) UUID customerId,
             @RequestParam(required = false) ReservationStatus status,
             @RequestParam(required = false) LocalDate from,
             @RequestParam(required = false) LocalDate to,
@@ -74,20 +78,41 @@ public class ReservationController {
             @RequestParam(defaultValue = "startTime") String sort,
             @RequestParam(defaultValue = "ASC") String direction) {
         return reservationService.listAll(
-                employeeId, status, from, to, page, size, sort, direction);
+                employeeId, status, from, to, page, size, sort, direction,scope,resourceId,locationId,customerId);
     }
 
     @GetMapping("/calendar")
     public List<CalendarReservationResponse> calendar(
             @RequestParam(required = false) UUID employeeId,
             @RequestParam LocalDate from,
-            @RequestParam LocalDate to) {
-        return reservationService.calendar(employeeId, from, to);
+            @RequestParam LocalDate to,
+            @RequestParam(defaultValue="ALL") ReservationScope scope,
+            @RequestParam(required=false) UUID resourceId,
+            @RequestParam(required=false) UUID locationId,
+            @RequestParam(required=false) UUID customerId,
+            @RequestParam(required=false) ReservationStatus status) {
+        return reservationService.calendar(employeeId, from, to,scope,resourceId,locationId,customerId,status);
     }
 
     @GetMapping("/{id}")
     public ReservationDetailResponse get(@PathVariable UUID id) {
         return reservationService.getDetail(id);
+    }
+
+    @PatchMapping("/{id}")
+    public ReservationResponse update(@PathVariable UUID id,
+            @Valid @RequestBody com.game_manager.gm.reservation.dto.UpdateReservationRequest request) {
+        return reservationService.update(id,request);
+    }
+    @GetMapping("/{id}/resources")
+    public com.game_manager.gm.resource.dto.BookingOptionsResponse resourceOptions(@PathVariable UUID id,
+            @RequestParam(required=false) java.time.Instant startTime) {
+        return reservationService.resourceOptions(id,startTime);
+    }
+    @PatchMapping("/{id}/resource")
+    public ReservationResponse assignResource(@PathVariable UUID id,
+            @Valid @RequestBody com.game_manager.gm.reservation.dto.AssignReservationResourceRequest request) {
+        return reservationService.assignResource(id,request);
     }
 
     @PatchMapping("/{id}/status")

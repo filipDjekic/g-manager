@@ -10,5 +10,10 @@ public record AvailabilityQuery(
         UUID employeeId,
         @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
         @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-        UUID resourceId
-) {}
+        UUID resourceId,
+        UUID locationId
+) {
+    public AvailabilityQuery(UUID serviceId,UUID employeeId,LocalDate from,LocalDate to,UUID resourceId) {
+        this(serviceId,employeeId,from,to,resourceId,null);
+    }
+}

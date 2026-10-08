@@ -18,7 +18,7 @@ public interface GamingSessionRepository extends JpaRepository<GamingSession, UU
             select new com.game_manager.gm.gamingsession.dto.GamingSessionVisitResponse(
                 s.id, s.resourceId, r.name, s.locationId, s.startedAt, s.endsAt, s.endedAt, s.status, :now)
             from GamingSession s join com.game_manager.gm.resource.PhysicalResource r on r.id = s.resourceId
-            where s.customerId = :customerId and (:allLocations = true or s.locationId in :locationIds)
+            where s.customerId = :customerId and (:allLocations = true or s.resourceId in :locationIds)
             order by s.startedAt desc, s.id desc
             """)
     List<com.game_manager.gm.gamingsession.dto.GamingSessionVisitResponse> customerVisits(

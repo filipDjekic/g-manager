@@ -37,6 +37,9 @@ public class CatalogItem extends BaseEntity {
     @Column(name = "duration_minutes")
     private Integer durationMinutes;
 
+    @Column(name = "requires_resource", nullable = false)
+    private boolean requiresResource;
+
     @Column(nullable = false)
     private boolean active = true;
 

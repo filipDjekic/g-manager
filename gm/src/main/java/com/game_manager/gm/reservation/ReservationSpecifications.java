@@ -18,6 +18,15 @@ public final class ReservationSpecifications {
                 ? null : builder.equal(root.get("employeeId"), employeeId);
     }
 
+    public static Specification<Reservation> hasResource(UUID resourceId) {
+        return (root,query,builder) -> resourceId==null ? null : builder.equal(root.get("resourceId"),resourceId);
+    }
+    public static Specification<Reservation> hasLocation(UUID locationId) {
+        return (root,query,builder) -> locationId==null ? null : builder.equal(root.get("locationId"),locationId);
+    }
+    public static Specification<Reservation> inResources(java.util.Set<UUID> ids) {
+        return (root,query,builder) -> ids.isEmpty() ? builder.disjunction() : root.get("resourceId").in(ids);
+    }
     public static Specification<Reservation> hasStatus(ReservationStatus status) {
         return (root, query, builder) -> status == null
                 ? null : builder.equal(root.get("status"), status);

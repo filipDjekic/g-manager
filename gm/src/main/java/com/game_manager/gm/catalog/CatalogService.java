@@ -50,6 +50,8 @@ public class CatalogService {
         item.setType(request.type());
         item.setPrice(request.price());
         item.setDurationMinutes(request.durationMinutes());
+        validateResourceRequirement(request.type(), Boolean.TRUE.equals(request.requiresResource()));
+        item.setRequiresResource(Boolean.TRUE.equals(request.requiresResource()));
         item.setActive(true);
         CatalogItem saved = catalogRepository.saveAndFlush(item);
         auditWriter.write("CATALOG_CREATED", "CATALOG_ITEM", saved.getId(), null,
@@ -132,6 +134,17 @@ public class CatalogService {
         if (request.price() != null) {
             item.setPrice(request.price());
         }
+        boolean requiresResource = request.requiresResource() == null
+                ? item.isRequiresResource() : request.requiresResource();
+        if (catalogRepository.hasPhysicalResources(id)) {
+            if (Boolean.FALSE.equals(request.requiresResource()) || candidateType != ItemType.SERVICE) {
+                throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,
+                        "Services linked to physical resources must require a resource");
+            }
+            requiresResource = true;
+        }
+        validateResourceRequirement(candidateType, requiresResource);
+        item.setRequiresResource(requiresResource);
         item.setDurationMinutes(candidateDuration);
         CatalogItem saved = catalogRepository.saveAndFlush(item);
         auditWriter.write("CATALOG_UPDATED", "CATALOG_ITEM", id, before,
@@ -229,14 +242,14 @@ public class CatalogService {
     @Transactional(readOnly = true)
     public CatalogReference getReference(UUID id) {
         CatalogItem item = requireItem(id);
-        return new CatalogReference(item.getId(), item.getName(), item.getDurationMinutes());
+        return new CatalogReference(item.getId(), item.getName(), item.getDurationMinutes(), item.isRequiresResource());
     }
 
     @Transactional(readOnly = true)
     public Map<UUID, CatalogReference> getReferences(Set<UUID> ids) {
         return catalogRepository.findAllById(ids).stream().collect(java.util.stream.Collectors.toMap(
                 CatalogItem::getId,
-                item -> new CatalogReference(item.getId(), item.getName(), item.getDurationMinutes())));
+                item -> new CatalogReference(item.getId(), item.getName(), item.getDurationMinutes(), item.isRequiresResource())));
     }
 
     private CatalogItem requireItem(UUID id) {
@@ -269,6 +282,22 @@ public class CatalogService {
         }
     }
 
+    @Transactional
+    public void requirePhysicalResource(UUID id) {
+        CatalogItem item = getActiveById(id);
+        if (item.getType() != ItemType.SERVICE) {
+            throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY, "Resource must reference a service");
+        }
+        item.setRequiresResource(true);
+    }
+
+    private static void validateResourceRequirement(ItemType type, boolean required) {
+        if (required && type != ItemType.SERVICE) {
+            throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Only services can require a physical resource");
+        }
+    }
+
     private static void validatePriceRange(BigDecimal minPrice, BigDecimal maxPrice) {
         if ((minPrice != null && minPrice.signum() < 0)
                 || (maxPrice != null && maxPrice.signum() < 0)
@@ -294,6 +323,7 @@ public class CatalogService {
         data.put("type", item.getType().name()); data.put("price", item.getPrice());
         data.put("durationMinutes", item.getDurationMinutes()); data.put("active", item.isActive());
         data.put("imagePresent", item.getImageUrl() != null);
+        data.put("requiresResource", item.isRequiresResource());
         return data;
     }
 }

@@ -108,6 +108,11 @@ BEGIN
     ('20000000-0000-0000-0000-000000000108','Stari promo paket','Arhivirana promotivna stavka.','PRODUCT',350.00,NULL,FALSE,NULL,UTC_TIMESTAMP(6)-INTERVAL 200 DAY,UTC_TIMESTAMP(6)-INTERVAL 30 DAY,0,NULL,NULL,NULL)
     ON DUPLICATE KEY UPDATE name=VALUES(name),description=VALUES(description),type=VALUES(type),price=VALUES(price),duration_minutes=VALUES(duration_minutes),active=VALUES(active),deleted_at=NULL,deleted_by=NULL,deletion_reason=NULL,updated_at=UTC_TIMESTAMP(6);
 
+    UPDATE catalog_items SET requires_resource=TRUE
+      WHERE id IN ('20000000-0000-0000-0000-000000000001','20000000-0000-0000-0000-000000000002',
+                   '20000000-0000-0000-0000-000000000003','20000000-0000-0000-0000-000000000004',
+                   '20000000-0000-0000-0000-000000000005','20000000-0000-0000-0000-000000000006');
+
     INSERT INTO locations (id,code,name,address,description,timezone,active,created_at,updated_at,version) VALUES
     ('28000000-0000-0000-0000-000000000001','NOVI-BEOGRAD','G-Manager Arena Novi Beograd','Bulevar umetnosti 12, Beograd','Glavna igraonica sa PC, konzolnom i simulator zonom.','Europe/Belgrade',TRUE,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0),
     ('28000000-0000-0000-0000-000000000002','ZEMUN','G-Manager Arena Zemun','Glavna 88, Zemun','Kompaktna lokacija za konzole i timske sesije.','Europe/Belgrade',TRUE,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),0);

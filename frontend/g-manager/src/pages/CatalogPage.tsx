@@ -74,6 +74,7 @@ export function CatalogPage() {
       type: item.type,
       price: item.price,
       durationMinutes: item.durationMinutes ?? undefined,
+      requiresResource: item.requiresResource ?? false,
     })
     setFormOpen(true)
   }
@@ -189,10 +190,14 @@ export function CatalogPage() {
         <label>Naziv<input maxLength={150} required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
         <label>Tip<select value={form.type} onChange={(event) => {
           const nextType = event.target.value as ItemType
-          setForm({ ...form, type: nextType, durationMinutes: nextType === 'PRODUCT' ? undefined : form.durationMinutes })
+          setForm({ ...form, type: nextType, durationMinutes: nextType === 'PRODUCT' ? undefined : form.durationMinutes,
+            requiresResource: nextType === 'SERVICE' && (form.requiresResource ?? false) })
         }}><option value="PRODUCT">Proizvod</option><option value="SERVICE">Usluga</option></select></label>
         <label>Cena<input type="number" min="0.01" step="0.01" required value={form.price || ''} onChange={(event) => setForm({ ...form, price: Number(event.target.value) })} /></label>
         {form.type === 'SERVICE' && <label>Trajanje (min)<input type="number" min="1" required value={form.durationMinutes ?? ''} onChange={(event) => setForm({ ...form, durationMinutes: Number(event.target.value) || undefined })} /></label>}
+        {form.type === 'SERVICE' && <label className="inline-toggle"><input type="checkbox"
+          checked={form.requiresResource ?? false} onChange={(event) => setForm({ ...form, requiresResource: event.target.checked })} />
+          Usluga zahteva fizički resurs</label>}
         <label className="wide-field">Opis<textarea maxLength={2000} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
         <div className="form-actions"><Button type="submit" loading={submitting}>{editing ? 'Sačuvaj izmene' : 'Kreiraj'}</Button>
           {editing && <button className="secondary-button" type="button" onClick={resetForm}>Odustani</button>}</div>

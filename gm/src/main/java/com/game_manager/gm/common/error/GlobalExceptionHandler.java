@@ -66,6 +66,12 @@ public class GlobalExceptionHandler {
                 request);
     }
 
+    @ExceptionHandler(org.springframework.dao.PessimisticLockingFailureException.class)
+    ResponseEntity<ApiError> handleConcurrentBooking(
+            org.springframework.dao.PessimisticLockingFailureException exception, HttpServletRequest request) {
+        return response(HttpStatus.CONFLICT, "Booking availability changed; refresh and try again", request);
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
     ResponseEntity<ApiError> handleDataIntegrity(
             DataIntegrityViolationException exception, HttpServletRequest request) {

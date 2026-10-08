@@ -5,6 +5,8 @@ import { availabilityApi } from '../api/availabilityApi'
 import { catalogApi } from '../api/catalogApi'
 import { apiErrorMessage } from '../api/client'
 import { IdempotencyKeyManager, isConflictResponse } from '../api/idempotency'
+import { resourceApi } from '../api/resourceApi'
+import type { AvailabilitySlot } from '../types/availability.types'
 import { reservationApi } from '../api/reservationApi'
 import { waitlistApi } from '../api/waitlistApi'
 import { userApi } from '../api/userApi'
@@ -32,6 +34,8 @@ export function MyReservationsPage() {
   const [serviceId, setServiceId] = useState(() => searchParams.get('serviceId')
     ?? sessionStorage.getItem('gmanager.catalog-selection') ?? '')
   const [resourceId,setResourceId] = useState(() => searchParams.get('resourceId') ?? '')
+  const [locationId,setLocationId] = useState(() => searchParams.get('locationId') ?? '')
+  const [selectedSlot,setSelectedSlot] = useState<AvailabilitySlot | null>(null)
   const [employeeChoice, setEmployeeChoice] = useState<EmployeeChoice>('UNSELECTED')
   const [date, setDate] = useState('')
   const [selectedStart, setSelectedStart] = useState('')
@@ -41,7 +45,7 @@ export function MyReservationsPage() {
   const [recurrenceInterval, setRecurrenceInterval] = useState(1)
   const [occurrences, setOccurrences] = useState(4)
   const [conflictPolicy, setConflictPolicy] = useState<RecurrenceConflictPolicy>('ALL_OR_NOTHING')
-  const [recurrencePreview, setRecurrencePreview] = useState<RecurrencePreview | null>(null)
+  const [recurrencePreview, setRecurrencePreview] = useState<{ key: string; result: RecurrencePreview } | null>(null)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -72,12 +76,25 @@ export function MyReservationsPage() {
     }).catch((cause) => setError(apiErrorMessage(cause, 'Rezervacije nije moguće učitati.')))
   }, [page, status])
 
+  const resourceOptions = useQuery({
+    queryKey: ['booking-resources', serviceId],
+    queryFn: () => resourceApi.bookingOptions({ serviceId }),
+    enabled: Boolean(serviceId), retry: false,
+  })
+  const service = services.find((item) => item.id === serviceId)
+  const resources = resourceOptions.data?.resources ?? []
+  const selectedResource = resources.find((item) => item.id === resourceId)
+  const scopedLocationId = locationId || selectedResource?.locationId || ''
+  const resourceRequired = resourceOptions.data?.resourceRequired ?? service?.requiresResource ?? false
+  const physicalStep = resourceRequired || resourceId ? 1 : 0
+  const locations = [...new Map(resources.map((item) => [item.locationId, item.locationName])).entries()]
   const availability = useQuery({
-    queryKey: ['availability', serviceId, employeeChoice, date, resourceId],
+    queryKey: ['availability', serviceId, employeeChoice, date, resourceId, scopedLocationId],
     queryFn: () => availabilityApi.find({
       serviceId,
       employeeId: employeeChoice === 'ANY' ? undefined : employeeChoice,
       resourceId:resourceId || undefined,
+      locationId:scopedLocationId || undefined,
       from: date,
       to: date,
     }),
@@ -85,27 +102,55 @@ export function MyReservationsPage() {
     retry: false,
   })
   const slots = useMemo(() => {
-    const unique = new Map<string, string>()
+    const unique = new Map<string, AvailabilitySlot>()
     availability.data?.employees.forEach((employee) => employee.slots.forEach((slot) => {
-      if (!unique.has(slot.startTime)) unique.set(slot.startTime, slot.endTime)
+      if (!unique.has(slot.startTime)) unique.set(slot.startTime, slot)
     }))
-    return [...unique].map(([startTime, endTime]) => ({ startTime, endTime }))
+    return [...unique.values()]
       .sort((left, right) => left.startTime.localeCompare(right.startTime))
   }, [availability.data])
-  const service = services.find((item) => item.id === serviceId)
+  const chosenSlot = selectedSlot?.startTime === selectedStart ? selectedSlot : null
+  const resolvedResourceId = resourceId || chosenSlot?.resourceId || ''
+  const resolvedLocationId = chosenSlot?.locationId || selectedResource?.locationId || scopedLocationId
+  const slotResources = useQuery({
+    queryKey: ['booking-resources', serviceId, selectedStart, chosenSlot?.endTime],
+    queryFn: () => resourceApi.bookingOptions({ serviceId, start: selectedStart, end: chosenSlot!.endTime }),
+    enabled: Boolean(serviceId && selectedStart && chosenSlot && physicalStep), retry: false,
+  })
+  const assignedResource = slotResources.data?.resources.find((item) => item.id === resolvedResourceId)
+  const resourceUnavailable = Boolean(resolvedResourceId && slotResources.data
+    && (!assignedResource || !assignedResource.available))
+  const recurrenceKey = JSON.stringify({ serviceId, resourceId: resolvedResourceId, locationId: resolvedLocationId,
+    employeeChoice, selectedStart, note, frequency, recurrenceInterval, occurrences, conflictPolicy })
+  const activeRecurrencePreview = recurrencePreview?.key === recurrenceKey ? recurrencePreview.result : null
+  const canSubmit = Boolean(chosenSlot && slots.some((slot) => slot.startTime === selectedStart
+    && (!resolvedResourceId || slot.resourceId === resolvedResourceId)) && !availability.isFetching && !availability.error
+    && !resourceOptions.isLoading && !resourceOptions.error
+    && (!physicalStep || (resolvedResourceId && !slotResources.isFetching && !slotResources.error && !resourceUnavailable))
+    && (!recurring || (employeeChoice !== 'ANY' && activeRecurrencePreview
+      && activeRecurrencePreview.occurrences.some((item) => item.available)
+      && (conflictPolicy !== 'ALL_OR_NOTHING' || activeRecurrencePreview.occurrences.every((item) => item.available)))))
+  function updateBookingParams(next: { serviceId?: string; resourceId?: string; locationId?: string }) {
+    setSearchParams((current) => {
+      const params = new URLSearchParams(current)
+      Object.entries(next).forEach(([key,value]) => { if (value) params.set(key,value); else params.delete(key) })
+      return params
+    }, { replace: true })
+  }
   const employeeLabel = employeeChoice === 'ANY' ? 'Bilo koji slobodan zaposleni'
     : employees.find((employee) => employee.id === employeeChoice)?.name
 
   async function create(event: FormEvent) {
     event.preventDefault()
-    if (!selectedStart || submitInFlight.current) return
+    if (!selectedStart || !canSubmit || submitInFlight.current) return
     submitInFlight.current = true
     setSubmitting(true)
     setError('')
     try {
       const baseInput = {
         serviceId,
-        resourceId: resourceId || undefined,
+        resourceId: resolvedResourceId || undefined,
+        locationId: resolvedLocationId || undefined,
         employeeId: employeeChoice === 'ANY' ? undefined : employeeChoice,
         startTime: selectedStart,
         note: note || undefined,
@@ -123,6 +168,10 @@ export function MyReservationsPage() {
       }
       createAttempt.current.succeeded()
       setServiceId('')
+      setResourceId('')
+      setLocationId('')
+      setSelectedSlot(null)
+      updateBookingParams({ serviceId: '', resourceId: '', locationId: '' })
       setEmployeeChoice('UNSELECTED')
       setDate('')
       setSelectedStart('')
@@ -148,10 +197,13 @@ export function MyReservationsPage() {
   async function previewRecurrence() {
     if (!selectedStart || employeeChoice === 'ANY' || employeeChoice === 'UNSELECTED') return
     try {
-      setRecurrencePreview(await reservationApi.previewRecurrence({
-        serviceId, resourceId: resourceId || undefined, employeeId: employeeChoice, startTime: selectedStart, note: note || undefined,
+      const key = recurrenceKey
+      const preview = await reservationApi.previewRecurrence({
+        serviceId, resourceId: resolvedResourceId || undefined, locationId: resolvedLocationId || undefined,
+        employeeId: employeeChoice, startTime: selectedStart, note: note || undefined,
         frequency, interval: recurrenceInterval, occurrences, conflictPolicy,
-      }))
+      })
+      setRecurrencePreview({ key, result: preview })
       setError('')
     } catch (cause) {
       setError(apiErrorMessage(cause, 'Ponavljanje nije moguće pregledati.'))
@@ -161,7 +213,7 @@ export function MyReservationsPage() {
   async function joinWaitlist() {
     if (!serviceId || !date || !waitlistTime || employeeChoice === 'ANY' || employeeChoice === 'UNSELECTED') return
     try {
-      await waitlistApi.join({ serviceId, employeeId: employeeChoice, resourceId: resourceId || undefined, desiredStart: businessLocalToInstant(`${date}T${waitlistTime}`) })
+      await waitlistApi.join({ serviceId, employeeId: employeeChoice, resourceId: resourceId || undefined, locationId: scopedLocationId || undefined, desiredStart: businessLocalToInstant(`${date}T${waitlistTime}`) })
       setWaitlist(await waitlistApi.mine())
       setWaitlistTime('')
       setError('')
@@ -201,22 +253,47 @@ export function MyReservationsPage() {
     {message && <p className="success-banner" role="status">{message}</p>}
     <form className="panel booking-flow" onSubmit={create}>
       <div className="booking-step"><span>1</span><label>Usluga<select required value={serviceId} onChange={(event) => {
-        setServiceId(event.target.value); setResourceId(''); setEmployeeChoice('UNSELECTED'); setDate(''); setSelectedStart('')
+        setServiceId(event.target.value); setResourceId(''); setLocationId(''); setEmployeeChoice('UNSELECTED'); setDate(''); setSelectedStart('')
+        updateBookingParams({ serviceId: event.target.value, resourceId: '', locationId: '' })
       }}><option value="">Izaberite uslugu</option>{services.map((item) =>
         <option value={item.id} key={item.id}>{item.name} · {item.durationMinutes} min</option>)}</select></label></div>
 
-      {serviceId && <div className="booking-step"><span>2</span><label>Zaposleni<select required
+      {serviceId && resourceOptions.isLoading && <Skeleton lines={2} label="Učitavanje računara i lokacija" />}
+      {serviceId && resourceOptions.error && <ErrorState message={apiErrorMessage(resourceOptions.error, 'Resurse nije moguće učitati.')}
+        action={<Button type="button" onClick={() => resourceOptions.refetch()}>Pokušaj ponovo</Button>} />}
+      {serviceId && physicalStep > 0 && <div className="booking-step"><span>2</span><fieldset>
+        <legend>Lokacija i računar / resurs</legend>
+        <label>Lokacija<select value={scopedLocationId} onChange={(event) => {
+          const next = event.target.value
+          setLocationId(next); setSelectedStart('')
+          const keepResource = !next || selectedResource?.locationId === next
+          if (!keepResource) setResourceId('')
+          updateBookingParams({ locationId: next, resourceId: keepResource ? resourceId : '' })
+        }}><option value="">Bilo koja lokacija</option>{locations.map(([id,name]) => <option key={id} value={id}>{name}</option>)}</select></label>
+        <label>Računar / resurs<select value={resourceId} onChange={(event) => {
+          setResourceId(event.target.value); setSelectedStart('')
+          updateBookingParams({ resourceId: event.target.value })
+        }}><option value="">Automatski izaberi slobodan kompatibilni resurs</option>
+          {resourceId && !selectedResource && <option value={resourceId}>Izabrani resurs više nije dostupan</option>}
+          {resources.filter((item) => !scopedLocationId || item.locationId === scopedLocationId).map((item) =>
+            <option key={item.id} value={item.id}
+              disabled={Boolean(selectedStart && slotResources.data && !slotResources.data.resources.some((resource) => resource.id === item.id && resource.available))}>
+              {item.code} · {item.name}{selectedStart && slotResources.data && !slotResources.data.resources.some((resource) => resource.id === item.id && resource.available) ? ' — Zauzet' : ''}</option>)}</select></label>
+        {resourceRequired && !resourceOptions.isLoading && !resourceOptions.error && !resources.length
+          && <p role="alert">Za ovu uslugu trenutno nema kompatibilnih računara ili drugih resursa.</p>}
+      </fieldset></div>}
+      {serviceId && <div className="booking-step"><span>{2 + physicalStep}</span><label>Zaposleni<select required
         value={employeeChoice} onChange={(event) => {
           setEmployeeChoice(event.target.value); setDate(''); setSelectedStart('')
         }}><option value="UNSELECTED">Izaberite opciju</option><option value="ANY">Bilo koji slobodan</option>
         {employees.map((employee) => <option value={employee.id} key={employee.id}>{employee.name}</option>)}</select></label></div>}
 
-      {employeeChoice !== 'UNSELECTED' && <div className="booking-step"><span>3</span><label>Datum<input type="date"
+      {employeeChoice !== 'UNSELECTED' && <div className="booking-step"><span>{3 + physicalStep}</span><label>Datum<input type="date"
         min={todayInBusinessZone()} required value={date} onChange={(event) => {
           setDate(event.target.value); setSelectedStart('')
         }} /></label></div>}
 
-      {date && <div className="booking-step booking-slot-step"><span>4</span><fieldset><legend>Dostupan termin</legend>
+      {date && <div className="booking-step booking-slot-step"><span>{4 + physicalStep}</span><fieldset><legend>Dostupan termin</legend>
         {resourceId && <p className="search-help">Resurs: {availability.data?.resourceName ?? 'Izabran na mapi'} · prikazuju se samo slobodni slotovi ovog resursa.</p>}
         {availability.isLoading && <Skeleton lines={3} label="Učitavanje dostupnih termina" />}
         {availability.error && <ErrorState message={apiErrorMessage(availability.error, 'Dostupne termine nije moguće učitati.')}
@@ -229,16 +306,17 @@ export function MyReservationsPage() {
         {slots.length > 0 && <div className="slot-grid">{slots.map((slot) => <label key={slot.startTime}
           className={selectedStart === slot.startTime ? 'slot-option selected' : 'slot-option'}>
           <input type="radio" name="slot" value={slot.startTime} checked={selectedStart === slot.startTime}
-            onChange={() => setSelectedStart(slot.startTime)} />{formatBusinessTime(slot.startTime)}
+            onChange={() => { setSelectedStart(slot.startTime); setSelectedSlot(slot) }} />{formatBusinessTime(slot.startTime)}
         </label>)}</div>}
       </fieldset></div>}
 
-      {selectedStart && <div className="booking-step"><span>5</span><label>Napomena (opciono)<textarea maxLength={500}
+      {selectedStart && <div className="booking-step"><span>{5 + physicalStep}</span><label>Napomena (opciono)<textarea maxLength={500}
         value={note} onChange={(event) => setNote(event.target.value)} /></label></div>}
 
-      {selectedStart && employeeChoice !== 'ANY' && <div className="booking-step"><span>6</span><fieldset>
+      {selectedStart && employeeChoice !== 'ANY' && <div className="booking-step"><span>{6 + physicalStep}</span><fieldset>
         <legend>Ponavljanje</legend><label className="inline-toggle"><input type="checkbox" checked={recurring}
           onChange={(event) => { setRecurring(event.target.checked); setRecurrencePreview(null) }} /> Ponavljajući termini</label>
+        {recurring && physicalStep > 0 && <p>Svi termini u seriji rezervišu prikazani računar / resurs.</p>}
         {recurring && <><label>Učestalost<select value={frequency} onChange={(event) => { setFrequency(event.target.value as RecurrenceFrequency); setRecurrencePreview(null) }}>
           <option value="WEEKLY">Nedeljno</option><option value="MONTHLY">Mesečno</option></select></label>
           <label>Interval<input type="number" min="1" max="4" value={recurrenceInterval}
@@ -249,15 +327,23 @@ export function MyReservationsPage() {
             <option value="ALL_OR_NOTHING">Ne kreiraj seriju ako postoji konflikt</option>
             <option value="SKIP_CONFLICTS">Preskoči konfliktne termine</option></select></label>
           <Button type="button" variant="secondary" onClick={() => void previewRecurrence()}>Pregledaj ponavljanje</Button>
-          {recurrencePreview && <ul>{recurrencePreview.occurrences.map((item) => <li key={item.startTime}>
-            {formatBusinessDateTime(item.startTime)} — {item.available ? 'Dostupno' : `Konflikt: ${item.reason}`}</li>)}</ul>}</>}
+          {activeRecurrencePreview && <ul>{activeRecurrencePreview.occurrences.map((item) => <li key={item.startTime}>
+            {formatBusinessDateTime(item.startTime)} — {item.available ? `Dostupno${item.resourceCode ? ` · ${item.resourceCode} · ${item.locationName}` : ''}` : `Konflikt: ${item.reason}`}</li>)}</ul>}</>}
       </fieldset></div>}
 
-      {selectedStart && <div className="booking-step booking-review"><span>{recurring ? '7' : '6'}</span><section aria-labelledby="booking-review-title">
+      {selectedStart && <div className="booking-step booking-review"><span>{(recurring ? 7 : 6) + physicalStep}</span><section aria-labelledby="booking-review-title">
         <h2 id="booking-review-title">Proverite termin</h2>
         <dl><div><dt>Usluga</dt><dd>{service?.name}</dd></div><div><dt>Zaposleni</dt><dd>{employeeLabel}</dd></div>
-          <div><dt>Termin</dt><dd>{formatBusinessDateTime(selectedStart)}</dd></div></dl>
-        <Button type="submit" loading={submitting} disabled={recurring && !recurrencePreview}>
+          <div><dt>Lokacija</dt><dd>{chosenSlot?.locationName || selectedResource?.locationName || 'Poslovna lokacija'}</dd></div>
+          <div><dt>Računar / resurs</dt><dd>{resolvedResourceId
+            ? `${chosenSlot?.resourceCode || selectedResource?.code || assignedResource?.code || ''} · ${chosenSlot?.resourceName || selectedResource?.name || assignedResource?.name || ''}`
+            : resourceRequired ? 'Resurs još nije dodeljen' : 'Usluga ne zahteva resurs'}</dd></div>
+          <div><dt>Datum i vreme</dt><dd>{formatBusinessDateTime(selectedStart)} – {chosenSlot && formatBusinessTime(chosenSlot.endTime)}</dd></div></dl>
+        {physicalStep > 0 && slotResources.isFetching && <p role="status">Provera dostupnosti računara…</p>}
+        {slotResources.error && <ErrorState message={apiErrorMessage(slotResources.error, 'Dostupnost računara nije moguće proveriti.')}
+          action={<Button type="button" onClick={() => slotResources.refetch()}>Pokušaj ponovo</Button>} />}
+        {resourceUnavailable && <p role="alert">Izabrani računar je zauzet. Izaberite drugi računar ili termin.</p>}
+        <Button type="submit" loading={submitting} disabled={!canSubmit}>
           {recurring ? 'Kreiraj seriju' : 'Potvrdi termin'}</Button>
       </section></div>}
     </form>
@@ -285,7 +371,9 @@ export function MyReservationsPage() {
       {!result?.content.length && <p className="empty-state">Nemate rezervacije za izabrani filter.</p>}
       {result?.content.map((reservation) => <article className="panel reservation-row" key={reservation.id}>
         <div><strong>{formatBusinessDateTime(reservation.startTime)}</strong>
-          <p>{services.find((item) => item.id === reservation.serviceId)?.name ?? 'Usluga'}</p></div>
+          <p>{services.find((item) => item.id === reservation.serviceId)?.name ?? 'Usluga'}</p>
+          {reservation.resourceId && <p>{reservation.resourceCode} · {reservation.resourceName} · {reservation.locationName}</p>}
+          {reservation.resourceRequired && !reservation.resourceId && <p className="error-banner">Resurs nije dodeljen — potrebno je da osoblje razreši rezervaciju.</p>}</div>
         <span className="status-badge neutral">{reservation.status}</span>
         <button type="button" onClick={() => {
           const next = new URLSearchParams(searchParams); next.set('reservationId', reservation.id); setSearchParams(next)

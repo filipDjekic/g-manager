@@ -20,13 +20,14 @@ public record CatalogItemResponse(
         Long version,
         Instant deletedAt,
         UUID deletedBy,
-        String deletionReason
+        String deletionReason,
+        boolean requiresResource
 ) {
     public static CatalogItemResponse from(CatalogItem item) {
         return new CatalogItemResponse(
                 item.getId(), item.getName(), item.getDescription(), item.getType(), item.getPrice(),
                 item.getDurationMinutes(), item.isActive(), item.getImageUrl(),
                 item.getCreatedAt(), item.getUpdatedAt(), item.getVersion(), item.getDeletedAt(),
-                item.getDeletedBy(), item.getDeletionReason());
+                item.getDeletedBy(), item.getDeletionReason(), item.isRequiresResource());
     }
 }

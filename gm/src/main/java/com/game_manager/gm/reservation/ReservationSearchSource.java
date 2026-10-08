@@ -45,7 +45,7 @@ public class ReservationSearchSource implements SearchSource {
     private SearchEntry entry(AuthenticatedUser actor, Reservation reservation) {
         String route = RolePermissions.has(actor.role(), Permission.RESERVATION_READ_ALL) ? "/reservations" : "/my-reservations";
         return new SearchEntry(type(), reservation.getId(), "Rezervacija " + shortId(reservation.getId()),
-                reservation.getStatus() + " · " + reservation.getStartTime(), route + "?focus=" + reservation.getId(), 60);
+                reservation.getStatus() + " · " + reservation.getStartTime(), route + "?scope=ALL&reservationId=" + reservation.getId(), 60);
     }
     private String shortId(UUID id) { return "#" + id.toString().substring(0, 8); }
 }

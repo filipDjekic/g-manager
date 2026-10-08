@@ -101,6 +101,10 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         ContentCachingResponseWrapper wrapped = new ContentCachingResponseWrapper(response);
         wrapped.setHeader(REPLAY_HEADER, "false");
         TransactionTemplate transaction = new TransactionTemplate(transactionManager);
+        if ("/api/v1/reservations".equals(request.getRequestURI())
+                || "/api/v1/reservations/recurrence".equals(request.getRequestURI())) {
+            transaction.setIsolationLevel(org.springframework.transaction.TransactionDefinition.ISOLATION_READ_COMMITTED);
+        }
         try {
             transaction.executeWithoutResult(status -> {
                 try {

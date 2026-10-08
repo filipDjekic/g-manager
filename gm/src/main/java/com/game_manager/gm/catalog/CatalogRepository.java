@@ -9,6 +9,9 @@ import java.util.Optional;
 
 public interface CatalogRepository
         extends JpaRepository<CatalogItem, UUID>, JpaSpecificationExecutor<CatalogItem> {
+    @Query("select count(r) > 0 from PhysicalResource r where r.serviceId = :id")
+    boolean hasPhysicalResources(@Param("id") UUID id);
+
     @Override
     @Query("select item from CatalogItem item where item.id = :id and item.deletedAt is null")
     Optional<CatalogItem> findById(@Param("id") UUID id);

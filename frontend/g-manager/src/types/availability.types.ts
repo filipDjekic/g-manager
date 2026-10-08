@@ -1,6 +1,11 @@
 export interface AvailabilitySlot {
   startTime: string
   endTime: string
+  resourceId?: string | null
+  resourceCode?: string | null
+  resourceName?: string | null
+  locationId?: string | null
+  locationName?: string | null
 }
 
 export interface EmployeeAvailability {
@@ -19,4 +24,5 @@ export interface AvailabilityResponse {
   to: string
   employees: EmployeeAvailability[]
   resourceId?:string;resourceName?:string
+  resourceRequired?: boolean
 }

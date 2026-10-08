@@ -56,25 +56,62 @@ public class AvailabilityService {
                     "Catalog item is not a service");
         }
         List<User> employees = employees(query.employeeId());
-        var resource = query.resourceId() == null ? null : resourceService.requireBookable(query.resourceId(), query.serviceId());
-        List<WorkingHoursService.AvailabilityWindow> windows = windows(resource == null ? null : resourceService.locationId(resource), query.from(), query.to());
-        List<ReservationBusyInterval> busy = windows.isEmpty() ? List.of()
-                : reservationPolicy.busyIntervals(employees.stream().map(User::getId).toList(),
-                        windows.getFirst().open(), windows.getLast().close());
-        Map<UUID, List<ReservationBusyInterval>> busyByEmployee = busy.stream()
-                .collect(Collectors.groupingBy(ReservationBusyInterval::employeeId));
-        List<ReservationBusyInterval> resourceBusy = resource == null || windows.isEmpty() ? List.of()
-                : reservationPolicy.resourceBusyIntervals(resource.getId(), windows.getFirst().open(), windows.getLast().close());
-        List<TimeOffInterval> timeOff = windows.isEmpty()?List.of():timeOffPolicy.approvedBetween(employees.stream().map(User::getId).toList(),windows.getFirst().open(),windows.getLast().close());
-        Map<UUID,List<TimeOffInterval>> timeOffByEmployee=timeOff.stream().collect(Collectors.groupingBy(TimeOffInterval::employeeId));
-
-        List<EmployeeAvailabilityResponse> result = employees.stream().map(employee ->
-                new EmployeeAvailabilityResponse(employee.getId(), employee.getName(),
-                        slots(windows, service.getDurationMinutes(),
-                                java.util.stream.Stream.concat(busyByEmployee.getOrDefault(employee.getId(), List.of()).stream(), resourceBusy.stream()).toList(),timeOffByEmployee.getOrDefault(employee.getId(),List.of())))).toList();
-        return new AvailabilityResponse(workingHoursService.getBusinessZone().getId(), service.getId(),
-                service.getName(), service.getDurationMinutes(), SLOT_INCREMENT_MINUTES,
-                query.from(), query.to(), result, resource == null ? null : resource.getId(), resource == null ? null : resource.getName());
+        boolean required = resourceService.requiresResource(service.getId());
+        var selected = query.resourceId() == null ? null
+                : resourceService.requireBookable(query.resourceId(),service.getId());
+        if (selected != null && query.locationId() != null
+                && !query.locationId().equals(resourceService.locationId(selected))) {
+            throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Resource does not belong to the selected location");
+        }
+        List<com.game_manager.gm.resource.PhysicalResource> candidates = selected != null ? List.of(selected)
+                : required ? resourceService.bookableResources(service.getId(),query.locationId()) : List.of();
+        Map<UUID,com.game_manager.gm.resource.dto.BookingResourceView> references = resourceService.resourceReferences(
+                candidates.stream().map(com.game_manager.gm.resource.PhysicalResource::getId).collect(Collectors.toSet()));
+        Map<UUID,List<WorkingHoursService.AvailabilityWindow>> resourceWindows = new java.util.HashMap<>();
+        for (var candidate : candidates) {
+            resourceWindows.put(candidate.getId(),windows(resourceService.locationId(candidate),query.from(),query.to()));
+        }
+        List<WorkingHoursService.AvailabilityWindow> ordinaryWindows = required || selected != null ? List.of()
+                : windows(null,query.from(),query.to());
+        List<WorkingHoursService.AvailabilityWindow> allWindows = java.util.stream.Stream.concat(
+                ordinaryWindows.stream(),resourceWindows.values().stream().flatMap(List::stream)).toList();
+        Instant from = allWindows.stream().map(WorkingHoursService.AvailabilityWindow::open).min(Instant::compareTo).orElse(null);
+        Instant to = allWindows.stream().map(WorkingHoursService.AvailabilityWindow::close).max(Instant::compareTo).orElse(null);
+        List<UUID> employeeIds = employees.stream().map(User::getId).toList();
+        Map<UUID,List<ReservationBusyInterval>> busyByEmployee = from == null ? Map.of()
+                : reservationPolicy.busyIntervals(employeeIds,from,to).stream()
+                        .collect(Collectors.groupingBy(ReservationBusyInterval::employeeId));
+        Map<UUID,List<TimeOffInterval>> timeOffByEmployee = from == null ? Map.of()
+                : timeOffPolicy.approvedBetween(employeeIds,from,to).stream()
+                        .collect(Collectors.groupingBy(TimeOffInterval::employeeId));
+        Map<UUID,List<ReservationBusyInterval>> resourceBusy = new java.util.HashMap<>();
+        if (from != null) for (var candidate : candidates) {
+            resourceBusy.put(candidate.getId(),reservationPolicy.resourceBusyIntervals(candidate.getId(),from,to));
+        }
+        List<EmployeeAvailabilityResponse> result = new ArrayList<>();
+        for (User employee : employees) {
+            List<ReservationBusyInterval> busy = busyByEmployee.getOrDefault(employee.getId(),List.of());
+            List<TimeOffInterval> timeOff = timeOffByEmployee.getOrDefault(employee.getId(),List.of());
+            Map<Instant,AvailabilitySlotResponse> byStart = new java.util.TreeMap<>();
+            for (AvailabilitySlotResponse slot : slots(ordinaryWindows,service.getDurationMinutes(),busy,timeOff)) {
+                byStart.put(slot.startTime(),slot);
+            }
+            for (var candidate : candidates) {
+                var ref = references.get(candidate.getId());
+                List<ReservationBusyInterval> combinedBusy = java.util.stream.Stream.concat(busy.stream(),
+                        resourceBusy.getOrDefault(candidate.getId(),List.of()).stream()).toList();
+                for (AvailabilitySlotResponse slot : slots(resourceWindows.get(candidate.getId()),
+                        service.getDurationMinutes(),combinedBusy,timeOff)) {
+                    byStart.putIfAbsent(slot.startTime(),new AvailabilitySlotResponse(slot.startTime(),slot.endTime(),
+                            ref.id(),ref.code(),ref.name(),ref.locationId(),ref.locationName()));
+                }
+            }
+            result.add(new EmployeeAvailabilityResponse(employee.getId(),employee.getName(),List.copyOf(byStart.values())));
+        }
+        return new AvailabilityResponse(workingHoursService.getBusinessZone().getId(),service.getId(),
+                service.getName(),service.getDurationMinutes(),SLOT_INCREMENT_MINUTES,query.from(),query.to(),result,
+                selected == null ? null : selected.getId(), selected == null ? null : selected.getName(),required);
     }
 
     private List<User> employees(UUID employeeId) {

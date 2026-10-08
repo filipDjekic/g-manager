@@ -45,7 +45,7 @@ public class GamingSessionRealtimeHub {
         if (session == null) return;
         clients.forEach((emitter, subscription) -> {
             if (!access.isValid(subscription, Permission.GAMING_SESSION_READ)) { close(emitter); return; }
-            if (locations.canAccess(subscription.actor(), session.getLocationId()))
+            if (locations.canAccessResource(subscription.actor(), session.getResourceId()))
                 write(emitter, SseEmitter.event().id(event.eventId().toString()).name("gaming-session").data(event));
         });
     }

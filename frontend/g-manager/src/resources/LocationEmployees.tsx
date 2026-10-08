@@ -16,12 +16,12 @@ export function LocationEmployees({locationId,locationName,onClose}:{locationId:
     inFlight.current=true;setBusy(employeeId);setError('')
     try {
       await resourceApi.setEmployeeAccess(locationId,employeeId,!current?.active,current?.version)
-      await Promise.all([access.refetch(),client.invalidateQueries({queryKey:['gaming-operations']})])
+      await Promise.all([access.refetch(),client.invalidateQueries({queryKey:['gaming-operations']}),client.invalidateQueries({queryKey:['reservations']}),client.invalidateQueries({queryKey:['resource-management-scope']})])
     } catch(cause){setError(apiErrorMessage(cause,'Dodelu lokacije nije moguće sačuvati.'));await access.refetch()}
     finally{inFlight.current=false;setBusy('')}
   }
   return <Modal open title={`Zaposleni · ${locationName}`} onClose={()=>{if(!busy)onClose()}}>
-    <p className="search-help">Dodela lokacije omogućava zaposlenom pregled i rad sa gaming stanicama ove lokacije.</p>
+    <p className="search-help">Dodela ili uklanjanje lokacije menja pristup svim njenim postojećim stanicama. Pojedinačne dodele menjajte na stanici. Nove stanice zahtevaju novu dodelu.</p>
     {error&&<p role="alert" className="error-banner">{error}</p>}
     {employees.isLoading||access.isLoading?<Skeleton lines={4}/>:employees.error||access.error?<ErrorState message="Zaposlene i dodele nije moguće učitati." action={<Button onClick={()=>{void employees.refetch();void access.refetch()}}>Pokušaj ponovo</Button>}/>:!employees.data?.length?<EmptyState title="Nema aktivnih zaposlenih" description="Prvo kreirajte zaposlenog u odeljku Zaposleni."/>:<ul className="operations-attention-list">{employees.data.map(employee=>{
       const assigned=!!access.data?.find(value=>value.employeeId===employee.id)?.active

@@ -3,12 +3,23 @@ export type ReservationStatus =
 
 export interface Reservation {
   id: string
-  customerId: string
+  serviceName?: string
+  customerName?: string
+  employeeName?: string
+  allowedActions?: ReservationStatus[]
+  customerId: string | null
   employeeId: string
   serviceId: string
   locationId?: string | null
   resourceId?: string | null
   recurrenceSeriesId?: string | null
+  resourceCode?: string | null
+  resourceName?: string | null
+  locationName?: string | null
+  resourceRequired?: boolean
+  canManage?: boolean
+  readOnly?: boolean
+  canEdit?: boolean
   startTime: string
   endTime: string
   status: ReservationStatus
@@ -41,12 +52,29 @@ export interface ReservationDetail {
   version: number
   allowedActions: ReservationStatus[]
   history: ReservationHistoryItem[]
+  serviceId?: string
+  locationId?: string | null
+  locationName?: string | null
+  resourceId?: string | null
+  resourceCode?: string | null
+  resourceName?: string | null
+  resourceRequired?: boolean
+  canManage?: boolean
+  readOnly?: boolean
+  canEdit?: boolean
+  canAssignResource?: boolean
 }
 
+export type ReservationScope = 'ALL' | 'MANAGEABLE'
+
+export interface UpdateReservationInput { version: number; startTime?: string; resourceId?: string; note?: string }
+
 export interface CreateReservationInput {
+  customerId?: string
   employeeId?: string
   serviceId: string
   resourceId?: string
+  locationId?: string
   startTime: string
   note?: string
 }
@@ -60,7 +88,11 @@ export interface RecurrenceInput extends CreateReservationInput {
   occurrences: number
   conflictPolicy: RecurrenceConflictPolicy
 }
-export interface RecurrenceOccurrence { startTime: string; endTime: string; available: boolean; reason: string | null }
+export interface RecurrenceOccurrence {
+  startTime: string; endTime: string; available: boolean; reason: string | null
+  resourceId?: string | null; resourceCode?: string | null; resourceName?: string | null
+  locationId?: string | null; locationName?: string | null
+}
 export interface RecurrencePreview { timezone: string; occurrences: RecurrenceOccurrence[] }
 export interface RecurrenceCreateResult { seriesId: string; created: Reservation[]; skipped: RecurrenceOccurrence[] }
 
@@ -75,5 +107,5 @@ export interface CalendarReservation {
   status: ReservationStatus
   version: number
   allowedActions: ReservationStatus[]
-  resourceId?:string;resourceName?:string
+  resourceId?:string;resourceName?:string;resourceCode?:string;locationName?:string;canManage?:boolean;readOnly?:boolean
 }

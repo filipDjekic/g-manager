@@ -6,7 +6,7 @@ export const waitlistApi = {
   operational: (params: { status?: 'WAITING'|'OFFERED'; search?: string; customerId?:string; page:number; size:number }) =>
     apiClient.get<PageResponse<WaitlistOperationalEntry>>('/waitlist', {params}).then(({data}) => data),
   mine: () => apiClient.get<WaitlistEntry[]>('/waitlist/me').then(({ data }) => data),
-  join: (input: { serviceId: string; employeeId: string; resourceId?: string; desiredStart: string }) =>
+  join: (input: { serviceId: string; employeeId: string; resourceId?: string; locationId?: string; desiredStart: string }) =>
     apiClient.post<WaitlistEntry>('/waitlist', input).then(({ data }) => data),
   accept: (offerId: string) =>
     apiClient.post<WaitlistEntry>(`/waitlist/offers/${offerId}/accept`).then(({ data }) => data),

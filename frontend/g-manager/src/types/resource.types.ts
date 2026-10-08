@@ -1,3 +1,9 @@
+export interface BookingResource {
+  id: string; serviceId: string; code: string; name: string; type: ResourceType
+  locationId: string; locationName: string; available: boolean
+}
+export interface BookingOptions { resourceRequired: boolean; resources: BookingResource[] }
+
 export type ResourceType = 'GAMING_PC' | 'PLAYSTATION' | 'SIMULATOR' | 'VIP_ROOM' | 'OTHER'
 export interface LocationView { id:string;code:string;name:string;address:string;description?:string;timezone:string;active:boolean;version:number }
 export interface AreaView { id:string;locationId:string;code:string;name:string;description?:string;active:boolean;displayOrder:number;mapWidth:number;mapHeight:number;version:number }

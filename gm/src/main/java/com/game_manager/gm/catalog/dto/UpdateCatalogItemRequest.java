@@ -15,6 +15,11 @@ public record UpdateCatalogItemRequest(
         @DecimalMin(value = "0.00", inclusive = false)
         @Digits(integer = 10, fraction = 2) BigDecimal price,
         @Positive Integer durationMinutes,
-        @NotNull Long version
+        @NotNull Long version,
+        Boolean requiresResource
 ) {
+    public UpdateCatalogItemRequest(String name, String description, ItemType type,
+            BigDecimal price, Integer durationMinutes, Long version) {
+        this(name, description, type, price, durationMinutes, version, null);
+    }
 }
