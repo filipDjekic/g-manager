@@ -37,8 +37,8 @@ function ReservationDetailsContent({ reservationId, onClose, onChanged }: Reserv
   })
   const transition = useMutation({
     mutationFn: ({ next, note }: { next: ReservationStatus; note?: string }) => {
-      const value = detail.error ? undefined : detail.data!
-      if(!value.allowedActions.includes(next))throw new Error('Ovlašćenje za ovu akciju više nije dostupno.')
+      const value = detail.error ? undefined : detail.data
+      if(!value || !value.allowedActions.includes(next))throw new Error('Ovlašćenje za ovu akciju više nije dostupno.')
       return reservationApi.changeStatus(value, next, note)
     },
     onSuccess: async () => {

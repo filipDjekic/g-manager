@@ -88,6 +88,10 @@ export interface RecurrenceInput extends CreateReservationInput {
   occurrences: number
   conflictPolicy: RecurrenceConflictPolicy
 }
+export type ReservationCreationRequest =
+  | { kind: 'SINGLE'; input: CreateReservationInput }
+  | { kind: 'RECURRING'; input: RecurrenceInput }
+
 export interface RecurrenceOccurrence {
   startTime: string; endTime: string; available: boolean; reason: string | null
   resourceId?: string | null; resourceCode?: string | null; resourceName?: string | null

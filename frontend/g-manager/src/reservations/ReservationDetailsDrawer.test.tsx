@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { server } from '../test/server'
 import { reservationApi } from '../api/reservationApi'
 import { ReservationDetailsDrawer } from './ReservationDetailsDrawer'
+import type { ReservationDetail } from '../types/reservation.types'
 
 const detail = {
   id: 'reservation-1', customerName: 'Ana Anić', customerContact: null,
@@ -14,7 +15,7 @@ const detail = {
   note: 'Tiha prostorija', createdAt: '2028-03-01T08:00:00Z', updatedAt: '2028-03-01T08:00:00Z',
   version: 0, allowedActions: ['CANCELLED'], history: [{ fromStatus: 'PENDING', toStatus: 'CONFIRMED',
     reason: null, occurredAt: '2028-03-02T08:00:00Z' }],
-} as const
+} satisfies ReservationDetail
 
 describe('ReservationDetailsDrawer', () => {
   it('shows scoped readable detail and submits only a server-allowed action through a modal', async () => {
