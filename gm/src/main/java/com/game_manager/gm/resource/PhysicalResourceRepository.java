@@ -9,6 +9,7 @@ public interface PhysicalResourceRepository extends JpaRepository<PhysicalResour
  @Query("select new com.game_manager.gm.resource.dto.BookingResourceView(r.id,r.serviceId,r.code,r.name,r.type,l.id,l.name,true) "
   + "from PhysicalResource r join Area a on a.id=r.areaId join Location l on l.id=a.locationId where r.id in :ids")
  List<com.game_manager.gm.resource.dto.BookingResourceView> references(@Param("ids") Set<UUID> ids);
+ List<PhysicalResource> findByServiceIdOrderByIdAsc(UUID serviceId);
  List<PhysicalResource> findByTypeOrderByNameAsc(ResourceType type);
  List<PhysicalResource> findByAreaIdOrderByDisplayOrderAscNameAsc(UUID areaId);
  List<PhysicalResource> findByServiceIdAndActiveTrueAndBookableTrueOrderByDisplayOrderAscNameAsc(UUID serviceId);

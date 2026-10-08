@@ -9,8 +9,9 @@ import { IdempotencyKeyManager } from '../api/idempotency'
 import { useAuthStore } from '../auth/authStore'
 import { Button, EmptyState, ErrorState, Modal, Skeleton } from '../components/ui'
 import { CustomerPicker } from './CustomerPicker'
+import { RecurrencePreviewPanel, RecurrenceResultPanel } from './RecurrencePreviewPanel'
 import { businessInstantToLocal, businessLocalToInstant, formatBusinessDateTime } from './dateTime'
-import type { CreateReservationInput, RecurrenceInput, RecurrenceFrequency, RecurrenceConflictPolicy } from '../types/reservation.types'
+import type { CreateReservationInput, RecurrenceInput, RecurrenceFrequency, RecurrenceConflictPolicy, RecurrenceCreateResult } from '../types/reservation.types'
 
 export function StaffReservationForm({onClose,onCreated}:{onClose:()=>void;onCreated:(id:string,summary?:string)=>void}) {
   const actor=useAuthStore(s=>s.user),client=useQueryClient()
@@ -22,6 +23,7 @@ export function StaffReservationForm({onClose,onCreated}:{onClose:()=>void;onCre
   const [note,setNote]=useState(''),[review,setReview]=useState(false)
   const [repeat,setRepeat]=useState(false),[frequency,setFrequency]=useState<RecurrenceFrequency>('WEEKLY')
   const [interval,setInterval]=useState(1),[occurrences,setOccurrences]=useState(4)
+  const [seriesResult,setSeriesResult]=useState<RecurrenceCreateResult|null>(null)
   const [conflictPolicy,setConflictPolicy]=useState<RecurrenceConflictPolicy>('ALL_OR_NOTHING')
   const keys=useRef(new IdempotencyKeyManager()),pending=useRef<CreateReservationInput|RecurrenceInput|null>(null)
   const services=useQuery({queryKey:['catalog','reservation-services',serviceSearch],queryFn:()=>catalogApi.list({page:0,size:100,type:'SERVICE',active:true,search:serviceSearch||undefined})})
@@ -34,7 +36,7 @@ export function StaffReservationForm({onClose,onCreated}:{onClose:()=>void;onCre
   const options=useQuery({queryKey:['staff-booking-options',actor?.id,serviceId,locationId,start,end],
     queryFn:()=>resourceApi.bookingOptions({serviceId,locationId:locationId||undefined,start,end,managedOnly:true}),enabled:!!serviceId&&!!start&&!!end,refetchInterval:15000})
   const compatible=options.data?.resources??[]
-  const selected=resourceId?compatible.find(r=>r.id===resourceId&&r.available):compatible.find(r=>r.available)
+  const selected=resourceId?compatible.find(r=>r.id===resourceId&&(repeat||r.available)):compatible.find(r=>repeat||r.available)
   const needsResource=options.data?.resourceRequired||actor?.role==='EMPLOYEE'
   const recurrenceInput:RecurrenceInput={customerId,serviceId,employeeId,resourceId:selected?.id,locationId:selected?.locationId??(locationId||undefined),
     startTime:start,note:note||undefined,frequency,interval,occurrences,conflictPolicy}
@@ -45,9 +47,9 @@ export function StaffReservationForm({onClose,onCreated}:{onClose:()=>void;onCre
     const input=pending.current??(repeat?recurrenceInput:{customerId,serviceId,employeeId:employeeId||undefined,
       resourceId:selected?.id,locationId:selected?.locationId??(locationId||undefined),startTime:start,note:note||undefined})
     pending.current=input
-    if('frequency' in input)return reservationApi.createRecurrence(input,keys.current.begin()).then(result=>({id:result.created[0].id,summary:`Kreirano ${result.created.length}, preskočeno ${result.skipped.length} termina.`}))
-    return reservationApi.create(input,keys.current.begin()).then(value=>({id:value.id,summary:'Rezervacija je kreirana.'}))
-  },onSuccess:async value=>{keys.current.succeeded();pending.current=null;await client.invalidateQueries({queryKey:['reservations']});onCreated(value.id,value.summary)},
+    if('frequency' in input)return reservationApi.createRecurrence(input,keys.current.begin()).then(result=>({id:result.created[0].id,summary:`Kreirano ${result.created.length}, preskočeno ${result.skipped.length} termina.`,recurrence:result}))
+    return reservationApi.create(input,keys.current.begin()).then(value=>({id:value.id,summary:'Rezervacija je kreirana.',recurrence:undefined}))
+  },onSuccess:async value=>{keys.current.succeeded();pending.current=null;await client.invalidateQueries({queryKey:['reservations']});if(value.recurrence)setSeriesResult(value.recurrence);else onCreated(value.id,value.summary)},
     onError:async error=>{keys.current.failed(error);if(!keys.current.pendingKey())pending.current=null;await Promise.all([options.refetch(),scope.refetch()])}})
   const eligible=!!customerId&&!!service&&!!start&&Date.parse(start)>Date.now()&&!options.isFetching&&!options.error
     &&(!!selected||!needsResource)&&(!resourceId||!!selected)&&(!scope.error)&&(!scope.isLoading)
@@ -56,6 +58,7 @@ export function StaffReservationForm({onClose,onCreated}:{onClose:()=>void;onCre
       &&(conflictPolicy==='ALL_OR_NOTHING'?preview.data.occurrences.every(o=>o.available):preview.data.occurrences.some(o=>o.available)))
   const blocked=create.isPending||frozen
   return <Modal open title="Nova rezervacija" onClose={()=>{if(!create.isPending&&!frozen)onClose()}}>
+    {seriesResult ? <><RecurrenceResultPanel result={seriesResult} /><div className="form-actions"><Button onClick={()=>onCreated(seriesResult.created[0].id,`Kreirano ${seriesResult.created.length}, preskočeno ${seriesResult.skipped.length} termina.`)}>Otvori kreiranu rezervaciju</Button><Button variant="secondary" onClick={onClose}>Zatvori</Button></div></> : <>
     {create.error&&<ErrorState message={apiErrorMessage(create.error,'Rezervaciju nije moguće kreirati.')}/>}
     {scope.error&&<ErrorState message="Dodele stanica nisu dostupne." action={<Button onClick={()=>scope.refetch()}>Pokušaj ponovo</Button>}/>}
     {!scope.isLoading&&!scope.error&&!scope.data?.allResources&&!scope.data?.resourceIds.length&&<EmptyState title="Nemate dodeljene stanice" description="Administrator treba da vam dodeli stanicu pre kreiranja rezervacije."/>}
@@ -70,7 +73,7 @@ export function StaffReservationForm({onClose,onCreated}:{onClose:()=>void;onCre
         <label>Lokacija<select disabled={blocked||locations.isLoading} value={locationId} onChange={e=>{setLocationId(e.target.value);setResourceId('')}}><option value="">Sve lokacije</option>{locations.data?.filter(l=>l.active).map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select></label>
         {locations.error&&<ErrorState message="Lokacije nisu dostupne." action={<Button type="button" onClick={()=>locations.refetch()}>Pokušaj ponovo</Button>}/>}
         <label>Datum i vreme (Europe/Belgrade)<input type="datetime-local" required disabled={blocked} value={localStart} onChange={e=>setLocalStart(e.target.value)}/></label>
-        {options.isLoading?<Skeleton lines={2}/>:options.error?<ErrorState message={apiErrorMessage(options.error,'Stanice nisu dostupne.')} action={<Button type="button" onClick={()=>options.refetch()}>Pokušaj ponovo</Button>}/>:<label>Računar / resurs<select disabled={blocked||!service} value={resourceId} onChange={e=>setResourceId(e.target.value)}><option value="">{needsResource?'Automatski dodeli slobodan resurs':'Bez fizičkog resursa'}</option>{compatible.map(r=><option key={r.id} value={r.id} disabled={!r.available}>{r.code} · {r.name} · {r.locationName}{r.available?'':' — Zauzet'}</option>)}</select></label>}
+        {options.isLoading?<Skeleton lines={2}/>:options.error?<ErrorState message={apiErrorMessage(options.error,'Stanice nisu dostupne.')} action={<Button type="button" onClick={()=>options.refetch()}>Pokušaj ponovo</Button>}/>:<label>Računar / resurs<select disabled={blocked||!service} value={resourceId} onChange={e=>setResourceId(e.target.value)}><option value="">{needsResource?'Automatski dodeli slobodan resurs':'Bez fizičkog resursa'}</option>{compatible.map(r=><option key={r.id} value={r.id} disabled={!repeat&&!r.available}>{r.code} · {r.name} · {r.locationName}{r.available?'':' — Zauzet'}</option>)}</select></label>}
         {service&&needsResource&&!options.isLoading&&!options.error&&!selected&&<p className="warning-banner">Nema slobodnog kompatibilnog resursa u izabranom opsegu.</p>}
         <label className="checkbox-field"><input type="checkbox" disabled={blocked} checked={repeat} onChange={e=>setRepeat(e.target.checked)}/> Ponavljajuća rezervacija</label>
         {repeat&&<><p className="search-help">Izaberite zaposlenog i isti resurs za sve termine serije.</p>
@@ -86,10 +89,10 @@ export function StaffReservationForm({onClose,onCreated}:{onClose:()=>void;onCre
         {note&&<p>{note}</p>}{frozen&&<p role="status">Prethodni zahtev čeka konačan ishod. Ponovite isti zahtev.</p>}
       </section>}
       {repeat&&<section aria-label="Dostupnost ponavljajućih termina">
-        {preview.isFetching?<Skeleton lines={3}/>:preview.error?<ErrorState message={apiErrorMessage(preview.error,'Pregled serije nije dostupan.')} action={<Button type="button" onClick={()=>preview.refetch()}>Pokušaj ponovo</Button>}/>:preview.data?<ol className="reservation-history">{preview.data.occurrences.map(o=><li key={o.startTime}>{formatBusinessDateTime(o.startTime)} · {o.resourceCode??'Bez resursa'} · {o.available?'Slobodno':o.reason??'Zauzeto'}</li>)}</ol>:<p>Unesite klijenta, uslugu, zaposlenog i vreme za pregled serije.</p>}
+        {preview.isFetching?<Skeleton lines={3}/>:preview.error?<ErrorState message={apiErrorMessage(preview.error,'Pregled serije nije dostupan.')} action={<Button type="button" onClick={()=>preview.refetch()}>Pokušaj ponovo</Button>}/>:preview.data?<RecurrencePreviewPanel preview={preview.data} policy={conflictPolicy}/>:<p>Unesite klijenta, uslugu, zaposlenog i vreme za pregled serije.</p>}
       </section>}
       <div className="form-actions">{review&&!blocked&&<Button type="button" variant="secondary" onClick={()=>setReview(false)}>Izmeni podatke</Button>}
         <Button type="submit" loading={create.isPending} disabled={!eligible&&!frozen}>{review?'Kreiraj rezervaciju':'Pregled rezervacije'}</Button></div>
-    </form>
+    </form></>}
   </Modal>
 }

@@ -38,7 +38,7 @@ describe('MyReservationsPage slot booking', () => {
   it('shows loading/error and retries availability before keyboard review', async () => {
     const user = userEvent.setup()
     let calls = 0
-    server.use(...baseHandlers(), http.get('/api/v1/availability', async () => {
+    server.use(...baseHandlers(), http.get('/api/v1/availability/overview', async () => {
       calls += 1
       await delay(50)
       if (calls === 1) return HttpResponse.json({ message: 'Unavailable' }, { status: 503 })
@@ -61,13 +61,16 @@ describe('MyReservationsPage slot booking', () => {
     expect(screen.getByText('Bilo koji slobodan zaposleni')).toBeVisible()
   })
 
-  it('renders an actionable empty state when the selected day has no slots', async () => {
+  it('joins a concrete occupied slot while other slots remain available', async () => {
     const user = userEvent.setup()
     let joined = false
-    server.use(...baseHandlers(), http.get('/api/v1/availability', () => HttpResponse.json({
+    server.use(...baseHandlers(), http.get('/api/v1/availability/overview', () => HttpResponse.json({
       timezone: 'Europe/Belgrade', serviceId: 'service-1', serviceName: 'Masaža', durationMinutes: 60,
       slotIncrementMinutes: 15, from: '2028-03-16', to: '2028-03-16', employees: [{
-        employeeId: 'employee-1', employeeName: 'Ana', slots: [],
+        employeeId: 'employee-1', employeeName: 'Ana', slots: [
+          { startTime: '2028-03-16T09:00:00Z', endTime: '2028-03-16T10:00:00Z', status: 'OCCUPIED_RESERVATION', reason: 'Employee has a reservation at this time' },
+          { startTime: '2028-03-16T11:00:00Z', endTime: '2028-03-16T12:00:00Z', status: 'AVAILABLE' },
+        ],
       }],
     })), http.post('/api/v1/waitlist', async ({ request }) => {
       const body = await request.json() as { employeeId: string }
@@ -80,9 +83,9 @@ describe('MyReservationsPage slot booking', () => {
     await user.selectOptions(await screen.findByLabelText('Usluga'), 'service-1')
     await user.selectOptions(screen.getByLabelText('Zaposleni'), 'employee-1')
     await user.type(screen.getByLabelText('Datum'), '2028-03-16')
-    expect(await screen.findByRole('heading', { name: 'Nema slobodnih termina' })).toBeVisible()
-    expect(screen.getByText(/prijavite za konkretan termin/)).toBeVisible()
-    await user.type(screen.getByLabelText('Željeno vreme'), '10:00')
+    const occupied = await screen.findByRole('radio', { name: /Prijavi se na listu čekanja/ })
+    expect(screen.getByRole('radio', { name: /Rezerviši termin/ })).toBeVisible()
+    await user.click(occupied)
     await user.click(screen.getByRole('button', { name: 'Prijavi se na listu čekanja' }))
     await waitFor(() => expect(joined).toBe(true))
     expect(await screen.findByText('Dodati ste na listu čekanja za izabrani termin.')).toBeVisible()
@@ -91,7 +94,7 @@ describe('MyReservationsPage slot booking', () => {
   it('requires a bounded preview before creating a recurring series', async () => {
     const user = userEvent.setup()
     let idempotencyKey = ''
-    server.use(...baseHandlers(), http.get('/api/v1/availability', () => HttpResponse.json({
+    server.use(...baseHandlers(), http.get('/api/v1/availability/overview', () => HttpResponse.json({
       timezone: 'Europe/Belgrade', serviceId: 'service-1', serviceName: 'Masaža', durationMinutes: 60,
       slotIncrementMinutes: 15, from: '2028-03-16', to: '2028-03-16', employees: [{
         employeeId: 'employee-1', employeeName: 'Ana',
@@ -104,7 +107,7 @@ describe('MyReservationsPage slot booking', () => {
       ],
     })), http.post('/api/v1/reservations/recurrence', ({ request }) => {
       idempotencyKey = request.headers.get('Idempotency-Key') ?? ''
-      return HttpResponse.json({ seriesId: 'series-1', created: [{ id: 'reservation-1' }], skipped: [{}] }, { status: 201 })
+      return HttpResponse.json({ seriesId: 'series-1', created: [{ id: 'reservation-1', startTime: '2028-03-16T09:00:00Z', endTime: '2028-03-16T10:00:00Z' }], skipped: [{ startTime: '2028-03-23T09:00:00Z', endTime: '2028-03-23T10:00:00Z', available: false, reason: 'Zauzeto' }] }, { status: 201 })
     }))
     renderPage()
     await user.selectOptions(await screen.findByLabelText('Usluga'), 'service-1')
@@ -113,8 +116,10 @@ describe('MyReservationsPage slot booking', () => {
     await user.click(await screen.findByRole('radio'))
     await user.click(screen.getByLabelText('Ponavljajući termini'))
     expect(screen.getByRole('button', { name: 'Kreiraj seriju' })).toBeDisabled()
-    await user.click(screen.getByRole('button', { name: 'Pregledaj ponavljanje' }))
     expect(await screen.findByText(/Konflikt: Zauzeto/)).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Kreiraj seriju' })).toBeDisabled()
+    await user.selectOptions(screen.getByLabelText('Konflikti'), 'SKIP_CONFLICTS')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Kreiraj seriju' })).toBeEnabled())
     await user.click(screen.getByRole('button', { name: 'Kreiraj seriju' }))
     await waitFor(() => expect(idempotencyKey).not.toBe(''))
     expect(await screen.findByText(/Kreirano rezervacija: 1; preskočeno: 1/)).toBeVisible()

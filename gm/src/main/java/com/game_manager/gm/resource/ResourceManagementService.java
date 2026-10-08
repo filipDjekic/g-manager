@@ -22,6 +22,34 @@ public class ResourceManagementService {
  private final com.game_manager.gm.workinghours.WorkingHoursService workingHours;
  private final jakarta.persistence.EntityManager entityManager;
 
+ /** Include restricted resources so occupancy cannot be inferred from missing free slots. */
+ @Transactional(readOnly=true,noRollbackFor=ApplicationException.class) public List<PhysicalResource> bookingCandidates(UUID serviceId,UUID requestedId,UUID locationId){
+  List<PhysicalResource> values=requestedId==null?resources.findByServiceIdOrderByIdAsc(serviceId):List.of(resource(requestedId));
+  Map<UUID,BookingResourceView> refs=resourceReferences(values.stream().map(PhysicalResource::getId).collect(java.util.stream.Collectors.toSet()));
+  if(requestedId!=null){
+   PhysicalResource selected=values.getFirst();
+   if(!selected.getServiceId().equals(serviceId))throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Resource does not support the selected service");
+   if(locationId!=null&&!locationId.equals(refs.get(requestedId).locationId()))throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Resource does not belong to the selected location");
+  }
+  return values.stream().filter(v->locationId==null||locationId.equals(refs.get(v.getId()).locationId())).toList();
+ }
+ @Transactional(readOnly=true) public Map<UUID,String> bookingRestrictions(List<PhysicalResource> values){
+  if(values.isEmpty())return Map.of();
+  Set<UUID> areaIds=values.stream().map(PhysicalResource::getAreaId).collect(java.util.stream.Collectors.toSet());
+  Map<UUID,Area> areaMap=areas.findAllById(areaIds).stream().collect(java.util.stream.Collectors.toMap(Area::getId,java.util.function.Function.identity()));
+  Set<UUID> locationIds=areaMap.values().stream().map(Area::getLocationId).collect(java.util.stream.Collectors.toSet());
+  Map<UUID,Location> locationMap=locations.findAllById(locationIds).stream().collect(java.util.stream.Collectors.toMap(Location::getId,java.util.function.Function.identity()));
+  Map<UUID,com.game_manager.gm.station.StationOperationalStatus> states=stationProfiles.findByResourceIdIn(values.stream().map(PhysicalResource::getId).toList()).stream()
+   .collect(java.util.stream.Collectors.toMap(com.game_manager.gm.station.GamingStationProfile::getResourceId,com.game_manager.gm.station.GamingStationProfile::getOperationalStatus));
+  Map<UUID,String> result=new HashMap<>();
+  for(PhysicalResource v:values){
+   Area area=areaMap.get(v.getAreaId());Location location=area==null?null:locationMap.get(area.getLocationId());
+   if(!v.isActive()||!v.isBookable()||area==null||!area.isActive()||location==null||!location.isActive())result.put(v.getId(),"Resource or location is inactive or not bookable");
+   else if(v.getType()==ResourceType.GAMING_PC&&states.getOrDefault(v.getId(),com.game_manager.gm.station.StationOperationalStatus.AVAILABLE)!=com.game_manager.gm.station.StationOperationalStatus.AVAILABLE)
+    result.put(v.getId(),"Station is unavailable for booking");
+  }
+  return result;
+ }
  @Transactional(readOnly=true) public boolean requiresResource(UUID serviceId){
   return resourceRequirements(Set.of(serviceId)).get(serviceId);
  }
@@ -133,7 +161,7 @@ public class ResourceManagementService {
  @Transactional(readOnly=true,noRollbackFor=ApplicationException.class) public PhysicalResource requireBookable(UUID id,UUID serviceId){PhysicalResource v=resource(id);requireBookableState(v,serviceId);return v;}
  @Transactional public PhysicalResource lockBookable(UUID id,UUID serviceId){PhysicalResource v=resources.findLocked(id).orElseThrow(()->new ApplicationException(HttpStatus.NOT_FOUND,"Resource not found"));entityManager.refresh(v,jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);requireBookableState(v,serviceId);return v;}
  @Transactional public PhysicalResource lockResource(UUID id){PhysicalResource v=resources.findLocked(id).orElseThrow(()->new ApplicationException(HttpStatus.NOT_FOUND,"Resource not found"));entityManager.refresh(v,jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);return v;}
- @Transactional(readOnly=true) public void requireActiveLocation(UUID id){if(!location(id).isActive())throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Location is inactive");}
+ @Transactional(readOnly=true,noRollbackFor=ApplicationException.class) public void requireActiveLocation(UUID id){if(!location(id).isActive())throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Location is inactive");}
  @Transactional public PhysicalResource lockGamingStation(UUID id){PhysicalResource v=resources.findLocked(id).orElseThrow(()->new ApplicationException(HttpStatus.NOT_FOUND,"Gaming station not found"));if(v.getType()!=ResourceType.GAMING_PC)throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Selected resource is not a gaming PC");requireBookableState(v,v.getServiceId());return v;}
  public UUID locationId(PhysicalResource r){return area(r.getAreaId()).getLocationId();}
  private Location location(UUID id){return locations.findById(id).orElseThrow(()->new ApplicationException(HttpStatus.NOT_FOUND,"Location not found"));}

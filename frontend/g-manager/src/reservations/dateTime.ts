@@ -36,11 +36,11 @@ export function businessLocalToInstant(value: string): string {
   return new Date(desiredUtc - offset).toISOString()
 }
 
-export function formatBusinessDateTime(value: string): string {
+export function formatBusinessDateTime(value: string, includeSeconds = false): string {
   return new Intl.DateTimeFormat('sr-RS', {
     timeZone: businessZone,
     dateStyle: 'medium',
-    timeStyle: 'short',
+    timeStyle: includeSeconds ? 'medium' : 'short',
   }).format(new Date(value))
 }
 

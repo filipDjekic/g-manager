@@ -19,6 +19,29 @@ public class ReservationAvailabilityPolicy {
             List.of(ReservationStatus.CANCELLED, ReservationStatus.REJECTED, ReservationStatus.COMPLETED);
     private final ReservationRepository repository;
     private final TimeOffAvailabilityPolicy timeOffPolicy;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    public List<ResourceBusyInterval> resourceReservationIntervals(Collection<UUID> ids, Instant from, Instant to) {
+        return ids.isEmpty() ? List.of() : repository.resourceIntervals(ids, from, to, RESOURCE_NON_BLOCKING);
+    }
+
+    public List<ResourceBusyInterval> resourceSessionIntervals(Collection<UUID> ids, Instant from, Instant to) {
+        if(ids.isEmpty())return List.of();
+        String placeholders=String.join(",",java.util.Collections.nCopies(ids.size(),"?"));
+        java.util.Calendar utc=java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"));
+        return jdbc.query("SELECT resource_id,started_at,ends_at FROM gaming_sessions WHERE resource_id IN ("
+                +placeholders+") AND status='ACTIVE' AND started_at<? AND ends_at>?", statement->{
+                    int index=1;
+                    for(UUID id:ids)statement.setString(index++,id.toString());
+                    statement.setTimestamp(index++,java.sql.Timestamp.from(to),utc);
+                    statement.setTimestamp(index,java.sql.Timestamp.from(from),utc);
+                },(row,index)->new ResourceBusyInterval(UUID.fromString(row.getString(1)),
+                        row.getTimestamp(2,utc).toInstant(),row.getTimestamp(3,utc).toInstant()));
+    }
+
+    private boolean sessionAvailable(UUID id, Instant start, Instant end) {
+        return resourceSessionIntervals(List.of(id), start, end).isEmpty();
+    }
 
     public boolean isAvailableForUpdate(UUID employeeId, Instant start, Instant end, UUID excludeId) {
         return repository.findConflictingForUpdate(employeeId,start,end,NON_BLOCKING,excludeId).isEmpty()
@@ -32,7 +55,13 @@ public class ReservationAvailabilityPolicy {
     }
 
     public boolean isResourceAvailableForUpdate(UUID resourceId, Instant start, Instant end, UUID excludeId) {
-        return repository.findResourceConflictingForUpdate(resourceId,start,end,RESOURCE_NON_BLOCKING,excludeId).isEmpty();
+        return repository.findResourceConflictingForUpdate(resourceId,start,end,RESOURCE_NON_BLOCKING,excludeId).isEmpty()
+                && sessionAvailable(resourceId,start,end);
+    }
+
+    public void requireResourceReservationAvailableForUpdate(UUID resourceId,Instant start,Instant end,UUID excludeId) {
+        if(!repository.findResourceConflictingForUpdate(resourceId,start,end,RESOURCE_NON_BLOCKING,excludeId).isEmpty())
+            throw new ApplicationException(HttpStatus.CONFLICT,"Resource is unavailable at this time");
     }
 
     public void requireResourceAvailableForUpdate(UUID resourceId, Instant start, Instant end, UUID excludeId) {
@@ -59,7 +88,8 @@ public class ReservationAvailabilityPolicy {
     }
 
     public boolean isResourceAvailable(UUID resourceId, Instant start, Instant end, UUID excludeId) {
-        return repository.findResourceConflicting(resourceId,start,end,RESOURCE_NON_BLOCKING,excludeId).isEmpty();
+        return repository.findResourceConflicting(resourceId,start,end,RESOURCE_NON_BLOCKING,excludeId).isEmpty()
+                && sessionAvailable(resourceId,start,end);
     }
 
     public List<ReservationBusyInterval> busyIntervals(

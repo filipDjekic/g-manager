@@ -144,7 +144,7 @@ async function installApi(page: Page, role: Role, aiEnabled = false, reservation
         status: 'PENDING', note: null, version: 0,
       }],
     } : emptyPage)
-    if (path === '/availability') return json({
+    if (path === '/availability' || path === '/availability/overview') return json({
       timezone: 'Europe/Belgrade', serviceId: 'service-1', serviceName: 'Test usluga',
       durationMinutes: 60, slotIncrementMinutes: 15,
       from: url.searchParams.get('from'), to: url.searchParams.get('to'),

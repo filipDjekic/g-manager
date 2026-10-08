@@ -154,3 +154,38 @@ summary { cursor: pointer; color: var(--color-text-secondary); font-weight: 700;
   .reservation-tags { grid-column:1 / -1; }
   .reservation-scope .ui-button { flex:1; }
 }
+
+/* Booking occupancy, time-limited offers and recurrence reuse the shared palette. */
+.occupancy-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+.occupancy-slot { position: relative; display: grid; align-content: start; justify-content: stretch; text-align: left; gap: var(--space-2); padding: var(--space-3); }
+.occupancy-slot > input { position: absolute; right: var(--space-3); top: var(--space-3); }
+.occupancy-slot > strong { padding-right: var(--space-5); }
+.occupancy-slot > small { color: var(--color-text-secondary); overflow-wrap: anywhere; }
+.occupancy-slot > span:last-child { color: var(--color-primary); font-weight: 700; }
+.occupancy-slot.occupied { border-color: color-mix(in srgb, var(--color-secondary) 45%, var(--color-border)); background: var(--color-secondary-bg); }
+.occupancy-slot.occupied > span:last-child { color: var(--color-secondary); }
+.occupancy-slot:focus-within { box-shadow: var(--focus-ring); }
+.unavailable-slots { margin-top: var(--space-4); color: var(--color-text-muted); }
+.unavailable-slots summary { cursor: pointer; padding-block: var(--space-2); }
+.unavailable-slots ul { max-height: 18rem; overflow-y: auto; padding-inline: var(--space-5); }
+.waitlist-offer { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-4); padding: var(--space-4); margin-block: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface-raised); scroll-margin-top: var(--space-6); }
+.waitlist-offer.active { border-color: var(--color-primary); box-shadow: var(--glow-primary); }
+.waitlist-offer:target, .waitlist-offer.linked { outline: 2px solid var(--color-secondary); outline-offset: 2px; }
+.waitlist-offer p { margin-block: var(--space-2); }
+.offer-countdown { font-variant-numeric: tabular-nums; font-size: 1.25rem; font-weight: 800; color: var(--color-primary); }
+.waitlist-filters { flex-wrap: wrap; }
+.waitlist-filters > label { min-width: 10rem; }
+.recurrence-preview { margin-top: var(--space-4); }
+.recurrence-totals { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.recurrence-occurrences { display: grid; gap: var(--space-2); padding-left: 0; list-style: none; }
+.recurrence-occurrences > li { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3); padding: var(--space-3); background: var(--color-surface-raised); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.recurrence-occurrences p { margin-block: var(--space-2); color: var(--color-text-secondary); overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .waitlist-offer, .recurrence-occurrences > li { flex-direction: column; }
+  .waitlist-offer .form-actions { width: 100%; flex-wrap: wrap; }
+  .waitlist-offer .form-actions > button { flex: 1; }
+  .occupancy-grid { grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); }
+  .waitlist-filters > label { width: 100%; }
+}
+
+.booking-fields { display: grid; gap: var(--space-5); min-width: 0; margin: 0; padding: 0; border: 0; }

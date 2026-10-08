@@ -32,14 +32,16 @@ class WaitlistIntegrationTest {
 
     @BeforeEach void clean(){DatabaseCleaner.clean(jdbc);jdbc.update("DELETE FROM working_hours_exceptions");}
 
-    @Test void operationalQueueIsPrivateAndEmployeesSeeOnlyTheirOwnEntries() throws Exception {
+    @Test void operationalQueueIsPrivateAndEmployeesSeeAllStationsReadOnly() throws Exception {
         Setup setup=setup();User waiting=user(Role.CUSTOMER),competitor=user(Role.CUSTOMER),unrelated=user(Role.EMPLOYEE);
         reserve(login(competitor),setup);join(login(waiting),setup);
         mvc.perform(get("/api/v1/waitlist")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/v1/waitlist").header("Authorization",bearer(login(waiting))))
                 .andExpect(status().isForbidden());
         mvc.perform(get("/api/v1/waitlist").header("Authorization",bearer(login(unrelated))))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].readOnly").value(true))
+                .andExpect(jsonPath("$.content[0].stationManageable").value(false));
         mvc.perform(get("/api/v1/waitlist").header("Authorization",bearer(login(setup.employee()))))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].serviceName").value("Waitlist service"))
