@@ -43,7 +43,7 @@ const management: NavigationGroup[] = [
 const employee: NavigationGroup[] = [
   { label: 'Danas', items: [{ label: 'Moj radni dan', to: '/dashboard', capability: 'DASHBOARD_OPERATIONAL' }] },
   { label: 'Operativa', items: [
-    { label: 'Moji termini', to: '/reservations', capability: 'RESERVATION_READ_ALL' },
+    { label: 'Termini', to: '/reservations', capability: 'RESERVATION_READ_ALL' },
     { label: 'Kalendar', to: '/calendar', capability: 'RESERVATION_READ_ALL' },
     { label: 'Mapa resursa', to: '/resources', capability: 'RESOURCE_READ' },
     { label: 'Gaming stanice', to: '/stations', capability: 'STATION_READ' },

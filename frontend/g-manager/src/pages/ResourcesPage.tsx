@@ -8,6 +8,7 @@ import { useAuthStore } from '../auth/authStore'
 import { Badge, Button, EmptyState, ErrorState, PageHeader, Skeleton } from '../components/ui'
 import { businessInstantToLocal, businessLocalToInstant } from '../reservations/dateTime'
 import { ResourceEditor, type ResourceEditorKind } from '../resources/ResourceEditor'
+import { ResourceEmployees } from '../resources/ResourceEmployees'
 import { LocationEmployees } from '../resources/LocationEmployees'
 import type { LocationView, AreaView, ResourceView, ResourceAvailability } from '../types/resource.types'
 
@@ -21,6 +22,7 @@ export function ResourcesPage() {
   const [start,setStart]=useState(()=>businessInstantToLocal(new Date(Date.now()+3600000).toISOString()))
   const [editor,setEditor]=useState<{kind:ResourceEditorKind;initial?:LocationView|AreaView|ResourceView}|null>(null)
   const [showEmployees,setShowEmployees]=useState(false)
+  const [resourceEmployees,setResourceEmployees]=useState<{id:string;name:string}|null>(null)
   const locations=useQuery({queryKey:['resources','locations'],queryFn:resourceApi.locations})
   const visibleLocations=locations.data?.filter(value=>manage||value.active)??[]
   const locationId=visibleLocations.some(value=>value.id===chosenLocation)?chosenLocation:visibleLocations[0]?.id??''
@@ -54,10 +56,12 @@ export function ResourcesPage() {
         </div><p className="search-help">Slobodno · zauzeto · održavanje · van funkcije. Dostupnost se ponovo proverava pri potvrdi termina.</p></section>
         <section className="panel-grid resource-list" aria-label="Resursi u zoni">{resources.data.map(value=><article className={`panel${params.get('resourceId')===value.id?' selected-resource':''}`} key={value.id}><div className="section-heading"><h2>{value.name}</h2><Badge tone={value.status==='AVAILABLE'?'success':value.status==='OCCUPIED'?'warning':'neutral'}>{labels[value.status]}</Badge></div><small>{value.code} · {value.type}</small>
           <div className="form-actions"><Button variant="secondary" disabled={actor?.role==='CUSTOMER'&&!['AVAILABLE','OCCUPIED'].includes(value.status)} onClick={()=>openResource(value)}>{actor?.role==='CUSTOMER'?'Izaberi termin':'Otvori operativu'}</Button>
-            {manage&&<Button variant="secondary" disabled={!editable.data?.some(v=>v.id===value.id)} onClick={()=>setEditor({kind:'RESOURCE',initial:editable.data?.find(v=>v.id===value.id)})}>Podesi resurs</Button>}</div></article>)}</section>
+            {manage&&<Button variant="secondary" disabled={!editable.data?.some(v=>v.id===value.id)} onClick={()=>setEditor({kind:'RESOURCE',initial:editable.data?.find(v=>v.id===value.id)})}>Podesi resurs</Button>}
+            {manage&&<Button variant="secondary" onClick={()=>setResourceEmployees({id:value.id,name:value.name})}>Zaposleni na stanici</Button>}</div></article>)}</section>
       </>}
     </>}
     {editor&&<ResourceEditor {...editor} locationId={locationId} areaId={areaId} onClose={()=>setEditor(null)} onSaved={id=>{if(editor.kind==='LOCATION')setLocation(id);else if(editor.kind==='AREA')setArea(id)}}/>}
+    {resourceEmployees&&<ResourceEmployees resourceId={resourceEmployees.id} resourceName={resourceEmployees.name} onClose={()=>setResourceEmployees(null)}/>}
     {showEmployees&&location&&<LocationEmployees locationId={location.id} locationName={location.name} onClose={()=>setShowEmployees(false)}/>}
   </main>
 }

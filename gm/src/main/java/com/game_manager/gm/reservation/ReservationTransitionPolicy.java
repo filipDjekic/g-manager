@@ -22,7 +22,17 @@ public class ReservationTransitionPolicy {
 
     public void requireTransition(AuthenticatedUser actor, Reservation reservation,
             ReservationStatus target, String reason) {
-        if (!isAuthorized(actor, reservation, target)) {
+        requireTransition(actor,reservation,target,reason,false);
+    }
+
+    public void requireTransition(AuthenticatedUser actor, Reservation reservation,
+            ReservationStatus target, String reason, boolean resourceRequired) {
+        requireTransition(actor,reservation,target,reason,resourceRequired,false);
+    }
+
+    public void requireTransition(AuthenticatedUser actor, Reservation reservation,
+            ReservationStatus target, String reason, boolean resourceRequired, boolean canManage) {
+        if (!isAuthorized(actor, reservation, target, canManage)) {
             denialLogger.denied(Permission.RESERVATION_CHANGE_STATUS, actor, "reservation",
                     scope(actor, reservation));
             throw new ApplicationException(HttpStatus.FORBIDDEN,
@@ -33,6 +43,10 @@ public class ReservationTransitionPolicy {
                     "Invalid reservation status transition");
         }
         validateTemporalRules(actor, reservation, target);
+        if (target == ReservationStatus.CONFIRMED && resourceRequired && reservation.getResourceId() == null) {
+            throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Assign a compatible physical resource before confirming this reservation");
+        }
         if (requiresReason(target) && (reason == null || reason.isBlank())) {
             throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,
                     "A reason is required to reject or cancel a reservation");
@@ -41,10 +55,38 @@ public class ReservationTransitionPolicy {
 
     public List<ReservationStatus> allowedActions(
             AuthenticatedUser actor, Reservation reservation) {
+        return allowedActions(actor,reservation,false);
+    }
+
+    public List<ReservationStatus> allowedActions(
+            AuthenticatedUser actor, Reservation reservation, boolean resourceRequired) {
+        return allowedActions(actor,reservation,resourceRequired,false);
+    }
+
+    public List<ReservationStatus> allowedActions(AuthenticatedUser actor, Reservation reservation,
+            boolean resourceRequired, boolean canManage) {
         return candidates(reservation.getStatus()).stream()
-                .filter(target -> isAuthorized(actor, reservation, target))
+                .filter(target -> isAuthorized(actor, reservation, target, canManage))
                 .filter(target -> isTemporallyAllowed(actor, reservation, target))
+                .filter(target -> target != ReservationStatus.CONFIRMED || !resourceRequired || reservation.getResourceId() != null)
                 .toList();
+    }
+
+    public boolean canAssignResource(AuthenticatedUser actor, Reservation reservation) {
+        return isAuthorized(actor,reservation,ReservationStatus.CONFIRMED,false)
+                && reservation.getResourceId() == null
+                && (reservation.getStatus() == ReservationStatus.PENDING || reservation.getStatus() == ReservationStatus.CONFIRMED)
+                && reservation.getEndTime().isAfter(clock.instant());
+    }
+
+    public void requireResourceAssignment(AuthenticatedUser actor, Reservation reservation) {
+        if (!isAuthorized(actor,reservation,ReservationStatus.CONFIRMED,false)) {
+            denialLogger.denied(Permission.RESERVATION_CHANGE_STATUS,actor,"reservation",scope(actor,reservation));
+            throw new ApplicationException(HttpStatus.FORBIDDEN,"Resource assignment is not permitted");
+        }
+        if (!canAssignResource(actor,reservation)) {
+            throw new ApplicationException(HttpStatus.CONFLICT,"Only active reservations without a resource can be assigned");
+        }
     }
 
     public boolean requiresReason(ReservationStatus target) {
@@ -65,15 +107,14 @@ public class ReservationTransitionPolicy {
     }
 
     private boolean isAuthorized(
-            AuthenticatedUser actor, Reservation reservation, ReservationStatus target) {
+            AuthenticatedUser actor, Reservation reservation, ReservationStatus target, boolean canManage) {
         boolean management = actor.role() == Role.ADMIN || actor.role() == Role.OWNER;
-        boolean assignedEmployee = actor.role() == Role.EMPLOYEE
-                && actor.id().equals(reservation.getEmployeeId());
+        boolean assignedEmployee = actor.role() == Role.EMPLOYEE && canManage;
         boolean owningCustomer = actor.role() == Role.CUSTOMER
                 && actor.id().equals(reservation.getCustomerId());
         return switch (target) {
             case CONFIRMED, REJECTED, COMPLETED -> management || assignedEmployee;
-            case CANCELLED -> management || owningCustomer;
+            case CANCELLED -> management || assignedEmployee || owningCustomer;
             case PENDING -> false;
         };
     }
@@ -112,8 +153,8 @@ public class ReservationTransitionPolicy {
         if (actor.role() == Role.CUSTOMER && actor.id().equals(reservation.getCustomerId())) {
             return "customer-owner";
         }
-        if (actor.role() == Role.EMPLOYEE && actor.id().equals(reservation.getEmployeeId())) {
-            return "assigned-employee";
+        if (actor.role() == Role.EMPLOYEE) {
+            return "employee-station-scope";
         }
         return "unrelated";
     }

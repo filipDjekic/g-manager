@@ -35,10 +35,10 @@ public class GamingOperationsBoardService {
     public GamingOperationsBoardResponse board(UUID requestedLocationId) {
         AuthenticatedUser actor = currentUser.requireCurrentUser(); Instant now = clock.instant();
         if (requestedLocationId != null) locations.requireAccess(actor, requestedLocationId);
-        Set<UUID> assigned = locations.assignedLocations(actor);
+        Set<UUID> assigned = locations.assignedResources(actor);
         List<StationOverview> visible = stationReadiness.overview().stream()
                 .filter(station -> actor.role() == Role.OWNER || actor.role() == Role.ADMIN
-                        || assigned.contains(station.locationId()))
+                        || assigned.contains(station.resourceId()))
                 .filter(station -> requestedLocationId == null || requestedLocationId.equals(station.locationId()))
                 .toList();
         if (visible.isEmpty()) return new GamingOperationsBoardResponse(now, List.of());
@@ -61,7 +61,7 @@ public class GamingOperationsBoardService {
     }
 
     @Transactional(readOnly=true) @PreAuthorize("hasAuthority('GAMING_SESSION_READ')")
-    public StationHistoryResponse history(UUID stationId){AuthenticatedUser actor=currentUser.requireCurrentUser();StationOverview station=stationReadiness.overview().stream().filter(value->value.resourceId().equals(stationId)).findFirst().orElseThrow();locations.requireAccess(actor,station.locationId());
+    public StationHistoryResponse history(UUID stationId){AuthenticatedUser actor=currentUser.requireCurrentUser();StationOverview station=stationReadiness.overview().stream().filter(value->value.resourceId().equals(stationId)).findFirst().orElseThrow();locations.requireResourceAccess(actor,station.resourceId());
         var auditEntries=reconciliationAudit.findTop50ByStationIdOrderByOccurredAtDesc(stationId).stream().map(value->new StationHistoryResponse.Entry(value.getOccurredAt(),"ENFORCEMENT",value.getAction(),value.getResultingStatus(),value.getCommandSequence(),null,value.getDetails()));
         var commandEntries=commands.findTop50ByStationIdOrderBySequenceDesc(stationId).stream().map(value->new StationHistoryResponse.Entry(value.getAvailableAt(),"COMMAND",value.getCommandType().name(),value.getAcknowledgedAt()==null?"PENDING":"ACKNOWLEDGED",value.getSequence(),value.getCorrelationId(),null));
         var entries=java.util.stream.Stream.concat(auditEntries,commandEntries).sorted(java.util.Comparator.comparing(StationHistoryResponse.Entry::occurredAt).reversed()).limit(50).toList();return new StationHistoryResponse(clock.instant(),stationId,entries);}
@@ -115,6 +115,6 @@ public class GamingOperationsBoardService {
         return GamingStationBoardStatus.AVAILABLE;
     }
 
-    @Transactional@PreAuthorize("hasAuthority('GAMING_SESSION_TERMINATE')")public void forceLock(UUID stationId){AuthenticatedUser actor=currentUser.requireCurrentUser();StationOverview station=stationReadiness.overview().stream().filter(value->value.resourceId().equals(stationId)).findFirst().orElseThrow();locations.requireAccess(actor,station.locationId());GamingSession session=sessions.findLatestCandidates(List.of(stationId)).stream().findFirst().filter(value->value.getStatus()!=GamingSessionStatus.ACTIVE).orElseThrow();long sequence=commandWriter.write(session,StationCommandType.FORCE_LOCK);enforcement.operatorRecovery(stationId,session.getId(),actor.id(),"FORCE_LOCK",sequence,"Operator requested force lock");}
-    @Transactional@PreAuthorize("hasAuthority('GAMING_SESSION_TERMINATE')")public void confirmLocked(UUID stationId){AuthenticatedUser actor=currentUser.requireCurrentUser();StationOverview station=stationReadiness.overview().stream().filter(value->value.resourceId().equals(stationId)).findFirst().orElseThrow();locations.requireAccess(actor,station.locationId());GamingSession session=sessions.findLatestCandidates(List.of(stationId)).stream().findFirst().filter(value->value.getStatus()!=GamingSessionStatus.ACTIVE).orElseThrow();enforcement.operatorRecovery(stationId,session.getId(),actor.id(),"OPERATOR_RECOVERY",session.getLastCommandSequence()==null?0:session.getLastCommandSequence(),"Operator verified local lock");}
+    @Transactional@PreAuthorize("hasAuthority('GAMING_SESSION_TERMINATE')")public void forceLock(UUID stationId){AuthenticatedUser actor=currentUser.requireCurrentUser();StationOverview station=stationReadiness.overview().stream().filter(value->value.resourceId().equals(stationId)).findFirst().orElseThrow();locations.requireResourceManagement(actor,station.resourceId(),Permission.GAMING_SESSION_TERMINATE);GamingSession session=sessions.findLatestCandidates(List.of(stationId)).stream().findFirst().filter(value->value.getStatus()!=GamingSessionStatus.ACTIVE).orElseThrow();long sequence=commandWriter.write(session,StationCommandType.FORCE_LOCK);enforcement.operatorRecovery(stationId,session.getId(),actor.id(),"FORCE_LOCK",sequence,"Operator requested force lock");}
+    @Transactional@PreAuthorize("hasAuthority('GAMING_SESSION_TERMINATE')")public void confirmLocked(UUID stationId){AuthenticatedUser actor=currentUser.requireCurrentUser();StationOverview station=stationReadiness.overview().stream().filter(value->value.resourceId().equals(stationId)).findFirst().orElseThrow();locations.requireResourceManagement(actor,station.resourceId(),Permission.GAMING_SESSION_TERMINATE);GamingSession session=sessions.findLatestCandidates(List.of(stationId)).stream().findFirst().filter(value->value.getStatus()!=GamingSessionStatus.ACTIVE).orElseThrow();enforcement.operatorRecovery(stationId,session.getId(),actor.id(),"OPERATOR_RECOVERY",session.getLastCommandSequence()==null?0:session.getLastCommandSequence(),"Operator verified local lock");}
 }

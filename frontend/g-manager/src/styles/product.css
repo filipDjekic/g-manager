@@ -137,3 +137,20 @@ summary { cursor: pointer; color: var(--color-text-secondary); font-weight: 700;
 @media (max-width: 1100px) { .shell-quick-action { display: none; } .operations-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } .setup-checklist { grid-template-columns: 1fr; } }
 @media (max-width: 800px) { .workspace, .page { padding: var(--space-5) var(--space-3); } .sidebar-collapsed { --sidebar-width: 15.5rem; } .shell-user { display: none; } .customer-hero { padding: var(--space-5); } }
 @media (max-width: 620px) { .operations-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .operations-filters { grid-template-columns: 1fr; } .operations-attention-list { grid-template-columns: 1fr; } .gaming-overview { padding: var(--space-4); } .operations-filter-options > span { margin-inline-start: 0; } .setup-checklist li { flex-wrap: wrap; } .customer-kpis { grid-template-columns: 1fr; } .pagination { justify-content: center; } }
+
+.reservation-scope { display:flex; flex-wrap:wrap; gap:.65rem; margin-bottom:1rem; }
+.reservation-manageable { border-inline-start:3px solid var(--accent-blue, #00d9ff); }
+.reservation-readonly { border-inline-start:3px solid #788493; }
+.reservation-readonly-notice { padding:1rem; border:1px solid #788493; border-radius:.6rem; background:rgba(120,132,147,.12); }
+.reservation-tags { display:flex; flex-wrap:wrap; gap:.5rem; }
+.reservation-access-label { color:var(--accent-pink, #ff4ca6); }
+.reservation-customer-picker { display:grid; gap:.5rem; min-width:0; }
+.reservation-editor { margin-block:1rem; }
+.reservation-review { overflow-wrap:anywhere; }
+.reservation-filters { flex-wrap:wrap; }
+.reservation-filters label, .reservation-filters .reservation-customer-picker { min-width:10rem; flex:1; }
+@media (max-width:640px) {
+  .reservation-filters, .reservation-filters .reservation-customer-picker { display:grid; grid-template-columns:1fr; width:100%; }
+  .reservation-tags { grid-column:1 / -1; }
+  .reservation-scope .ui-button { flex:1; }
+}

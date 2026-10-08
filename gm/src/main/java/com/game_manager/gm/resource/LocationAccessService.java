@@ -22,6 +22,7 @@ public class LocationAccessService {
     private final LocationRepository locations;
     private final AuditWriter audit;
     private final Clock clock;
+    private final ResourceAccessService resourceAccess;
 
     public record Assignment(UUID employeeId, boolean active, Long version) {}
     public record AssignmentRequest(@NotNull Boolean active, @Min(0) Long version) {}
@@ -66,6 +67,14 @@ public class LocationAccessService {
         audit.write("EMPLOYEE_LOCATION_ACCESS_CHANGED", "LOCATION", locationId,
                 existing.map(value -> Map.<String,Object>of("employeeId", employeeId, "active", value.active())).orElse(null),
                 Map.of("employeeId", employeeId, "active", request.active()), null, AuditVisibility.MANAGEMENT);
+        // Keep the existing location assignment endpoint as an explicit bulk grant/revoke.
+        // Authorization itself always reads individual station assignments.
+        List<UUID> ids=jdbc.query("SELECT r.id FROM physical_resources r JOIN areas a ON a.id=r.area_id WHERE a.location_id=? ORDER BY r.id",
+                (row,index)->UUID.fromString(row.getString(1)),locationId.toString());
+        for(UUID resourceId:ids){
+            var current=resourceAccess.list(resourceId).stream().filter(value->value.employeeId().equals(employeeId)).findFirst();
+            resourceAccess.set(resourceId,employeeId,new ResourceAccessService.AssignmentRequest(request.active(),current.map(ResourceAccessService.Assignment::version).orElse(null)));
+        }
         return new Assignment(employeeId, request.active(), nextVersion);
     }
 

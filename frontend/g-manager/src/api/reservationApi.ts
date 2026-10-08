@@ -2,6 +2,8 @@ import { apiClient } from './client'
 import type { PageResponse } from '../types/api.types'
 import type {
   CreateReservationInput,
+  UpdateReservationInput,
+  ReservationScope,
   Reservation,
   ReservationDetail,
   ReservationStatus,
@@ -10,6 +12,7 @@ import type {
   RecurrencePreview,
   RecurrenceCreateResult,
 } from '../types/reservation.types'
+import type { BookingOptions } from '../types/resource.types'
 import type { BulkItem, BulkOperationResponse } from '../types/bulk.types'
 
 interface ReservationFilters {
@@ -17,6 +20,10 @@ interface ReservationFilters {
   size: number
   status?: ReservationStatus
   employeeId?: string
+  customerId?: string
+  resourceId?: string
+  locationId?: string
+  scope?: ReservationScope
   from?: string
   to?: string
   sort?: 'startTime' | 'status' | 'createdAt'
@@ -24,7 +31,7 @@ interface ReservationFilters {
 }
 
 export const reservationApi = {
-  calendar: (params: { employeeId?: string; from: string; to: string }) =>
+  calendar: (params: { employeeId?: string; from: string; to: string; scope?: ReservationScope; resourceId?: string; locationId?: string; customerId?: string; status?: ReservationStatus }) =>
     apiClient.get<CalendarReservation[]>('/reservations/calendar', { params }).then(({ data }) => data),
   create: (input: CreateReservationInput, idempotencyKey: string) =>
     apiClient.post<Reservation>('/reservations', input, {
@@ -44,6 +51,14 @@ export const reservationApi = {
       .then(({ data }) => data),
   detail: (id: string) =>
     apiClient.get<ReservationDetail>(`/reservations/${id}`).then(({ data }) => data),
+  update: (id: string, input: UpdateReservationInput) =>
+    apiClient.patch<Reservation>(`/reservations/${id}`, input).then(({ data }) => data),
+  resourceOptions: (id: string, startTime?: string) =>
+    apiClient.get<BookingOptions>(`/reservations/${id}/resources`, { params: { startTime } }).then(({ data }) => data),
+  assignResource: (reservation: Pick<Reservation, 'id' | 'version'>, resourceId: string) =>
+    apiClient.patch<Reservation>(`/reservations/${reservation.id}/resource`, {
+      resourceId, version: reservation.version,
+    }).then(({ data }) => data),
   changeStatus: (
     reservation: Pick<Reservation, 'id' | 'version'>,
     status: ReservationStatus,

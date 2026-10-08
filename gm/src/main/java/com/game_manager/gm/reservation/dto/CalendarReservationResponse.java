@@ -17,5 +17,5 @@ public record CalendarReservationResponse(
         Long version,
         List<ReservationStatus> allowedActions,
         UUID resourceId,
-        String resourceName) {
+        String resourceName, String resourceCode, String locationName, boolean canManage, boolean readOnly) {
 }

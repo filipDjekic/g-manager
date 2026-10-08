@@ -7,7 +7,6 @@ import com.game_manager.gm.catalog.ItemType;
 import com.game_manager.gm.common.dto.PageResponse;
 import com.game_manager.gm.common.config.PageRequestFactory;
 import com.game_manager.gm.common.error.ApplicationException;
-import com.game_manager.gm.common.config.GManagerProperties;
 import com.game_manager.gm.reservation.dto.ChangeReservationStatusRequest;
 import com.game_manager.gm.reservation.dto.CreateReservationRequest;
 import com.game_manager.gm.reservation.dto.ReservationResponse;
@@ -59,8 +58,7 @@ public class ReservationService {
     private final CatalogService catalogService;
     private final WorkingHoursService workingHoursService;
     private final CurrentUserProvider currentUserProvider;
-    private final GManagerProperties properties;
-    private final PageRequestFactory pageRequestFactory;
+        private final PageRequestFactory pageRequestFactory;
     private final ReservationTransitionPolicy transitionPolicy;
     private final ReservationAvailabilityPolicy availabilityPolicy;
     private final AuditWriter auditWriter;
@@ -68,16 +66,29 @@ public class ReservationService {
     private final OutboxWriter outboxWriter;
     private final Clock clock;
     private final ResourceManagementService resourceService;
+    private final com.game_manager.gm.resource.ResourceAccessService resourceAccess;
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     @PreAuthorize("hasAuthority('RESERVATION_CREATE')")
     public ReservationResponse create(CreateReservationRequest request) {
-        AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
-        if (actor.role() != Role.CUSTOMER) {
-            throw new ApplicationException(
-                    HttpStatus.FORBIDDEN, "Only customers can create reservations");
+        return createForCustomer(resolveBookingCustomer(request.customerId()), request, null);
+    }
+
+    UUID resolveBookingCustomer(UUID requestedCustomerId) {
+        AuthenticatedUser actor=currentUserProvider.requireCurrentUser();
+        UUID customerId;
+        if (actor.role()==Role.CUSTOMER) {
+            if (requestedCustomerId!=null && !actor.id().equals(requestedCustomerId))
+                throw new ApplicationException(HttpStatus.FORBIDDEN,"Customer access is required");
+            customerId=actor.id();
+        } else {
+            if (requestedCustomerId==null) throw new ApplicationException(HttpStatus.BAD_REQUEST,"Customer is required");
+            customerId=requestedCustomerId;
         }
-        return createForCustomer(actor.id(), request, null);
+        userRepository.findById(customerId)
+                .filter(value -> value.getRole()==Role.CUSTOMER && value.isActive() && !value.isDeleted())
+                .orElseThrow(() -> new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Customer is not available for booking"));
+        return customerId;
     }
 
     ReservationResponse createForCustomer(
@@ -93,13 +104,17 @@ public class ReservationService {
                     HttpStatus.UNPROCESSABLE_ENTITY, "Catalog item is not a service");
         }
         Instant endTime = request.startTime().plus(service.getDurationMinutes(), ChronoUnit.MINUTES);
+        AuthenticatedUser actor=currentUserProvider.requireCurrentUser();
+        Set<UUID> allowed=actor.role()==Role.EMPLOYEE ? resourceAccess.assignedResources(actor) : null;
+        if(actor.role()==Role.EMPLOYEE) resourceAccess.requireManageForUpdate(actor,
+                request.resourceId()==null ? allowed : java.util.Collections.singletonList(request.resourceId()),Permission.RESERVATION_CREATE);
         User employee = selectEmployee(request.employeeId(), request.startTime(), endTime);
-        PhysicalResource resource = null;
-        if (request.resourceId() != null) {
-            resource = resourceService.lockBookable(request.resourceId(), request.serviceId());
-            availabilityPolicy.requireResourceAvailable(resource.getId(), request.startTime(), endTime, null);
-        }
-        workingHoursService.validateWithinWorkingHours(resource == null ? null : resourceService.locationId(resource),
+        PhysicalResource resource = resourceService.selectForBooking(request.serviceId(), request.resourceId(),
+                request.locationId(), request.startTime(), endTime,allowed);
+        if (actor.role()!=Role.CUSTOMER) resourceAccess.requireManageForUpdate(actor,
+                java.util.Collections.singletonList(resource==null ? null : resource.getId()),Permission.RESERVATION_CREATE);
+        if(resource==null && request.locationId()!=null) resourceService.requireActiveLocation(request.locationId());
+        workingHoursService.validateWithinWorkingHours(resource == null ? request.locationId() : resourceService.locationId(resource),
                 request.startTime(), endTime);
 
         Reservation reservation = new Reservation();
@@ -110,6 +125,7 @@ public class ReservationService {
             reservation.setResourceId(resource.getId());
             reservation.setLocationId(resourceService.locationId(resource));
         }
+        if(resource==null) reservation.setLocationId(request.locationId());
         reservation.setRecurrenceSeriesId(recurrenceSeriesId);
         reservation.setStartTime(request.startTime());
         reservation.setEndTime(endTime);
@@ -118,7 +134,7 @@ public class ReservationService {
         Reservation saved = reservationRepository.saveAndFlush(reservation);
         outboxWriter.write(DomainEventType.RESERVATION_CREATED, "RESERVATION", saved.getId(),
                 java.util.Map.of("status", saved.getStatus().name()));
-        return ReservationResponse.from(saved);
+        return response(saved);
     }
 
     @Transactional(readOnly = true)
@@ -149,14 +165,15 @@ public class ReservationService {
             int size,
             String sort,
             String direction) {
-        AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
-        if (actor.role() == Role.EMPLOYEE) {
-            employeeId = actor.id();
-        } else if (actor.role() != Role.ADMIN && actor.role() != Role.OWNER) {
-            throw new ApplicationException(
-                    HttpStatus.FORBIDDEN, "Reservation management is not permitted");
-        }
-        return listInternal(null, employeeId, status, from, to, page, size, sort, direction);
+        return listAll(employeeId,status,from,to,page,size,sort,direction,ReservationScope.ALL,null,null,null);
+    }
+
+    @Transactional(readOnly=true)
+    @PreAuthorize("hasAuthority('RESERVATION_READ_ALL')")
+    public PageResponse<ReservationResponse> listAll(UUID employeeId, ReservationStatus status, LocalDate from,
+            LocalDate to,int page,int size,String sort,String direction,ReservationScope scope,
+            UUID resourceId,UUID locationId,UUID customerId) {
+        return listInternal(customerId,employeeId,status,from,to,page,size,sort,direction,scope,resourceId,locationId);
     }
 
     @Transactional(readOnly = true)
@@ -166,33 +183,27 @@ public class ReservationService {
             throw new ApplicationException(HttpStatus.BAD_REQUEST,
                     "Calendar range must contain between 1 and 93 days");
         }
-        AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
-        UUID scopedEmployeeId;
-        if (actor.role() == Role.EMPLOYEE) {
-            scopedEmployeeId = actor.id();
-        } else if (actor.role() == Role.ADMIN || actor.role() == Role.OWNER) {
-            scopedEmployeeId = employeeId;
-        } else {
-            throw new ApplicationException(HttpStatus.FORBIDDEN,
-                    "Reservation calendar is not permitted");
-        }
-        ZoneId zone = workingHoursService.getBusinessZone();
-        List<Reservation> reservations = reservationRepository.findCalendarBetween(
-                from.atStartOfDay(zone).toInstant(), to.plusDays(1).atStartOfDay(zone).toInstant(),
-                scopedEmployeeId);
-        Map<UUID, User> users = userRepository.findAllById(reservations.stream()
-                .flatMap(value -> java.util.stream.Stream.of(value.getEmployeeId(), value.getCustomerId()))
-                .collect(Collectors.toSet())).stream()
-                .collect(Collectors.toMap(User::getId, Function.identity()));
-        Map<UUID, CatalogReference> services = catalogService.getReferences(reservations.stream()
-                .map(Reservation::getServiceId).collect(Collectors.toSet()));
-        Map<UUID,String> resourceNames = resourceService.resourceNames(reservations.stream()
-                .map(Reservation::getResourceId).filter(java.util.Objects::nonNull).collect(Collectors.toSet()));
-        return reservations.stream().map(value -> new CalendarReservationResponse(
-                value.getId(), value.getEmployeeId(), users.get(value.getEmployeeId()).getName(),
-                users.get(value.getCustomerId()).getName(), services.get(value.getServiceId()).name(),
-                value.getStartTime(), value.getEndTime(), value.getStatus(), value.getVersion(),
-                transitionPolicy.allowedActions(actor, value), value.getResourceId(), value.getResourceId() == null ? null : resourceNames.get(value.getResourceId()))).toList();
+        return calendar(employeeId,from,to,ReservationScope.ALL,null,null,null,null);
+    }
+
+    @Transactional(readOnly=true)
+    @PreAuthorize("hasAuthority('RESERVATION_READ_ALL')")
+    public List<CalendarReservationResponse> calendar(UUID employeeId,LocalDate from,LocalDate to,
+            ReservationScope scope,UUID resourceId,UUID locationId,UUID customerId,ReservationStatus status) {
+        if(from==null||to==null||from.isAfter(to)||from.plusDays(92).isBefore(to))
+            throw new ApplicationException(HttpStatus.BAD_REQUEST,"Calendar range must contain between 1 and 93 days");
+        ZoneId zone=workingHoursService.getBusinessZone();
+        Specification<Reservation> filter=scopeFilter(scope,resourceId,locationId)
+                .and(ReservationSpecifications.hasEmployee(employeeId)).and(ReservationSpecifications.hasCustomer(customerId))
+                .and(ReservationSpecifications.hasStatus(status))
+                .and(ReservationSpecifications.startsFrom(from.atStartOfDay(zone).toInstant()))
+                .and(ReservationSpecifications.startsBefore(to.plusDays(1).atStartOfDay(zone).toInstant()));
+        List<Reservation> values=reservationRepository.findAll(filter,org.springframework.data.domain.Sort.by("startTime"));
+        return responses(values).values().stream().sorted(java.util.Comparator.comparing(ReservationResponse::startTime))
+                .map(value -> new CalendarReservationResponse(value.id(),value.employeeId(),value.employeeName(),
+                        value.customerName(),value.serviceName(),value.startTime(),value.endTime(),value.status(),
+                        value.version(),value.allowedActions(),value.resourceId(),value.resourceName(),value.resourceCode(),
+                        value.locationName(),value.canManage(),value.readOnly())).toList();
     }
 
     @Transactional(readOnly = true)
@@ -203,7 +214,7 @@ public class ReservationService {
                 .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND, "Reservation not found"));
         boolean management = actor.role() == Role.ADMIN || actor.role() == Role.OWNER;
         boolean visible = management
-                || actor.role() == Role.EMPLOYEE && actor.id().equals(reservation.getEmployeeId())
+                || actor.role() == Role.EMPLOYEE
                 || actor.role() == Role.CUSTOMER && actor.id().equals(reservation.getCustomerId());
         if (!visible) {
             throw new ApplicationException(HttpStatus.NOT_FOUND, "Reservation not found");
@@ -213,23 +224,31 @@ public class ReservationService {
                 .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND, "Customer not found"));
         User employee = userRepository.findById(reservation.getEmployeeId())
                 .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND, "Employee not found"));
-        CatalogReference service = catalogService.getReference(reservation.getServiceId());
-        List<ReservationStatus> actions = transitionPolicy.allowedActions(actor, reservation);
+        CatalogReference service = catalogService.getReferences(Set.of(reservation.getServiceId())).get(reservation.getServiceId());
+        if (service == null) throw new ApplicationException(HttpStatus.NOT_FOUND,"Catalog item not found");
+        boolean canManage=resourceAccess.canManage(actor,reservation.getResourceId());
+        boolean readOnly=actor.role()==Role.EMPLOYEE && !canManage;
+        List<ReservationStatus> actions = transitionPolicy.allowedActions(actor, reservation,
+                resourceService.requiresResource(reservation.getServiceId()),canManage);
         boolean canSeeContact = RolePermissions.has(actor.role(), Permission.USER_LIST);
         List<ReservationHistoryResponse> history = auditHistoryReader
                 .findStatusTransitions("RESERVATION", reservation.getId()).stream()
                 .map(item -> new ReservationHistoryResponse(
-                        item.fromStatus(), item.toStatus(), item.reason(), item.occurredAt()))
+                        item.fromStatus(), item.toStatus(), readOnly ? null : item.reason(), item.occurredAt()))
                 .toList();
+        ReservationResponse enriched = response(reservation);
         return new ReservationDetailResponse(
-                reservation.getId(), customer.getName(), canSeeContact ? customer.getEmail() : null,
+                reservation.getId(), readOnly ? "Klijent" : customer.getName(), canSeeContact ? customer.getEmail() : null,
                 employee.getName(), service.name(), service.durationMinutes(),
                 reservation.getStartTime(), reservation.getEndTime(), reservation.getStatus(),
-                reservation.getNote(), reservation.getCreatedAt(), reservation.getUpdatedAt(),
-                reservation.getVersion(), actions, history);
+                readOnly ? null : reservation.getNote(), reservation.getCreatedAt(), reservation.getUpdatedAt(),
+                reservation.getVersion(), actions, history, reservation.getServiceId(), reservation.getLocationId(),
+                enriched.locationName(), reservation.getResourceId(), enriched.resourceCode(),
+                enriched.resourceName(), resourceService.requiresResource(reservation.getServiceId()),
+                transitionPolicy.canAssignResource(actor,reservation),canManage,readOnly,canEdit(actor,reservation,canManage));
     }
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     @PreAuthorize("hasAuthority('RESERVATION_CHANGE_STATUS')")
     public ReservationResponse changeStatus(
             UUID id, ChangeReservationStatusRequest request) {
@@ -237,20 +256,23 @@ public class ReservationService {
         Reservation reservation = reservationRepository.findById(id)
                 .orElseThrow(() -> new ApplicationException(
                         HttpStatus.NOT_FOUND, "Reservation not found"));
+        if(actor.role()!=Role.CUSTOMER) resourceAccess.requireManageForUpdate(actor,
+                java.util.Collections.singletonList(reservation.getResourceId()),Permission.RESERVATION_CHANGE_STATUS);
         requireVersion(reservation, request.version());
-        transitionPolicy.requireTransition(actor, reservation, request.status(), request.reason());
+        transitionPolicy.requireTransition(actor, reservation, request.status(), request.reason(),
+                resourceService.requiresResource(reservation.getServiceId()),resourceAccess.canManage(actor,reservation.getResourceId()));
         ReservationStatus previousStatus = reservation.getStatus();
 
         if (request.status() == ReservationStatus.CONFIRMED) {
             userRepository.findByIdForUpdate(reservation.getEmployeeId())
                     .orElseThrow(() -> new ApplicationException(
                             HttpStatus.NOT_FOUND, "Employee not found"));
-            availabilityPolicy.requireAvailable(
+            availabilityPolicy.requireAvailableForUpdate(
                     reservation.getEmployeeId(), reservation.getStartTime(),
                     reservation.getEndTime(), reservation.getId());
             if (reservation.getResourceId() != null) {
                 resourceService.lockBookable(reservation.getResourceId(), reservation.getServiceId());
-                availabilityPolicy.requireResourceAvailable(reservation.getResourceId(),
+                availabilityPolicy.requireResourceAvailableForUpdate(reservation.getResourceId(),
                         reservation.getStartTime(), reservation.getEndTime(), reservation.getId());
             }
         }
@@ -264,7 +286,131 @@ public class ReservationService {
         outboxWriter.write(DomainEventType.RESERVATION_STATUS_CHANGED, "RESERVATION", saved.getId(),
                 java.util.Map.of("previousStatus", previousStatus.name(),
                         "status", saved.getStatus().name()));
-        return ReservationResponse.from(saved);
+        return response(saved);
+    }
+
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
+    @PreAuthorize("hasAuthority('RESERVATION_CHANGE_STATUS')")
+    public ReservationResponse assignResource(UUID id,
+            com.game_manager.gm.reservation.dto.AssignReservationResourceRequest request) {
+        AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
+        Reservation reservation = reservationRepository.findById(id)
+                .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND,"Reservation not found"));
+        resourceAccess.requireManageForUpdate(actor,java.util.Arrays.asList(reservation.getResourceId(),request.resourceId()),Permission.RESERVATION_CHANGE_STATUS);
+        requireVersion(reservation,request.version());
+        transitionPolicy.requireResourceAssignment(actor,reservation);
+        userRepository.findByIdForUpdate(reservation.getEmployeeId())
+                .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND,"Employee not found"));
+        PhysicalResource resource = resourceService.lockBookable(request.resourceId(),reservation.getServiceId());
+        UUID locationId = resourceService.locationId(resource);
+        workingHoursService.validateWithinWorkingHours(locationId,reservation.getStartTime(),reservation.getEndTime());
+        availabilityPolicy.requireResourceAvailableForUpdate(resource.getId(),reservation.getStartTime(),
+                reservation.getEndTime(),reservation.getId());
+        reservation.setResourceId(resource.getId());
+        reservation.setLocationId(locationId);
+        Reservation saved = reservationRepository.saveAndFlush(reservation);
+        auditWriter.write("RESERVATION_RESOURCE_ASSIGNED","RESERVATION",id,Map.of("resourceAssigned",false),
+                Map.of("resourceId",resource.getId(),"locationId",locationId),null,AuditVisibility.MANAGEMENT);
+        return response(saved);
+    }
+
+    @Transactional(isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
+    @PreAuthorize("hasAuthority('RESERVATION_CHANGE_STATUS')")
+    public ReservationResponse update(UUID id,com.game_manager.gm.reservation.dto.UpdateReservationRequest request) {
+        AuthenticatedUser actor=currentUserProvider.requireCurrentUser();
+        Reservation value=reservationRepository.findById(id)
+                .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND,"Reservation not found"));
+        UUID target=request.resourceId()==null ? value.getResourceId() : request.resourceId();
+        resourceAccess.requireManageForUpdate(actor,java.util.Arrays.asList(value.getResourceId(),target),Permission.RESERVATION_CHANGE_STATUS);
+        requireVersion(value,request.version());
+        if(!canEdit(actor,value,true)) throw new ApplicationException(HttpStatus.CONFLICT,"Only upcoming active reservations can be edited");
+        Instant start=request.startTime()==null ? value.getStartTime() : request.startTime();
+        if(!start.isAfter(clock.instant())) throw new ApplicationException(HttpStatus.BAD_REQUEST,"Reservation must be in the future");
+        Instant end=start.plus(java.time.Duration.between(value.getStartTime(),value.getEndTime()));
+        if(target==null && resourceService.requiresResource(value.getServiceId()))
+            throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Assign a compatible physical resource before editing");
+        userRepository.findByIdForUpdate(value.getEmployeeId())
+                .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND,"Employee not found"));
+        availabilityPolicy.requireAvailableForUpdate(value.getEmployeeId(),start,end,id);
+        PhysicalResource selected=null;
+        Set<UUID> locks=new java.util.TreeSet<>();
+        if(value.getResourceId()!=null) locks.add(value.getResourceId());
+        if(target!=null) locks.add(target);
+        for(UUID resourceId:locks){
+            PhysicalResource locked=resourceId.equals(target)?resourceService.lockBookable(resourceId,value.getServiceId()):resourceService.lockResource(resourceId);
+            if(resourceId.equals(target)) selected=locked;
+        }
+        // Resource mutexes also serialize this check with session start.
+        if(reservationRepository.activeSessionCount(id.toString())>0)
+            throw new ApplicationException(HttpStatus.CONFLICT,"Reservation has an active gaming session");
+        UUID location=selected==null ? value.getLocationId() : resourceService.locationId(selected);
+        workingHoursService.validateWithinWorkingHours(location,start,end);
+        if(target!=null) availabilityPolicy.requireResourceAvailableForUpdate(target,start,end,id);
+        Map<String,Object> before=new java.util.LinkedHashMap<>();
+        before.put("startTime",value.getStartTime());before.put("endTime",value.getEndTime());before.put("resourceId",value.getResourceId());
+        value.setStartTime(start);value.setEndTime(end);value.setResourceId(target);value.setLocationId(location);
+        if(request.note()!=null) value.setNote(normalizeNote(request.note()));
+        Reservation saved=reservationRepository.saveAndFlush(value);
+        Map<String,Object> after=new java.util.LinkedHashMap<>();
+        after.put("startTime",start);after.put("endTime",end);after.put("resourceId",target);
+        auditWriter.write("RESERVATION_UPDATED","RESERVATION",id,before,after,null,AuditVisibility.MANAGEMENT);
+        return response(saved);
+    }
+
+    @Transactional(readOnly=true)
+    @PreAuthorize("hasAuthority('RESERVATION_READ_ALL')")
+    public com.game_manager.gm.resource.dto.BookingOptionsResponse resourceOptions(UUID id,Instant startTime) {
+        var actor=currentUserProvider.requireCurrentUser();
+        Reservation value=reservationRepository.findById(id)
+                .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND,"Reservation not found"));
+        resourceAccess.requireManage(actor,value.getResourceId(),Permission.RESERVATION_CHANGE_STATUS);
+        Instant start=startTime==null ? value.getStartTime() : startTime;
+        Instant end=start.plus(java.time.Duration.between(value.getStartTime(),value.getEndTime()));
+        return resourceService.bookingOptions(value.getServiceId(),null,start,end,
+                resourceAccess.allResources(actor)?null:resourceAccess.assignedResources(actor),id);
+    }
+
+
+    private boolean canEdit(AuthenticatedUser actor,Reservation value,boolean canManage) {
+        return actor.role()!=Role.CUSTOMER && canManage && value.getStartTime().isAfter(clock.instant())
+                && (value.getStatus()==ReservationStatus.PENDING || value.getStatus()==ReservationStatus.CONFIRMED);
+    }
+
+    private ReservationResponse response(Reservation value) {
+        return responses(List.of(value)).get(value.getId());
+    }
+
+    private Map<UUID,ReservationResponse> responses(List<Reservation> values) {
+        var actor=currentUserProvider.requireCurrentUser();
+        Set<UUID> assigned=resourceAccess.assignedResources(actor);
+        var resources=resourceService.resourceReferences(values.stream().map(Reservation::getResourceId)
+                .filter(java.util.Objects::nonNull).collect(Collectors.toSet()));
+        var locations=resourceService.locationNames(values.stream().map(Reservation::getLocationId)
+                .filter(java.util.Objects::nonNull).collect(Collectors.toSet()));
+        var services=catalogService.getReferences(values.stream().map(Reservation::getServiceId).collect(Collectors.toSet()));
+        var requirements=resourceService.resourceRequirements(values.stream().map(Reservation::getServiceId).collect(Collectors.toSet()));
+        var users=userRepository.findAllById(values.stream().flatMap(v -> java.util.stream.Stream.of(v.getEmployeeId(),v.getCustomerId()))
+                .collect(Collectors.toSet())).stream().collect(Collectors.toMap(User::getId,Function.identity()));
+        Map<UUID,ReservationResponse> result=new java.util.LinkedHashMap<>();
+        for(Reservation value:values){
+            boolean canManage=resourceAccess.canManage(actor,value.getResourceId(),assigned);
+            boolean readOnly=actor.role()==Role.EMPLOYEE&&!canManage;
+            result.put(value.getId(),ReservationResponse.from(value,value.getResourceId()==null?null:resources.get(value.getResourceId()),value.getLocationId()==null?null:locations.get(value.getLocationId()),
+                    requirements.get(value.getServiceId()),services.get(value.getServiceId()).name(),
+                    readOnly ? "Klijent" : users.get(value.getCustomerId()).getName(),users.get(value.getEmployeeId()).getName(),
+                    canManage,readOnly,canEdit(actor,value,canManage),
+                    transitionPolicy.allowedActions(actor,value,requirements.get(value.getServiceId()),canManage)));
+        }
+        return result;
+    }
+
+    private Specification<Reservation> scopeFilter(ReservationScope scope,UUID resourceId,UUID locationId) {
+        var actor=currentUserProvider.requireCurrentUser();
+        Specification<Reservation> filter=ReservationSpecifications.hasResource(resourceId)
+                .and(ReservationSpecifications.hasLocation(locationId));
+        if(scope==ReservationScope.MANAGEABLE && actor.role()==Role.EMPLOYEE)
+            filter=filter.and(ReservationSpecifications.inResources(resourceAccess.assignedResources(actor)));
+        return filter;
     }
 
     private PageResponse<ReservationResponse> listInternal(
@@ -277,25 +423,29 @@ public class ReservationService {
             int size,
             String sort,
             String direction) {
+        return listInternal(customerId,employeeId,status,from,to,page,size,sort,direction,ReservationScope.ALL,null,null);
+    }
+
+    private PageResponse<ReservationResponse> listInternal(UUID customerId,UUID employeeId,ReservationStatus status,
+            LocalDate from,LocalDate to,int page,int size,String sort,String direction,
+            ReservationScope scope,UUID resourceId,UUID locationId) {
         validateDateRange(from, to);
         ZoneId zone = workingHoursService.getBusinessZone();
         Instant fromInstant = from == null ? null : from.atStartOfDay(zone).toInstant();
         Instant toInstant = to == null ? null : to.plusDays(1).atStartOfDay(zone).toInstant();
 
         Specification<Reservation> specification =
-                (root, query, builder) -> builder.conjunction();
+                scopeFilter(scope,resourceId,locationId);
         specification = specification
                 .and(ReservationSpecifications.hasCustomer(customerId))
                 .and(ReservationSpecifications.hasEmployee(employeeId))
                 .and(ReservationSpecifications.hasStatus(status))
                 .and(ReservationSpecifications.startsFrom(fromInstant))
                 .and(ReservationSpecifications.startsBefore(toInstant));
-        Page<ReservationResponse> result = reservationRepository
-                .findAll(
-                        specification,
-                        pageRequestFactory.create(page, size, sort, direction, ALLOWED_SORTS))
-                .map(ReservationResponse::from);
-        return PageResponse.from(result);
+        Page<Reservation> values = reservationRepository.findAll(specification,
+                pageRequestFactory.create(page, size, sort, direction, ALLOWED_SORTS));
+        Map<UUID,ReservationResponse> mapped=responses(values.getContent());
+        return PageResponse.from(values.map(value -> mapped.get(value.getId())));
     }
 
 
@@ -324,7 +474,7 @@ public class ReservationService {
                 throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,
                         "Selected user is not an active employee");
             }
-            availabilityPolicy.requireAvailable(employee.getId(), start, end, null);
+            availabilityPolicy.requireAvailableForUpdate(employee.getId(), start, end, null);
             return employee;
         }
         List<User> employees = userRepository.findActiveEmployeesForUpdate();
@@ -333,7 +483,7 @@ public class ReservationService {
                     "No active employees are available for booking");
         }
         return employees.stream()
-                .filter(employee -> availabilityPolicy.isAvailable(employee.getId(), start, end, null))
+                .filter(employee -> availabilityPolicy.isAvailableForUpdate(employee.getId(), start, end, null))
                 .findFirst()
                 .orElseThrow(() -> new ApplicationException(HttpStatus.CONFLICT,
                         "No employee is available at this time"));

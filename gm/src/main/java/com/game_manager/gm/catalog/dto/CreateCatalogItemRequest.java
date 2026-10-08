@@ -15,6 +15,11 @@ public record CreateCatalogItemRequest(
         @NotNull ItemType type,
         @NotNull @DecimalMin(value = "0.00", inclusive = false)
         @Digits(integer = 10, fraction = 2) BigDecimal price,
-        @Positive Integer durationMinutes
+        @Positive Integer durationMinutes,
+        Boolean requiresResource
 ) {
+    public CreateCatalogItemRequest(String name, String description, ItemType type,
+            BigDecimal price, Integer durationMinutes) {
+        this(name, description, type, price, durationMinutes, null);
+    }
 }

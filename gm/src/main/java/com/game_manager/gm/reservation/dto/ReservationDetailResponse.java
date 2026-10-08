@@ -20,5 +20,14 @@ public record ReservationDetailResponse(
         Instant updatedAt,
         Long version,
         List<ReservationStatus> allowedActions,
-        List<ReservationHistoryResponse> history
+        List<ReservationHistoryResponse> history,
+        UUID serviceId,
+        UUID locationId,
+        String locationName,
+        UUID resourceId,
+        String resourceCode,
+        String resourceName,
+        boolean resourceRequired,
+        boolean canAssignResource,
+        boolean canManage, boolean readOnly, boolean canEdit
 ) {}

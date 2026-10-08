@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("GManager.Client.Protocol")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5ce52092a5964e2dd2f4b5db39922abdabcb0901")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+bf1e496ebaa24d9f5e3bbdc580bf9b444c149afd")]
 [assembly: System.Reflection.AssemblyProductAttribute("GManager.Client.Protocol")]
 [assembly: System.Reflection.AssemblyTitleAttribute("GManager.Client.Protocol")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

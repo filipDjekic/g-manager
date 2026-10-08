@@ -39,6 +39,7 @@ public class GamingSessionService {
     public GamingSessionResponse start(StartGamingSessionRequest request) {
         AuthenticatedUser actor = currentUser.requireCurrentUser();
         Duration duration = transitions.startDuration(request.durationMinutes());
+        locations.requireResourceManagement(actor,request.resourceId(),Permission.GAMING_SESSION_START);
 
         // Every start locks customer first and resource second. This order is invariant.
         User customer = users.findByIdForUpdate(request.customerId())
@@ -48,7 +49,7 @@ public class GamingSessionService {
         PhysicalResource resource = resources.lockGamingStation(request.resourceId());
         stationReadiness.requireReadyForSession(resource.getId());
         UUID locationId = resources.locationId(resource);
-        locations.requireAccess(actor, locationId);
+
         if (sessions.existsByCustomerIdAndStatus(customer.getId(), GamingSessionStatus.ACTIVE))
             throw new ApplicationException(HttpStatus.CONFLICT, "Customer already has an active gaming session");
         if (sessions.existsByResourceIdAndStatus(resource.getId(), GamingSessionStatus.ACTIVE))
@@ -78,7 +79,7 @@ public class GamingSessionService {
     @PreAuthorize("hasAuthority('GAMING_SESSION_EXTEND')")
     public GamingSessionResponse extend(UUID id, ExtendGamingSessionRequest request) {
         AuthenticatedUser actor = currentUser.requireCurrentUser();
-        GamingSession session = locked(id); locations.requireAccess(actor, session.getLocationId());
+        GamingSession session = locked(id); locations.requireResourceManagement(actor, session.getResourceId(),Permission.GAMING_SESSION_EXTEND);
         version(session, request.version()); Instant previousEnd = session.getEndsAt();
         session.setEndsAt(transitions.extendedEnd(session, request.minutes()));
         session = sessions.saveAndFlush(session);
@@ -98,7 +99,7 @@ public class GamingSessionService {
     @PreAuthorize("hasAuthority('GAMING_SESSION_TERMINATE')")
     public GamingSessionResponse terminate(UUID id, TerminateGamingSessionRequest request) {
         AuthenticatedUser actor = currentUser.requireCurrentUser();
-        GamingSession session = locked(id); locations.requireAccess(actor, session.getLocationId());
+        GamingSession session = locked(id); locations.requireResourceManagement(actor, session.getResourceId(),Permission.GAMING_SESSION_TERMINATE);
         version(session, request.version()); transitions.requireActive(session); Instant now = clock.instant();
         session.setStatus(GamingSessionStatus.TERMINATED); session.setEndedAt(now);
         session.setTerminationReason(request.reason().trim()); session = sessions.saveAndFlush(session);
@@ -121,7 +122,7 @@ public class GamingSessionService {
         AuthenticatedUser actor = currentUser.requireCurrentUser();
         GamingSession session = sessions.findById(id)
                 .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND, "Gaming session not found"));
-        locations.requireAccess(actor, session.getLocationId());
+        locations.requireResourceAccess(actor, session.getResourceId());
         return GamingSessionResponse.from(session, clock.instant());
     }
 
@@ -129,8 +130,10 @@ public class GamingSessionService {
     @PreAuthorize("hasAuthority('GAMING_SESSION_READ')")
     public List<GamingSessionResponse> active() {
         AuthenticatedUser actor = currentUser.requireCurrentUser(); Instant now = clock.instant();
+        Set<UUID> assigned=locations.assignedResources(actor);
+        boolean all=actor.role()==Role.OWNER || actor.role()==Role.ADMIN;
         return sessions.findByStatusOrderByStartedAtDesc(GamingSessionStatus.ACTIVE).stream()
-                .filter(value -> locations.canAccess(actor, value.getLocationId()))
+                .filter(value -> all || assigned.contains(value.getResourceId()))
                 .map(value -> GamingSessionResponse.from(value, now)).toList();
     }
 
@@ -149,7 +152,7 @@ public class GamingSessionService {
     public List<GamingSessionVisitResponse> customerVisits(UUID customerId) {
         AuthenticatedUser actor = currentUser.requireCurrentUser();
         boolean all = actor.role() == Role.OWNER || actor.role() == Role.ADMIN;
-        Set<UUID> assigned = locations.assignedLocations(actor);
+        Set<UUID> assigned = locations.assignedResources(actor);
         if (!all && assigned.isEmpty()) return List.of();
         return sessions.customerVisits(customerId, all, all ? List.of(actor.id()) : assigned, clock.instant(),
                 org.springframework.data.domain.PageRequest.of(0, 20));

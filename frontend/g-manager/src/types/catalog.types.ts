@@ -7,6 +7,7 @@ export interface CatalogItem {
   type: ItemType
   price: number
   durationMinutes: number | null
+  requiresResource?: boolean
   active: boolean
   imageUrl: string | null
   createdAt: string
@@ -23,6 +24,7 @@ export interface CatalogItemInput {
   type: ItemType
   price: number
   durationMinutes?: number
+  requiresResource?: boolean
 }
 
 export interface CatalogItemUpdate extends Partial<CatalogItemInput> {

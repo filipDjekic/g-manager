@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, useState } from 'react'
 import { apiErrorMessage } from '../api/client'
+import { ResourceEmployees } from '../resources/ResourceEmployees'
 import { stationApi } from '../api/stationApi'
 import { hasCapability } from '../auth/capabilities'
 import { useAuthStore } from '../auth/authStore'
@@ -20,6 +21,7 @@ export function StationsPage() {
   const definitions = useQuery({ queryKey:['stations','applications'], queryFn:stationApi.definitions })
   const profiles = useQuery({ queryKey:['stations','profiles'], queryFn:stationApi.profiles })
   const clientPackage = useQuery({ queryKey:['stations','client-package'], queryFn:stationApi.clientPackage })
+  const [resourceEmployees,setResourceEmployees]=useState<StationOverview|null>(null)
   const [stationEdit, setStationEdit] = useState<StationOverview|null>(null)
   const [definitionEdit, setDefinitionEdit] = useState<ApplicationDefinition|null|undefined>(undefined)
   const [profileEdit, setProfileEdit] = useState<ApplicationProfile|null|undefined>(undefined)
@@ -115,6 +117,7 @@ export function StationsPage() {
           <td>{station.applicationProfileName ?? 'Nije dodeljen'}{station.configurationVersion > 0 && <small> v{station.configurationVersion}</small>}</td>
           <td>{station.clientEnabled ? station.lastHeartbeatAt ? `Poslednji heartbeat ${station.lastHeartbeatAt}` : 'Čeka prvi heartbeat' : 'Isključen'}</td>
           {(maintain||machineManage) && <td><div className="form-actions">{maintain&&<Button variant="secondary" onClick={() => setStationEdit(station)}>Podesi</Button>}
+            {hasCapability(user,'RESOURCE_MANAGE')&&<Button variant="secondary" onClick={()=>setResourceEmployees(station)}>Zaposleni</Button>}
             {machineManage&&<Button variant="secondary" onClick={()=>{setMachineStation(station);setEnrollment(null)}}>Machine identitet</Button>}</div></td>}</tr>)}</tbody></table></TableShell>}
 
     {manage && <section className="panel"><h2>Allowed applications</h2>
@@ -128,6 +131,7 @@ export function StationsPage() {
         <div className="form-actions"><Button variant="secondary" onClick={() => openProfile(value)}>Izmeni</Button>
           <Button variant="danger" onClick={() => void deleteProfile(value)}>Obriši</Button></div></article>)}</section>}
 
+    {resourceEmployees&&<ResourceEmployees resourceId={resourceEmployees.resourceId} resourceName={resourceEmployees.resourceName} onClose={()=>setResourceEmployees(null)}/>}
     <Modal open={stationEdit !== null} title={`Podesi ${stationEdit?.resourceName ?? 'stanicu'}`} onClose={() => setStationEdit(null)}>
       {stationEdit && <form className="form-grid" onSubmit={saveStation}><label>Operativno stanje<select name="status" defaultValue={stationEdit.operationalStatus}>
         <option value="AVAILABLE">AVAILABLE</option><option value="MAINTENANCE">MAINTENANCE</option><option value="RETIRED">RETIRED</option></select></label>

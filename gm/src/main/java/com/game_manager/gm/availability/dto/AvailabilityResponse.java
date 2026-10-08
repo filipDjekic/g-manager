@@ -14,5 +14,6 @@ public record AvailabilityResponse(
         LocalDate to,
         List<EmployeeAvailabilityResponse> employees,
         UUID resourceId,
-        String resourceName
+        String resourceName,
+        boolean resourceRequired
 ) {}

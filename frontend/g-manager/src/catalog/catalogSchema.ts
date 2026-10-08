@@ -6,6 +6,7 @@ export const catalogItemSchema = z.object({
   type: z.enum(['PRODUCT', 'SERVICE']),
   price: z.number().positive('Cena mora biti veća od nule.'),
   durationMinutes: z.number().int().positive().optional(),
+  requiresResource: z.boolean().optional(),
 }).superRefine((value, context) => {
   if (value.type === 'SERVICE' && value.durationMinutes === undefined) {
     context.addIssue({

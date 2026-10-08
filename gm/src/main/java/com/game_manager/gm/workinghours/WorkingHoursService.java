@@ -150,12 +150,12 @@ public class WorkingHoursService {
                 exceptionAuditData(exception), null, "Explicit deletion", AuditVisibility.MANAGEMENT);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, noRollbackFor = ApplicationException.class)
     public void validateWithinWorkingHours(Instant startTime, Instant endTime) {
         validateWithinWorkingHours(null, startTime, endTime);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, noRollbackFor = ApplicationException.class)
     public void validateWithinWorkingHours(UUID locationId, Instant startTime, Instant endTime) {
         if (startTime == null || endTime == null || !endTime.isAfter(startTime)) {
             throw new ApplicationException(HttpStatus.BAD_REQUEST, "Reservation interval is not valid");

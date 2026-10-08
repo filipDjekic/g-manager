@@ -11,9 +11,32 @@ import org.springframework.data.repository.query.Param;
 
 public interface ReservationRepository
         extends JpaRepository<Reservation, UUID>, JpaSpecificationExecutor<Reservation> {
+    @Query(value="SELECT COUNT(*) FROM gaming_sessions WHERE reservation_id=:reservationId AND status='ACTIVE'",nativeQuery=true)
+    long activeSessionCount(@Param("reservationId") String reservationId);
+
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("select r from Reservation r where r.id = :id")
     java.util.Optional<Reservation> findByIdForUpdate(@Param("id") UUID id);
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select r from Reservation r where r.employeeId=:employeeId
+              and r.status not in :excludedStatuses and r.startTime<:endTime and r.endTime>:startTime
+              and (:excludeId is null or r.id<>:excludeId)
+            """)
+    List<Reservation> findConflictingForUpdate(@Param("employeeId") UUID employeeId,
+            @Param("startTime") Instant startTime, @Param("endTime") Instant endTime,
+            @Param("excludedStatuses") List<ReservationStatus> excludedStatuses, @Param("excludeId") UUID excludeId);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select r from Reservation r where r.resourceId=:resourceId
+              and r.status not in :excludedStatuses and r.startTime<:endTime and r.endTime>:startTime
+              and (:excludeId is null or r.id<>:excludeId)
+            """)
+    List<Reservation> findResourceConflictingForUpdate(@Param("resourceId") UUID resourceId,
+            @Param("startTime") Instant startTime, @Param("endTime") Instant endTime,
+            @Param("excludedStatuses") List<ReservationStatus> excludedStatuses, @Param("excludeId") UUID excludeId);
+
     @Query("""
             select r from Reservation r
             where r.employeeId = :employeeId
