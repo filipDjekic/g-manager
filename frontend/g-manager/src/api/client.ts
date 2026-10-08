@@ -18,7 +18,7 @@ const OFFLINE_READ_PATHS = ['/catalog', '/working-hours', '/reports/definitions'
 const offlineKey = (url = '', params: unknown) => `${url}?${JSON.stringify(params ?? {})}`
 const canCache = (url = '') => OFFLINE_READ_PATHS.some((path) => url === path || url.startsWith(`${path}?`))
 
-async function refreshAccessToken(): Promise<string | null> {
+export async function refreshAccessToken(): Promise<string | null> {
   if (!refreshPromise) {
     refreshPromise = publicClient
       .post<AuthResponse>('/auth/refresh')
@@ -26,8 +26,8 @@ async function refreshAccessToken(): Promise<string | null> {
         useAuthStore.getState().setSession(data.token, data.user)
         return data.token
       })
-      .catch(() => {
-        useAuthStore.getState().clearSession()
+      .catch((error: AxiosError) => {
+        if (error.response?.status === 401 || error.response?.status === 403) useAuthStore.getState().clearSession()
         return null
       })
       .finally(() => {
@@ -67,12 +67,16 @@ apiClient.interceptors.response.use(
         return { data: cached.value, status: 200, statusText: 'Offline cache', headers: { 'x-gmanager-stale': 'true' }, config: request }
       }
     }
-    if (error.response?.status === 401 && request && !request._authRetry) {
-      request._authRetry = true
-      const token = await refreshAccessToken()
-      if (token) {
-        request.headers.Authorization = `Bearer ${token}`
-        return apiClient(request)
+    if (error.response?.status === 401 && request) {
+      if (!request._authRetry) {
+        const token = await refreshAccessToken()
+        if (token) {
+          request._authRetry = true
+          request.headers.Authorization = `Bearer ${token}`
+          return apiClient(request)
+        }
+      } else if (request.headers.Authorization === `Bearer ${useAuthStore.getState().accessToken}`) {
+        useAuthStore.getState().clearSession()
       }
     }
     return Promise.reject(error)

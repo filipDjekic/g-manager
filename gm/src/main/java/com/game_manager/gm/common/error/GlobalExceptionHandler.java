@@ -16,6 +16,9 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import java.util.List;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.authentication.AuthenticationTrustResolverImpl;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -46,7 +49,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
     ResponseEntity<ApiError> handleAccessDenied(org.springframework.security.access.AccessDeniedException exception,
             HttpServletRequest request) {
-        return response(HttpStatus.FORBIDDEN, ErrorCode.ACCESS_DENIED, "Access is denied", List.of(), request);
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean authenticated = new AuthenticationTrustResolverImpl().isAuthenticated(authentication);
+        return authenticated
+                ? response(HttpStatus.FORBIDDEN, ErrorCode.ACCESS_DENIED, "Access is denied", List.of(), request)
+                : response(HttpStatus.UNAUTHORIZED, ErrorCode.AUTHENTICATION_REQUIRED,
+                        "Authentication is required", List.of(), request);
     }
 
     @ExceptionHandler(OptimisticLockingFailureException.class)
@@ -88,16 +96,46 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     ResponseEntity<ApiError> handleUnexpected(Exception exception, HttpServletRequest request) {
-        Object requestId = request.getAttribute(RequestIdFilter.REQUEST_ID_ATTRIBUTE);
-        log.error(
-                "Unexpected request failure [requestId={}, type={}]",
-                requestId,
-                exception.getClass().getSimpleName());
+        logUnexpected(exception, request);
         return response(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", request);
     }
 
+    @ExceptionHandler(AuthenticationException.class)
+    ResponseEntity<ApiError> handleAuthentication(AuthenticationException exception, HttpServletRequest request) {
+        return response(HttpStatus.UNAUTHORIZED, ErrorCode.AUTHENTICATION_REQUIRED,
+                "Authentication is required", List.of(), request);
+    }
+
+    static void logUnexpected(Exception exception, HttpServletRequest request) {
+        log.error("Unexpected request failure [requestId={}, method={}, uri={}, type={}]\n{}",
+                request.getAttribute(RequestIdFilter.REQUEST_ID_ATTRIBUTE),
+                request.getMethod(), request.getRequestURI().replace('\r', '_').replace('\n', '_'),
+                exception.getClass().getName(), diagnosticStack(exception));
+    }
+
+    // Exception messages can contain submitted credentials or database values. Retain every frame,
+    // cause and suppressed exception type without copying those messages into the log.
+    static String diagnosticStack(Throwable exception) {
+        StringBuilder output = new StringBuilder();
+        appendStack(exception, "", output, java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>()));
+        return output.toString();
+    }
+
+    private static void appendStack(Throwable exception, String prefix, StringBuilder output,
+            java.util.Set<Throwable> seen) {
+        output.append(prefix).append(exception.getClass().getName()).append('\n');
+        if (!seen.add(exception)) {
+            output.append("[circular reference]\n");
+            return;
+        }
+        for (StackTraceElement frame : exception.getStackTrace())
+            output.append("\tat ").append(frame).append('\n');
+        for (Throwable suppressed : exception.getSuppressed())
+            appendStack(suppressed, "Suppressed: ", output, seen);
+        if (exception.getCause() != null) appendStack(exception.getCause(), "Caused by: ", output, seen);
+    }
     private ResponseEntity<ApiError> response(HttpStatus status, String message, HttpServletRequest request) {
-        return ResponseEntity.status(status).body(apiErrorFactory.create(status, message, request));
+        return ResponseEntity.status(status).contentType(org.springframework.http.MediaType.APPLICATION_JSON).body(apiErrorFactory.create(status, message, request));
     }
 
     private ResponseEntity<ApiError> response(
@@ -106,7 +144,7 @@ public class GlobalExceptionHandler {
             String message,
             List<ApiFieldError> fieldErrors,
             HttpServletRequest request) {
-        return ResponseEntity.status(status)
+        return ResponseEntity.status(status).contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                 .body(apiErrorFactory.create(status, code, message, fieldErrors, request));
     }
 }

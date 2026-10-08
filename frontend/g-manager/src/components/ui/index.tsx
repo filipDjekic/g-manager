@@ -98,7 +98,9 @@ export function Modal({ open, title, children, onClose, initialFocusRef }: {
 }) {
   if (!open) return null
   // Keep fixed positioning relative to the viewport, outside filtered layout containers.
-  return createPortal(<div className="ui-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+  return createPortal(<div className="ui-overlay" onMouseDown={(event) => {
+    if (event.target === event.currentTarget) { event.preventDefault(); onClose() }
+  }}>
     <DialogSurface title={title} onClose={onClose} className="ui-dialog" initialFocusRef={initialFocusRef}>{children}</DialogSurface>
   </div>, document.body)
 }
@@ -109,9 +111,11 @@ export function Drawer({ open, title, children, onClose, returnFocusRef, size = 
   size?: 'standard' | 'wide'
 }) {
   if (!open) return null
-  return <div className="ui-overlay ui-overlay--drawer" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+  return createPortal(<div className="ui-overlay ui-overlay--drawer" onMouseDown={(event) => {
+    if (event.target === event.currentTarget) { event.preventDefault(); onClose() }
+  }}>
     <DialogSurface title={title} onClose={onClose} className={`ui-drawer${size === 'wide' ? ' ui-drawer--wide' : ''}`} returnFocusRef={returnFocusRef}>{children}</DialogSurface>
-  </div>
+  </div>, document.body)
 }
 
 export type StatusTone = 'neutral' | 'info' | 'accent' | 'success' | 'warning' | 'danger'

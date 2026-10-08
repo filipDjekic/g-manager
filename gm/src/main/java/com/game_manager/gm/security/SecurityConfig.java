@@ -3,6 +3,9 @@ package com.game_manager.gm.security;
 import com.game_manager.gm.common.error.ApiErrorFactory;
 import com.game_manager.gm.common.config.GManagerProperties;
 import com.game_manager.gm.feature.FeatureFlagHttpFilter;
+import jakarta.servlet.DispatcherType;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -53,12 +56,15 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .securityContext(context -> context.securityContextRepository(new RequestAttributeSecurityContextRepository()))
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint((request, response, exception) ->
                                 writeError(request, response, HttpStatus.UNAUTHORIZED, "Authentication is required"))
                         .accessDeniedHandler((request, response, exception) ->
                                 writeError(request, response, HttpStatus.FORBIDDEN, "Access is denied")))
                 .authorizeHttpRequests(authorize -> authorize
+                        // Container redispatches finish an already authorized request; REQUEST rules stay fail-closed.
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/liveness",
                                 "/actuator/health/readiness", "/actuator/prometheus").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
@@ -169,7 +175,7 @@ public class SecurityConfig {
                         .anyRequest().denyAll())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(machineAuthenticationFilter, JwtAuthenticationFilter.class)
-                .addFilterAfter(featureFlagHttpFilter, JwtAuthenticationFilter.class)
+                .addFilterAfter(featureFlagHttpFilter, AuthorizationFilter.class)
                 .headers(headers -> headers
                         .contentTypeOptions(contentType -> {})
                         .frameOptions(frame -> frame.deny())
@@ -216,7 +222,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(properties.corsAllowedOrigins());
         configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(java.util.List.of("Authorization", "Content-Type", "Idempotency-Key", "X-Request-Id"));
+        configuration.setAllowedHeaders(java.util.List.of("Authorization", "Content-Type", "Idempotency-Key", "X-Request-Id", "Last-Event-ID"));
         configuration.setExposedHeaders(java.util.List.of("X-Request-Id", "Idempotency-Replayed", "Retry-After"));
         configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -230,6 +236,7 @@ public class SecurityConfig {
             HttpStatus status,
             String message
     ) throws java.io.IOException {
+        if (response.isCommitted()) return;
         response.setStatus(status.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         objectMapper.writeValue(response.getOutputStream(), apiErrorFactory.create(status, message, request));

@@ -70,12 +70,37 @@ public class NotificationService implements OutboxConsumer {
         NotificationPreference value=preferences.findByRecipientIdAndType(id,type).orElseGet(NotificationPreference::new);value.setRecipientId(id);value.setType(type);
         value.setInAppEnabled(type.mandatory()||request.inAppEnabled());value.setEmailEnabled(type.mandatory()||request.emailEnabled());preferences.save(value);return preferenceResponse(type,value);}
 
-    @Transactional(readOnly=true) public SseEmitter connect(String lastEventId){UUID id=currentUser.requireCurrentUser().id();SseEmitter emitter=realtime.connect(id,config.sseTimeoutSeconds()*1000);
-        if(lastEventId!=null&&!lastEventId.isBlank())try{UUID last=UUID.fromString(lastEventId);notifications.findByIdAndRecipientId(last,id).ifPresent(cursor->
-            notifications.replayAfter(id,cursor.getCreatedAt(),cursor.getId(),PageRequest.of(0,100)).stream().filter(Notification::isInAppVisible).forEach(n->send(emitter,n)));
-        }catch(IllegalArgumentException ignored){metrics.counter("gm.notification.sse.reconnects","outcome","invalid_cursor").increment();}
-        metrics.counter("gm.notification.sse.reconnects","outcome",lastEventId==null?"initial":"replay").increment();return emitter;}
-
+    @Transactional(readOnly = true)
+    public SseEmitter connect(String lastEventId) {
+        UUID id = currentUser.requireCurrentUser().id();
+        UUID cursorId = null;
+        if (lastEventId != null && !lastEventId.isBlank()) {
+            try { cursorId = UUID.fromString(lastEventId); }
+            catch (IllegalArgumentException exception) {
+                metrics.counter("gm.notification.sse.reconnects", "outcome", "invalid_cursor").increment();
+            }
+        }
+        // Register before replay so events published during its query cannot be missed.
+        SseEmitter emitter = realtime.connect(id, config.sseTimeoutSeconds() * 1000);
+        boolean established = false;
+        try {
+            if (cursorId != null) {
+                var cursor = notifications.findByIdAndRecipientId(cursorId, id).orElse(null);
+                if (cursor != null) {
+                    var replay = notifications.replayAfter(id, cursor.getCreatedAt(), cursor.getId(), PageRequest.of(0, 100));
+                    for (Notification value : replay) {
+                        if (value.isInAppVisible() && !realtime.send(emitter, NotificationResponse.from(value))) break;
+                    }
+                }
+            }
+            metrics.counter("gm.notification.sse.reconnects", "outcome", lastEventId == null ? "initial" : "replay").increment();
+            established = true;
+            return emitter;
+        } finally {
+            // Query/serialization failures must still propagate to the central error handler.
+            if (!established) realtime.close(emitter);
+        }
+    }
     @Scheduled(cron="0 15 3 * * *") @Transactional public void retention(){notifications.deleteByReadAtBefore(clock.instant().minus(config.retentionDays(),ChronoUnit.DAYS));}
     @Transactional public void reportCompleted(UUID owner,UUID reportId,String definition){if(notifications.existsBySourceEventIdAndRecipientIdAndType(reportId,owner,NotificationType.REPORT_COMPLETED))return;Notification n=new Notification();n.setSourceEventId(reportId);n.setRecipientId(owner);n.setType(NotificationType.REPORT_COMPLETED);n.setPriority(NotificationPriority.NORMAL);n.setTitle("Izveštaj je spreman");n.setBody("Izveštaj "+definition+" je generisan i spreman za preuzimanje.");n.setDeepLink("/reports");n.setInAppVisible(true);notifications.saveAndFlush(n);metrics.counter("gm.notification.created","type",NotificationType.REPORT_COMPLETED.name()).increment();afterCommit(()->realtime.send(owner,NotificationResponse.from(n)));}
     @Transactional public void waitlistOffer(UUID customer,UUID offerId){if(notifications.existsBySourceEventIdAndRecipientIdAndType(offerId,customer,NotificationType.WAITLIST_OFFERED))return;Notification n=new Notification();n.setSourceEventId(offerId);n.setRecipientId(customer);n.setType(NotificationType.WAITLIST_OFFERED);n.setPriority(NotificationPriority.HIGH);n.setTitle("Termin je dostupan");n.setBody("Termin sa liste čekanja je dostupan do isteka ponude.");n.setDeepLink("/my-reservations?waitlistOffer="+offerId);n.setInAppVisible(true);notifications.saveAndFlush(n);metrics.counter("gm.notification.created","type",NotificationType.WAITLIST_OFFERED.name()).increment();afterCommit(()->realtime.send(customer,NotificationResponse.from(n)));}
@@ -103,7 +128,6 @@ public class NotificationService implements OutboxConsumer {
     private Optional<NavigationActionResponse> action(AuthenticatedUser actor,Notification n){
         if(n.getResourceType()==null)return Optional.ofNullable(n.getDeepLink()).filter(link->!link.isBlank()).map(link->NavigationActionResponse.navigate("Otvori",link));
         SearchSource source=searchSources.get(n.getResourceType());return source==null?Optional.empty():source.findVisible(actor,n.getResourceId()).map(entry->NavigationActionResponse.forResource(n.getResourceType(),entry.url()));}
-    private void send(SseEmitter emitter,Notification n){try{emitter.send(SseEmitter.event().id(n.getId().toString()).name("notification").data(NotificationResponse.from(n)));}catch(Exception ignored){emitter.complete();}}
     private void afterCommit(Runnable action){if(TransactionSynchronizationManager.isSynchronizationActive())TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization(){@Override public void afterCommit(){action.run();}});else action.run();}
     private record Recipient(UUID id,SearchResourceType resourceType,String link){}
 }

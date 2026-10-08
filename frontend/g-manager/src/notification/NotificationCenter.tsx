@@ -46,11 +46,11 @@ export function NotificationCenter() {
         <Button type="button" variant="secondary" disabled={!unread} onClick={() => void readAll()}>Pročitaj sve</Button></div>
         {error && <p role="alert" className="error-banner">{error}</p>}{loading && <Skeleton lines={4} label="Učitavanje obaveštenja" />}
         {!loading && !items.length && <p className="empty-state">Nema obaveštenja.</p>}
-        <div className="notification-list">{Object.entries(groups).map(([day, values]) => <Fragment key={day}><h3>{day}</h3>{values.map((item) =>
+        {items.length > 0 && <div className="notification-list">{Object.entries(groups).map(([day, values]) => <Fragment key={day}><h3>{day}</h3>{values.map((item) =>
           <article className={`notification-item ${item.read ? '' : 'unread'}`} key={item.id}>{item.action ? <button type="button" aria-label={`${item.action.label}: ${item.title}`} onClick={() => void openItem(item)}>
             <span className={`priority ${item.priority.toLowerCase()}`}>{item.priority}</span><strong>{item.title}</strong><p>{item.body}</p>
             <time dateTime={item.createdAt} title={new Intl.DateTimeFormat('sr-RS', { dateStyle: 'full', timeStyle: 'medium' }).format(new Date(item.createdAt))}>{relative(item.createdAt)}</time></button> : <div><span className={`priority ${item.priority.toLowerCase()}`}>{item.priority}</span><strong>{item.title}</strong><p>{item.body}</p><time dateTime={item.createdAt}>{relative(item.createdAt)}</time></div>}
-            {!item.read && <Button type="button" variant="secondary" onClick={() => void markRead(item)}>Označi pročitano</Button>}</article>)}</Fragment>)}</div>
+            {!item.read && <Button type="button" variant="secondary" onClick={() => void markRead(item)}>Označi pročitano</Button>}</article>)}</Fragment>)}</div>}
         <Link to="/notification-preferences" onClick={() => setOpen(false)}>Podešavanja obaveštenja</Link>
       </div>
     </Modal></>
