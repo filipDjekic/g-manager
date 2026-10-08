@@ -29,9 +29,16 @@ public final class UserSpecifications {
     }
 
     public static Specification<User> matchesSearch(String query) {
-        String pattern = "%" + query.trim().toLowerCase(java.util.Locale.ROOT) + "%";
-        return (root, ignored, builder) -> builder.or(
-                builder.like(builder.lower(root.get("name")), pattern),
-                builder.like(builder.lower(root.get("email")), pattern));
+    if (query == null || query.isBlank()) {
+        return (root, criteriaQuery, builder) -> builder.conjunction();
     }
+
+    String pattern = "%" + query.trim()
+        .toLowerCase(java.util.Locale.ROOT) + "%";
+
+    return (root, ignored, builder) -> builder.or(
+        builder.like(builder.lower(root.get("name")), pattern),
+        builder.like(builder.lower(root.get("email")), pattern)
+    );
+}
 }
