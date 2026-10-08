@@ -11,7 +11,13 @@ import { Button, EmptyState, ErrorState, Modal, Skeleton } from '../components/u
 import { CustomerPicker } from './CustomerPicker'
 import { RecurrencePreviewPanel, RecurrenceResultPanel } from './RecurrencePreviewPanel'
 import { businessInstantToLocal, businessLocalToInstant, formatBusinessDateTime } from './dateTime'
-import type { CreateReservationInput, RecurrenceInput, RecurrenceFrequency, RecurrenceConflictPolicy, RecurrenceCreateResult } from '../types/reservation.types'
+import type { RecurrenceInput, RecurrenceFrequency, RecurrenceConflictPolicy, RecurrenceCreateResult, ReservationCreationRequest } from '../types/reservation.types'
+
+type StaffReservationResult = {
+  id: string
+  summary: string
+  recurrence: RecurrenceCreateResult | undefined
+}
 
 export function StaffReservationForm({onClose,onCreated}:{onClose:()=>void;onCreated:(id:string,summary?:string)=>void}) {
   const actor=useAuthStore(s=>s.user),client=useQueryClient()
@@ -25,7 +31,7 @@ export function StaffReservationForm({onClose,onCreated}:{onClose:()=>void;onCre
   const [interval,setInterval]=useState(1),[occurrences,setOccurrences]=useState(4)
   const [seriesResult,setSeriesResult]=useState<RecurrenceCreateResult|null>(null)
   const [conflictPolicy,setConflictPolicy]=useState<RecurrenceConflictPolicy>('ALL_OR_NOTHING')
-  const keys=useRef(new IdempotencyKeyManager()),pending=useRef<CreateReservationInput|RecurrenceInput|null>(null)
+  const keys=useRef(new IdempotencyKeyManager()),pending=useRef<ReservationCreationRequest|null>(null)
   const services=useQuery({queryKey:['catalog','reservation-services',serviceSearch],queryFn:()=>catalogApi.list({page:0,size:100,type:'SERVICE',active:true,search:serviceSearch||undefined})})
   const employees=useQuery({queryKey:['users','reservation-employees'],queryFn:userApi.employees})
   const locations=useQuery({queryKey:['resources','locations'],queryFn:resourceApi.locations})
@@ -43,12 +49,14 @@ export function StaffReservationForm({onClose,onCreated}:{onClose:()=>void;onCre
   const preview=useQuery({queryKey:['staff-recurrence-preview',JSON.stringify(recurrenceInput)],queryFn:()=>reservationApi.previewRecurrence(recurrenceInput),
     enabled:repeat&&!!employeeId&&!!customerId&&!!service&&!!start&&!!options.data&&(!needsResource||!!selected),retry:false,refetchInterval:15000})
   const frozen=!!keys.current.pendingKey()
-  const create=useMutation({mutationFn:()=>{
-    const input=pending.current??(repeat?recurrenceInput:{customerId,serviceId,employeeId:employeeId||undefined,
-      resourceId:selected?.id,locationId:selected?.locationId??(locationId||undefined),startTime:start,note:note||undefined})
-    pending.current=input
-    if('frequency' in input)return reservationApi.createRecurrence(input,keys.current.begin()).then(result=>({id:result.created[0].id,summary:`Kreirano ${result.created.length}, preskočeno ${result.skipped.length} termina.`,recurrence:result}))
-    return reservationApi.create(input,keys.current.begin()).then(value=>({id:value.id,summary:'Rezervacija je kreirana.',recurrence:undefined}))
+  const create=useMutation<StaffReservationResult, Error, void>({mutationFn:()=>{
+    const request:ReservationCreationRequest=pending.current??(repeat
+      ? {kind:'RECURRING',input:recurrenceInput}
+      : {kind:'SINGLE',input:{customerId,serviceId,employeeId:employeeId||undefined,
+        resourceId:selected?.id,locationId:selected?.locationId??(locationId||undefined),startTime:start,note:note||undefined}})
+    pending.current=request
+    if(request.kind==='RECURRING')return reservationApi.createRecurrence(request.input,keys.current.begin()).then(result=>({id:result.created[0].id,summary:`Kreirano ${result.created.length}, preskočeno ${result.skipped.length} termina.`,recurrence:result}))
+    return reservationApi.create(request.input,keys.current.begin()).then(value=>({id:value.id,summary:'Rezervacija je kreirana.',recurrence:undefined}))
   },onSuccess:async value=>{keys.current.succeeded();pending.current=null;await client.invalidateQueries({queryKey:['reservations']});if(value.recurrence)setSeriesResult(value.recurrence);else onCreated(value.id,value.summary)},
     onError:async error=>{keys.current.failed(error);if(!keys.current.pendingKey())pending.current=null;await Promise.all([options.refetch(),scope.refetch()])}})
   const eligible=!!customerId&&!!service&&!!start&&Date.parse(start)>Date.now()&&!options.isFetching&&!options.error

@@ -16,7 +16,7 @@ import { ReservationDetailsDrawer } from '../reservations/ReservationDetailsDraw
 import type { CatalogItem } from '../types/catalog.types'
 import type { PageResponse } from '../types/api.types'
 import type { Reservation, ReservationStatus } from '../types/reservation.types'
-import type { RecurrenceConflictPolicy, RecurrenceFrequency, RecurrenceCreateResult, CreateReservationInput, RecurrenceInput } from '../types/reservation.types'
+import type { RecurrenceConflictPolicy, RecurrenceFrequency, RecurrenceCreateResult, CreateReservationInput, RecurrenceInput, ReservationCreationRequest } from '../types/reservation.types'
 import type { UserResponse } from '../types/user.types'
 import type { WaitlistEntry } from '../types/waitlist.types'
 import { useServerNow } from '../gaming/useServerNow'
@@ -60,7 +60,7 @@ export function MyReservationsPage() {
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const createAttempt = useRef(new IdempotencyKeyManager())
-  const pendingBooking = useRef<CreateReservationInput | RecurrenceInput | null>(null)
+  const pendingBooking = useRef<ReservationCreationRequest | null>(null)
   const frozen = Boolean(createAttempt.current.pendingKey())
   const submitInFlight = useRef(false)
 
@@ -139,7 +139,7 @@ export function MyReservationsPage() {
   const assignedResource = slotResources.data?.resources.find((item) => item.id === resolvedResourceId)
   const resourceUnavailable = Boolean(resolvedResourceId && slotResources.data
     && (!assignedResource || !assignedResource.available))
-  const recurrenceInput = { serviceId, resourceId: resolvedResourceId || undefined, locationId: resolvedLocationId || undefined,
+  const recurrenceInput: RecurrenceInput = { serviceId, resourceId: resolvedResourceId || undefined, locationId: resolvedLocationId || undefined,
     employeeId: employeeChoice, startTime: selectedStart, note: note || undefined, frequency, interval: recurrenceInterval, occurrences, conflictPolicy }
   const recurrenceQuery = useQuery({ queryKey: ['recurrence-preview', JSON.stringify(recurrenceInput)],
     queryFn: () => reservationApi.previewRecurrence(recurrenceInput),
@@ -186,7 +186,7 @@ export function MyReservationsPage() {
     setSubmitting(true)
     setError('')
     try {
-      const baseInput = {
+      const baseInput: CreateReservationInput = {
         serviceId,
         resourceId: resolvedResourceId || undefined,
         locationId: resolvedLocationId || undefined,
@@ -194,15 +194,17 @@ export function MyReservationsPage() {
         startTime: selectedStart,
         note: note || undefined,
       }
-      const input = pendingBooking.current ?? (recurring ? { ...baseInput, employeeId: employeeChoice,
-        frequency, interval: recurrenceInterval, occurrences, conflictPolicy } : baseInput)
-      pendingBooking.current = input
-      if ('frequency' in input) {
-        const created = await reservationApi.createRecurrence(input, createAttempt.current.begin())
+      const request: ReservationCreationRequest = pendingBooking.current ?? (recurring
+        ? { kind: 'RECURRING', input: { ...baseInput, employeeId: employeeChoice,
+          frequency, interval: recurrenceInterval, occurrences, conflictPolicy } }
+        : { kind: 'SINGLE', input: baseInput })
+      pendingBooking.current = request
+      if (request.kind === 'RECURRING') {
+        const created = await reservationApi.createRecurrence(request.input, createAttempt.current.begin())
         setRecurrenceResult(created)
         setMessage('Serija je obrađena. Ispod je rezultat za svaki termin.')
       } else {
-        await reservationApi.create(input, createAttempt.current.begin())
+        await reservationApi.create(request.input, createAttempt.current.begin())
         setMessage('Termin je rezervisan i čeka potvrdu.')
       }
       createAttempt.current.succeeded()
