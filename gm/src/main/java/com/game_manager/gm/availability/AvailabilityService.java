@@ -1,31 +1,15 @@
 package com.game_manager.gm.availability;
 
-import com.game_manager.gm.availability.dto.AvailabilityQuery;
-import com.game_manager.gm.availability.dto.AvailabilityResponse;
-import com.game_manager.gm.availability.dto.AvailabilitySlotResponse;
-import com.game_manager.gm.availability.dto.EmployeeAvailabilityResponse;
-import com.game_manager.gm.catalog.CatalogItem;
-import com.game_manager.gm.catalog.CatalogService;
-import com.game_manager.gm.catalog.ItemType;
+import com.game_manager.gm.availability.dto.*;
+import com.game_manager.gm.catalog.*;
 import com.game_manager.gm.common.error.ApplicationException;
 import com.game_manager.gm.common.security.Role;
-import com.game_manager.gm.reservation.ReservationAvailabilityPolicy;
-import com.game_manager.gm.reservation.ReservationBusyInterval;
-import com.game_manager.gm.user.User;
-import com.game_manager.gm.user.UserRepository;
+import com.game_manager.gm.reservation.BookingAvailabilityPolicy;
+import com.game_manager.gm.user.*;
 import com.game_manager.gm.workinghours.WorkingHoursService;
-import com.game_manager.gm.timeoff.TimeOffAvailabilityPolicy;
-import com.game_manager.gm.timeoff.TimeOffInterval;
-import java.time.Clock;
-import java.time.Instant;
-import java.time.LocalDate;
+import java.time.*;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Collectors;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -35,132 +19,56 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class AvailabilityService {
-    static final int SLOT_INCREMENT_MINUTES = 15;
-    static final long MAX_RANGE_DAYS = 31;
-
+    static final int SLOT_INCREMENT_MINUTES=15;
+    static final long MAX_RANGE_DAYS=31;
     private final CatalogService catalogService;
     private final UserRepository userRepository;
     private final WorkingHoursService workingHoursService;
-    private final ReservationAvailabilityPolicy reservationPolicy;
-    private final TimeOffAvailabilityPolicy timeOffPolicy;
+    private final BookingAvailabilityPolicy bookingPolicy;
     private final Clock clock;
-    private final com.game_manager.gm.resource.ResourceManagementService resourceService;
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly=true)
     @PreAuthorize("hasAuthority('CATALOG_READ')")
-    public AvailabilityResponse find(AvailabilityQuery query) {
-        validateRange(query.from(), query.to());
-        CatalogItem service = catalogService.getActiveById(query.serviceId());
-        if (service.getType() != ItemType.SERVICE) {
-            throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,
-                    "Catalog item is not a service");
-        }
-        List<User> employees = employees(query.employeeId());
-        boolean required = resourceService.requiresResource(service.getId());
-        var selected = query.resourceId() == null ? null
-                : resourceService.requireBookable(query.resourceId(),service.getId());
-        if (selected != null && query.locationId() != null
-                && !query.locationId().equals(resourceService.locationId(selected))) {
-            throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,
-                    "Resource does not belong to the selected location");
-        }
-        List<com.game_manager.gm.resource.PhysicalResource> candidates = selected != null ? List.of(selected)
-                : required ? resourceService.bookableResources(service.getId(),query.locationId()) : List.of();
-        Map<UUID,com.game_manager.gm.resource.dto.BookingResourceView> references = resourceService.resourceReferences(
-                candidates.stream().map(com.game_manager.gm.resource.PhysicalResource::getId).collect(Collectors.toSet()));
-        Map<UUID,List<WorkingHoursService.AvailabilityWindow>> resourceWindows = new java.util.HashMap<>();
-        for (var candidate : candidates) {
-            resourceWindows.put(candidate.getId(),windows(resourceService.locationId(candidate),query.from(),query.to()));
-        }
-        List<WorkingHoursService.AvailabilityWindow> ordinaryWindows = required || selected != null ? List.of()
-                : windows(null,query.from(),query.to());
-        List<WorkingHoursService.AvailabilityWindow> allWindows = java.util.stream.Stream.concat(
-                ordinaryWindows.stream(),resourceWindows.values().stream().flatMap(List::stream)).toList();
-        Instant from = allWindows.stream().map(WorkingHoursService.AvailabilityWindow::open).min(Instant::compareTo).orElse(null);
-        Instant to = allWindows.stream().map(WorkingHoursService.AvailabilityWindow::close).max(Instant::compareTo).orElse(null);
-        List<UUID> employeeIds = employees.stream().map(User::getId).toList();
-        Map<UUID,List<ReservationBusyInterval>> busyByEmployee = from == null ? Map.of()
-                : reservationPolicy.busyIntervals(employeeIds,from,to).stream()
-                        .collect(Collectors.groupingBy(ReservationBusyInterval::employeeId));
-        Map<UUID,List<TimeOffInterval>> timeOffByEmployee = from == null ? Map.of()
-                : timeOffPolicy.approvedBetween(employeeIds,from,to).stream()
-                        .collect(Collectors.groupingBy(TimeOffInterval::employeeId));
-        Map<UUID,List<ReservationBusyInterval>> resourceBusy = new java.util.HashMap<>();
-        if (from != null) for (var candidate : candidates) {
-            resourceBusy.put(candidate.getId(),reservationPolicy.resourceBusyIntervals(candidate.getId(),from,to));
-        }
-        List<EmployeeAvailabilityResponse> result = new ArrayList<>();
-        for (User employee : employees) {
-            List<ReservationBusyInterval> busy = busyByEmployee.getOrDefault(employee.getId(),List.of());
-            List<TimeOffInterval> timeOff = timeOffByEmployee.getOrDefault(employee.getId(),List.of());
-            Map<Instant,AvailabilitySlotResponse> byStart = new java.util.TreeMap<>();
-            for (AvailabilitySlotResponse slot : slots(ordinaryWindows,service.getDurationMinutes(),busy,timeOff)) {
-                byStart.put(slot.startTime(),slot);
+    public AvailabilityResponse find(AvailabilityQuery query) { return findInternal(query,false); }
+
+    @Transactional(readOnly=true)
+    @PreAuthorize("hasAuthority('CATALOG_READ')")
+    public AvailabilityResponse overview(AvailabilityQuery query) { return findInternal(query,true); }
+
+    private AvailabilityResponse findInternal(AvailabilityQuery query,boolean includeOccupied) {
+        long days=ChronoUnit.DAYS.between(query.from(),query.to());
+        if(days<0||days>=MAX_RANGE_DAYS)throw new ApplicationException(HttpStatus.BAD_REQUEST,"Availability range must contain between 1 and 31 days");
+        CatalogItem service=catalogService.getActiveById(query.serviceId());
+        if(service.getType()!=ItemType.SERVICE)throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Catalog item is not a service");
+        List<User> employees=employees(query.employeeId());
+        ZoneId zone=workingHoursService.getBusinessZone();
+        Instant from=query.from().atStartOfDay(zone).toInstant(),to=query.to().plusDays(1).atStartOfDay(zone).toInstant();
+        var snapshot=bookingPolicy.prepare(service.getId(),query.resourceId(),query.locationId(),employees.stream().map(User::getId).toList(),
+                from,to.plus(service.getDurationMinutes(),ChronoUnit.MINUTES),null);
+        List<EmployeeAvailabilityResponse> result=new ArrayList<>();
+        for(User employee:employees) {
+            List<AvailabilitySlotResponse> slots=new ArrayList<>();
+            for(Instant start:snapshot.starts(from,to,SLOT_INCREMENT_MINUTES)) {
+                Instant end=start.plus(service.getDurationMinutes(),ChronoUnit.MINUTES);
+                var state=snapshot.assess(employee.getId(),start,end);
+                if(!includeOccupied&&!state.available())continue;
+                var resource=state.resource();
+                slots.add(new AvailabilitySlotResponse(start,end,resource==null?null:resource.id(),resource==null?null:resource.code(),
+                        resource==null?null:resource.name(),state.locationId(),state.locationName(),state.status(),state.reason()));
             }
-            for (var candidate : candidates) {
-                var ref = references.get(candidate.getId());
-                List<ReservationBusyInterval> combinedBusy = java.util.stream.Stream.concat(busy.stream(),
-                        resourceBusy.getOrDefault(candidate.getId(),List.of()).stream()).toList();
-                for (AvailabilitySlotResponse slot : slots(resourceWindows.get(candidate.getId()),
-                        service.getDurationMinutes(),combinedBusy,timeOff)) {
-                    byStart.putIfAbsent(slot.startTime(),new AvailabilitySlotResponse(slot.startTime(),slot.endTime(),
-                            ref.id(),ref.code(),ref.name(),ref.locationId(),ref.locationName()));
-                }
-            }
-            result.add(new EmployeeAvailabilityResponse(employee.getId(),employee.getName(),List.copyOf(byStart.values())));
+            result.add(new EmployeeAvailabilityResponse(employee.getId(),employee.getName(),slots));
         }
-        return new AvailabilityResponse(workingHoursService.getBusinessZone().getId(),service.getId(),
-                service.getName(),service.getDurationMinutes(),SLOT_INCREMENT_MINUTES,query.from(),query.to(),result,
-                selected == null ? null : selected.getId(), selected == null ? null : selected.getName(),required);
+        var selected=result.stream().flatMap(e->e.slots().stream()).filter(s->Objects.equals(s.resourceId(),query.resourceId())).findFirst().orElse(null);
+        return new AvailabilityResponse(zone.getId(),service.getId(),service.getName(),service.getDurationMinutes(),SLOT_INCREMENT_MINUTES,
+                query.from(),query.to(),result,query.resourceId(),selected==null?null:selected.resourceName(),
+                snapshot.resourceRequired(),clock.instant());
     }
 
     private List<User> employees(UUID employeeId) {
-        if (employeeId == null) {
-            return userRepository.findByRoleAndActiveTrueAndDeletedAtIsNull(Role.EMPLOYEE).stream()
-                    .sorted(Comparator.comparing(User::getName).thenComparing(User::getId)).toList();
-        }
-        User employee = userRepository.findById(employeeId)
-                .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND, "Employee not found"));
-        if (!employee.isActive() || employee.getRole() != Role.EMPLOYEE) {
-            throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,
-                    "Selected user is not an active employee");
-        }
+        if(employeeId==null)return userRepository.findByRoleAndActiveTrueAndDeletedAtIsNull(Role.EMPLOYEE).stream()
+                .sorted(Comparator.comparing(User::getName).thenComparing(User::getId)).toList();
+        User employee=userRepository.findById(employeeId).orElseThrow(()->new ApplicationException(HttpStatus.NOT_FOUND,"Employee not found"));
+        if(!employee.isActive()||employee.getRole()!=Role.EMPLOYEE)throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Selected user is not an active employee");
         return List.of(employee);
-    }
-
-    private List<WorkingHoursService.AvailabilityWindow> windows(UUID locationId, LocalDate from, LocalDate to) {
-        List<WorkingHoursService.AvailabilityWindow> windows = new ArrayList<>();
-        for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
-            WorkingHoursService.AvailabilityWindow window = workingHoursService.availabilityWindow(locationId, date);
-            if (window != null) windows.add(window);
-        }
-        return windows;
-    }
-
-    private List<AvailabilitySlotResponse> slots(
-            List<WorkingHoursService.AvailabilityWindow> windows,
-            int durationMinutes,
-            List<ReservationBusyInterval> busy,List<TimeOffInterval> timeOff) {
-        Instant now = clock.instant();
-        List<AvailabilitySlotResponse> slots = new ArrayList<>();
-        for (WorkingHoursService.AvailabilityWindow window : windows) {
-            for (Instant start = window.open(); ; start = start.plus(SLOT_INCREMENT_MINUTES, ChronoUnit.MINUTES)) {
-                Instant end = start.plus(durationMinutes, ChronoUnit.MINUTES);
-                if (end.isAfter(window.close())) break;
-                Instant slotStart = start;
-                if (slotStart.isAfter(now) && busy.stream().noneMatch(interval -> interval.overlaps(slotStart, end))&&timeOff.stream().noneMatch(interval->interval.overlaps(slotStart,end))) {
-                    slots.add(new AvailabilitySlotResponse(slotStart, end));
-                }
-            }
-        }
-        return List.copyOf(slots);
-    }
-
-    private static void validateRange(LocalDate from, LocalDate to) {
-        long days = ChronoUnit.DAYS.between(from, to);
-        if (days < 0 || days >= MAX_RANGE_DAYS) {
-            throw new ApplicationException(HttpStatus.BAD_REQUEST,
-                    "Availability range must contain between 1 and 31 days");
-        }
     }
 }

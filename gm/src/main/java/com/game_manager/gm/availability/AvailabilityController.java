@@ -15,6 +15,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AvailabilityController {
     private final AvailabilityService service;
 
+    @GetMapping("/overview")
+    public AvailabilityResponse overview(@Valid @ModelAttribute AvailabilityQuery query) {
+        return service.overview(query);
+    }
+
     @GetMapping
     public AvailabilityResponse find(@Valid @ModelAttribute AvailabilityQuery query) {
         return service.find(query);

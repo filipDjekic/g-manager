@@ -11,6 +11,15 @@ import org.springframework.data.repository.query.Param;
 
 public interface ReservationRepository
         extends JpaRepository<Reservation, UUID>, JpaSpecificationExecutor<Reservation> {
+    @Query("""
+            select new com.game_manager.gm.reservation.ResourceBusyInterval(r.resourceId, r.startTime, r.endTime)
+            from Reservation r where r.resourceId in :ids and r.status not in :excluded
+                and r.startTime < :to and r.endTime > :from
+            """)
+    List<ResourceBusyInterval> resourceIntervals(@Param("ids") Collection<UUID> ids,
+            @Param("from") Instant from, @Param("to") Instant to,
+            @Param("excluded") List<ReservationStatus> excluded);
+
     @Query(value="SELECT COUNT(*) FROM gaming_sessions WHERE reservation_id=:reservationId AND status='ACTIVE'",nativeQuery=true)
     long activeSessionCount(@Param("reservationId") String reservationId);
 

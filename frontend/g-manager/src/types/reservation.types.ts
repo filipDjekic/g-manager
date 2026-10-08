@@ -93,7 +93,7 @@ export interface RecurrenceOccurrence {
   resourceId?: string | null; resourceCode?: string | null; resourceName?: string | null
   locationId?: string | null; locationName?: string | null
 }
-export interface RecurrencePreview { timezone: string; occurrences: RecurrenceOccurrence[] }
+export interface RecurrencePreview { timezone: string; occurrences: RecurrenceOccurrence[]; availableCount?: number; conflictCount?: number; reservationsToCreate?: number }
 export interface RecurrenceCreateResult { seriesId: string; created: Reservation[]; skipped: RecurrenceOccurrence[] }
 
 export interface CalendarReservation {

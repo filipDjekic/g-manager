@@ -26,6 +26,8 @@ public class GamingSessionService {
     private final ResourceManagementService resources;
     private final StationReadinessService stationReadiness;
     private final ReservationRepository reservations;
+    private final ReservationAvailabilityPolicy bookingAvailability;
+    private final jakarta.persistence.EntityManager entityManager;
     private final GamingSessionTransitionPolicy transitions;
     private final GamingSessionLocationPolicy locations;
     private final CurrentUserProvider currentUser;
@@ -57,6 +59,8 @@ public class GamingSessionService {
         Reservation reservation = validateReservation(request.reservationId(), customer.getId(),
                 resource.getId(), locationId);
         Instant now = clock.instant();
+        bookingAvailability.requireResourceReservationAvailableForUpdate(resource.getId(),now,now.plus(duration),
+                reservation==null?null:reservation.getId());
         GamingSession session = new GamingSession();
         session.setCustomerId(customer.getId()); session.setResourceId(resource.getId());
         session.setLocationId(locationId); session.setReservationId(reservation == null ? null : reservation.getId());
@@ -79,9 +83,14 @@ public class GamingSessionService {
     @PreAuthorize("hasAuthority('GAMING_SESSION_EXTEND')")
     public GamingSessionResponse extend(UUID id, ExtendGamingSessionRequest request) {
         AuthenticatedUser actor = currentUser.requireCurrentUser();
-        GamingSession session = locked(id); locations.requireResourceManagement(actor, session.getResourceId(),Permission.GAMING_SESSION_EXTEND);
+        GamingSession reference=sessions.findById(id).orElseThrow(()->new ApplicationException(HttpStatus.NOT_FOUND,"Gaming session not found"));
+        locations.requireResourceManagement(actor,reference.getResourceId(),Permission.GAMING_SESSION_EXTEND);
+        resources.lockResource(reference.getResourceId());
+        GamingSession session=locked(id);entityManager.refresh(session,jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
         version(session, request.version()); Instant previousEnd = session.getEndsAt();
-        session.setEndsAt(transitions.extendedEnd(session, request.minutes()));
+        Instant nextEnd=transitions.extendedEnd(session,request.minutes());
+        bookingAvailability.requireResourceReservationAvailableForUpdate(session.getResourceId(),session.getStartedAt(),nextEnd,session.getReservationId());
+        session.setEndsAt(nextEnd);
         session = sessions.saveAndFlush(session);
         long commandSequence = commands.write(session, StationCommandType.SESSION_EXTENDED);
         session = sessions.saveAndFlush(session); Instant now = clock.instant();

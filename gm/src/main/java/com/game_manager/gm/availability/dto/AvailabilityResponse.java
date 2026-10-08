@@ -15,5 +15,6 @@ public record AvailabilityResponse(
         List<EmployeeAvailabilityResponse> employees,
         UUID resourceId,
         String resourceName,
-        boolean resourceRequired
+        boolean resourceRequired,
+        java.time.Instant serverTime
 ) {}

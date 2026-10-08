@@ -1,4 +1,10 @@
+export type BookingSlotStatus = 'AVAILABLE' | 'OCCUPIED_RESERVATION' | 'OCCUPIED_RESOURCE' | 'OCCUPIED_SESSION' | 'UNAVAILABLE'
+
 export interface AvailabilitySlot {
+  status?: BookingSlotStatus
+  reason?: string | null
+  employeeId?: string
+  employeeName?: string
   startTime: string
   endTime: string
   resourceId?: string | null
@@ -15,6 +21,7 @@ export interface EmployeeAvailability {
 }
 
 export interface AvailabilityResponse {
+  serverTime?: string
   timezone: string
   serviceId: string
   serviceName: string
