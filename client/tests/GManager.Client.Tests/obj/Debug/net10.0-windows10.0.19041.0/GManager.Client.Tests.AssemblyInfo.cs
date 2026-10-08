@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("GManager.Client.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+45e2bb96d2fbcd532ca621b91c64c0d14056f152")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+78f84a910f79decf5d5e632f22c0e5823037997a")]
 [assembly: System.Reflection.AssemblyProductAttribute("GManager.Client.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("GManager.Client.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

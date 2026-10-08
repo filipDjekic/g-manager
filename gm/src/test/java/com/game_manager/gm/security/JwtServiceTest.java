@@ -46,6 +46,29 @@ class JwtServiceTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    void signedTokensWithMissingRequiredClaimsAreRejectedWithoutNullPointerExceptions() {
+        String secret = "test-secret-with-at-least-32-utf8-bytes";
+        JwtService service = new JwtService(properties(secret));
+        var key = io.jsonwebtoken.security.Keys.hmacShaKeyFor(secret.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        var expiry = java.util.Date.from(java.time.Instant.now().plusSeconds(60));
+        String noSubject = io.jsonwebtoken.Jwts.builder().claim("token_type", "USER")
+                .expiration(expiry).signWith(key).compact();
+        String noExpiry = io.jsonwebtoken.Jwts.builder().subject(UUID.randomUUID().toString())
+                .claim("token_type", "USER").signWith(key).compact();
+        String noKeyVersion = io.jsonwebtoken.Jwts.builder().subject(UUID.randomUUID().toString())
+                .claim("token_type", "MACHINE").audience().add("g-manager-machine").and()
+                .claim("station_id", UUID.randomUUID().toString()).claim("scope", "MACHINE_PROTOCOL")
+                .expiration(expiry).signWith(key).compact();
+        String noStation = io.jsonwebtoken.Jwts.builder().subject(UUID.randomUUID().toString())
+                .claim("token_type", "MACHINE").audience().add("g-manager-machine").and()
+                .claim("key_version", 1).claim("scope", "MACHINE_PROTOCOL")
+                .expiration(expiry).signWith(key).compact();
+        assertThatThrownBy(() -> service.parseUser(noSubject)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.parseUser(noExpiry)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.parseMachine(noKeyVersion)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.parseMachine(noStation)).isInstanceOf(IllegalArgumentException.class);
+    }
     private static GManagerProperties properties(String secret) {
         return new GManagerProperties(
                 java.time.ZoneId.of("Europe/Belgrade"),

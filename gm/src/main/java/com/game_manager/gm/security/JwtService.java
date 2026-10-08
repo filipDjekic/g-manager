@@ -49,9 +49,9 @@ public class JwtService {
     }
 
     public UUID parseUserId(String token) {
-        Claims claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
+        Claims claims = verifiedClaims(token);
         if (!"USER".equals(claims.get("token_type", String.class))) throw new IllegalArgumentException("Not a user token");
-        return UUID.fromString(claims.getSubject());
+        return requiredUuid(claims.getSubject());
     }
 
     public IssuedToken issueMachine(UUID identityId, UUID stationId, long keyVersion) {
@@ -64,16 +64,41 @@ public class JwtService {
     }
 
     public MachineTokenClaims parseMachine(String token) {
-        Claims claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
+        Claims claims = verifiedClaims(token);
         if (!"MACHINE".equals(claims.get("token_type", String.class))
                 || claims.getAudience() == null || !claims.getAudience().contains("g-manager-machine")
                 || !"MACHINE_PROTOCOL".equals(claims.get("scope", String.class)))
             throw new IllegalArgumentException("Not a machine token");
-        return new MachineTokenClaims(UUID.fromString(claims.getSubject()),
-                UUID.fromString(claims.get("station_id", String.class)),
-                ((Number) claims.get("key_version")).longValue());
+        return new MachineTokenClaims(requiredUuid(claims.getSubject()),
+                requiredUuid(claims.get("station_id", String.class)),
+                requiredKeyVersion(claims));
     }
 
+    public UserTokenClaims parseUser(String token) {
+        Claims claims = verifiedClaims(token);
+        if (!"USER".equals(claims.get("token_type", String.class)))
+            throw new IllegalArgumentException("Not a user token");
+        return new UserTokenClaims(requiredUuid(claims.getSubject()), claims.getExpiration().toInstant());
+    }
+
+    private Claims verifiedClaims(String token) {
+        Claims claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
+        if (claims.getExpiration() == null) throw new IllegalArgumentException("Token expiry is required");
+        return claims;
+    }
+
+    private UUID requiredUuid(String value) {
+        if (value == null || value.isBlank()) throw new IllegalArgumentException("Token identifier is required");
+        return UUID.fromString(value);
+    }
+
+    private long requiredKeyVersion(Claims claims) {
+        Long version = claims.get("key_version", Long.class);
+        if (version == null || version <= 0) throw new IllegalArgumentException("Token key version is required");
+        return version;
+    }
+
+    public record UserTokenClaims(UUID userId, Instant expiresAt) {}
     public record IssuedToken(String value, Instant expiresAt) {
     }
     public record MachineTokenClaims(UUID identityId, UUID stationId, long keyVersion) {}
