@@ -3,27 +3,35 @@
   --space-1: .25rem; --space-2: .5rem; --space-3: .75rem; --space-4: 1rem;
   --space-5: 1.5rem; --space-6: 2rem; --space-7: 2.5rem; --space-8: 3rem;
   --radius-sm: .5rem; --radius-md: .75rem; --radius-lg: 1rem; --radius-xl: 1.5rem;
-  --color-bg: #0a0c10; --color-surface: #12151c; --color-surface-raised: #1a1f29;
-  --color-surface-3: #242b37; --color-border: #364050;
-  --color-text: #f1f4fa; --color-text-secondary: #bcc5d4; --color-text-muted: #939fb3;
-  --color-primary: #55c8ff; --color-primary-strong: #8edcff; --color-on-primary: #081722;
-  --color-secondary: #f587d1; --color-secondary-hover: #ffb0e3;
-  --color-primary-bg: rgb(85 200 255 / 10%); --color-secondary-bg: rgb(245 135 209 / 10%);
+  --color-bg: #10121b; --color-sidebar: #0d1220; --color-topbar: var(--color-sidebar);
+  --color-surface: #171d2b; --color-surface-raised: #1e2635;
+  --color-surface-3: #253044; --color-border: #2d3748;
+  --color-text: #f1f4fa; --color-text-secondary: #9ba5b8; --color-text-muted: #9ba5b8;
+  --color-primary: #00d9ff; --color-primary-strong: #52e5ff; --color-on-primary: #10121b;
+  --color-secondary: #ff2daa; --color-secondary-hover: #ff75c8;
+  --color-primary-bg: rgb(0 217 255 / 8%); --color-secondary-bg: rgb(255 45 170 / 7%);
+  --color-control-border: color-mix(in srgb, var(--color-text-muted) 50%, var(--color-border));
+  --color-row-hover: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface));
+  --navigation-active-bg: linear-gradient(90deg, color-mix(in srgb, var(--color-primary) 12%, var(--color-sidebar)), color-mix(in srgb, var(--color-secondary) 7%, var(--color-sidebar)));
+  --navigation-active-border: linear-gradient(120deg, color-mix(in srgb, var(--color-primary) 50%, var(--color-border)), color-mix(in srgb, var(--color-secondary) 35%, var(--color-border)));
   --color-danger: #ff9095; --color-danger-bg: rgb(239 68 68 / 14%);
   --color-success: #6ee7a8; --color-success-bg: rgb(34 197 94 / 12%);
   --color-warning: #f6cd72; --color-warning-bg: rgb(245 158 11 / 12%);
   --color-info: var(--color-primary); --color-info-bg: var(--color-primary-bg);
-  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--color-primary) 55%, transparent);
-  --control-height: 2.75rem; --content-width: 90rem; --sidebar-width: 15.5rem;
-  --shadow-sm: 0 2px 8px rgb(0 0 0 / 12%); --shadow-raised: 0 12px 32px rgb(0 0 0 / 24%);
-  --shadow-dialog: 0 24px 70px rgb(0 0 0 / 45%);
-  --glow-primary: 0 0 22px rgb(85 200 255 / 12%); --glow-secondary: 0 0 22px rgb(245 135 209 / 10%);
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--color-primary) 40%, transparent);
+  --control-height: 2.75rem; --content-width: 90rem; --sidebar-width: 16rem;
+  --sidebar-collapsed-width: 4.75rem; --topbar-height: 4.5rem;
+  --shadow-sm: 0 2px 8px rgb(0 0 0 / 10%); --shadow-raised: 0 12px 32px rgb(0 0 0 / 20%);
+  --shadow-dialog: 0 24px 70px rgb(0 0 0 / 40%);
+  --overlay-backdrop: rgb(5 8 16 / 72%);
+  --glow-primary: 0 0 18px rgb(0 217 255 / 9%); --glow-secondary: 0 0 18px rgb(255 45 170 / 7%);
   --border: var(--color-border); --text-muted: var(--color-text-muted);
   --success: var(--color-success); --danger: var(--color-danger);
   color-scheme: dark;
 }
 
 :root[data-theme='light'] {
+  --color-sidebar: #f8faff;
   --color-bg: #f1f4f9; --color-surface: #fff; --color-surface-raised: #e9eef6; --color-surface-3: #dce4ef;
   --color-text: #172236; --color-text-secondary: #46536b; --color-text-muted: #536078; --color-border: #aeb9cb;
   --color-primary: #00659a; --color-primary-strong: #004e79; --color-on-primary: #fff;
@@ -31,6 +39,8 @@
   --color-primary-bg: rgb(0 101 154 / 8%); --color-secondary-bg: rgb(167 33 121 / 8%);
   --shadow-sm: 0 2px 8px rgb(23 34 54 / 6%); --shadow-raised: 0 12px 32px rgb(23 34 54 / 10%);
   --shadow-dialog: 0 24px 70px rgb(23 34 54 / 20%);
+  --overlay-backdrop: rgb(23 34 54 / 45%);
+  --glow-primary: 0 0 18px rgb(0 101 154 / 8%); --glow-secondary: 0 0 18px rgb(167 33 121 / 6%);
   --color-danger: #b4232d; --color-danger-bg: #ffe4e6;
   --color-success: #166534; --color-success-bg: #dcfce7;
   --color-warning: #92400e; --color-warning-bg: #fef3c7;

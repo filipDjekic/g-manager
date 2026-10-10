@@ -55,7 +55,13 @@ export function CommandPalette() {
 
   return <>
     <Button type="button" variant="secondary" className="palette-trigger" onClick={() => setOpen(true)}
-      aria-keyshortcuts="Control+K Meta+K">Pretraga <kbd>Ctrl K</kbd></Button>
+      aria-label="Globalna pretraga" aria-haspopup="dialog" aria-expanded={open} aria-keyshortcuts="Control+K Meta+K">
+      <svg className="palette-trigger-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true" focusable="false">
+        <circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4 4" />
+      </svg>
+      <span className="palette-trigger-label">Pretraži G-Manager…</span><kbd>Ctrl K</kbd>
+    </Button>
     <Modal open={open} title="Globalna pretraga" onClose={() => { setOpen(false); setQuery('') }} initialFocusRef={inputRef}>
       <div className="command-palette">
         <Input ref={inputRef} role="combobox" aria-label="Pretraži G-Manager" aria-expanded="true"
