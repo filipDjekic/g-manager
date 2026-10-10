@@ -191,3 +191,78 @@
   .reservations-title-icon { width: 2.25rem; height: 2.25rem; }
   .reservations-page .pagination .ui-button { padding-inline: var(--space-2); }
 }
+
+.reservation-customer-picker--dialog { min-width: 0; }
+.reservation-customer-picker--dialog > span { color: var(--color-text-secondary); font-size: .8125rem; }
+.reservation-customer-picker--dialog > .ui-button { justify-content: flex-start; width: 100%; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+.reservation-create-form > .reservation-customer-picker--dialog,
+.reservations-advanced-filters .reservation-customer-picker--dialog { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
+.reservation-customer-picker--dialog .warning-banner { margin: 0; }
+.reservation-customer-dialog { width: min(42rem, 100%); }
+.reservation-customer-dialog .ui-dialog-body { display: grid; gap: var(--space-3); }
+.reservation-customer-dialog label, .reservation-clock-manual { display: grid; gap: var(--space-2); color: var(--color-text-secondary); font-size: .8125rem; }
+.reservation-customer-dialog input, .reservation-clock-manual input { width: 100%; min-width: 0; max-width: 100%; }
+.reservation-customer-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.reservation-customer-table :is(th,td) { padding: var(--space-3) var(--space-2); font-size: .8125rem; text-align: start; overflow-wrap: anywhere; }
+.reservation-customer-table th:nth-child(1) { width: 27%; }
+.reservation-customer-table th:nth-child(2) { width: 34%; }
+.reservation-customer-table th:nth-child(3) { width: 23%; }
+.reservation-customer-table th:nth-child(4) { width: 16%; }
+.reservation-customer-table td > small { display: block; margin-top: var(--space-1); color: var(--color-text-muted); }
+.reservation-customer-table .ui-button { min-width: 0; font-size: .75rem; padding-inline: var(--space-2); }
+.reservation-customer-selected { background: var(--color-primary-bg); }
+.reservation-customer-pagination { display: grid; gap: var(--space-2); }
+.reservation-customer-pagination small { color: var(--color-text-muted); }
+.reservation-customer-pagination .pagination { justify-content: space-between; margin: 0; }
+.reservation-interval-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.reservation-interval-fields > .reservation-form-wide { grid-column: 1 / -1; }
+.reservation-time-field { display: grid; gap: var(--space-2); min-width: 0; }
+.reservation-time-input { display: grid; grid-template-columns: minmax(0, 1fr) 2.75rem; gap: var(--space-2); }
+.reservation-time-input .ui-button { width: 2.75rem; min-height: 2.75rem; padding: 0; }
+.reservation-time-field input[aria-invalid='true'] { border-color: var(--color-warning); }
+.reservation-time-dialog { width: min(22rem, 100%); }
+.reservation-time-dialog .ui-dialog-body { display: grid; gap: var(--space-3); }
+.reservation-clock-controls, .reservation-clock-range, .reservation-clock-quarters { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--space-2); }
+.reservation-clock-controls .ui-button { font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+.reservation-time-dialog [aria-pressed='true'] { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-bg); }
+.reservation-clock { position: relative; justify-self: center; width: min(17rem, 100%); aspect-ratio: 1; border: 1px solid var(--color-border); border-radius: 50%; background: var(--color-bg); }
+.reservation-clock-hand { position: absolute; bottom: 50%; left: calc(50% - 1px); width: 2px; height: 34%; transform-origin: bottom center; background: var(--color-secondary); pointer-events: none; }
+.reservation-clock::after { content: ''; position: absolute; left: calc(50% - 4px); top: calc(50% - 4px); width: 8px; height: 8px; background: var(--color-secondary); border-radius: 50%; pointer-events: none; }
+.reservation-clock .reservation-clock-tick { position: absolute; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; min-height: 0; padding: 0; transform: translate(-50%, -50%); border: 1px solid transparent; border-radius: 50%; color: var(--color-text-secondary); background: var(--color-surface); font-size: .8125rem; font-variant-numeric: tabular-nums; touch-action: manipulation; }
+.reservation-clock .reservation-clock-tick:hover { border-color: var(--color-primary); }
+.reservation-clock .reservation-clock-tick:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.reservation-clock .reservation-clock-tick[aria-pressed='true'] { border-color: var(--color-primary); color: var(--color-on-primary); background: var(--color-primary); }
+.reservation-booking-availability, .reservation-day-schedule { display: grid; gap: var(--space-3); min-width: 0; padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); }
+.reservation-booking-availability p, .reservation-day-schedule p, .reservation-day-schedule h3 { margin: 0; font-size: .8125rem; }
+.reservation-interval-available { color: var(--color-success); }
+.reservation-alternatives { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.reservation-alternatives > span { flex-basis: 100%; color: var(--color-text-muted); font-size: .75rem; }
+.reservation-alternatives .ui-button { white-space: normal; font-size: .75rem; }
+.reservation-day-schedule p { color: var(--color-text-muted); }
+.reservation-day-schedule ol { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.reservation-day-interval { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-inline-start: 2px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text-muted); background: var(--color-surface); font-size: .75rem; }
+.reservation-day-interval time { overflow-wrap: anywhere; }
+.reservation-day-interval--available { border-inline-start-color: var(--color-primary); }
+.reservation-day-interval--available > span { color: var(--color-primary); }
+.reservation-day-interval--occupied { border-inline-start-color: var(--color-secondary); }
+.reservation-day-interval--occupied > span { color: var(--color-secondary); }
+.reservation-day-interval--unavailable { border-inline-start-color: var(--color-warning); }
+.reservation-day-interval--unavailable > span { color: var(--color-warning); }
+@media (max-width: 640px) {
+  .reservation-customer-dialog .ui-dialog-body, .reservation-time-dialog .ui-dialog-body { padding: var(--space-3); }
+  .reservation-customer-dialog :is(input,button), .reservation-time-dialog :is(input,button) { min-height: 2.75rem; }
+  .reservation-customer-dialog input, .reservation-time-dialog input { font-size: 1rem; }
+  .reservation-customer-dialog .ui-table-shell { overflow: visible; border: 0; background: transparent; }
+  .reservation-customer-table, .reservation-customer-table tbody { display: block; width: 100%; min-width: 0; }
+  .reservation-customer-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .reservation-customer-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); padding: var(--space-3); margin-bottom: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+  .reservation-customer-table td { min-width: 0; border: 0; padding: 0; }
+  .reservation-customer-table td:nth-child(1) { grid-column: 1; grid-row: 1; }
+  .reservation-customer-table td:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+  .reservation-customer-table td:nth-child(3) { grid-column: 1 / -1; grid-row: 3; }
+  .reservation-customer-table td:nth-child(4) { grid-column: 2; grid-row: 1; }
+  .reservation-interval-fields { grid-template-columns: minmax(0, 1fr); }
+  .reservation-time-dialog .dialog-actions { display: flex; flex-wrap: wrap; }
+  .reservation-time-dialog .dialog-actions .ui-button { flex: 1; }
+  .reservation-booking-availability, .reservation-day-schedule { padding: var(--space-3); }
+}

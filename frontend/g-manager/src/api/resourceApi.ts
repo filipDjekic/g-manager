@@ -7,7 +7,7 @@ export const resourceApi={
  managementScope:()=>apiClient.get<{allResources:boolean;resourceIds:string[]}>('/resources/management-scope').then(r=>r.data),
  resourceEmployees:(id:string)=>apiClient.get<Array<{employeeId:string;active:boolean;version:number;employeeName:string;employeeActive:boolean}>>(`/resources/${id}/employees`).then(r=>r.data),
  setResourceEmployee:(id:string,employeeId:string,active:boolean,version?:number)=>apiClient.put(`/resources/${id}/employees/${employeeId}`,{active,version}),
- bookingOptions:(params:{serviceId:string;locationId?:string;start?:string;end?:string;managedOnly?:boolean})=>apiClient.get<BookingOptions>('/resources/booking-options',{params}).then(r=>r.data),
+ bookingOptions:(params:{serviceId:string;locationId?:string;areaId?:string;start?:string;end?:string;managedOnly?:boolean})=>apiClient.get<BookingOptions>('/resources/booking-options',{params}).then(r=>r.data),
  employeeAccess:(locationId:string)=>apiClient.get<Array<{employeeId:string;active:boolean;version:number}>>(`/resources/locations/${locationId}/employees`).then(r=>r.data),
  setEmployeeAccess:(locationId:string,employeeId:string,active:boolean,version?:number)=>apiClient.put(`/resources/locations/${locationId}/employees/${employeeId}`,{active,version}),
  saveLocation:(input:LocationInput,id?:string)=>(id?apiClient.put<LocationView>(`/resources/locations/${id}`,input):apiClient.post<LocationView>('/resources/locations',input)).then(r=>r.data),

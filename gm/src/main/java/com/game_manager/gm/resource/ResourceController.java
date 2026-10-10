@@ -18,11 +18,12 @@ public class ResourceController {
  @GetMapping("/{id}/employees") public List<ResourceAccessService.Assignment> resourceEmployees(@PathVariable UUID id){return resourceAccess.list(id);}
  @PutMapping("/{id}/employees/{employeeId}") public ResourceAccessService.Assignment resourceEmployees(@PathVariable UUID id,@PathVariable UUID employeeId,@Valid @RequestBody ResourceAccessService.AssignmentRequest r){return resourceAccess.set(id,employeeId,r);}
  @GetMapping("/booking-options") public BookingOptionsResponse bookingOptions(@RequestParam UUID serviceId,
-  @RequestParam(required=false) UUID locationId,@RequestParam(required=false) Instant start,@RequestParam(required=false) Instant end,@RequestParam(defaultValue="false") boolean managedOnly){
-  if(!managedOnly)return service.bookingOptions(serviceId,locationId,start,end);
+  @RequestParam(required=false) UUID locationId,@RequestParam(required=false) Instant start,@RequestParam(required=false) Instant end,@RequestParam(defaultValue="false") boolean managedOnly,
+  @RequestParam(required=false) UUID areaId){
+  if(!managedOnly)return service.bookingOptions(serviceId,locationId,start,end,null,null,areaId);
   var actor=currentUser.requireCurrentUser();
   if(actor.role()==com.game_manager.gm.common.security.Role.CUSTOMER)throw new com.game_manager.gm.common.error.ApplicationException(HttpStatus.FORBIDDEN,"Staff access is required");
-  return service.bookingOptions(serviceId,locationId,start,end,resourceAccess.allResources(actor)?null:resourceAccess.assignedResources(actor),null);
+  return service.bookingOptions(serviceId,locationId,start,end,resourceAccess.allResources(actor)?null:resourceAccess.assignedResources(actor),null,areaId);
  }
  @GetMapping("/locations/{id}/employees") public List<LocationAccessService.Assignment> employeeAccess(@PathVariable UUID id){return access.list(id);}
  @PutMapping("/locations/{id}/employees/{employeeId}") public LocationAccessService.Assignment employeeAccess(@PathVariable UUID id,@PathVariable UUID employeeId,@Valid @RequestBody LocationAccessService.AssignmentRequest r){return access.set(id,employeeId,r);}

@@ -6,7 +6,7 @@ import org.springframework.data.repository.query.Param;
 public interface PhysicalResourceRepository extends JpaRepository<PhysicalResource,UUID>{
  @Query("select distinct r.serviceId from PhysicalResource r where r.serviceId in :ids")
  Set<UUID> resourceServiceIds(@Param("ids") Set<UUID> ids);
- @Query("select new com.game_manager.gm.resource.dto.BookingResourceView(r.id,r.serviceId,r.code,r.name,r.type,l.id,l.name,true) "
+ @Query("select new com.game_manager.gm.resource.dto.BookingResourceView(r.id,r.serviceId,r.code,r.name,r.type,l.id,l.name,true,a.id,a.name) "
   + "from PhysicalResource r join Area a on a.id=r.areaId join Location l on l.id=a.locationId where r.id in :ids")
  List<com.game_manager.gm.resource.dto.BookingResourceView> references(@Param("ids") Set<UUID> ids);
  List<PhysicalResource> findByServiceIdOrderByIdAsc(UUID serviceId);

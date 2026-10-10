@@ -36,7 +36,7 @@ public class RecurrenceService {
   List<ReservationResponse> created=new ArrayList<>();List<RecurrenceOccurrenceResponse> skipped=new ArrayList<>();
   for(RecurrenceOccurrenceResponse occurrence:preview.occurrences()){
    if(!occurrence.available()){skipped.add(occurrence);continue;}
-   try{created.add(reservations.createForCustomer(customerId,new CreateReservationRequest(request.employeeId(),request.serviceId(),request.resourceId(),occurrence.startTime(),request.note(),request.locationId()),series.getId()));}
+   try{created.add(reservations.createForCustomer(customerId,new CreateReservationRequest(request.employeeId(),request.serviceId(),request.resourceId(),occurrence.startTime(),request.note(),request.locationId(),customerId,request.areaId(),request.durationMinutes()),series.getId()));}
    catch(ApplicationException exception){if(request.conflictPolicy()==RecurrenceConflictPolicy.ALL_OR_NOTHING
     ||(exception.getStatus()!=HttpStatus.CONFLICT&&exception.getStatus()!=HttpStatus.UNPROCESSABLE_ENTITY&&exception.getStatus()!=HttpStatus.BAD_REQUEST))throw exception;
     skipped.add(new RecurrenceOccurrenceResponse(occurrence.startTime(),occurrence.endTime(),false,exception.getMessage(),
@@ -49,6 +49,7 @@ public class RecurrenceService {
  private RecurrencePreviewResponse previewInternal(RecurrenceRequest request){
   CatalogItem service=catalogService.getActiveById(request.serviceId());
   if(service.getType()!=ItemType.SERVICE)throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Catalog item is not a service");
+  int duration=request.durationMinutes()==null ? service.getDurationMinutes() : resources.reservationDuration(service,request.durationMinutes());
   if(!userService.isActiveEmployee(request.employeeId()))throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Selected user is not an active employee");
   AuthenticatedUser actor=currentUser.requireCurrentUser();
   Set<UUID> allowed=actor.role()==Role.EMPLOYEE?resourceAccess.assignedResources(actor):null;
@@ -61,11 +62,11 @@ public class RecurrenceService {
    throw new ApplicationException(HttpStatus.FORBIDDEN,"Station management is not permitted");
   List<Instant> startTimes=starts(request);
   var snapshot=bookingPolicy.prepare(service.getId(),request.resourceId(),request.locationId(),List.of(request.employeeId()),
-   startTimes.getFirst(),startTimes.getLast().plus(service.getDurationMinutes(),ChronoUnit.MINUTES),allowed,
-   startTimes.stream().map(start->start.atZone(workingHours.getBusinessZone()).toLocalDate()).collect(java.util.stream.Collectors.toSet()));
+   startTimes.getFirst(),startTimes.getLast().plus(duration,ChronoUnit.MINUTES),allowed,
+   startTimes.stream().map(start->start.atZone(workingHours.getBusinessZone()).toLocalDate()).collect(java.util.stream.Collectors.toSet()),request.areaId());
   List<RecurrenceOccurrenceResponse> occurrences=new ArrayList<>();
   for(Instant start:startTimes){
-   Instant end=start.plus(service.getDurationMinutes(),ChronoUnit.MINUTES);
+   Instant end=start.plus(duration,ChronoUnit.MINUTES);
    var state=snapshot.assess(request.employeeId(),start,end);var assigned=state.resource();
    occurrences.add(new RecurrenceOccurrenceResponse(start,end,state.available(),state.reason(),
     assigned==null?null:assigned.id(),assigned==null?null:assigned.code(),assigned==null?null:assigned.name(),

@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/reservations")
 @RequiredArgsConstructor
 public class ReservationController {
+    private final ReservationPlanningService planning;
     private final ReservationService reservationService;
     private final RecurrenceService recurrenceService;
     private final BulkOperationExecutor bulkOperationExecutor;
@@ -81,6 +82,15 @@ public class ReservationController {
             @RequestParam(required = false) String search) {
         return reservationService.listAll(
                 employeeId, status, from, to, page, size, sort, direction,scope,resourceId,locationId,customerId,search);
+    }
+
+    @GetMapping("/booking-plan")
+    public com.game_manager.gm.reservation.dto.ReservationBookingPlan bookingPlan(
+            @RequestParam UUID serviceId, @RequestParam LocalDate date,
+            @RequestParam(required=false) UUID employeeId, @RequestParam(required=false) UUID resourceId,
+            @RequestParam(required=false) UUID locationId, @RequestParam(required=false) UUID areaId,
+            @RequestParam(required=false) java.time.Instant start, @RequestParam(required=false) Integer durationMinutes) {
+        return planning.plan(serviceId,employeeId,resourceId,locationId,areaId,date,start,durationMinutes);
     }
 
     @GetMapping("/summary")

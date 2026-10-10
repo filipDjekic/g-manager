@@ -70,8 +70,10 @@ public class UserService {
         if (search != null && !search.isBlank()) {
             specification = specification.and(UserSpecifications.matchesSearch(search));
         }
+        var pageable = pageRequestFactory.create(page, size, "createdAt", "DESC", ALLOWED_SORTS);
         return PageResponse.from(userRepository.findAll(specification,
-                pageRequestFactory.create(page, size, "createdAt", "DESC", ALLOWED_SORTS))
+                org.springframework.data.domain.PageRequest.of(pageable.getPageNumber(),pageable.getPageSize(),
+                        pageable.getSort().and(org.springframework.data.domain.Sort.by("id"))))
                 .map(UserService::customerReference));
     }
 
