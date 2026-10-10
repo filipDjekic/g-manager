@@ -11,6 +11,7 @@ import { ConnectivityBanner } from '../pwa/ConnectivityBanner'
 import { useFeatureStore } from '../feature/featureStore'
 import { homeForUser, navigationFor } from './navigation'
 import { NavigationIcon } from './NavigationIcon'
+import { BrandLogo } from './BrandLogo'
 import { hasCapability } from '../auth/capabilities'
 
 function Navigation({ close, collapsed = false, groups, toggleGroup }: {
@@ -89,32 +90,59 @@ export function AppShell() {
     try { await authApi.logout() } finally { clearSession() }
   }
   const userLabel = user ? roleLabels[user.role] : ''
+  const home = user ? homeForUser(user, flags) : '/'
   return <div className={`app-shell${collapsed ? ' sidebar-collapsed' : ''}${user?.role === 'CUSTOMER' ? ' customer-shell' : ''}`}>
     <ConnectivityBanner />
     <header className="shell-topbar">
       <Button className="mobile-menu-button" variant="secondary" type="button"
-        aria-expanded={menuOpen} aria-controls="mobile-navigation" onClick={() => setMenuOpen(true)}>Meni</Button>
-      <NavLink className="shell-brand" to={user ? homeForUser(user, flags) : '/'}><span className="brand-mark" aria-hidden="true">G</span><span>G-Manager</span></NavLink>
+        aria-label="Meni" aria-expanded={menuOpen} aria-controls="mobile-navigation" onClick={() => setMenuOpen(true)}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"
+          strokeLinecap="round" aria-hidden="true" focusable="false"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+      </Button>
+      <NavLink className="shell-brand shell-brand--mobile" to={home} aria-label="G-Manager početna">
+        <BrandLogo className="brand-mark" /><span>G-MANAGER</span>
+      </NavLink>
       <div className="shell-page-context"><small>{current?.group ?? 'Moj prostor'}</small><strong>{current?.label ?? 'G-Manager'}</strong></div>
+      <div className="shell-search"><CommandPalette /></div>
       <div className="shell-actions">
         {hasCapability(user, 'RESERVATION_READ_ALL') && location.pathname !== '/reservations' && <NavLink className="shell-quick-action" to="/reservations">Rezervacije →</NavLink>}
-        <CommandPalette />
         <NotificationCenter />
-        <Button className="shell-account-button" type="button" variant="secondary" onClick={() => setAccountOpen(true)} aria-haspopup="dialog">
+        <Button className="shell-account-button" type="button" variant="secondary" onClick={() => setAccountOpen(true)}
+          aria-label={`Moj nalog: ${user?.name ?? ''}, ${userLabel}`} aria-haspopup="dialog" aria-expanded={accountOpen}>
           <span className="shell-avatar" aria-hidden="true">{user?.name.slice(0, 1).toLocaleUpperCase('sr')}</span>
           <span className="shell-user"><strong>{user?.name}</strong><small>{userLabel}</small></span>
-          <span className="sr-only">Moj nalog</span>
+          <svg className="shell-account-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"
+            aria-hidden="true" focusable="false"><path d="m7 10 5 5 5-5" /></svg>
         </Button>
       </div>
     </header>
     <aside className="desktop-navigation" aria-label="Bočna navigacija">
-      <Button className="sidebar-toggle" variant="secondary" aria-expanded={!collapsed}
-        aria-label={collapsed ? 'Proširi navigaciju' : 'Sažmi navigaciju'} onClick={toggleSidebar}>{collapsed ? '»' : '«'}<span> Sažmi navigaciju</span></Button>
+      <div className="sidebar-heading">
+        <NavLink className="shell-brand" to={home} aria-label="G-Manager početna" title="G-Manager">
+          <BrandLogo className="brand-mark" /><span>G-MANAGER</span>
+        </NavLink>
+      </div>
       <Navigation collapsed={collapsed} groups={groups} toggleGroup={toggleGroup} />
-      <PreferenceControls />
+      <div className="sidebar-footer">
+        <PreferenceControls />
+        <Button className="sidebar-toggle" type="button" variant="secondary" aria-expanded={!collapsed}
+          aria-label={collapsed ? 'Proširi navigaciju' : 'Sažmi navigaciju'}
+          title={collapsed ? 'Proširi navigaciju' : 'Sažmi navigaciju'} onClick={toggleSidebar}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"
+            strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+            <rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" />
+            <path d={collapsed ? 'm13 9 3 3-3 3' : 'm16 9-3 3 3 3'} />
+          </svg>
+          <span>Sažmi navigaciju</span>
+        </Button>
+      </div>
     </aside>
     <Drawer open={menuOpen} title="Navigacija" onClose={() => setMenuOpen(false)}>
       <div id="mobile-navigation" className="mobile-navigation-content">
+        <NavLink className="shell-brand" to={home} onClick={() => setMenuOpen(false)} aria-label="G-Manager početna">
+          <BrandLogo className="brand-mark" /><span>G-MANAGER</span>
+        </NavLink>
         <p className="mobile-user"><strong>{user?.name}</strong><span>{userLabel}</span></p>
         <Navigation close={() => setMenuOpen(false)} groups={groups} toggleGroup={toggleGroup} />
         <PreferenceControls />
