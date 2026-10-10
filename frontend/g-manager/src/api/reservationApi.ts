@@ -9,6 +9,7 @@ import type {
   ReservationStatus,
   ReservationSummary,
   ReservationBookingPlan,
+  CalendarContext,
   CalendarReservation,
   RecurrenceInput,
   RecurrencePreview,
@@ -25,6 +26,7 @@ export interface ReservationFilters {
   customerId?: string
   resourceId?: string
   locationId?: string
+  areaId?: string
   scope?: ReservationScope
   from?: string
   to?: string
@@ -34,9 +36,11 @@ export interface ReservationFilters {
 }
 
 export const reservationApi = {
+  calendarContext: (params: {date: string; scope?: ReservationScope; locationId?: string; areaId?: string; resourceId?: string; employeeId?: string}) =>
+    apiClient.get<CalendarContext>('/reservations/calendar-context', {params}).then(({data}) => data),
   bookingPlan: (params: {serviceId: string; employeeId?: string; resourceId?: string; locationId?: string; areaId?: string; date: string; start?: string; durationMinutes?: number}) =>
     apiClient.get<ReservationBookingPlan>('/reservations/booking-plan', {params}).then(({data}) => data),
-  calendar: (params: { employeeId?: string; from: string; to: string; scope?: ReservationScope; resourceId?: string; locationId?: string; customerId?: string; status?: ReservationStatus }) =>
+  calendar: (params: { employeeId?: string; from: string; to: string; scope?: ReservationScope; resourceId?: string; locationId?: string; areaId?: string; customerId?: string; status?: ReservationStatus }) =>
     apiClient.get<CalendarReservation[]>('/reservations/calendar', { params }).then(({ data }) => data),
   create: (input: CreateReservationInput, idempotencyKey: string) =>
     apiClient.post<Reservation>('/reservations', input, {

@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class ReservationController {
     private final ReservationPlanningService planning;
+    private final CalendarContextService calendarContext;
     private final ReservationService reservationService;
     private final RecurrenceService recurrenceService;
     private final BulkOperationExecutor bulkOperationExecutor;
@@ -102,8 +103,17 @@ public class ReservationController {
             @RequestParam(required = false) UUID customerId,
             @RequestParam(required = false) LocalDate from,
             @RequestParam(required = false) LocalDate to,
-            @RequestParam(required = false) String search) {
-        return reservationService.summary(scope, resourceId, locationId, employeeId, customerId, from, to, search);
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) UUID areaId) {
+        return reservationService.summary(scope, resourceId, locationId, employeeId, customerId, from, to, search, areaId);
+    }
+
+    @GetMapping("/calendar-context")
+    public com.game_manager.gm.reservation.dto.CalendarContextResponse calendarContext(
+            @RequestParam LocalDate date, @RequestParam(defaultValue="ALL") ReservationScope scope,
+            @RequestParam(required=false) UUID locationId, @RequestParam(required=false) UUID areaId,
+            @RequestParam(required=false) UUID resourceId, @RequestParam(required=false) UUID employeeId) {
+        return calendarContext.context(date,scope,locationId,areaId,resourceId,employeeId);
     }
 
     @GetMapping("/calendar")
@@ -115,8 +125,9 @@ public class ReservationController {
             @RequestParam(required=false) UUID resourceId,
             @RequestParam(required=false) UUID locationId,
             @RequestParam(required=false) UUID customerId,
-            @RequestParam(required=false) ReservationStatus status) {
-        return reservationService.calendar(employeeId, from, to,scope,resourceId,locationId,customerId,status);
+            @RequestParam(required=false) ReservationStatus status,
+            @RequestParam(required=false) UUID areaId) {
+        return reservationService.calendar(employeeId, from, to,scope,resourceId,locationId,customerId,status,areaId);
     }
 
     @GetMapping("/{id}")

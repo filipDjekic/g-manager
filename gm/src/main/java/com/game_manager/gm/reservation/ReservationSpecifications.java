@@ -32,6 +32,15 @@ public final class ReservationSpecifications {
     public static Specification<Reservation> hasLocation(UUID locationId) {
         return (root,query,builder) -> locationId==null ? null : builder.equal(root.get("locationId"),locationId);
     }
+    public static Specification<Reservation> hasArea(UUID areaId) {
+        return (root, query, builder) -> {
+            if (areaId == null) return null;
+            var ids = query.subquery(UUID.class);
+            var resource = ids.from(PhysicalResource.class);
+            ids.select(resource.get("id")).where(builder.equal(resource.get("areaId"), areaId));
+            return root.get("resourceId").in(ids);
+        };
+    }
     public static Specification<Reservation> inResources(java.util.Set<UUID> ids) {
         return (root,query,builder) -> ids.isEmpty() ? builder.disjunction() : root.get("resourceId").in(ids);
     }
