@@ -44,11 +44,18 @@ management:
     health:
       probes:
         enabled: true
+      status:
+        order: down,out-of-service,degraded,unknown,up
+        http-mapping:
+          down: 503
+          out-of-service: 503
+          degraded: 200
       group:
         liveness:
           include: livenessState,ping
         readiness:
-          include: readinessState,db,outbox,backgroundJobs,machineProtocol
+          # API availability depends on lifecycle and database access, not station or queue state.
+          include: readinessState,db
   metrics:
     tags:
       application: ${spring.application.name}
