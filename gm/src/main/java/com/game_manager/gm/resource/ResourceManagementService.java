@@ -24,6 +24,20 @@ public class ResourceManagementService {
  private final com.game_manager.gm.reservation.ReservationDurationPolicy durations;
 
  public int reservationDuration(CatalogItem service,Integer requested){return durations.resolve(service,requested);}
+ @Transactional(readOnly=true) @PreAuthorize("hasAuthority('RESOURCE_READ')")
+ public List<BookingResourceView> catalogResources(UUID serviceId){
+  var service=catalog.get(serviceId);
+  if(service.type()!=ItemType.SERVICE)
+   throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Resource must reference a service");
+  var values=resources.findByServiceIdOrderByIdAsc(serviceId);
+  var references=resourceReferences(values.stream().map(PhysicalResource::getId).collect(java.util.stream.Collectors.toSet()));
+  var restrictions=bookingRestrictions(values);
+  return values.stream().filter(value->references.containsKey(value.getId())).map(value->{
+   var ref=references.get(value.getId());String reason=service.active()?restrictions.get(value.getId()):"Service is inactive";
+   return new BookingResourceView(ref.id(),ref.serviceId(),ref.code(),ref.name(),ref.type(),ref.locationId(),ref.locationName(),
+    reason==null,ref.areaId(),ref.areaName(),reason);
+  }).toList();
+ }
  public void requireBookingArea(UUID areaId,UUID locationId){
   if(areaId==null)return;
   Area value=area(areaId);

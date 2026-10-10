@@ -2,12 +2,14 @@ package com.game_manager.gm.catalog;
 
 import com.game_manager.gm.common.dto.PageResponse;
 import com.game_manager.gm.common.config.PageRequestFactory;
+import com.game_manager.gm.common.config.GManagerProperties;
 import com.game_manager.gm.common.error.ApplicationException;
 import com.game_manager.gm.media.FileStorageService;
 import com.game_manager.gm.common.security.AuthenticatedUser;
 import com.game_manager.gm.common.security.CurrentUserProvider;
 import com.game_manager.gm.common.security.Role;
 import com.game_manager.gm.catalog.dto.CatalogItemResponse;
+import com.game_manager.gm.catalog.dto.CatalogStatisticsResponse;
 import com.game_manager.gm.catalog.dto.CreateCatalogItemRequest;
 import com.game_manager.gm.catalog.dto.UpdateCatalogItemRequest;
 import com.game_manager.gm.audit.AuditVisibility;
@@ -27,6 +29,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.core.env.Environment;
+import org.springframework.util.unit.DataSize;
 
 @Service
 @RequiredArgsConstructor
@@ -38,6 +42,22 @@ public class CatalogService {
     private final FileStorageService fileStorageService;
     private final PageRequestFactory pageRequestFactory;
     private final AuditWriter auditWriter;
+    private final GManagerProperties properties;
+    private final Environment environment;
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('CATALOG_READ')")
+    public CatalogStatisticsResponse statistics() {
+        boolean administrative = isManagement(currentUserProvider.requireCurrentUser().role());
+        var counts = catalogRepository.statistics(!administrative);
+        long imageLimit = properties.documents().maxFileBytes();
+        long multipartLimit = DataSize.parse(environment.getProperty(
+                "spring.servlet.multipart.max-file-size", "1MB")).toBytes();
+        if (multipartLimit >= 0) imageLimit = Math.min(imageLimit, multipartLimit);
+        return new CatalogStatisticsResponse(counts.getServiceCount(), counts.getActiveServiceCount(),
+                counts.getProductCount(), administrative ? counts.getInactiveCount() : null,
+                administrative, imageLimit);
+    }
 
     @Transactional
     @PreAuthorize("hasAuthority('CATALOG_MANAGE')")
@@ -227,6 +247,21 @@ public class CatalogService {
         requireManagement();
         return PageResponse.from(catalogRepository.findAll(CatalogSpecifications.deleted(),
                 pageRequestFactory.create(page, size, org.springframework.data.domain.Sort.by("deletedAt").descending()))
+                .map(CatalogItemResponse::from));
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('CATALOG_RESTORE')")
+    public PageResponse<CatalogItemResponse> listDeleted(ItemType type, Boolean active, String search,
+            BigDecimal minPrice, BigDecimal maxPrice, int page, int size, String sort, String direction) {
+        requireManagement();
+        validatePriceRange(minPrice, maxPrice);
+        var specification = CatalogSpecifications.deleted().and(CatalogSpecifications.hasType(type))
+                .and(CatalogSpecifications.isActive(active)).and(CatalogSpecifications.nameContains(search))
+                .and(CatalogSpecifications.priceBetween(minPrice, maxPrice));
+        return PageResponse.from(catalogRepository.findAll(specification,
+                pageRequestFactory.create(page, size, sort, direction,
+                        Set.of("name", "price", "type", "createdAt", "deletedAt")))
                 .map(CatalogItemResponse::from));
     }
 
