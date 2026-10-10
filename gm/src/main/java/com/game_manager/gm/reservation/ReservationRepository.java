@@ -10,7 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface ReservationRepository
-        extends JpaRepository<Reservation, UUID>, JpaSpecificationExecutor<Reservation> {
+        extends JpaRepository<Reservation, UUID>, JpaSpecificationExecutor<Reservation>, ReservationSummaryRepository {
     @Query("""
             select new com.game_manager.gm.reservation.ResourceBusyInterval(r.resourceId, r.startTime, r.endTime)
             from Reservation r where r.resourceId in :ids and r.status not in :excluded

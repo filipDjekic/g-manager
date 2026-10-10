@@ -1,6 +1,20 @@
 export type ReservationStatus =
   | 'PENDING' | 'CONFIRMED' | 'REJECTED' | 'CANCELLED' | 'COMPLETED'
 
+export type ReservationDetailAction = ReservationStatus | 'EDIT' | 'ASSIGN_RESOURCE'
+
+export interface ReservationSummary {
+  todayReservations: number
+  upcomingReservations: number
+  uniqueCustomers: number
+  cancelledTodayAppointments: number
+  today: string
+  upcomingThrough: string
+  customersFrom: string
+  customersTo: string
+  timezone: string
+}
+
 export interface Reservation {
   id: string
   serviceName?: string

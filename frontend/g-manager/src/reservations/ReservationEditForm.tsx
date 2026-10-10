@@ -5,7 +5,7 @@ import { apiErrorMessage } from '../api/client'
 import { Button, ErrorState, Skeleton } from '../components/ui'
 import { businessInstantToLocal, businessLocalToInstant, formatBusinessDateTime } from './dateTime'
 import type { ReservationDetail } from '../types/reservation.types'
-export function ReservationEditForm({value,onChanged,onClose,onBusyChange}:{value:ReservationDetail;onChanged:()=>Promise<void>;onClose:()=>void;onBusyChange?:(busy:boolean)=>void}) {
+export function ReservationEditForm({value,onChanged,onClose,onBusyChange,locale='sr-RS'}:{value:ReservationDetail;onChanged:()=>Promise<void>;onClose:()=>void;onBusyChange?:(busy:boolean)=>void;locale?:string}) {
   const [start,setStart]=useState(()=>businessInstantToLocal(value.startTime))
   const [resourceId,setResourceId]=useState(value.resourceId??'')
   const [note,setNote]=useState(value.note??'')
@@ -30,7 +30,7 @@ export function ReservationEditForm({value,onChanged,onClose,onBusyChange}:{valu
       {options.data?.resources.map(r=><option key={r.id} value={r.id} disabled={!r.available}>{r.code} · {r.name} · {r.locationName}{r.available?'':' — Zauzet ili van radnog vremena'}</option>)}
     </select></label>}
     <label>Napomena<textarea maxLength={500} disabled={save.isPending} value={note} onChange={e=>setNote(e.target.value)}/></label>
-    <p>{resource?`${resource.locationName} · ${resource.code} · ${resource.name}`:value.locationName} · {instant&&formatBusinessDateTime(instant)}</p>
+    <p>{resource?`${resource.locationName} · ${resource.code} · ${resource.name}`:value.locationName} · {instant&&formatBusinessDateTime(instant,false,locale)}</p>
     {save.error&&<p role="alert" className="error-banner">{apiErrorMessage(save.error,'Izmene nije moguće sačuvati.')}</p>}
     <div className="form-actions"><Button type="submit" disabled={!maySave} loading={save.isPending}>Sačuvaj izmene</Button><Button type="button" variant="secondary" disabled={save.isPending} onClick={onClose}>Odustani</Button></div>
   </form>

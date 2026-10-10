@@ -13,6 +13,7 @@ import com.game_manager.gm.reservation.dto.ReservationResponse;
 import com.game_manager.gm.reservation.dto.ReservationDetailResponse;
 import com.game_manager.gm.reservation.dto.ReservationHistoryResponse;
 import com.game_manager.gm.reservation.dto.CalendarReservationResponse;
+import com.game_manager.gm.reservation.dto.ReservationSummaryResponse;
 import com.game_manager.gm.common.security.AuthenticatedUser;
 import com.game_manager.gm.common.security.CurrentUserProvider;
 import com.game_manager.gm.common.security.Role;
@@ -174,6 +175,43 @@ public class ReservationService {
             LocalDate to,int page,int size,String sort,String direction,ReservationScope scope,
             UUID resourceId,UUID locationId,UUID customerId) {
         return listInternal(customerId,employeeId,status,from,to,page,size,sort,direction,scope,resourceId,locationId);
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('RESERVATION_READ_ALL')")
+    public PageResponse<ReservationResponse> listAll(UUID employeeId, ReservationStatus status, LocalDate from,
+            LocalDate to, int page, int size, String sort, String direction, ReservationScope scope,
+            UUID resourceId, UUID locationId, UUID customerId, String search) {
+        return listInternal(customerId, employeeId, status, from, to, page, size, sort, direction,
+                scope, resourceId, locationId, search);
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('RESERVATION_READ_ALL')")
+    public ReservationSummaryResponse summary(ReservationScope scope, UUID resourceId, UUID locationId,
+            UUID employeeId, UUID customerId, LocalDate from, LocalDate to, String search) {
+        validateDateRange(from, to);
+        ZoneId zone = workingHoursService.getBusinessZone();
+        Instant now = clock.instant();
+        LocalDate today = now.atZone(zone).toLocalDate();
+        LocalDate customersFrom = from != null ? from : to != null ? to.minusDays(6) : today;
+        LocalDate customersTo = to != null ? to : customersFrom.plusDays(6);
+        Specification<Reservation> visible = scopeFilter(scope, resourceId, locationId)
+                .and(ReservationSpecifications.hasEmployee(employeeId))
+                .and(ReservationSpecifications.hasCustomer(customerId)).and(textFilter(search));
+        Specification<Reservation> todayFilter = visible
+                .and(ReservationSpecifications.startsFrom(today.atStartOfDay(zone).toInstant()))
+                .and(ReservationSpecifications.startsBefore(today.plusDays(1).atStartOfDay(zone).toInstant()));
+        Specification<Reservation> upcoming = visible.and(ReservationSpecifications.startsFrom(now))
+                .and(ReservationSpecifications.startsBefore(today.plusDays(7).atStartOfDay(zone).toInstant()))
+                .and((root, query, builder) -> root.get("status").in(ReservationStatus.PENDING, ReservationStatus.CONFIRMED));
+        Specification<Reservation> customerPeriod = visible
+                .and(ReservationSpecifications.startsFrom(customersFrom.atStartOfDay(zone).toInstant()))
+                .and(ReservationSpecifications.startsBefore(customersTo.plusDays(1).atStartOfDay(zone).toInstant()));
+        return new ReservationSummaryResponse(reservationRepository.count(todayFilter),
+                reservationRepository.count(upcoming), reservationRepository.countDistinctCustomers(customerPeriod),
+                reservationRepository.count(todayFilter.and(ReservationSpecifications.hasStatus(ReservationStatus.CANCELLED))),
+                today, today.plusDays(6), customersFrom, customersTo, zone.getId());
     }
 
     @Transactional(readOnly = true)
@@ -429,6 +467,22 @@ public class ReservationService {
     private PageResponse<ReservationResponse> listInternal(UUID customerId,UUID employeeId,ReservationStatus status,
             LocalDate from,LocalDate to,int page,int size,String sort,String direction,
             ReservationScope scope,UUID resourceId,UUID locationId) {
+        return listInternal(customerId, employeeId, status, from, to, page, size, sort, direction,
+                scope, resourceId, locationId, null);
+    }
+
+    private Specification<Reservation> textFilter(String search) {
+        if (search != null && search.length() > 120)
+            throw new ApplicationException(HttpStatus.BAD_REQUEST, "Search must not exceed 120 characters");
+        if (search == null || search.isBlank()) return (root, query, builder) -> builder.conjunction();
+        var actor = currentUserProvider.requireCurrentUser();
+        return ReservationSpecifications.matchesText(search,
+                resourceAccess.allResources(actor) ? null : resourceAccess.assignedResources(actor));
+    }
+
+    private PageResponse<ReservationResponse> listInternal(UUID customerId,UUID employeeId,ReservationStatus status,
+            LocalDate from,LocalDate to,int page,int size,String sort,String direction,
+            ReservationScope scope,UUID resourceId,UUID locationId,String search) {
         validateDateRange(from, to);
         ZoneId zone = workingHoursService.getBusinessZone();
         Instant fromInstant = from == null ? null : from.atStartOfDay(zone).toInstant();
@@ -441,9 +495,12 @@ public class ReservationService {
                 .and(ReservationSpecifications.hasEmployee(employeeId))
                 .and(ReservationSpecifications.hasStatus(status))
                 .and(ReservationSpecifications.startsFrom(fromInstant))
-                .and(ReservationSpecifications.startsBefore(toInstant));
+                .and(ReservationSpecifications.startsBefore(toInstant))
+                .and(textFilter(search));
+        var pageable = pageRequestFactory.create(page, size, sort, direction, ALLOWED_SORTS);
         Page<Reservation> values = reservationRepository.findAll(specification,
-                pageRequestFactory.create(page, size, sort, direction, ALLOWED_SORTS));
+                org.springframework.data.domain.PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
+                        pageable.getSort().and(org.springframework.data.domain.Sort.by("id"))));
         Map<UUID,ReservationResponse> mapped=responses(values.getContent());
         return PageResponse.from(values.map(value -> mapped.get(value.getId())));
     }
