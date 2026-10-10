@@ -107,6 +107,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/saved-views/**").authenticated()
                         .requestMatchers("/api/v1/search/**", "/api/v1/search").authenticated()
                         .requestMatchers("/api/v1/notifications/**", "/api/v1/notifications").authenticated()
+                        .requestMatchers(
+                            HttpMethod.GET,
+                            "/api/v1/documents/*/content"
+                        ).permitAll()
                         .requestMatchers("/api/v1/documents/**", "/api/v1/documents").authenticated()
                         .requestMatchers("/api/v1/reports/**", "/api/v1/reports").hasAuthority("REPORT_READ")
                         .requestMatchers("/api/v1/ai/**").hasAuthority("REPORT_READ")
@@ -115,7 +119,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/features/**", "/api/v1/features")
                             .hasAuthority("FEATURE_FLAG_MANAGE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/catalog/**").hasAuthority("CATALOG_READ")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/availability").hasAuthority("CATALOG_READ")
+                        .requestMatchers(
+                            HttpMethod.GET,
+                            "/api/v1/availability",
+                            "/api/v1/availability/overview"
+                        ).hasAuthority("CATALOG_READ")
                         .requestMatchers(HttpMethod.GET, "/api/v1/resources/**")
                             .hasAuthority("RESOURCE_READ")
                         .requestMatchers("/api/v1/resources/**").hasAuthority("RESOURCE_MANAGE")
@@ -154,6 +162,20 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/reservations").hasAuthority("RESERVATION_CREATE")
                         .requestMatchers(HttpMethod.POST, "/api/v1/reservations/recurrence/**", "/api/v1/reservations/recurrence")
                             .hasAuthority("RESERVATION_CREATE")
+                        .requestMatchers(
+                            HttpMethod.GET,
+                            "/api/v1/reservations/*/resources"
+                        ).hasAuthority("RESERVATION_READ_ALL")
+
+                        .requestMatchers(
+                            HttpMethod.PATCH,
+                            "/api/v1/reservations/*"
+                        ).hasAuthority("RESERVATION_CHANGE_STATUS")
+
+                        .requestMatchers(
+                            HttpMethod.PATCH,
+                            "/api/v1/reservations/*/resource"
+                        ).hasAuthority("RESERVATION_CHANGE_STATUS")
                         .requestMatchers("/api/v1/waitlist/**", "/api/v1/waitlist").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/reservations/me").hasAuthority("RESERVATION_READ_OWN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/reservations/calendar").hasAuthority("RESERVATION_READ_ALL")

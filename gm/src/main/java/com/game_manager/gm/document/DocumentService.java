@@ -8,7 +8,40 @@ import com.game_manager.gm.audit.*; import com.game_manager.gm.common.config.GMa
  @Transactional public DocumentResponse addVersion(UUID id,long expected,MultipartFile file){validate(file);AuthenticatedUser actor=users.requireCurrentUser();Document d=documents.locked(id).orElseThrow(this::notFound);policy.require(d.getResourceType(),d.getResourceId(),actor);if(d.getDeletedAt()!=null)throw notFound();if(d.getVersion()!=expected)throw new ApplicationException(HttpStatus.CONFLICT,"Document was changed; refresh and try again");addVersion(d,file,actor);audit.write("DOCUMENT_VERSION_UPLOADED","DOCUMENT",id,null,Map.of("sizeBytes",file.getSize()),null,AuditVisibility.OWNER_ONLY);return DocumentResponse.from(d);}
  private void addVersion(Document d,MultipartFile file,AuthenticatedUser actor){int number=d.getVersions().stream().mapToInt(DocumentVersion::getVersionNumber).max().orElse(0)+1;String key="quarantine/"+d.getId()+"/"+UUID.randomUUID();Timer.Sample sample=Timer.start(metrics);try(InputStream in=file.getInputStream()){StoredObject stored=storage.store(key,in,file.getSize());DocumentVersion v=new DocumentVersion();v.setDocument(d);v.setVersionNumber(number);v.setObjectKey(stored.key());v.setOriginalFilename(name(file.getOriginalFilename()));v.setContentType(file.getContentType());v.setSizeBytes(stored.size());v.setChecksumSha256(stored.checksumSha256());v.setScanStatus(ScanStatus.PENDING);v.setCreatedBy(actor.id());versions.saveAndFlush(v);d.getVersions().add(0,v);metrics.counter("gmanager.document.upload","result","success").increment();}catch(IOException|RuntimeException e){storage.delete(key);metrics.counter("gmanager.document.upload","result","failure").increment();throw e instanceof ApplicationException a?a:new ApplicationException(HttpStatus.INTERNAL_SERVER_ERROR,"Document could not be stored");}finally{sample.stop(metrics.timer("gmanager.document.upload.duration"));metrics.summary("gmanager.document.upload.bytes").record(file.getSize());}}
  @Transactional(readOnly=true) public List<DocumentResponse> list(String type,UUID resourceId){AuthenticatedUser a=users.requireCurrentUser();policy.require(type,resourceId,a);return documents.findByResourceTypeAndResourceIdAndDeletedAtIsNullOrderByCreatedAtDesc(type,resourceId).stream().map(DocumentResponse::from).toList();}
- @Transactional(readOnly=true) public Download download(UUID documentId,UUID versionId,boolean preview){AuthenticatedUser a=users.requireCurrentUser();Document d=documents.detail(documentId).orElseThrow(this::notFound);policy.require(d.getResourceType(),d.getResourceId(),a);if(d.getDeletedAt()!=null)throw notFound();DocumentVersion v=versionId==null?d.getVersions().stream().findFirst().orElseThrow(this::notFound):versions.findByIdAndDocumentId(versionId,documentId).orElseThrow(this::notFound);if(v.getScanStatus()!=ScanStatus.CLEAN)throw new ApplicationException(HttpStatus.LOCKED,"Document is not available until security scanning succeeds");audit.write("DOCUMENT_DOWNLOADED","DOCUMENT",d.getId(),null,Map.of("version",v.getVersionNumber()),null,AuditVisibility.OWNER_ONLY);return new Download(storage.open(v.getObjectKey()),v.getContentType(),v.getOriginalFilename(),v.getSizeBytes(),preview&&previewable(v.getContentType()));}
+ @Transactional(readOnly=true)
+ public Download download(UUID documentId,UUID versionId,boolean preview){
+     Document d=documents.detail(documentId).orElse(null);
+     if(preview&&d!=null&&d.getDeletedAt()==null){
+         DocumentVersion latest=d.getVersions().stream().findFirst().orElse(null);
+         if(isPublicImage(d,latest,versionId)){
+             // A public image request has no authenticated audit actor.
+             return new Download(storage.open(latest.getObjectKey()),latest.getContentType(),
+                     latest.getOriginalFilename(),latest.getSizeBytes(),true);
+         }
+     }
+     // Require authentication before returning any information about non-public documents,
+     // including whether the requested document/version exists.
+     AuthenticatedUser a=users.requireCurrentUser();
+     if(d==null)throw notFound();
+     policy.require(d.getResourceType(),d.getResourceId(),a);
+     if(d.getDeletedAt()!=null)throw notFound();
+     DocumentVersion v=versionId==null?d.getVersions().stream().findFirst().orElseThrow(this::notFound)
+             :versions.findByIdAndDocumentId(versionId,documentId).orElseThrow(this::notFound);
+     if(v.getScanStatus()!=ScanStatus.CLEAN)throw new ApplicationException(HttpStatus.LOCKED,
+             "Document is not available until security scanning succeeds");
+     audit.write("DOCUMENT_DOWNLOADED","DOCUMENT",d.getId(),null,
+             Map.of("version",v.getVersionNumber()),null,AuditVisibility.OWNER_ONLY);
+     return new Download(storage.open(v.getObjectKey()),v.getContentType(),v.getOriginalFilename(),
+             v.getSizeBytes(),preview&&previewable(v.getContentType()));
+ }
+ private boolean isPublicImage(Document d,DocumentVersion latest,UUID versionId){
+     if(latest==null||(versionId!=null&&!versionId.equals(latest.getId()))
+             ||latest.getScanStatus()!=ScanStatus.CLEAN)return false;
+     if(!"image/png".equals(latest.getContentType())&&!"image/jpeg".equals(latest.getContentType()))return false;
+     if(!"CATALOG_IMAGE".equals(d.getResourceType())&&!"USER_AVATAR".equals(d.getResourceType()))return false;
+     String imageUrl="/api/v1/documents/"+d.getId()+"/content?preview=true";
+     return documents.isCurrentPublicImage(d.getId(),imageUrl);
+ }
  @Transactional public void delete(UUID id,long expected){AuthenticatedUser a=users.requireCurrentUser();Document d=documents.locked(id).orElseThrow(this::notFound);policy.require(d.getResourceType(),d.getResourceId(),a);if(d.getVersion()!=expected)throw new ApplicationException(HttpStatus.CONFLICT,"Document was changed; refresh and try again");d.setDeletedAt(clock.instant());d.setDeletedBy(a.id());audit.write("DOCUMENT_DELETED","DOCUMENT",id,null,Map.of("deleted",true),null,AuditVisibility.OWNER_ONLY);}
  @Transactional public DocumentResponse restore(UUID id){AuthenticatedUser a=users.requireCurrentUser();Document d=documents.locked(id).orElseThrow(this::notFound);policy.require(d.getResourceType(),d.getResourceId(),a);d.setDeletedAt(null);d.setDeletedBy(null);audit.write("DOCUMENT_RESTORED","DOCUMENT",id,Map.of("deleted",true),Map.of("deleted",false),null,AuditVisibility.OWNER_ONLY);return DocumentResponse.from(d);}
  private void validate(MultipartFile f){if(f.isEmpty()||f.getSize()>config.documents().maxFileBytes())throw new ApplicationException(HttpStatus.BAD_REQUEST,"Document must be non-empty and within the configured size limit");if(!TYPES.contains(f.getContentType()))throw new ApplicationException(HttpStatus.BAD_REQUEST,"Unsupported document format");try{byte[] b=f.getInputStream().readNBytes((int)Math.min(f.getSize(),8192));boolean valid=switch(f.getContentType()){case "image/png"->starts(b,new byte[]{(byte)137,80,78,71,13,10,26,10});case "image/jpeg"->starts(b,new byte[]{(byte)255,(byte)216,(byte)255});case "application/pdf"->starts(b,"%PDF-".getBytes(StandardCharsets.US_ASCII));case "text/plain"->Charset.forName("UTF-8").newDecoder().decode(java.nio.ByteBuffer.wrap(b))!=null;default->false;};if(!valid)throw new ApplicationException(HttpStatus.BAD_REQUEST,"File content does not match its MIME type");}catch(IOException e){throw new ApplicationException(HttpStatus.BAD_REQUEST,"Document could not be read");}}

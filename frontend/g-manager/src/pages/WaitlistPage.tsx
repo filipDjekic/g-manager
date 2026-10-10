@@ -1,9 +1,11 @@
+import { useAuthStore } from '../auth/authStore'
+import { hasCapability } from '../auth/capabilities'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { waitlistApi } from '../api/waitlistApi'
 import { resourceApi } from '../api/resourceApi'
 import { apiErrorMessage } from '../api/client'
-import { Badge, Button, EmptyState, ErrorState, PageHeader, Skeleton, TableShell } from '../components/ui'
+import { Pagination, Badge, Button, EmptyState, ErrorState, PageHeader, Skeleton, TableShell } from '../components/ui'
 import { useListUrlState } from '../lists/useListUrlState'
 import { dateInBusinessZone, formatBusinessDateTime, formatBusinessTime } from '../reservations/dateTime'
 import { CustomerPicker } from '../reservations/CustomerPicker'
@@ -14,6 +16,7 @@ const defaults = { search: '', status: '', page: '0', customerId: '', date: '', 
 const allowed = Object.keys(defaults) as (keyof typeof defaults)[]
 const labels: Record<WaitlistStatus, string> = { WAITING: 'Čeka termin', OFFERED: 'Ponuda poslata', ACCEPTED: 'Prihvaćeno', CANCELLED: 'Otkazano' }
 export function WaitlistPage() {
+  const actor = useAuthStore((state) => state.user)
   const url = useListUrlState(defaults, allowed), page = Math.max(0, Number(url.state.page) || 0)
   const status = Object.hasOwn(labels, url.state.status) ? url.state.status as WaitlistStatus : undefined
   const filters = useQuery({ queryKey: ['resources', 'waitlist-filters'], queryFn: resourceApi.reservationResources })
@@ -34,7 +37,7 @@ export function WaitlistPage() {
       <label>Datum termina<input type="date" value={url.state.date} onChange={e => url.set({ date: e.target.value, page: '0' })} /></label>
       <label>Lokacija<select value={url.state.locationId} disabled={filters.isLoading} onChange={e => url.set({ locationId: e.target.value, resourceId: '', page: '0' })}><option value="">Sve lokacije</option>{locations.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
       <label>Stanica / resurs<select value={url.state.resourceId} disabled={filters.isLoading} onChange={e => url.set({ resourceId: e.target.value, page: '0' })}><option value="">Sve stanice</option>{resources.filter(item => !url.state.locationId || item.locationId === url.state.locationId).map(item => <option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}</select></label>
-      <CustomerPicker value={url.state.customerId} onChange={id => url.set({ customerId: id, page: '0' })} />
+      {hasCapability(actor,'CUSTOMER_READ') && <CustomerPicker value={url.state.customerId} onChange={id => url.set({ customerId: id, page: '0' })} />}
       <Button variant="secondary" onClick={() => url.apply({})}>Poništi filtere</Button>
     </div>
     {filters.error && <ErrorState message="Filtere stanica nije moguće učitati." action={<Button onClick={() => filters.refetch()}>Pokušaj ponovo</Button>} />}
@@ -44,7 +47,7 @@ export function WaitlistPage() {
         <tbody>{queue.data.content.map(entry => {
           const expired = entry.offerStatus === 'EXPIRED' || Boolean(serverTime && entry.offerExpiresAt && Date.parse(entry.offerExpiresAt) <= now)
           const offered = entry.status === 'OFFERED' && !expired
-          return <tr key={entry.id}><td data-label="Klijent"><Link to={`/customers?customerId=${entry.customerId}`}>{entry.customerName}</Link><small className="table-secondary">Prijava: {formatBusinessDateTime(entry.createdAt)}</small></td>
+          return <tr key={entry.id}><td data-label="Klijent">{hasCapability(actor,'CUSTOMER_READ') ? <Link to={`/customers?customerId=${entry.customerId}`}>{entry.customerName}</Link> : entry.customerName}<small className="table-secondary">Prijava: {formatBusinessDateTime(entry.createdAt)}</small></td>
             <td data-label="Termin"><strong>{entry.serviceName}</strong><small className="table-secondary">{formatBusinessDateTime(entry.desiredStart)}{entry.desiredEnd && ` – ${formatBusinessTime(entry.desiredEnd)}`}</small><small className="table-secondary">{entry.employeeName}</small></td>
             <td data-label="Stanica"><span>{[entry.resourceCode, entry.resourceName].filter(Boolean).join(' · ') || 'Bez određenog resursa'}</span><small className="table-secondary">{entry.locationName || 'Bez određene lokacije'}</small></td>
             <td data-label="Status"><Badge tone={offered || entry.status === 'ACCEPTED' ? 'success' : entry.status === 'CANCELLED' ? 'neutral' : 'warning'}>{entry.status === 'OFFERED' && expired ? 'Ponuda istekla · čeka novu proveru' : labels[entry.status]}</Badge>
@@ -54,7 +57,8 @@ export function WaitlistPage() {
               <small className="table-secondary">Lista čekanja: samo pregled</small>
               <Link to={`/calendar?${new URLSearchParams({ employeeId: entry.employeeId, date: dateInBusinessZone(entry.desiredStart), view: 'day', ...(entry.resourceId ? { resourceId: entry.resourceId } : {}), ...(entry.locationId ? { locationId: entry.locationId } : {}) })}`}>Proveri kalendar</Link></td></tr>
         })}</tbody></table></TableShell>}
-    <div className="pagination"><Button variant="secondary" disabled={page === 0 || queue.isFetching} onClick={() => url.set({ page: String(page - 1) })}>Prethodna</Button>
-      <span>{queue.data ? `${queue.data.totalElements} prijava · ` : ''}Strana {page + 1} od {Math.max(queue.data?.totalPages ?? 1, 1)}</span><Button variant="secondary" disabled={!queue.data || page + 1 >= queue.data.totalPages || queue.isFetching} onClick={() => url.set({ page: String(page + 1) })}>Sledeća</Button></div>
+    {queue.data && <p className="search-help">Ukupno {queue.data.totalElements} prijava</p>}
+    <Pagination page={page} totalPages={queue.data?.totalPages} loading={queue.isFetching}
+      onPageChange={(value) => url.set({ page: String(value) })} />
   </main>
 }

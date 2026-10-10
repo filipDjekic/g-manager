@@ -11,8 +11,12 @@ import { IdempotencyKeyManager, isConflictResponse } from '../api/idempotency'
 import { useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '../auth/authStore'
 import { deleteDraft, loadDraft, saveDraft } from '../pwa/clientStorage'
+import { Pagination, Badge, Button, EmptyState, Skeleton } from '../components/ui'
+import { orderLabels, orderTones } from '../components/ui/statusPresentation'
+import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 
 export function MyOrdersPage() {
+  const { confirm, confirmationDialog } = useConfirmDialog()
   const [searchParams] = useSearchParams()
   const userId = useAuthStore((state) => state.user?.id)
   const [products, setProducts] = useState<CatalogItem[]>([])
@@ -118,22 +122,23 @@ export function MyOrdersPage() {
   }
 
   async function cancel(order: Order) {
-    try {
+    confirm({ title: 'Otkaži narudžbinu', description: `Narudžbina od ${formatBusinessDateTime(order.createdAt)} biće otkazana.`,
+      variant: 'danger', confirmLabel: 'Otkaži narudžbinu', errorMessage: 'Narudžbinu nije moguće otkazati.', onConfirm: async () => {
       await orderApi.changeStatus(order, 'CANCELLED')
       await loadMine()
-    } catch (cause) {
-      setError(apiErrorMessage(cause, 'Narudžbinu nije moguće otkazati.'))
-    }
+      setMessage('Narudžbina je otkazana.')
+    } })
   }
 
   return <main className="workspace">
-    <div className="page-heading"><div><p className="eyebrow">Pickup</p><h1>Moje narudžbine</h1></div></div>
+    {confirmationDialog}
+    <div className="page-heading"><div><p className="eyebrow">Poručivanje i preuzimanje</p><h1>Moje narudžbine</h1></div></div>
     {error && <p className="error-banner" role="alert">{error}</p>}
     {message && <p className="success-banner" role="status">{message}</p>}
     {persistenceWarning && <p className="warning-banner" role="status">{persistenceWarning}</p>}
     <div className="panel-grid order-grid">
       <section className="panel"><h2>Proizvodi</h2>
-        {!products.length && <p className="empty-state">Trenutno nema aktivnih proizvoda.</p>}
+        {!catalogReady && !error ? <Skeleton lines={3} label="Učitavanje proizvoda" /> : !products.length && <EmptyState title="Trenutno nema aktivnih proizvoda" />}
         {products.map((product) => <label className="product-picker" key={product.id}>
           <span><strong>{product.name}</strong><small>{product.price.toFixed(2)} RSD</small></span>
           <input aria-label={`Količina za ${product.name}`} type="number" min="0" max="999" step="1"
@@ -150,27 +155,23 @@ export function MyOrdersPage() {
         </div>)}
         <div className="cart-total"><span>Informativno ukupno</span><strong>{estimatedTotal.toFixed(2)} RSD</strong></div>
         <p className="muted">Konačnu cenu računa server iz aktuelnog kataloga.</p>
-        <button type="button" disabled={!cart.length || submitting} onClick={() => void submit()}>
-          {submitting ? 'Slanje…' : 'Pošalji narudžbinu'}
-        </button>
+        <Button type="button" disabled={!cart.length} loading={submitting} onClick={() => void submit()}>Pošalji narudžbinu</Button>
       </section>
     </div>
     <div className="list-filter"><label>Status<select value={status}
       onChange={(event) => { setStatus(event.target.value as OrderStatus | ''); setPage(0) }}>
       <option value="">Svi</option>{['CREATED', 'IN_PROGRESS', 'READY', 'COMPLETED', 'CANCELLED'].map((value) =>
-        <option value={value} key={value}>{value}</option>)}</select></label></div>
+        <option value={value} key={value}>{orderLabels[value as OrderStatus]}</option>)}</select></label></div>
     <section className="reservation-list">
       {!result?.content.length && <p className="empty-state">Nemate narudžbine za izabrani filter.</p>}
       {result?.content.map((order) => <article className="panel order-row" key={order.id}>
         <div><strong>{formatBusinessDateTime(order.createdAt)}</strong>
           <p>{order.items.length} stavki · {order.totalPrice.toFixed(2)} RSD</p></div>
-        <span className="status-badge neutral">{order.status}</span>
+        <Badge tone={orderTones[order.status]}>{orderLabels[order.status]}</Badge>
         {order.status === 'CREATED' && <button className="danger-button" type="button"
           onClick={() => void cancel(order)}>Otkaži</button>}
       </article>)}
     </section>
-    <div className="pagination"><button disabled={page === 0} onClick={() => setPage(page - 1)}>Prethodna</button>
-      <span>Strana {page + 1} od {Math.max(result?.totalPages ?? 1, 1)}</span>
-      <button disabled={!result || page + 1 >= result.totalPages} onClick={() => setPage(page + 1)}>Sledeća</button></div>
+    <Pagination page={page} totalPages={result?.totalPages} onPageChange={setPage} loading={!result} />
   </main>
 }

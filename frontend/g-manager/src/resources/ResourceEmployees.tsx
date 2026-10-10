@@ -23,7 +23,7 @@ export function ResourceEmployees({resourceId,resourceName,onClose}:{resourceId:
     } catch(cause){setError(apiErrorMessage(cause,'Dodelu stanice nije moguće sačuvati.'));await access.refetch()}
     finally{inFlight.current=false;setBusy('')}
   }
-  return <Modal open title={`Zaposleni · ${resourceName}`} onClose={()=>{if(!busy)onClose()}}>
+  return <Modal open closeDisabled={Boolean(busy)} title={`Zaposleni · ${resourceName}`} onClose={()=>{if(!busy)onClose()}}>
     <p className="search-help">Zaposleni upravlja rezervacijama i sesijama ove stanice dok je dodela aktivna. Promena odmah važi za naredne operacije.</p>
     {error&&<p role="alert" className="error-banner">{error}</p>}
     {employees.isLoading||access.isLoading?<Skeleton lines={4}/>:employees.error||access.error?<ErrorState message="Zaposlene i dodele nije moguće učitati." action={<Button onClick={()=>{void employees.refetch();void access.refetch()}}>Pokušaj ponovo</Button>}/>:!visibleEmployees.length?<EmptyState title="Nema aktivnih zaposlenih" description="Prvo kreirajte zaposlenog u odeljku Zaposleni."/>:<ul className="operations-attention-list">{visibleEmployees.map(employee=>{

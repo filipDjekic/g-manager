@@ -10,7 +10,7 @@ import './styles/product.css'
 import { useFeatureStore } from './feature/featureStore'
 import { FeatureUnavailable } from './feature/FeatureUnavailable'
 import { useAuthStore } from './auth/authStore'
-import { homeForRole } from './layout/navigation'
+import { homeForUser } from './layout/navigation'
 
 const lazyPage = <T extends Record<K, ComponentType>, K extends keyof T>(
   loader: () => Promise<T>, name: K,
@@ -48,7 +48,8 @@ function RouteLoading() {
 
 function HomeRedirect() {
   const user = useAuthStore((state) => state.user)
-  return <Navigate to={user ? homeForRole(user.role) : '/login'} replace />
+  const flags = useFeatureStore((state) => state.flags)
+  return <Navigate to={user ? homeForUser(user, flags) : '/login'} replace />
 }
 
 function App() {
@@ -68,13 +69,15 @@ function App() {
           <Route path="/unauthorized" element={<main className="screen-message">Nemate dozvolu za ovu stranicu.</main>} />
           <Route element={<ProtectedRoute />}>
             <Route element={<AppShell />}>
+              <Route index element={<HomeRedirect />} />
               <Route element={<CapabilityGuard anyOf={['PROFILE_READ']} />}>
-                <Route index element={<HomeRedirect />} />
                 <Route path="sessions" element={<SessionPage />} />
                 <Route path="profile" element={<ProfilePage />} />
-                <Route path="catalog" element={<CatalogPage />} />
                 <Route path="notification-preferences" element={<NotificationPreferencesPage />} />
                 <Route path="documents" element={<DocumentsPage />} />
+              </Route>
+              <Route element={<CapabilityGuard anyOf={['CATALOG_READ']} />}>
+                <Route path="catalog" element={<CatalogPage />} />
               </Route>
               <Route element={<CapabilityGuard anyOf={['RESOURCE_READ']} />}>
                 <Route path="resources" element={<ResourcesPage />} />
@@ -96,13 +99,21 @@ function App() {
               </Route>
               <Route element={<CapabilityGuard anyOf={['RESERVATION_READ_OWN', 'ORDER_READ_OWN']} />}>
                 <Route path="home" element={<CustomerHomePage />} />
+              </Route>
+              <Route element={<CapabilityGuard anyOf={['RESERVATION_READ_OWN']} />}>
                 <Route path="my-reservations" element={<MyReservationsPage />} />
+              </Route>
+              <Route element={<CapabilityGuard anyOf={['ORDER_READ_OWN']} />}>
                 <Route path="my-orders" element={<MyOrdersPage />} />
               </Route>
               <Route element={<CapabilityGuard anyOf={['DASHBOARD_SUMMARY', 'DASHBOARD_OPERATIONAL']} />}>
                 <Route path="dashboard" element={<DashboardPage />} />
+              </Route>
+              <Route element={<CapabilityGuard anyOf={['RESERVATION_READ_ALL']} />}>
                 <Route path="reservations" element={<ReservationsPage />} />
                 <Route path="calendar" element={<CalendarPage />} />
+              </Route>
+              <Route element={<CapabilityGuard anyOf={['ORDER_READ_ALL']} />}>
                 <Route path="orders" element={<OrdersPage />} />
               </Route>
               <Route element={<CapabilityGuard anyOf={['RESERVATION_READ_ALL']} />}>

@@ -16,6 +16,13 @@ const paths: Record<string, string> = {
   '/settings': 'M4 6h16 M4 12h16 M4 18h16 M8 3v6 M16 9v6 M10 15v6',
   '/profile': 'M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0 M4 21v-2a8 8 0 0 1 16 0v2',
   '/reports': 'M4 21V11 M10 21V3 M16 21V7 M22 21H2',
+  '/workflows': 'M4 3h6v6H4z M14 15h6v6h-6z M7 9v9h7 M17 15V6h-7',
+  '/documents': 'M5 3h9l5 5v13H5z M14 3v6h5 M8 13h8 M8 17h5',
+  '/users': 'M14 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0 M3 21v-3a7 7 0 0 1 14 0v3 M18 4a3 3 0 0 1 0 6 M21 21v-4a5 5 0 0 0-3-4',
+  '/audit': 'M9 3h6v4H9z M9 5H5v16h14V5h-4 M8 12h8 M8 16h5',
+  '/features': 'M5 21V3 M5 4h14l-3 5 3 5H5',
+  '/sessions': 'M3 4h18v12H3z M8 21h8 M12 16v5 M8 10l3 3 5-6',
+  '/notification-preferences': 'M5 17h14l-2-3V9a5 5 0 0 0-10 0v5z M10 21h4',
 }
 
 export function NavigationIcon({ to }: { to: string }) {

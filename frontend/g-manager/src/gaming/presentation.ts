@@ -3,7 +3,7 @@ import type { GamingStationCard } from '../types/gamingSession.types'
 
 export const stationLabels: Record<GamingStationCard['status'], string> = {
   AVAILABLE: 'Dostupna', ACTIVE: 'Aktivna sesija', MAINTENANCE: 'Održavanje',
-  RETIRED: 'Penzionisana', OFFLINE: 'Offline', EXPIRED: 'Sesija istekla', LOCK_PENDING: 'Čeka zaključavanje',
+  RETIRED: 'Van upotrebe', OFFLINE: 'Bez veze', EXPIRED: 'Sesija istekla', LOCK_PENDING: 'Čeka zaključavanje',
 }
 export const stationTones: Record<GamingStationCard['status'], StatusTone> = {
   AVAILABLE: 'success', ACTIVE: 'info', MAINTENANCE: 'warning', RETIRED: 'neutral',

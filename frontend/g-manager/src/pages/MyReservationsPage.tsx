@@ -1,3 +1,4 @@
+import { reservationLabels, reservationTones } from '../components/ui/statusPresentation'
 import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -10,7 +11,7 @@ import type { AvailabilitySlot } from '../types/availability.types'
 import { reservationApi } from '../api/reservationApi'
 import { waitlistApi } from '../api/waitlistApi'
 import { userApi } from '../api/userApi'
-import { Badge, Button, EmptyState, ErrorState, Skeleton } from '../components/ui'
+import { Pagination, Badge, Button, EmptyState, ErrorState, Skeleton } from '../components/ui'
 import { formatBusinessDateTime, formatBusinessTime, todayInBusinessZone } from '../reservations/dateTime'
 import { ReservationDetailsDrawer } from '../reservations/ReservationDetailsDrawer'
 import type { CatalogItem } from '../types/catalog.types'
@@ -424,7 +425,7 @@ export function MyReservationsPage() {
     <div className="list-filter"><label>Status<select value={status}
       onChange={(event) => { setStatus(event.target.value as ReservationStatus | ''); setPage(0) }}>
       <option value="">Svi</option>{['PENDING', 'CONFIRMED', 'REJECTED', 'CANCELLED', 'COMPLETED'].map((value) =>
-        <option value={value} key={value}>{value}</option>)}</select></label></div>
+        <option value={value} key={value}>{reservationLabels[value as ReservationStatus]}</option>)}</select></label></div>
     <section className="reservation-list">
       {!result?.content.length && <p className="empty-state">Nemate rezervacije za izabrani filter.</p>}
       {result?.content.map((reservation) => <article className="panel reservation-row" key={reservation.id}>
@@ -432,15 +433,13 @@ export function MyReservationsPage() {
           <p>{services.find((item) => item.id === reservation.serviceId)?.name ?? 'Usluga'}</p>
           {reservation.resourceId && <p>{reservation.resourceCode} · {reservation.resourceName} · {reservation.locationName}</p>}
           {reservation.resourceRequired && !reservation.resourceId && <p className="error-banner">Resurs nije dodeljen — potrebno je da osoblje razreši rezervaciju.</p>}</div>
-        <span className="status-badge neutral">{reservation.status}</span>
+        <Badge tone={reservationTones[reservation.status]}>{reservationLabels[reservation.status]}</Badge>
         <button type="button" onClick={() => {
           const next = new URLSearchParams(searchParams); next.set('reservationId', reservation.id); setSearchParams(next)
         }}>Detalji</button>
       </article>)}
     </section>
-    <div className="pagination"><button disabled={page === 0} onClick={() => setPage(page - 1)}>Prethodna</button>
-      <span>Strana {page + 1} od {Math.max(result?.totalPages ?? 1, 1)}</span>
-      <button disabled={!result || page + 1 >= result.totalPages} onClick={() => setPage(page + 1)}>Sledeća</button></div>
+    <Pagination page={page} totalPages={result?.totalPages} onPageChange={setPage} loading={!result} />
     <ReservationDetailsDrawer reservationId={searchParams.get('reservationId')} onChanged={loadMine}
       onClose={() => { const next = new URLSearchParams(searchParams); next.delete('reservationId'); setSearchParams(next, { replace: true }) }} />
   </main>

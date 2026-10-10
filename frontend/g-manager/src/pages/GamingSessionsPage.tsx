@@ -1,11 +1,14 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { memo, useCallback, useMemo, useRef, useState, type FormEvent } from 'react'
+import { memo, useCallback, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { gamingSessionApi } from '../api/gamingSessionApi'
 import { apiErrorMessage } from '../api/client'
 import { IdempotencyKeyManager } from '../api/idempotency'
 import { Badge, Button, EmptyState, ErrorState, Modal, PageHeader, Skeleton } from '../components/ui'
 import { ActionDialog } from '../components/ui/ActionDialog'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { useAuthStore } from '../auth/authStore'
+import { hasCapability } from '../auth/capabilities'
 import { useListUrlState } from '../lists/useListUrlState'
 import { StartSessionDialog } from '../gaming/StartSessionDialog'
 import { useGamingOperations } from '../gaming/useGamingOperations'
@@ -29,7 +32,7 @@ const StationTile = memo(function StationTile({ station, seconds, disabled, onSt
     <p className="station-context">{station.locationName ?? 'Lokacija'}{station.areaName && ` / ${station.areaName}`}</p>
     <div className="station-signals">
       <Badge tone={!station.clientEnabled ? 'neutral' : station.staleHeartbeat ? 'danger' : 'success'}>
-        {station.clientEnabled ? station.staleHeartbeat ? '● Veza zastarela' : '● Client online' : 'Ručni režim'}</Badge>
+        {station.clientEnabled ? station.staleHeartbeat || station.status === 'OFFLINE' ? '● Bez potvrđene veze' : '● Klijent povezan' : 'Ručni režim'}</Badge>
       <Badge tone={station.enforcementStatus === 'LOCK_PENDING' ? 'warning' : 'neutral'}>{enforcementLabels[station.enforcementStatus] ?? station.enforcementStatus}</Badge>
       {pending && <Badge tone="warning">Komanda #{station.commandSequence} čeka potvrdu</Badge>}
     </div>
@@ -53,11 +56,12 @@ const StationTile = memo(function StationTile({ station, seconds, disabled, onSt
 })
 
 export function GamingSessionsPage() {
+  const actor = useAuthStore((state) => state.user)
   const client = useQueryClient(), { board, connection, visible } = useGamingOperations()
   const url = useListUrlState(defaults, allowed), now = useServerNow(board.data?.serverTime)
   const [startStation, setStartStation] = useState<GamingStationCard | null>(null)
   const [customStation, setCustomStation] = useState<GamingStationCard | null>(null), [minutes, setMinutes] = useState(30)
-  const [endStation, setEndStation] = useState<GamingStationCard | null>(null), [reason, setReason] = useState('')
+  const [endStation, setEndStation] = useState<GamingStationCard | null>(null)
   const [historyStation, setHistoryStation] = useState<GamingStationCard | null>(null)
   const [recoveryAction, setRecoveryAction] = useState<{ station: GamingStationCard; confirm: boolean } | null>(null)
   const [error, setError] = useState(''), [busy, setBusy] = useState(false)
@@ -76,9 +80,6 @@ export function GamingSessionsPage() {
     catch (cause) { key.failed(cause);pending.current=key.pendingKey()?{kind:'EXTEND',station,minutes:duration}:null;setHasPending(!!pending.current);setError(apiErrorMessage(cause, 'Sesiju nije moguće produžiti.')) }
     finally { await refresh(); inFlight.current = false; setBusy(false) }
   }, [refresh])
-  async function terminate(event: FormEvent) {
-    event.preventDefault();if(endStation&&!hasPending)await terminateRequest(endStation,reason.trim())
-  }
   async function terminateRequest(station:GamingStationCard,endReason:string) {
     if (!station.sessionId || station.sessionVersion === undefined || !endReason || inFlight.current) return
     inFlight.current = true; setBusy(true); setError('')
@@ -106,7 +107,7 @@ export function GamingSessionsPage() {
   }
   const openStart = useCallback((station: GamingStationCard) => { setError(''); setStartStation(station) }, [])
   const openCustom = useCallback((station: GamingStationCard) => { setError(''); setMinutes(30); setCustomStation(station) }, [])
-  const openEnd = useCallback((station: GamingStationCard) => { setError(''); setReason(''); setEndStation(station) }, [])
+  const openEnd = useCallback((station: GamingStationCard) => { setError(''); setEndStation(station) }, [])
   const openRecovery = useCallback((station: GamingStationCard, confirm: boolean) => { setError(''); setRecoveryAction({ station, confirm }) }, [])
   const stations = board.data?.stations ?? []
   const liveHistoryStation=stations.find(value=>value.resourceId===historyStation?.resourceId)??historyStation
@@ -128,9 +129,9 @@ export function GamingSessionsPage() {
   return <main className="workspace gaming-operations">
     <PageHeader eyebrow="Gaming operativa" title="Kontrola gaming stanica" actions={<Button variant="secondary" loading={board.isFetching} onClick={() => board.refetch()}>Osveži</Button>} />
     <div className="live-status"><Badge tone={board.error ? 'danger' : connection === 'connected' && visible ? 'success' : 'warning'}>
-      {board.error ? 'Osvežavanje nije uspelo' : !visible ? 'Osvežavanje pauzirano' : connection === 'connected' ? 'Live veza' : 'Periodično osvežavanje · 15 s'}</Badge>
+      {board.error ? 'Osvežavanje nije uspelo' : !visible ? 'Osvežavanje pauzirano' : connection === 'connected' ? 'Veza uživo' : 'Periodično osvežavanje · 15 s'}</Badge>
       {board.data && <time dateTime={board.data.serverTime}>Poslednja sinhronizacija {formatBusinessTime(board.data.serverTime)}</time>}
-      <Link to="/waitlist">Lista čekanja</Link>
+      {hasCapability(actor, 'RESERVATION_READ_ALL') && <Link to="/waitlist">Lista čekanja</Link>}
     </div>
     {!customStation&&!endStation&&!recoveryAction&&feedback}
     {board.error && board.data && <ErrorState title="Prikaz može biti zastareo" message="Proverite vezu i osvežite pre sledeće akcije." action={<Button onClick={() => board.refetch()}>Pokušaj ponovo</Button>} />}
@@ -150,19 +151,23 @@ export function GamingSessionsPage() {
       <label className="inline-toggle"><input type="checkbox" checked={url.state.expiring === 'true'} onChange={(e) => url.set({ expiring: e.target.checked ? 'true' : '' })} /> Ističe u narednih 10 min</label>
       <span>{filtered.length} / {stations.length} stanica</span><Button variant="secondary" onClick={() => url.apply({})}>Poništi filtere</Button></div>
     {board.isLoading ? <Skeleton lines={8} label="Učitavanje gaming stanica" /> : !board.data && board.error ? <ErrorState message={apiErrorMessage(board.error, 'Gaming tabla nije dostupna.')} action={<Button onClick={() => board.refetch()}>Pokušaj ponovo</Button>} /> : !stations.length ?
-      <EmptyState title="Nema dostupnih stanica" description="Proverite konfiguraciju stanica i dodelu lokacija zaposlenom." action={<Link to="/stations">Podešavanje stanica</Link>} /> : !filtered.length ?
+      <EmptyState title="Nema dostupnih stanica" description="Proverite konfiguraciju stanica i dodelu lokacija zaposlenom." action={hasCapability(actor,'STATION_READ') && <Link to="/stations">Podešavanje stanica</Link>} /> : !filtered.length ?
       <EmptyState title="Nema stanica za izabrane filtere" action={<Button onClick={() => url.apply({})}>Prikaži sve stanice</Button>} /> :
       <section className="gaming-station-grid" aria-label="Gaming stanice">{filtered.map((station) => <StationTile key={station.resourceId} station={station}
         seconds={station.sessionId && station.endsAt ? Math.max(0, Math.ceil((Date.parse(station.endsAt) - now) / 1000)) : station.remainingSeconds}
         disabled={busy || hasPending || !!board.error} onStart={openStart} onExtend={extend} onEnd={openEnd} onCustom={openCustom} onHistory={setHistoryStation} onRecovery={openRecovery} />)}</section>}
     {startStation && <StartSessionDialog station={startStation} onClose={() => setStartStation(null)} />}
-    <Modal open={!!customStation} title="Prilagođeno produženje" onClose={() => { if (!busy) setCustomStation(null) }}><form className="form-grid" onSubmit={(event) => { event.preventDefault(); if (customStation&&!hasPending) void extend(customStation, minutes) }}>
+    <Modal open={!!customStation} title="Prilagođeno produženje" closeDisabled={busy} onClose={() => { if (!busy) setCustomStation(null) }}><form className="form-grid" onSubmit={(event) => { event.preventDefault(); if (customStation&&!hasPending) void extend(customStation, minutes) }}>
       {feedback}<label>Broj minuta<input required type="number" min={1} max={120} disabled={busy||hasPending} value={minutes} onChange={(event) => setMinutes(Number(event.target.value))} /></label><Button type="submit" loading={busy} disabled={hasPending}>Produži sesiju</Button></form></Modal>
-    <Modal open={!!endStation} title={`Završi sesiju · ${endStation?.resourceName ?? ''}`} onClose={() => { if (!busy) setEndStation(null) }}><form className="form-grid" onSubmit={terminate}>
-      {feedback}<label>Razlog završetka<textarea required disabled={busy||hasPending} maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} /></label><Button type="submit" variant="danger" loading={busy} disabled={!reason.trim()||hasPending}>Potvrdi završetak</Button></form></Modal>
+    <ConfirmDialog open={!!endStation} title={`Završi sesiju · ${endStation?.resourceName ?? ''}`} variant="danger"
+      description={<><p>Sesija će biti završena i stanica će dobiti komandu za zaključavanje.</p>{feedback}</>}
+      reasonLabel="Razlog završetka" reasonRequired loading={busy} disabled={hasPending} autoClose={false}
+      confirmLabel="Potvrdi završetak" onClose={() => setEndStation(null)}
+      onConfirm={async (reason) => { if (endStation && !hasPending && reason) await terminateRequest(endStation, reason) }} />
     <ActionDialog open={!!recoveryAction} title={recoveryAction?.confirm ? 'Potvrda fizičkog zaključavanja' : 'Ponovo pošalji force-lock'}
       description={`${recoveryAction?.station.resourceName ?? ''}: ${recoveryAction?.confirm ? 'Potvrdite tek nakon fizičke provere da je računar zaključan. Potvrda će biti evidentirana.' : 'Klijent će ponovo dobiti komandu za zaključavanje. Pratite potvrdu komande na kartici.'}${error ? ` ${error}` : ''}`}
-      confirmLabel={recoveryAction?.confirm ? 'Provereno je zaključano' : 'Pošalji komandu'} danger loading={busy} onClose={() => { if (!busy) setRecoveryAction(null) }} onConfirm={() => void recover()} />
+      confirmLabel={recoveryAction?.confirm ? 'Provereno je zaključano' : 'Pošalji komandu'} danger loading={busy} error={error}
+      onClose={() => { if (!busy) setRecoveryAction(null) }} onConfirm={recover} />
     <Modal open={!!historyStation} title={`Istorija stanice · ${liveHistoryStation?.resourceName ?? ''}`} onClose={() => setHistoryStation(null)}>
       {liveHistoryStation && <dl className="station-detail"><div><dt>Operativno / efektivno stanje</dt><dd>{liveHistoryStation.operationalStatus ?? liveHistoryStation.status} / {liveHistoryStation.effectiveStatus ?? liveHistoryStation.status}</dd></div>
         <div><dt>Profil / verzija</dt><dd>{liveHistoryStation.applicationProfileName ?? 'Nije podešen'} · {liveHistoryStation.configurationVersion ?? '—'}</dd></div>

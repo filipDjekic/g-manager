@@ -29,7 +29,7 @@ export function ResourceEditor({kind,initial,locationId='',areaId='',onClose,onS
     } catch(cause){setError(apiErrorMessage(cause,'Podešavanje nije moguće sačuvati.'))}
     finally{inFlight.current=false;setBusy(false)}
   }
-  return <Modal open title={`${initial?'Izmeni':'Dodaj'} ${kind==='LOCATION'?'lokaciju':kind==='AREA'?'zonu':'resurs'}`} onClose={()=>{if(!busy)onClose()}}><form className="form-grid" onSubmit={save}>
+  return <Modal open closeDisabled={busy} title={`${initial?'Izmeni':'Dodaj'} ${kind==='LOCATION'?'lokaciju':kind==='AREA'?'zonu':'resurs'}`} onClose={()=>{if(!busy)onClose()}}><form className="form-grid" onSubmit={save}>
     {error&&<p className="error-banner" role="alert">{error}</p>}
     <label>Naziv<input required maxLength={120} disabled={busy} value={name} onChange={e=>setName(e.target.value)}/></label>
     <label>Šifra<input required maxLength={40} disabled={busy} value={code} onChange={e=>setCode(e.target.value)}/></label>

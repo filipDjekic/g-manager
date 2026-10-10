@@ -65,7 +65,7 @@ export function StaffReservationForm({onClose,onCreated}:{onClose:()=>void;onCre
     &&(!repeat||!!employeeId&&!preview.isFetching&&!preview.error&&!!preview.data
       &&(conflictPolicy==='ALL_OR_NOTHING'?preview.data.occurrences.every(o=>o.available):preview.data.occurrences.some(o=>o.available)))
   const blocked=create.isPending||frozen
-  return <Modal open title="Nova rezervacija" onClose={()=>{if(!create.isPending&&!frozen)onClose()}}>
+  return <Modal open closeDisabled={create.isPending || frozen} title="Nova rezervacija" onClose={()=>{if(!create.isPending&&!frozen)onClose()}}>
     {seriesResult ? <><RecurrenceResultPanel result={seriesResult} /><div className="form-actions"><Button onClick={()=>onCreated(seriesResult.created[0].id,`Kreirano ${seriesResult.created.length}, preskočeno ${seriesResult.skipped.length} termina.`)}>Otvori kreiranu rezervaciju</Button><Button variant="secondary" onClick={onClose}>Zatvori</Button></div></> : <>
     {create.error&&<ErrorState message={apiErrorMessage(create.error,'Rezervaciju nije moguće kreirati.')}/>}
     {scope.error&&<ErrorState message="Dodele stanica nisu dostupne." action={<Button onClick={()=>scope.refetch()}>Pokušaj ponovo</Button>}/>}
