@@ -1,0 +1,184 @@
+.gaming-ops-page {
+  display: grid;
+  gap: var(--space-5);
+  width: 100%;
+  max-width: 112rem;
+  min-width: 0;
+}
+.gaming-ops-page > *, .gaming-ops-page .ops-workspace > * { min-width: 0; }
+.gaming-ops-page .ops-page-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4); }
+.gaming-ops-page .ops-title { display: flex; align-items: center; gap: var(--space-4); min-width: 0; }
+.gaming-ops-page .ops-title > div { min-width: 0; }
+.gaming-ops-page .ops-title h1 { margin: var(--space-1) 0; font-size: clamp(1.7rem, 2.5vw, 2.25rem); font-weight: 650; }
+.gaming-ops-page .ops-title p:not(.eyebrow) { margin: var(--space-2) 0 0; color: var(--color-text-muted); font-size: .875rem; }
+.gaming-ops-page .ops-title-icon { display: grid; place-items: center; width: 3.25rem; height: 3.25rem; flex-shrink: 0; border: 1px solid color-mix(in srgb, var(--color-primary) 35%, var(--color-border)); border-radius: var(--radius-lg); color: var(--color-primary); background: linear-gradient(135deg, var(--color-primary-bg), var(--color-secondary-bg)); }
+.gaming-ops-page .ops-title-icon svg { width: 2rem; height: 2rem; }
+.gaming-ops-page .ops-header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.gaming-ops-page .ops-new-session { color: var(--color-on-primary); background: linear-gradient(100deg, var(--color-primary), var(--color-secondary)); box-shadow: var(--glow-primary); }
+.gaming-ops-page .ops-new-session:hover:not(:disabled) { background: linear-gradient(100deg, var(--color-primary-strong), var(--color-secondary-hover)); }
+.gaming-ops-page .ops-new-session > span { font-size: 1.3rem; font-weight: 400; line-height: 1; }
+.gaming-ops-page .ops-live-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); color: var(--color-text-muted); font-size: .75rem; }
+.gaming-ops-page .ops-live-status > a { margin-inline-start: auto; text-decoration: none; }
+.gaming-ops-page .ops-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); }
+.gaming-ops-page .ops-stat { --stat-accent: var(--color-primary); display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); min-width: 0; padding: var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-lg); color: var(--color-text); background: var(--color-surface); text-align: start; box-shadow: var(--shadow-sm); }
+.gaming-ops-page .ops-stat--accent { --stat-accent: var(--color-secondary); }
+.gaming-ops-page .ops-stat--success { --stat-accent: var(--color-success); }
+.gaming-ops-page .ops-stat--warning { --stat-accent: var(--color-warning); }
+.gaming-ops-page .ops-stat > span { color: var(--color-text-secondary); font-size: .8125rem; font-weight: 500; }
+.gaming-ops-page .ops-stat > svg { color: var(--stat-accent); }
+.gaming-ops-page .ops-stat > strong { grid-column: 1 / -1; color: var(--stat-accent); font-size: 2.25rem; line-height: 1.1; font-variant-numeric: tabular-nums; font-weight: 700; }
+.gaming-ops-page .ops-stat > small { grid-column: 1 / -1; font-size: .75rem; font-weight: 400; }
+.gaming-ops-page .ops-stat:hover { border-color: color-mix(in srgb, var(--stat-accent) 45%, var(--color-border)); }
+.gaming-ops-page .ops-alerts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.gaming-ops-page .ops-alerts > span { color: var(--color-text-muted); font-size: .75rem; }
+.gaming-ops-page .ops-alert { display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--control-height); padding: var(--space-2) var(--space-3); border: 1px solid color-mix(in srgb, var(--color-warning) 30%, var(--color-border)); border-radius: var(--radius-md); color: var(--color-warning); background: var(--color-warning-bg); font-size: .75rem; font-weight: 500; }
+.gaming-ops-page .ops-alert svg { width: 1rem; height: 1rem; }
+.gaming-ops-page .ops-alert > strong { padding-inline-start: var(--space-2); font-variant-numeric: tabular-nums; }
+.gaming-ops-page .ops-alert--danger { color: var(--color-danger); border-color: color-mix(in srgb, var(--color-danger) 30%, var(--color-border)); background: var(--color-danger-bg); }
+.gaming-ops-page .ops-alert[aria-pressed='true'] { border-color: currentColor; }
+.gaming-ops-page .ops-filters { display: grid; gap: var(--space-4); padding: var(--space-4) var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
+.gaming-ops-page .ops-primary-filters { display: flex; flex-wrap: wrap; gap: var(--space-2); padding-bottom: var(--space-4); border-bottom: 1px solid var(--color-border); }
+.gaming-ops-page .ops-primary-filters > button { display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-height); padding: var(--space-2) var(--space-3); border: 1px solid transparent; border-radius: var(--radius-md); color: var(--color-text-secondary); background: transparent; font-size: .8125rem; font-weight: 500; }
+.gaming-ops-page .ops-primary-filters > button > span { padding: .1rem .45rem; border-radius: var(--radius-sm); background: var(--color-bg); color: var(--color-text-muted); font-size: .6875rem; }
+.gaming-ops-page .ops-primary-filters > button[aria-pressed='true'] { color: var(--color-primary); border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border)); background: var(--color-primary-bg); }
+.gaming-ops-page .ops-primary-filters > button:hover { background: var(--color-primary-bg); }
+.gaming-ops-page .ops-filter-fields { display: grid; grid-template-columns: minmax(0, 1.7fr) repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
+.gaming-ops-page .ops-filter-fields label { min-width: 0; font-size: .75rem; font-weight: 500; }
+.gaming-ops-page .ops-filter-fields .ui-input { font-size: .8125rem; }
+.gaming-ops-page .ops-filter-options { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); }
+.gaming-ops-page .ops-filter-options label { font-size: .75rem; font-weight: 500; }
+.gaming-ops-page .ops-filter-options > .ui-button { margin-inline-start: auto; font-size: .75rem; }
+.gaming-ops-page .ops-focused-filter { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); color: var(--color-text-secondary); font-size: .8125rem; }
+.gaming-ops-page .ops-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(16rem, 19rem); align-items: start; gap: var(--space-5); }
+.gaming-ops-page .ops-stations { display: grid; gap: var(--space-4); min-width: 0; container-type: inline-size; }
+.gaming-ops-page .ops-section-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.gaming-ops-page .ops-section-heading h2 { margin: 0; font-size: 1.05rem; font-weight: 600; }
+.gaming-ops-page .ops-section-heading p:not(.eyebrow) { margin: var(--space-2) 0 0; color: var(--color-text-muted); font-size: .75rem; }
+.gaming-ops-page .ops-section-heading > span { color: var(--color-text-muted); font-size: .75rem; }
+.gaming-ops-page .ops-section-heading > svg { color: var(--color-primary); }
+.gaming-ops-page .ops-station-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); align-items: stretch; }
+.gaming-ops-page .ops-station { --station-accent: var(--color-border); display: flex; flex-direction: column; align-items: start; gap: var(--space-3); min-width: 0; padding: var(--space-4); border: 1px solid var(--color-border); border-top: 2px solid var(--station-accent); border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-sm); transition: border-color .15s, box-shadow .15s; overflow-wrap: anywhere; }
+.gaming-ops-page .ops-station--active { --station-accent: var(--color-primary); background: linear-gradient(150deg, var(--color-primary-bg), transparent 45%), var(--color-surface); }
+.gaming-ops-page .ops-station--maintenance,
+.gaming-ops-page .ops-station--expired,
+.gaming-ops-page .ops-station--lock-pending { --station-accent: var(--color-warning); }
+.gaming-ops-page .ops-station--offline { --station-accent: var(--color-danger); }
+.gaming-ops-page .ops-station--retired { --station-accent: var(--color-text-muted); background: var(--color-bg); }
+.gaming-ops-page .ops-station--retired .ops-monitor { color: var(--color-text-muted); background: var(--color-surface); }
+.gaming-ops-page .ops-station--expiring:not(.ops-station--offline) { --station-accent: var(--color-warning); }
+.gaming-ops-page .ops-station:hover { border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border)); }
+.gaming-ops-page .ops-station--selected { border-color: var(--color-primary); box-shadow: var(--glow-primary); }
+.gaming-ops-page .ops-station-header { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-width: 0; }
+.gaming-ops-page .ops-station-header h3 { min-width: 0; flex: 1; margin: 0; }
+.gaming-ops-page .ops-monitor { display: grid; place-items: center; flex-shrink: 0; width: 2.5rem; height: 2.5rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-primary); background: var(--color-primary-bg); }
+.gaming-ops-page .ops-station-select { display: grid; gap: var(--space-1); width: 100%; min-height: var(--control-height); padding: var(--space-1); color: var(--color-text); background: transparent; text-align: start; font-size: .9375rem; font-weight: 600; overflow-wrap: anywhere; }
+.gaming-ops-page .ops-station-select small { color: var(--color-text-muted); font-size: .6875rem; font-weight: 400; }
+.gaming-ops-page .ops-station-location { margin: 0; color: var(--color-text-muted); font-size: .6875rem; }
+.gaming-ops-page .ops-station-session { display: grid; gap: var(--space-2); padding-block: var(--space-2); width: 100%; }
+.gaming-ops-page .ops-station-customer { color: var(--color-text); font-size: .8125rem; font-weight: 500; }
+.gaming-ops-page .ops-timer-label { color: var(--color-text-muted); font-size: .6875rem; font-weight: 400; }
+.gaming-ops-page .ops-timer { display: block; color: var(--color-primary); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: clamp(1.65rem, 2vw, 2.25rem); font-weight: 600; line-height: 1.25; font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
+.gaming-ops-page .ops-timer--warning { color: var(--color-warning); }
+.gaming-ops-page .ops-station-message { margin: 0; min-height: 4.5rem; color: var(--color-text-muted); font-size: .8125rem; line-height: 1.6; }
+.gaming-ops-page .ops-station-profile { display: grid; gap: var(--space-1); margin: 0; color: var(--color-text-muted); font-size: .6875rem; }
+.gaming-ops-page .ops-station-profile strong { color: var(--color-text-secondary); font-size: .75rem; font-weight: 500; }
+.gaming-ops-page .ops-station-signals { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.gaming-ops-page .ops-station-signals .ui-badge { font-size: .625rem; padding: .2rem .45rem; }
+.gaming-ops-page .ops-station-warning { margin: 0; padding: var(--space-2) var(--space-3); border-inline-start: 2px solid var(--color-warning); border-radius: var(--radius-sm); color: var(--color-warning); background: var(--color-warning-bg); font-size: .6875rem; line-height: 1.6; }
+.gaming-ops-page .ops-station-warning--danger { color: var(--color-danger); border-color: var(--color-danger); background: var(--color-danger-bg); }
+.gaming-ops-page .ops-station > footer { width: 100%; margin-top: auto; padding-top: var(--space-2); }
+.gaming-ops-page .ops-station-actions { display: flex; flex-wrap: wrap; align-items: start; gap: var(--space-2); }
+.gaming-ops-page .ops-station-actions .ui-button { min-width: 0; min-height: 2.25rem; padding: var(--space-2) var(--space-3); font-size: .75rem; font-weight: 500; }
+.gaming-ops-page .ops-more-actions { flex: 1 1 100%; min-width: 0; }
+.gaming-ops-page .ops-more-actions > summary { width: fit-content; min-height: 2rem; padding: var(--space-2) 0; color: var(--color-text-secondary); font-size: .6875rem; font-weight: 500; }
+.gaming-ops-page .ops-more-actions > div { display: flex; flex-wrap: wrap; gap: var(--space-2); padding-top: var(--space-2); }
+.gaming-ops-page .ops-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); padding-top: var(--space-4); border-top: 1px solid var(--color-border); }
+.gaming-ops-page .ops-result-count { color: var(--color-text-muted); font-size: .75rem; font-variant-numeric: tabular-nums; }
+.gaming-ops-page .ops-pagination nav { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.gaming-ops-page .ops-pagination .ui-button { min-width: 2.25rem; min-height: 2.25rem; padding: var(--space-2) var(--space-3); font-size: .75rem; }
+.gaming-ops-page .ops-pagination .ui-button[aria-current='page'] { color: var(--color-primary); border-color: var(--color-primary); background: var(--color-primary-bg); }
+.gaming-ops-page .ops-page-item { display: inline-flex; align-items: center; gap: var(--space-2); }
+.gaming-ops-page .ops-page-gap { color: var(--color-text-muted); }
+.gaming-ops-page .ops-detail-panel { position: sticky; top: calc(var(--topbar-height) + var(--space-4)); gap: var(--space-4); padding: var(--space-5); border-top-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border)); }
+.gaming-ops-page .ops-detail-panel .eyebrow { margin-bottom: var(--space-2); font-size: .625rem; }
+.gaming-ops-page .ops-detail-identity { display: grid; justify-items: center; gap: var(--space-2); text-align: center; padding-block: var(--space-2); }
+.gaming-ops-page .ops-detail-monitor { display: grid; place-items: center; width: 4.5rem; height: 4.5rem; margin-bottom: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-lg); color: var(--color-primary); background: linear-gradient(135deg, var(--color-primary-bg), var(--color-secondary-bg)); }
+.gaming-ops-page .ops-detail-monitor svg { width: 2.75rem; height: 2.75rem; }
+.gaming-ops-page .ops-detail-identity h3 { margin: 0; font-size: 1.25rem; font-weight: 600; }
+.gaming-ops-page .ops-detail-identity > span:not(.ops-detail-monitor):not(.ui-badge) { color: var(--color-text-muted); font-size: .75rem; }
+.gaming-ops-page .ops-detail-note { margin: 0; padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text-muted); background: var(--color-bg); font-size: .6875rem; }
+.gaming-ops-page .ops-detail-countdown { display: grid; gap: var(--space-2); padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); text-align: center; }
+.gaming-ops-page .ops-detail-countdown .ops-timer { font-size: 2.75rem; }
+.gaming-ops-page .ops-detail-list { display: grid; gap: var(--space-3); margin: 0; }
+.gaming-ops-page .ops-detail-list > div { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: var(--space-3); padding-bottom: var(--space-3); border-bottom: 1px solid var(--color-border); font-size: .75rem; }
+.gaming-ops-page .ops-detail-list dt { color: var(--color-text-muted); }
+.gaming-ops-page .ops-detail-list dd { margin: 0; color: var(--color-text); text-align: end; overflow-wrap: anywhere; }
+.gaming-ops-page .ops-detail-list .ui-badge { font-size: .625rem; }
+.gaming-ops-page .ops-detail-actions .ui-button { flex: 1 1 auto; }
+.gaming-ops-page .ops-sessions-panel { gap: var(--space-4); }
+.gaming-ops-page .ops-session-table { width: 100%; min-width: 70rem; border-collapse: collapse; }
+.gaming-ops-page .ops-session-table th,
+.gaming-ops-page .ops-session-table td { padding: var(--space-3); font-size: .75rem; }
+.gaming-ops-page .ops-session-table td > small { display: block; margin-top: var(--space-2); font-size: .6875rem; }
+.gaming-ops-page .ops-table-select { display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-height); min-width: 7.5rem; padding: var(--space-2); color: var(--color-text); background: transparent; text-align: start; font-size: .75rem; font-weight: 600; }
+.gaming-ops-page .ops-table-select svg { flex-shrink: 0; color: var(--color-primary); }
+.gaming-ops-page .ops-table-select small { display: block; margin-top: var(--space-1); font-size: .625rem; font-weight: 400; }
+.gaming-ops-page .ops-table-timer { color: var(--color-primary); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; white-space: nowrap; font-size: .9375rem; font-variant-numeric: tabular-nums; }
+.gaming-ops-page .ops-table-timer.ops-timer--warning { color: var(--color-warning); }
+.gaming-ops-page .ops-session-row--selected { background: var(--color-primary-bg); }
+.gaming-ops-page .ops-session-row--selected > th { box-shadow: inset 2px 0 var(--color-primary); }
+.gaming-ops-page .ops-session-table td:last-child { width: 13rem; }
+.gaming-ops-page .ops-text-danger { color: var(--color-danger); }
+.gaming-ops-page .ops-text-warning { color: var(--color-warning); }
+.gaming-ops-page .ops-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+@container (min-width: 42rem) {
+  .gaming-ops-page .ops-station-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@container (min-width: 56rem) {
+  .gaming-ops-page .ops-station-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 1250px) {
+  .gaming-ops-page .ops-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gaming-ops-page .ops-filter-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 1100px) {
+  .gaming-ops-page .ops-workspace { grid-template-columns: minmax(0, 1fr); }
+  .gaming-ops-page .ops-detail-panel { position: static; }
+  .gaming-ops-page .ops-detail-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--space-5); }
+  .gaming-ops-page .ops-detail-identity { padding: 0; }
+}
+@media (max-width: 640px) {
+  .gaming-ops-page { gap: var(--space-4); }
+  .gaming-ops-page .ops-title { align-items: start; gap: var(--space-3); }
+  .gaming-ops-page .ops-title-icon { width: 2.75rem; height: 2.75rem; }
+  .gaming-ops-page .ops-title .eyebrow { font-size: .625rem; }
+  .gaming-ops-page .ops-header-actions { width: 100%; }
+  .gaming-ops-page .ops-header-actions > .ui-button { flex: 1; }
+  .gaming-ops-page .ops-stat,
+  .gaming-ops-page .ops-filters,
+  .gaming-ops-page .ops-detail-panel,
+  .gaming-ops-page .ops-sessions-panel { padding: var(--space-4); }
+  .gaming-ops-page .ops-stat > strong { font-size: 1.875rem; }
+  .gaming-ops-page .ops-alerts > span { flex-basis: 100%; }
+  .gaming-ops-page .ops-filter-fields,
+  .gaming-ops-page .ops-station-grid,
+  .gaming-ops-page .ops-detail-list { grid-template-columns: minmax(0, 1fr); }
+  .gaming-ops-page .ops-filter-options > .ui-button { margin-inline-start: 0; }
+  .gaming-ops-page .ops-pagination { align-items: start; }
+  .gaming-ops-page .ui-button,
+  .gaming-ops-page .ops-alert,
+  .gaming-ops-page .ops-primary-filters > button,
+  .gaming-ops-page .ops-more-actions > summary,
+  .gaming-ops-page .ui-input { min-height: 2.75rem; }
+  .gaming-ops-page .ops-station-actions .ui-button { flex: 1 1 auto; }
+  .gaming-ops-page .ops-pagination .ui-button { min-width: 2.75rem; }
+  .gaming-ops-page .ops-pagination nav { gap: var(--space-1); }
+  .gaming-ops-page .ops-page-item { gap: var(--space-1); }
+  .gaming-ops-page .ops-station-select,
+  .gaming-ops-page .ops-table-select { min-height: 2.75rem; }
+}
+@media (max-width: 380px) {
+  .gaming-ops-page .ops-kpis { grid-template-columns: minmax(0, 1fr); }
+  .gaming-ops-page .ops-primary-filters > button { flex: 1 1 auto; }
+}
