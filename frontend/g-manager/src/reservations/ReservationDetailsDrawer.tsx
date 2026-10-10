@@ -4,7 +4,8 @@ import { apiErrorMessage } from '../api/client'
 import { resourceApi } from '../api/resourceApi'
 import { reservationApi } from '../api/reservationApi'
 import { ActionDialog } from '../components/ui/ActionDialog'
-import { Button, Drawer, ErrorState, Skeleton } from '../components/ui'
+import { Badge, Button, Drawer, ErrorState, Skeleton } from '../components/ui'
+import { reservationTones } from '../components/ui/statusPresentation'
 import { queryKeys } from '../query/queryKeys'
 import { ReservationEditForm } from './ReservationEditForm'
 import { formatBusinessDateTime } from './dateTime'
@@ -30,6 +31,7 @@ function ReservationDetailsContent({ reservationId, onClose, onChanged }: Reserv
   const client = useQueryClient()
   const [action, setAction] = useState<ReservationStatus | null>(null)
   const [editId,setEditId]=useState<string|null>(null)
+  const [editBusy,setEditBusy]=useState(false)
   const detail = useQuery({
     queryKey: queryKeys.reservationDetail(reservationId ?? ''),
     queryFn: () => reservationApi.detail(reservationId!),
@@ -48,7 +50,7 @@ function ReservationDetailsContent({ reservationId, onClose, onChanged }: Reserv
         Promise.resolve(onChanged?.()),
       ])
     },
-    onError: async () => { setAction(null); await Promise.all([detail.refetch(),client.invalidateQueries({queryKey:['reservations']})]) },
+    onError: async () => { await Promise.all([detail.refetch(),client.invalidateQueries({queryKey:['reservations']})]) },
   })
   const [resourceChoice, setResourceChoice] = useState<{ reservationId: string; resourceId: string } | null>(null)
   const value = detail.error ? undefined : detail.data
@@ -68,12 +70,12 @@ function ReservationDetailsContent({ reservationId, onClose, onChanged }: Reserv
   })
   const title = value ? `${value.serviceName} · ${formatBusinessDateTime(value.startTime)}` : 'Detalji rezervacije'
   return <>
-    <Drawer open={Boolean(reservationId)} title={title} onClose={onClose}>
+    <Drawer size="wide" open={Boolean(reservationId)} title={title} onClose={onClose} closeDisabled={transition.isPending || assign.isPending || editBusy}>
       {detail.isLoading && <Skeleton lines={7} label="Učitavanje detalja rezervacije" />}
       {detail.error && <ErrorState message={apiErrorMessage(detail.error, 'Detalje rezervacije nije moguće učitati.')}
         action={<Button onClick={() => detail.refetch()}>Pokušaj ponovo</Button>} />}
       {value && <div className="reservation-detail">
-        <span className="status-badge neutral">{labels[value.status]}</span>
+        <Badge tone={reservationTones[value.status]}>{labels[value.status]}</Badge>
         {value.readOnly&&<p className="reservation-readonly-notice" role="status">Nemate ovlašćenje za upravljanje rezervacijama ove stanice.</p>}
         <dl>
           <div><dt>Klijent</dt><dd>{value.customerName}</dd></div>
@@ -112,7 +114,7 @@ function ReservationDetailsContent({ reservationId, onClose, onChanged }: Reserv
           </>}
         </section>}
         {value.canEdit&&!value.readOnly&&<>
-          {editId===value.id?<ReservationEditForm key={`${value.id}:${value.version}`} value={value} onClose={()=>setEditId(null)} onChanged={async()=>{
+          {editId===value.id?<ReservationEditForm key={`${value.id}:${value.version}`} value={value} onBusyChange={setEditBusy} onClose={()=>setEditId(null)} onChanged={async()=>{
             await Promise.all([client.invalidateQueries({queryKey:['reservations']}),detail.refetch(),Promise.resolve(onChanged?.())])
           }}/>:<Button variant="secondary" onClick={()=>setEditId(value.id)}>Izmeni vreme ili stanicu</Button>}
         </>}
@@ -123,18 +125,21 @@ function ReservationDetailsContent({ reservationId, onClose, onChanged }: Reserv
         </ol></section>}
         {value.allowedActions.length > 0 && <div className="card-actions">
           {value.allowedActions.map((next) => <Button type="button" key={next}
+            disabled={transition.isPending || assign.isPending || editBusy}
             variant={next === 'REJECTED' || next === 'CANCELLED' ? 'danger' : 'primary'}
             onClick={() => setAction(next)}>{actionLabels[next]}</Button>)}
         </div>}
       </div>}
     </Drawer>
-    <ActionDialog open={Boolean(action&&value?.allowedActions.includes(action))} title={`${action ? actionLabels[action] : ''} rezervaciju`}
+    <ActionDialog open={Boolean(action)} disabled={!action || !value?.allowedActions.includes(action)} title={`${action ? actionLabels[action] : ''} rezervaciju`}
       description="Promena će odmah biti sačuvana i evidentirana."
       confirmLabel={action ? actionLabels[action] ?? 'Potvrdi' : 'Potvrdi'}
       reasonLabel={action === 'REJECTED' || action === 'CANCELLED' ? 'Razlog' : undefined}
       reasonRequired={action === 'REJECTED' || action === 'CANCELLED'}
       danger={action === 'REJECTED' || action === 'CANCELLED'} loading={transition.isPending}
-      onClose={() => setAction(null)} onConfirm={(note) => action && value?.allowedActions.includes(action) && transition.mutate({ next: action, note })} />
+      onClose={() => setAction(null)} onConfirm={async (note) => {
+        if (action && value?.allowedActions.includes(action)) await transition.mutateAsync({ next: action, note })
+      }} />
     {transition.error && <p className="error-banner" role="alert">
       {apiErrorMessage(transition.error, 'Status rezervacije nije moguće promeniti.')}</p>}
   </>

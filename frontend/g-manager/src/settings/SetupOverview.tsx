@@ -1,3 +1,5 @@
+import { useAuthStore } from '../auth/authStore'
+import { hasCapability } from '../auth/capabilities'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { resourceApi } from '../api/resourceApi'
@@ -8,11 +10,12 @@ import type { WorkingHours } from '../types/workingHours.types'
 import type { UserResponse } from '../types/user.types'
 
 export function SetupOverview({hours,employees,loaded}:{hours:WorkingHours[];employees:UserResponse[];loaded:boolean}) {
-  const locations=useQuery({queryKey:['setup','locations'],queryFn:resourceApi.locations,staleTime:300000})
-  const stations=useQuery({queryKey:['stations','overview'],queryFn:stationApi.overview})
-  const profiles=useQuery({queryKey:['stations','profiles'],queryFn:stationApi.profiles})
-  const catalog=useQuery({queryKey:['setup','services'],queryFn:()=>catalogApi.list({page:0,size:1,type:'SERVICE',active:true,sort:'name',direction:'ASC'})})
-  const distribution=useQuery({queryKey:['stations','client-package'],queryFn:stationApi.clientPackage,staleTime:300000})
+  const actor=useAuthStore(state=>state.user)
+  const locations=useQuery({queryKey:['setup','locations'],queryFn:resourceApi.locations,enabled:hasCapability(actor,'RESOURCE_READ'),staleTime:300000})
+  const stations=useQuery({queryKey:['stations','overview'],queryFn:stationApi.overview,enabled:hasCapability(actor,'STATION_READ')})
+  const profiles=useQuery({queryKey:['stations','profiles'],queryFn:stationApi.profiles,enabled:hasCapability(actor,'STATION_READ')})
+  const catalog=useQuery({queryKey:['setup','services'],queryFn:()=>catalogApi.list({page:0,size:1,type:'SERVICE',active:true,sort:'name',direction:'ASC'}),enabled:hasCapability(actor,'CATALOG_READ')})
+  const distribution=useQuery({queryKey:['stations','client-package'],queryFn:stationApi.clientPackage,enabled:hasCapability(actor,'STATION_READ'),staleTime:300000})
   const active=locations.data?.find(value=>value.active)
   const areas=useQuery({queryKey:['setup','areas',active?.id],queryFn:()=>resourceApi.areas(active!.id),enabled:!!active})
   const steps=[
@@ -24,7 +27,7 @@ export function SetupOverview({hours,employees,loaded}:{hours:WorkingHours[];emp
     {label:'Radno vreme',description:'Nedeljni raspored i izuzeci',ready:hours.some(v=>v.active),known:loaded,to:'#working-hours'},
     {label:'Usluge',description:'Aktivne usluge u katalogu',ready:!!catalog.data?.totalElements,known:!!catalog.data,to:'/catalog',error:catalog.error,retry:catalog.refetch},
     {label:'Produkcijski client paket',description:'Objavljen paket, download i checksum',ready:distribution.data?.status==='RELEASED'&&!!distribution.data.downloadUrl&&!!distribution.data.sha256,known:!!distribution.data,to:'/stations',error:distribution.error,retry:distribution.refetch},
-  ]
+  ].filter(step=>step.to==='#working-hours' || hasCapability(actor,step.to==='/resources'?'RESOURCE_READ':step.to==='/stations'?'STATION_READ':step.to==='/employees'?'USER_LIST':'CATALOG_READ'))
   return <section className="setup-overview panel"><div className="section-heading"><div><p className="eyebrow">Početno podešavanje</p><h2>Priprema igraonice</h2><p className="search-help">Informativna lista koja ne blokira rad. Za svaku lokaciju proverite stanice i vezu klijenta.</p></div><Badge tone="accent">{steps.filter(s=>s.ready).length} / {steps.length}</Badge></div>
     <ol className="setup-checklist">{steps.map((step,index)=><li key={step.label}><span className="setup-step-number">{String(index+1).padStart(2,'0')}</span><div><Link to={step.to}>{step.label}</Link><small>{step.description}</small></div>
       {step.error?<Button variant="secondary" onClick={()=>step.retry?.()}>Ponovi proveru</Button>:<Badge tone={step.ready?'success':step.known?'warning':'neutral'}>{step.ready?'Podešeno':step.known?'Proverite':'U proveri'}</Badge>}</li>)}</ol>

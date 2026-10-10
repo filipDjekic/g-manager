@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { apiErrorMessage } from '../api/client'
 import { authApi } from '../api/authApi'
 import { useAuthStore } from '../auth/authStore'
-import { Modal } from '../components/ui'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { Badge, EmptyState, Skeleton, TableShell } from '../components/ui'
 import type { SecurityEventInfo, SecurityEventType, SessionInfo } from '../types/auth.types'
 
 const eventLabels: Record<SecurityEventType, string> = {
@@ -79,7 +80,7 @@ export function SessionPage() {
     } catch (requestError) {
       setError(apiErrorMessage(requestError, 'Sesije nisu mogle biti opozvane.'))
       setPendingId(null)
-      setShowRevokeAll(false)
+      throw requestError
     }
   }
 
@@ -91,12 +92,12 @@ export function SessionPage() {
     </div>
     {error && <p className="error-banner" role="alert">{error}</p>}
     {message && <p className="success-banner" role="status">{message}</p>}
-    {isLoading ? <p className="empty-state">Učitavanje sesija…</p> : sessions.length === 0
-      ? <p className="empty-state">Nema aktivnih sesija.</p>
+    {isLoading ? <Skeleton lines={4} label="Učitavanje sesija" /> : sessions.length === 0
+      ? <EmptyState title="Nema aktivnih sesija" />
       : <div className="session-list">{sessions.map((session) =>
         <article className={`panel session-card${session.current ? ' current' : ''}`} key={session.id}>
           <div><h2>{session.deviceLabel}</h2>
-            {session.current && <span className="status-badge neutral">Ovaj uređaj</span>}</div>
+            {session.current && <Badge tone="info">Ovaj uređaj</Badge>}</div>
           <p title={session.userAgentSummary}>Poslednja aktivnost: {formatDate(session.lastSeenAt)}</p>
           <p>Prijavljena: {formatDate(session.createdAt)} · Ističe: {formatDate(session.expiresAt)}</p>
           <button type="button" className="danger-button" disabled={pendingId === session.id}
@@ -107,21 +108,14 @@ export function SessionPage() {
 
     <section className="security-history"><h2>Bezbednosna istorija</h2>
       {events.length === 0 ? <p className="empty-state compact">Još nema događaja.</p>
-        : <div className="table-wrap"><table><thead><tr><th>Događaj</th><th>Uređaj</th><th>Vreme</th></tr></thead>
+        : <TableShell label="Bezbednosna istorija"><table className="responsive-table"><thead><tr><th>Događaj</th><th>Uređaj</th><th>Vreme</th></tr></thead>
           <tbody>{events.map((event, index) => <tr key={`${event.occurredAt}-${index}`}>
-            <td>{eventLabels[event.type]}</td><td>{event.deviceLabel}</td><td>{formatDate(event.occurredAt)}</td>
-          </tr>)}</tbody></table></div>}
+            <td data-label="Događaj">{eventLabels[event.type]}</td><td data-label="Uređaj">{event.deviceLabel}</td><td data-label="Vreme">{formatDate(event.occurredAt)}</td>
+          </tr>)}</tbody></table></TableShell>}
     </section>
 
-    <Modal open={showRevokeAll} title="Opozvati sve sesije?"
-      onClose={() => { if (pendingId !== 'all') setShowRevokeAll(false) }}>
-      <div className="confirm-dialog">
-        <p>Bićete odjavljeni i svi uređaji će morati ponovo da se prijave.</p>
-        <div className="form-actions"><button type="button" className="secondary-button"
-          onClick={() => setShowRevokeAll(false)} disabled={pendingId === 'all'}>Otkaži</button>
-          <button type="button" className="danger-button" onClick={() => void revokeAll()}
-            disabled={pendingId === 'all'}>{pendingId === 'all' ? 'Opozivanje…' : 'Opozovi sve'}</button></div>
-      </div>
-    </Modal>
+    <ConfirmDialog open={showRevokeAll} title="Opozovi sve sesije" variant="danger" confirmLabel="Opozovi sve"
+      description="Bićete odjavljeni i svi uređaji će morati ponovo da se prijave."
+      loading={pendingId === 'all'} autoClose={false} onClose={() => setShowRevokeAll(false)} onConfirm={revokeAll} />
   </main>
 }

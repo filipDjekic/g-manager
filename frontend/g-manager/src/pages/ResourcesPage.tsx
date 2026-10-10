@@ -12,7 +12,8 @@ import { ResourceEmployees } from '../resources/ResourceEmployees'
 import { LocationEmployees } from '../resources/LocationEmployees'
 import type { LocationView, AreaView, ResourceView, ResourceAvailability } from '../types/resource.types'
 
-const labels:Record<ResourceAvailability['status'],string>={AVAILABLE:'Slobodno',OCCUPIED:'Zauzeto',INACTIVE:'Van funkcije',MAINTENANCE:'Održavanje',RETIRED:'Penzionisano'}
+const resourceTypes = { GAMING_PC: 'Gaming računar', PLAYSTATION: 'PlayStation', SIMULATOR: 'Simulator', VIP_ROOM: 'VIP soba', OTHER: 'Drugi resurs' }
+const labels:Record<ResourceAvailability['status'],string>={AVAILABLE:'Slobodno',OCCUPIED:'Zauzeto',INACTIVE:'Van funkcije',MAINTENANCE:'Održavanje',RETIRED:'Van upotrebe'}
 export function ResourcesPage() {
   const navigate=useNavigate(),actor=useAuthStore(state=>state.user),manage=hasCapability(actor,'RESOURCE_MANAGE')
   const [params,setParams]=useSearchParams()
@@ -35,9 +36,14 @@ export function ResourcesPage() {
     return resourceApi.availability(areaId,from,to)
   },enabled:!!areaId&&!!start})
   const editable=useQuery({queryKey:['resources','list',areaId],queryFn:()=>resourceApi.resources(areaId),enabled:manage&&!!areaId})
+  function canOpenResource(value:ResourceAvailability) {
+    return actor?.role === 'CUSTOMER' ? hasCapability(actor, 'RESERVATION_READ_OWN') && ['AVAILABLE','OCCUPIED'].includes(value.status)
+      : value.type === 'GAMING_PC' && hasCapability(actor, 'GAMING_SESSION_READ') || hasCapability(actor, 'RESERVATION_READ_ALL')
+  }
   function openResource(value:ResourceAvailability) {
+    if (!canOpenResource(value)) return
     if(actor?.role==='CUSTOMER')navigate(`/my-reservations?serviceId=${value.serviceId}&resourceId=${value.id}`)
-    else navigate(value.type==='GAMING_PC'?`/gaming-sessions?stationId=${value.id}`:`/calendar?resourceId=${value.id}`)
+    else navigate(value.type==='GAMING_PC'&&hasCapability(actor,'GAMING_SESSION_READ')?`/gaming-sessions?stationId=${value.id}`:`/calendar?resourceId=${value.id}`)
   }
   return <main className="workspace">
     <PageHeader eyebrow="Prostor i kapacitet" title="Mapa resursa" actions={manage&&<Button onClick={()=>setEditor({kind:'LOCATION'})}>Nova lokacija</Button>}/>
@@ -51,11 +57,11 @@ export function ResourcesPage() {
       </section>
       {areas.isLoading?<Skeleton lines={3} label="Učitavanje zona"/>:areas.error?<ErrorState message="Zone nisu dostupne." action={<Button onClick={()=>areas.refetch()}>Pokušaj ponovo</Button>}/>:!visibleAreas.length?<EmptyState title="Lokacija nema aktivne zone" description="Dodajte zonu ili izaberite drugu lokaciju." action={manage&&<Button onClick={()=>setEditor({kind:'AREA'})}>Dodaj zonu</Button>}/>:resources.isLoading?<Skeleton lines={3} label="Osvežavanje mape"/>:resources.error?<ErrorState message={apiErrorMessage(resources.error,'Mapa nije dostupna.')} action={<Button onClick={()=>resources.refetch()}>Pokušaj ponovo</Button>}/>:!resources.data?.length?<EmptyState title="Zona nema resurse" action={manage&&<Button onClick={()=>setEditor({kind:'RESOURCE'})}>Dodaj prvi resurs</Button>}/>:area&&<>
         <section className="panel resource-map-panel"><h2>{area.name}</h2><div className="resource-map" aria-label={`Mapa zone ${area.name}`} style={{aspectRatio:`${area.mapWidth}/${area.mapHeight}`}}>
-          {resources.data.map(value=><button key={value.id} className={`resource-map-item resource-${value.status.toLowerCase()}`} disabled={actor?.role==='CUSTOMER'&&!['AVAILABLE','OCCUPIED'].includes(value.status)} onClick={()=>openResource(value)}
+          {resources.data.map(value=><button key={value.id} className={`resource-map-item resource-${value.status.toLowerCase()}`} disabled={!canOpenResource(value)} onClick={()=>openResource(value)}
             aria-label={`${value.name}: ${labels[value.status]}`} style={{left:`${value.x/area.mapWidth*100}%`,top:`${value.y/area.mapHeight*100}%`,width:`${value.width/area.mapWidth*100}%`,height:`${value.height/area.mapHeight*100}%`,transform:`rotate(${value.rotation}deg)`}}><strong>{value.name}</strong><small>{labels[value.status]}</small></button>)}
         </div><p className="search-help">Slobodno · zauzeto · održavanje · van funkcije. Dostupnost se ponovo proverava pri potvrdi termina.</p></section>
-        <section className="panel-grid resource-list" aria-label="Resursi u zoni">{resources.data.map(value=><article className={`panel${params.get('resourceId')===value.id?' selected-resource':''}`} key={value.id}><div className="section-heading"><h2>{value.name}</h2><Badge tone={value.status==='AVAILABLE'?'success':value.status==='OCCUPIED'?'warning':'neutral'}>{labels[value.status]}</Badge></div><small>{value.code} · {value.type}</small>
-          <div className="form-actions"><Button variant="secondary" disabled={actor?.role==='CUSTOMER'&&!['AVAILABLE','OCCUPIED'].includes(value.status)} onClick={()=>openResource(value)}>{actor?.role==='CUSTOMER'?'Izaberi termin':'Otvori operativu'}</Button>
+        <section className="panel-grid resource-list" aria-label="Resursi u zoni">{resources.data.map(value=><article className={`panel${params.get('resourceId')===value.id?' selected-resource':''}`} key={value.id}><div className="section-heading"><h2>{value.name}</h2><Badge tone={value.status==='AVAILABLE'?'success':value.status==='OCCUPIED'?'warning':'neutral'}>{labels[value.status]}</Badge></div><small>{value.code} · {resourceTypes[value.type]}</small>
+          <div className="form-actions"><Button variant="secondary" disabled={!canOpenResource(value)} onClick={()=>openResource(value)}>{actor?.role==='CUSTOMER'?'Izaberi termin':'Otvori operativu'}</Button>
             {manage&&<Button variant="secondary" disabled={!editable.data?.some(v=>v.id===value.id)} onClick={()=>setEditor({kind:'RESOURCE',initial:editable.data?.find(v=>v.id===value.id)})}>Podesi resurs</Button>}
             {manage&&<Button variant="secondary" onClick={()=>setResourceEmployees({id:value.id,name:value.name})}>Zaposleni na stanici</Button>}</div></article>)}</section>
       </>}

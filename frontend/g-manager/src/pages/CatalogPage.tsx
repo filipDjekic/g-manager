@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiErrorMessage } from '../api/client'
 import { catalogApi } from '../api/catalogApi'
@@ -7,13 +7,14 @@ import { catalogItemSchema } from '../catalog/catalogSchema'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
 import type { CatalogItem, CatalogItemInput, ItemType } from '../types/catalog.types'
-import { Button, Card, EmptyState, ErrorState, Modal, PageHeader, Skeleton } from '../components/ui'
+import { Pagination, Button, Card, EmptyState, ErrorState, Modal, PageHeader, Skeleton } from '../components/ui'
 import { useToast } from '../components/ui/toastContext'
 import { SavedViewBar } from '../components/lists/SavedViewBar'
 import { SelectionBar } from '../components/lists/SelectionBar'
 import { useDirtyGuard } from '../forms/useDirtyGuard'
 import { useListUrlState } from '../lists/useListUrlState'
 import { queryKeys } from '../query/queryKeys'
+import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 
 const emptyForm: CatalogItemInput = {
   name: '',
@@ -25,6 +26,7 @@ const defaults = { page: '0', type: '', active: '', deleted: '', search: '', min
 const allowed = ['page', 'type', 'active', 'deleted', 'search', 'minPrice', 'maxPrice', 'sort', 'direction'] as const
 
 export function CatalogPage() {
+  const { confirm, confirmationDialog } = useConfirmDialog()
   const user = useAuthStore((state) => state.user)
   const management = hasCapability(user, 'CATALOG_MANAGE')
   const url = useListUrlState(defaults, allowed)
@@ -40,6 +42,7 @@ export function CatalogPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const submitInFlight = useRef(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkSummary, setBulkSummary] = useState('')
   const toast = useToast()
@@ -87,6 +90,7 @@ export function CatalogPage() {
 
   async function submit(event: FormEvent) {
     event.preventDefault()
+    if (submitInFlight.current) return
     setError('')
     const parsed = catalogItemSchema.safeParse(form)
     if (!parsed.success) {
@@ -94,6 +98,7 @@ export function CatalogPage() {
       return
     }
     try {
+      submitInFlight.current = true
       setSubmitting(true)
       if (editing) {
         await catalogApi.update(editing.id, { ...parsed.data, version: editing.version })
@@ -106,19 +111,18 @@ export function CatalogPage() {
     } catch (cause) {
       setError(apiErrorMessage(cause, 'Stavku nije moguće sačuvati.'))
     } finally {
+      submitInFlight.current = false
       setSubmitting(false)
     }
   }
 
   async function deactivate(item: CatalogItem) {
-    if (!window.confirm(`Deaktivirati “${item.name}”?`)) return
-    try {
+    confirm({ title: 'Deaktiviraj stavku', description: `“${item.name}” više neće biti dostupna u ponudi.`,
+      confirmLabel: 'Deaktiviraj', variant: 'warning', errorMessage: 'Stavku nije moguće deaktivirati.', onConfirm: async () => {
       await catalogApi.deactivate(item)
       await load()
       toast('Stavka je deaktivirana.', 'success')
-    } catch (cause) {
-      setError(apiErrorMessage(cause, 'Stavku nije moguće deaktivirati.'))
-    }
+    } })
   }
 
   async function activate(item: CatalogItem) {
@@ -132,14 +136,13 @@ export function CatalogPage() {
   }
 
   async function remove(item: CatalogItem) {
-    const reason = window.prompt(`Razlog brisanja “${item.name}”:`)?.trim()
-    if (!reason) return
-    try {
-      await catalogApi.remove(item.id, reason)
+    confirm({ title: 'Obriši stavku', description: `Stavka “${item.name}” biće premeštena u obrisane stavke.`,
+      confirmLabel: 'Obriši', variant: 'danger', reasonLabel: 'Razlog brisanja', reasonRequired: true,
+      errorMessage: 'Stavku nije moguće obrisati.', onConfirm: async (reason) => {
+      await catalogApi.remove(item.id, reason!)
       await load()
       toast('Stavka je obrisana.', 'success')
-    }
-    catch (cause) { setError(apiErrorMessage(cause, 'Stavku nije moguće obrisati.')) }
+    } })
   }
 
   async function restore(item: CatalogItem) {
@@ -164,6 +167,7 @@ export function CatalogPage() {
 
   return (
     <main className="workspace">
+      {confirmationDialog}
       <PageHeader eyebrow={management ? 'Administracija' : 'Ponuda'} title={management ? 'Upravljanje katalogom' : 'Katalog'} actions={management && <div className="card-actions">
         {!showDeleted && <Button type="button" onClick={() => { setEditing(null); setForm(emptyForm); setFormOpen(true) }}>Nova stavka</Button>}
         {hasCapability(user, 'CATALOG_RESTORE') && <Button type="button" variant="secondary" onClick={() => url.set({ deleted: showDeleted ? '' : 'true', page: '0' })}>
@@ -184,9 +188,8 @@ export function CatalogPage() {
       </form>}
       {(error || listQuery.error || bulk.error) && <ErrorState message={error || apiErrorMessage(listQuery.error || bulk.error, 'Katalog nije moguće učitati.')}
         action={<Button variant="secondary" type="button" onClick={() => void load()}>Pokušaj ponovo</Button>} />}
-      <Modal open={management && formOpen} title={editing ? 'Izmeni stavku' : 'Nova stavka'} onClose={resetForm}>
+      <Modal open={management && formOpen} title={editing ? 'Izmeni stavku' : 'Nova stavka'} onClose={resetForm} closeDisabled={submitting}>
         <form className="catalog-form catalog-dialog-form" onSubmit={submit}>
-        <h2>{editing ? 'Izmeni stavku' : 'Nova stavka'}</h2>
         <label>Naziv<input maxLength={150} required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
         <label>Tip<select value={form.type} onChange={(event) => {
           const nextType = event.target.value as ItemType
@@ -205,7 +208,8 @@ export function CatalogPage() {
       </Modal>
       {management && <SelectionBar count={selected.size} summary={bulkSummary}><Button loading={bulk.isPending}
         onClick={() => bulk.mutate('ACTIVATE')}>Aktiviraj izabrane</Button><Button variant="danger" loading={bulk.isPending}
-        onClick={() => bulk.mutate('DEACTIVATE')}>Deaktiviraj izabrane</Button></SelectionBar>}
+        onClick={() => confirm({ title: 'Deaktiviraj izabrane stavke', description: `${selected.size} stavki više neće biti dostupno u ponudi.`,
+          variant: 'warning', confirmLabel: 'Deaktiviraj', onConfirm: () => bulk.mutateAsync('DEACTIVATE') })}>Deaktiviraj izabrane</Button></SelectionBar>}
       {listQuery.isLoading && <Skeleton lines={4} label="Učitavanje kataloga" />}
       {result && !result.content.length && <EmptyState title="Nema stavki" description="Nijedna stavka ne odgovara izabranim filterima."
         action={<Button variant="secondary" type="button" onClick={() => url.apply({})}>Očisti filtere</Button>} />}
@@ -238,11 +242,7 @@ export function CatalogPage() {
           </div>
         </Card>)}
       </section>
-      <div className="pagination">
-        <button type="button" disabled={page === 0} onClick={() => url.set({ page: String(page - 1) })}>Prethodna</button>
-        <span>Strana {page + 1} od {Math.max(result?.totalPages ?? 1, 1)}</span>
-        <button type="button" disabled={!result || page + 1 >= result.totalPages} onClick={() => url.set({ page: String(page + 1) })}>Sledeća</button>
-      </div>
+      <Pagination page={page} totalPages={result?.totalPages} onPageChange={(page) => { setSelected(new Set()); url.set({ page: String(page) }) }} loading={listQuery.isFetching} />
     </main>
   )
 }

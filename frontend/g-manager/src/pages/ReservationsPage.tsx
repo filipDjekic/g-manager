@@ -10,7 +10,8 @@ import { apiErrorMessage } from '../api/client'
 import { reservationApi } from '../api/reservationApi'
 import { SavedViewBar } from '../components/lists/SavedViewBar'
 import { SelectionBar } from '../components/lists/SelectionBar'
-import { Button, EmptyState, ErrorState, Skeleton } from '../components/ui'
+import { Pagination, Badge, Button, EmptyState, ErrorState, Skeleton } from '../components/ui'
+import { reservationLabels, reservationTones } from '../components/ui/statusPresentation'
 import { ActionDialog } from '../components/ui/ActionDialog'
 import { useListUrlState } from '../lists/useListUrlState'
 import { queryKeys } from '../query/queryKeys'
@@ -18,8 +19,8 @@ import { formatBusinessDateTime } from '../reservations/dateTime'
 import { ReservationDetailsDrawer } from '../reservations/ReservationDetailsDrawer'
 import type { ReservationScope, ReservationStatus } from '../types/reservation.types'
 
-const baseDefaults = {scope: 'ALL', resourceId: '', locationId: '', customerId: '', page: '0', status: 'PENDING', employeeId: '', from: '', to: '', sort: 'startTime', direction: 'ASC', reservationId: '' }
-const allowed = ['scope', 'resourceId', 'locationId', 'customerId', 'page', 'status', 'employeeId', 'from', 'to', 'sort', 'direction', 'reservationId'] as const
+const baseDefaults = {create: '', scope: 'ALL', resourceId: '', locationId: '', customerId: '', page: '0', status: 'PENDING', employeeId: '', from: '', to: '', sort: 'startTime', direction: 'ASC', reservationId: '' }
+const allowed = ['create', 'scope', 'resourceId', 'locationId', 'customerId', 'page', 'status', 'employeeId', 'from', 'to', 'sort', 'direction', 'reservationId'] as const
 
 export function ReservationsPage() {
   const actor=useAuthStore(state=>state.user)
@@ -48,7 +49,7 @@ export function ReservationsPage() {
   onSuccess: async (response) => {
     setBulkSummary(`${response.succeeded} uspešno, ${response.failed} neuspešno.`)
     setSelected(new Set()); await refresh()
-  },onError:async()=>{setSelected(new Set());await refresh()} })
+  },onError:async()=>{await refresh()} })
   const selectedItems=(result.data?.content??[]).filter(item=>selected.has(item.id))
   const mayBulk=(status:ReservationStatus)=>!result.error&&selectedItems.length>0&&selectedItems.length===selected.size&&selectedItems.every(item=>item.allowedActions?.includes(status))
   const error = result.error || bulk.error
@@ -66,7 +67,7 @@ export function ReservationsPage() {
     <div className="filter-bar reservation-filters">
       <label>Status<select value={url.state.status} onChange={(event) => {setSelected(new Set());url.set({ status: event.target.value, page: '0' })}}>
         <option value="">Svi</option>{['PENDING', 'CONFIRMED', 'REJECTED', 'CANCELLED', 'COMPLETED'].map((value) =>
-          <option value={value} key={value}>{value}</option>)}</select></label>
+          <option value={value} key={value}>{reservationLabels[value as ReservationStatus]}</option>)}</select></label>
       <label>Od<input type="date" value={url.state.from} onChange={(event) => {setSelected(new Set());url.set({ from: event.target.value, page: '0' })}} /></label>
       <label>Do<input type="date" value={url.state.to} onChange={(event) => {setSelected(new Set());url.set({ to: event.target.value, page: '0' })}} /></label>
       <label>Lokacija<select value={url.state.locationId} onChange={e=>{setSelected(new Set());url.set({locationId:e.target.value,page:'0'})}}><option value="">Sve lokacije</option>{locations.data?.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select></label>
@@ -90,29 +91,29 @@ export function ReservationsPage() {
       <section className="reservation-list">{result.data.content.map((reservation) => {
         return <article className={`panel reservation-row management ${reservation.readOnly?'reservation-readonly':'reservation-manageable'}`} key={reservation.id}>
           <label className="row-selector"><input type="checkbox" checked={selected.has(reservation.id)}
-            disabled={!reservation.allowedActions?.length||!!reservation.readOnly} onChange={() => toggle(reservation.id)} aria-label={`Izaberi rezervaciju ${reservation.id}`} /></label>
-          <div><strong>{formatBusinessDateTime(reservation.startTime)}</strong><p>{reservation.serviceName} · {reservation.customerName}</p><p>{reservation.resourceId ? `${reservation.resourceCode} · ${reservation.resourceName}` :
+            disabled={bulk.isPending||!reservation.allowedActions?.length||!!reservation.readOnly} onChange={() => toggle(reservation.id)} aria-label={`Izaberi rezervaciju: ${reservation.customerName}, ${formatBusinessDateTime(reservation.startTime)}`} /></label>
+          <div className="reservation-summary"><strong>{reservation.customerName}</strong><p>{reservation.serviceName}</p>
+            <p><time dateTime={reservation.startTime}>{formatBusinessDateTime(reservation.startTime)}</time></p>
+            <p>{reservation.resourceId ? `${reservation.resourceCode} · ${reservation.resourceName}` :
               reservation.resourceRequired ? 'Zahtevani resurs nije dodeljen' : 'Usluga bez fizičkog resursa'}</p>
             {reservation.locationName && <p>{reservation.locationName}</p>}
             {reservation.resourceRequired && !reservation.resourceId && <p className="error-banner">Potrebna je ručna dodela u detaljima rezervacije.</p>}
-            <small>do {formatBusinessDateTime(reservation.endTime)}</small></div>
-          <div className="reservation-tags"><span className="status-badge neutral">{reservation.status}</span>
-            <span className={`status-badge ${reservation.readOnly?'neutral':'info'}`}>{reservation.readOnly?'Samo pregled':'Upravljanje'}</span></div>
+            <small>do {formatBusinessDateTime(reservation.endTime)} · {reservation.employeeName}</small></div>
+          <div className="reservation-tags"><Badge tone={reservationTones[reservation.status]}>{reservationLabels[reservation.status]}</Badge>
+            <Badge tone={reservation.readOnly?'neutral':'info'}>{reservation.readOnly?'Samo pregled':'Upravljanje'}</Badge></div>
           <Button variant="secondary" onClick={() => url.set({ reservationId: reservation.id })}>Detalji</Button>
         </article>
       })}</section>}
-    <div className="pagination"><button disabled={filters.page === 0} onClick={() => {setSelected(new Set());url.set({ page: String(filters.page - 1) })}}>Prethodna</button>
-      <span>Strana {filters.page + 1} od {Math.max(result.data?.totalPages ?? 1, 1)}</span>
-      <button disabled={!result.data || filters.page + 1 >= result.data.totalPages} onClick={() => {setSelected(new Set());url.set({ page: String(filters.page + 1) })}}>Sledeća</button></div>
-    {createOpen&&<StaffReservationForm onClose={()=>setCreateOpen(false)} onCreated={(id,summary)=>{setCreateOpen(false);setBulkSummary(summary??'');url.set({reservationId:id})}}/>}
+    <Pagination page={filters.page} totalPages={result.data?.totalPages} onPageChange={(page) => { setSelected(new Set()); url.set({ page: String(page) }) }} loading={result.isFetching} />
+    {(createOpen || url.state.create === 'true')&&<StaffReservationForm onClose={()=>{setCreateOpen(false);url.set({create:''})}} onCreated={(id,summary)=>{setCreateOpen(false);setBulkSummary(summary??'');url.set({create:'',reservationId:id})}}/>}
     <ReservationDetailsDrawer reservationId={url.state.reservationId || null}
       onClose={() => url.set({ reservationId: '' }, true)} />
-    <ActionDialog open={cancelOpen&&mayBulk('CANCELLED')} title="Otkaži izabrane rezervacije"
+    <ActionDialog open={cancelOpen} disabled={!mayBulk('CANCELLED')} title="Otkaži izabrane rezervacije"
       description="Svaka dozvoljena promena biće odmah sačuvana i evidentirana."
       confirmLabel="Otkaži rezervacije" reasonLabel="Razlog" reasonRequired danger loading={bulk.isPending}
-      onClose={() => setCancelOpen(false)} onConfirm={(reason) => {
+      onClose={() => setCancelOpen(false)} onConfirm={async (reason) => {
         if (!reason||!mayBulk('CANCELLED')) return
-        bulk.mutate({ status: 'CANCELLED', reason }, { onSuccess: () => setCancelOpen(false) })
+        await bulk.mutateAsync({ status: 'CANCELLED', reason }); setCancelOpen(false)
       }} />
   </main>
 }

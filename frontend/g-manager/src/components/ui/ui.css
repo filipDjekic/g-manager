@@ -22,36 +22,53 @@
 .ui-field-hint { color: var(--color-text-muted); font-size: .8rem; }
 .ui-card { display: grid; align-content: start; gap: var(--space-4); padding: var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
 .ui-table-shell { overflow-x: auto; border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
-.ui-overlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: var(--space-4); background: rgb(0 0 0 / 68%); }
-.ui-overlay:not(.ui-overlay--drawer) { display: flex; align-items: center; justify-content: center; }
-.ui-dialog, .ui-drawer { width: min(34rem, 100%); overflow: auto; padding: var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-lg); color: var(--color-text); background: var(--color-surface); box-shadow: 0 24px 70px rgb(0 0 0 / 35%); }
+.ui-overlay { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: var(--space-4); background: rgb(0 0 0 / 68%); overscroll-behavior: contain; }
+.ui-dialog, .ui-drawer { display: flex; flex-direction: column; width: min(38rem, 100%); min-width: 0; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-lg); color: var(--color-text); background: var(--color-surface); box-shadow: var(--shadow-dialog); }
 .ui-dialog {
   min-width: 0;
   min-height: 0;
   max-height: min(90vh, calc(100vh - var(--space-4) * 2));
   max-height: min(90dvh, calc(100dvh - var(--space-4) * 2));
 }
-.ui-dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-4); }
-.ui-dialog-heading h2 { margin: 0; }
+.ui-dialog-heading { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--color-border); }
+.ui-dialog-heading h2 { margin: 0; font-size: 1.2rem; overflow-wrap: anywhere; }
+.ui-dialog-heading .ui-button { flex-shrink: 0; min-width: 2.75rem; }
+.ui-dialog-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--space-5); overflow-wrap: anywhere; }
+.ui-dialog-footer { flex-shrink: 0; padding: var(--space-4) var(--space-5); border-top: 1px solid var(--color-border); background: var(--color-surface); }
+.ui-dialog-footer .dialog-actions { margin: 0; }
+.ui-dialog-body > form > :is(.form-actions, .dialog-actions, .ui-button[type='submit']) { position: sticky; bottom: 0; background-clip: padding-box; box-shadow: 0 0 0 .5rem var(--color-surface); }
+.ui-confirm { width: min(30rem, 100%); }
+.ui-confirm--warning { border-top: 3px solid var(--color-warning); }
+.ui-confirm--danger { border-top: 3px solid var(--color-danger); }
+.confirmation-description { color: var(--color-text-secondary); white-space: pre-wrap; }
 .ui-overlay--drawer { justify-items: end; padding: 0; }
-.ui-drawer { width: min(22rem, 90vw); height: 100%; max-height: none; border-radius: 0; }
-.ui-toasts { position: fixed; z-index: 70; right: var(--space-4); bottom: var(--space-4); display: grid; gap: var(--space-2); width: min(24rem, calc(100vw - 2rem)); }
-.ui-toast { display: flex; justify-content: space-between; gap: var(--space-4); padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-text); background: var(--color-surface-raised); box-shadow: 0 12px 30px rgb(0 0 0 / 24%); }
-.ui-toast--error { color: var(--color-danger); background: var(--color-danger-bg); }
-.ui-toast--success { color: var(--color-success); background: var(--color-success-bg); }
-.ui-toast button { min-height: auto; padding: 0; color: inherit; background: transparent; }
+.ui-drawer { width: min(24rem, 94vw); height: 100dvh; max-height: 100dvh; border-radius: 0; }
+.ui-drawer--wide { width: min(42rem, 96vw); }
+.ui-toasts { position: fixed; z-index: 200; right: var(--space-4); bottom: var(--space-4); display: grid; gap: var(--space-2); width: min(24rem, calc(100vw - 2rem)); pointer-events: none; }
+.ui-toast { display: flex; justify-content: space-between; gap: var(--space-4); padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-text); background: var(--color-surface-raised); box-shadow: 0 12px 30px rgb(0 0 0 / 24%); pointer-events: auto; overflow-wrap: anywhere; }
+.ui-toast button { flex-shrink: 0; min-height: 2.75rem; min-width: 2.75rem; padding: 0; color: inherit; background: transparent; }
 .ui-skeleton { display: grid; gap: var(--space-3); min-height: 8rem; }
 .ui-skeleton span { height: 1.1rem; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--color-surface-raised), var(--color-border), var(--color-surface-raised)); background-size: 200% 100%; animation: ui-shimmer 1.5s infinite; }
 .ui-skeleton span:last-child { width: 65%; }
 @keyframes ui-shimmer { to { background-position: -200% 0; } }
-.ui-empty, .ui-error { display: grid; justify-items: center; gap: var(--space-3); padding: var(--space-8); border: 1px dashed var(--color-border); border-radius: var(--radius-lg); text-align: center; color: var(--color-text-muted); }
 .ui-empty h2, .ui-error h2, .ui-empty p, .ui-error p { margin: 0; }
-.ui-error { color: var(--color-danger); background: var(--color-danger-bg); }
 .ui-page-header { display: flex; align-items: end; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-6); }
 .ui-page-header h1 { margin: 0; }
 .ui-breadcrumbs ol { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0 0 var(--space-3); padding: 0; list-style: none; font-size: .85rem; }
 .ui-breadcrumbs li:not(:last-child)::after { content: '/'; margin-left: var(--space-2); color: var(--color-text-muted); }
-@media (max-width: 420px) { .ui-page-header { align-items: stretch; flex-direction: column; } .ui-dialog { padding: var(--space-4); } }
+.ui-tabs { display: flex; gap: var(--space-1); margin-block-end: var(--space-5); padding: var(--space-1); width: fit-content; max-width: 100%; overflow-x: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.ui-tabs button { flex-shrink: 0; min-height: var(--control-height); padding: var(--space-2) var(--space-4); color: var(--color-text-secondary); background: transparent; font-size: .875rem; }
+.ui-tabs button[aria-selected='true'] { color: var(--color-primary); background: var(--color-primary-bg); }
+[hidden] { display: none !important; }
+@media (max-width: 620px) {
+  .ui-page-header { align-items: stretch; flex-direction: column; }
+  .ui-overlay { padding: var(--space-2); }
+  .ui-overlay--drawer { padding: 0; }
+  .ui-dialog { max-height: calc(100dvh - var(--space-2) * 2); }
+  .ui-dialog-heading, .ui-dialog-body, .ui-dialog-footer { padding: var(--space-4); }
+  .dialog-actions { flex-wrap: wrap; }
+  .dialog-actions > .ui-button { flex: 1; }
+}
 @media (max-width: 620px) {
   .responsive-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .responsive-table, .responsive-table tbody, .responsive-table tr, .responsive-table td { display: block; width: 100%; }
@@ -59,3 +76,10 @@
   .responsive-table td { display: grid; grid-template-columns: minmax(7rem, .7fr) minmax(0, 1.3fr); gap: var(--space-3); padding-block: var(--space-2); }
   .responsive-table td::before { content: attr(data-label); color: var(--color-text-muted); font-weight: 700; }
 }
+.ui-toast--error { color: var(--color-danger); background: var(--color-danger-bg); border-inline-start: 3px solid var(--color-danger); }
+.ui-toast--success { color: var(--color-success); background: var(--color-success-bg); border-inline-start: 3px solid var(--color-success); }
+.ui-empty, .ui-error { display: grid; justify-items: center; gap: var(--space-3); border: 1px dashed var(--color-border); border-radius: var(--radius-lg); text-align: center; color: var(--color-text-muted); padding: var(--space-6); }
+.ui-empty h2, .ui-error h2 { font-size: 1rem; }
+.ui-empty p, .ui-error p { max-width: 55ch; font-size: .9rem; }
+.ui-table-shell table caption { font-size: .8rem; }
+.ui-error { color: var(--color-danger); background: var(--color-danger-bg); }

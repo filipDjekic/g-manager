@@ -8,19 +8,21 @@ import { StartSessionDialog } from '../gaming/StartSessionDialog'
 import { GamingVisitList } from '../gaming/GamingVisitList'
 import { hasCapability } from '../auth/capabilities'
 import { useAuthStore } from '../auth/authStore'
-import { Badge, Button, Drawer, EmptyState, ErrorState, Modal, Skeleton, TableShell } from '../components/ui'
+import { Pagination, Badge, Button, Drawer, EmptyState, ErrorState, Modal, Skeleton, TableShell } from '../components/ui'
 import { ActionDialog } from '../components/ui/ActionDialog'
 import { SavedViewBar } from '../components/lists/SavedViewBar'
 import { useListUrlState } from '../lists/useListUrlState'
 import { Link } from 'react-router-dom'
 import { queryKeys } from '../query/queryKeys'
 import { formatBusinessDateTime } from '../reservations/dateTime'
+import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 
 const defaults = { search: '', active: '', page: '0', customerId: '' }
 const allowed = ['search', 'active', 'page', 'customerId'] as const
 const money = new Intl.NumberFormat('sr-RS', { style: 'currency', currency: 'RSD' })
 
 export function CustomersPage() {
+  const { confirm, confirmationDialog } = useConfirmDialog()
   const user = useAuthStore((state) => state.user)
   const canManageCrm = hasCapability(user, 'CUSTOMER_CRM_MANAGE')
   const detailOpener = useRef<HTMLButtonElement>(null)
@@ -47,6 +49,7 @@ export function CustomersPage() {
   const [editing, setEditing] = useState<{name:string;email:string}|null>(null)
   const [deactivating, setDeactivating] = useState(false)
   const [busy, setBusy] = useState(false)
+  const customerInFlight = useRef(false)
   const visits = useQuery({queryKey:['gaming-visits','customer',selectedId],queryFn:()=>gamingSessionApi.customerVisits(selectedId),
     enabled:!!selectedId && hasCapability(user,'GAMING_SESSION_READ')})
   const queue = useQuery({queryKey:['waitlist','customer',selectedId],queryFn:()=>waitlistApi.operational({customerId:selectedId,page:0,size:5}),
@@ -57,32 +60,32 @@ export function CustomersPage() {
   const close = () => url.set({ customerId: '' })
 
   async function createCustomer(event: FormEvent) {
-    event.preventDefault(); if(busy)return;setBusy(true);setCustomerError('')
+    event.preventDefault(); if(customerInFlight.current)return;customerInFlight.current=true;setBusy(true);setCustomerError('')
     try {
       const created = await customerApi.create({ name: customerName.trim(), email: customerEmail.trim() })
       setActivation({ secret: created.activationSecret, expiresAt: created.activationExpiresAt })
       setCustomerName(''); setCustomerEmail(''); await list.refetch()
     } catch (cause) { setCustomerError(apiErrorMessage(cause, 'Klijenta nije moguće kreirati.')) }
-    finally {setBusy(false)}
+    finally {customerInFlight.current=false;setBusy(false)}
   }
 
   async function editCustomer(event:FormEvent) {
-    event.preventDefault();if (!detail.data || !editing || busy) return
-    setBusy(true);setCustomerError('')
+    event.preventDefault();if (!detail.data || !editing || customerInFlight.current) return
+    customerInFlight.current=true;setBusy(true);setCustomerError('')
     try {
       await customerApi.update(detail.data.customer.id, { name:editing.name.trim(), email:editing.email.trim(), version: detail.data.customer.version })
       setEditing(null)
       await Promise.all([detail.refetch(), list.refetch()])
     } catch (cause) { setCustomerError(apiErrorMessage(cause, 'Klijenta nije moguće izmeniti.')) }
-    finally {setBusy(false)}
+    finally {customerInFlight.current=false;setBusy(false)}
   }
 
   async function deactivateCustomer() {
-    if (!detail.data || busy) return
-    setBusy(true);setCustomerError('')
+    if (!detail.data || customerInFlight.current) return
+    customerInFlight.current=true;setBusy(true);setCustomerError('')
     try { await customerApi.deactivate(detail.data.customer.id); setDeactivating(false);close(); await list.refetch() }
     catch (cause) { setCustomerError(apiErrorMessage(cause, 'Klijenta nije moguće deaktivirati.')) }
-    finally {setBusy(false)}
+    finally {customerInFlight.current=false;setBusy(false)}
   }
 
   async function addNote(event: FormEvent) {
@@ -91,14 +94,19 @@ export function CustomersPage() {
     catch (cause) { setCrmError(apiErrorMessage(cause, 'Belešku nije moguće sačuvati.')) }
   }
   async function editNote(item: NonNullable<typeof crm.data>['notes'][number]) {
-    const body = window.prompt('Izmenite CRM belešku', item.body)?.trim(); if (!body || !selectedId) return
-    try { await customerApi.updateCrmNote(selectedId, item.id, body, item.version); await crm.refetch() }
-    catch (cause) { setCrmError(apiErrorMessage(cause, 'Belešku nije moguće izmeniti.')) }
+    if (!selectedId) return
+    confirm({ title: 'Izmeni CRM belešku', description: 'Sačuvajte ažuriranu belešku o klijentu.',
+      confirmLabel: 'Sačuvaj belešku', reasonLabel: 'Beleška', reasonRequired: true, initialReason: item.body,
+      reasonMaxLength: 1000, errorMessage: 'Belešku nije moguće izmeniti.', onConfirm: async (body) => {
+        await customerApi.updateCrmNote(selectedId, item.id, body!, item.version); await crm.refetch()
+      } })
   }
   async function removeNote(item: NonNullable<typeof crm.data>['notes'][number]) {
-    if (!selectedId || !window.confirm('Obrisati CRM belešku?')) return
-    try { await customerApi.deleteCrmNote(selectedId, item.id, item.version); await crm.refetch() }
-    catch (cause) { setCrmError(apiErrorMessage(cause, 'Belešku nije moguće obrisati.')) }
+    if (!selectedId) return
+    confirm({ title: 'Obriši CRM belešku', description: 'Beleška će biti uklonjena iz evidencije klijenta.',
+      confirmLabel: 'Obriši belešku', variant: 'danger', errorMessage: 'Belešku nije moguće obrisati.', onConfirm: async () => {
+        await customerApi.deleteCrmNote(selectedId, item.id, item.version); await crm.refetch()
+      } })
   }
   async function addTag(event: FormEvent) {
     event.preventDefault(); if (!selectedId || !tag.trim()) return
@@ -112,6 +120,7 @@ export function CustomersPage() {
   }
 
   return <main className="workspace customer-workspace">
+    {confirmationDialog}
     <div className="page-heading"><div><p className="eyebrow">Ljudi</p><h1>Klijenti</h1></div>
       {hasCapability(user, 'CUSTOMER_CREATE') && <Button onClick={() => { setActivation(null); setCreateOpen(true) }}>
         Novi klijent</Button>}</div>
@@ -133,9 +142,7 @@ export function CustomersPage() {
           <td data-label="Završeni termini">{customer.completedAppointmentCount}</td><td data-label="Prihod">{money.format(customer.completedOrderRevenue)}</td>
           <td data-label="Poslednja aktivnost">{customer.lastActivityAt ? formatBusinessDateTime(customer.lastActivityAt) : 'Nema aktivnosti'}</td>
           <td data-label="Akcije"><Button variant="secondary" onClick={(event) => { detailOpener.current = event.currentTarget; url.set({ customerId: customer.id }) }}>Detalji</Button></td></tr>)}</tbody></table></TableShell>}
-    <div className="pagination"><button disabled={filters.page === 0} onClick={() => url.set({ page: String(filters.page - 1) })}>Prethodna</button>
-      <span>Strana {filters.page + 1} od {Math.max(list.data?.totalPages ?? 1, 1)}</span>
-      <button disabled={!list.data || filters.page + 1 >= list.data.totalPages} onClick={() => url.set({ page: String(filters.page + 1) })}>Sledeća</button></div>
+    <Pagination page={filters.page} totalPages={list.data?.totalPages} onPageChange={(page) => url.set({ page: String(page) })} loading={list.isFetching} />
     <Drawer size="wide" open={Boolean(selectedId) && !startOpen && !editing && !deactivating} title={detail.data?.customer.name ?? 'Detalji klijenta'} onClose={close} returnFocusRef={detailOpener}>
       {detail.isLoading ? <Skeleton lines={6} label="Učitavanje detalja klijenta" /> : detail.error ?
         <ErrorState message={apiErrorMessage(detail.error, 'Detalje klijenta nije moguće učitati.')} action={<Button onClick={() => detail.refetch()}>Pokušaj ponovo</Button>} /> : detail.data && <div className="customer-detail">
@@ -181,7 +188,7 @@ export function CustomersPage() {
             <li key={item.id}><strong>{money.format(item.totalPrice)}</strong><span>{formatBusinessDateTime(item.createdAt)} · {item.status}</span></li>)}</ul> : <p>Nema istorije narudžbina.</p>}</section>
         </div>}
     </Drawer>
-    <Modal open={createOpen} title={activation ? 'Aktivacioni podaci' : 'Novi klijent'}
+    <Modal open={createOpen} closeDisabled={busy} title={activation ? 'Aktivacioni podaci' : 'Novi klijent'}
       onClose={() => { setCreateOpen(false); setActivation(null) }}>
       {activation ? <div><p>Aktivacioni kod se prikazuje samo sada. Bezbedno ga predajte klijentu.</p>
         <output className="activation-secret">{activation.secret}</output>
@@ -197,12 +204,12 @@ export function CustomersPage() {
         </form>}
     </Modal>
     {startOpen && detail.data && <StartSessionDialog customer={detail.data.customer} onClose={()=>setStartOpen(false)} onStarted={()=>{void visits.refetch()}}/>}
-    <Modal open={!!editing} title="Izmeni podatke klijenta" onClose={()=>{if(!busy)setEditing(null)}}><form className="form-grid" onSubmit={editCustomer}>
+    <Modal open={!!editing} closeDisabled={busy} title="Izmeni podatke klijenta" onClose={()=>{if(!busy)setEditing(null)}}><form className="form-grid" onSubmit={editCustomer}>
       {customerError && <p className="error-banner" role="alert">{customerError}</p>}
       <label>Ime<input required maxLength={120} disabled={busy} value={editing?.name??''} onChange={e=>setEditing(current=>current&&{...current,name:e.target.value})}/></label>
       <label>Email<input required type="email" maxLength={180} disabled={busy} value={editing?.email??''} onChange={e=>setEditing(current=>current&&{...current,email:e.target.value})}/></label>
       <Button type="submit" loading={busy}>Sačuvaj podatke</Button></form></Modal>
-    <ActionDialog open={deactivating} title="Deaktiviraj klijenta" description={`${detail.data?.customer.name??''}: nalog će biti deaktiviran. ${customerError}`}
-      confirmLabel="Deaktiviraj" danger loading={busy} onClose={()=>{if(!busy)setDeactivating(false)}} onConfirm={()=>void deactivateCustomer()}/>
+    <ActionDialog open={deactivating} title="Deaktiviraj klijenta" description={`${detail.data?.customer.name??''}: nalog će biti deaktiviran.`}
+      confirmLabel="Deaktiviraj" danger loading={busy} onClose={()=>{if(!busy)setDeactivating(false)}} error={customerError} onConfirm={deactivateCustomer}/>
   </main>
 }

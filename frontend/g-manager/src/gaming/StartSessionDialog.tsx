@@ -40,7 +40,7 @@ export function StartSessionDialog({ station, customer, onClose, onStarted }: {
       void client.invalidateQueries({ queryKey: ['gaming-operations'] })
     } finally { inFlight.current = false; setBusy(false) }
   }
-  return <Modal open title={`Pokreni sesiju${station ? ` · ${station.resourceName}` : ''}`} onClose={() => { if (!busy) onClose() }} initialFocusRef={input}>
+  return <Modal open closeDisabled={busy} title={`Pokreni sesiju${station ? ` · ${station.resourceName}` : ''}`} onClose={() => { if (!busy) onClose() }} initialFocusRef={input}>
     <form className="form-grid start-session-form" onSubmit={start}>
       {error && <p className="error-banner" role="alert">{error}{retryRequest && ' Ponovnim pokušajem proverava se ista komanda.'}</p>}
       {customer ? <p className="selected-customer"><strong>{customer.name}</strong><span>{customer.email}</span></p> : <>
