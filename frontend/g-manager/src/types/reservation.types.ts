@@ -136,3 +136,17 @@ export interface CalendarReservation {
   allowedActions: ReservationStatus[]
   resourceId?:string;resourceName?:string;resourceCode?:string;locationName?:string;canManage?:boolean;readOnly?:boolean
 }
+
+export interface CalendarResource {
+  id: string; code: string; name: string; type: import('./resource.types').ResourceType
+  locationId: string; locationName: string; areaId: string; areaName: string
+  canManage: boolean; currentRestriction: string | null
+}
+export interface CalendarContext {
+  timezone: string; serverTime: string; rangeStart: string; rangeEnd: string; occupiedStations: number
+  locations: Array<{id: string; name: string; windows: Array<{startTime: string; endTime: string}>}>
+  areas: Array<{id: string; locationId: string; locationName: string; name: string; active: boolean; displayOrder: number}>
+  resources: CalendarResource[]
+  occupancy: Array<{resourceId: string; startTime: string; endTime: string; kind: 'RESERVATION' | 'SESSION'}>
+  employeeBlocks: Array<{startTime: string; endTime: string; kind: 'RESERVATION' | 'TIME_OFF'}>
+}

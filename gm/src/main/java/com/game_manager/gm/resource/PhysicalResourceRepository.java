@@ -12,6 +12,7 @@ public interface PhysicalResourceRepository extends JpaRepository<PhysicalResour
  List<PhysicalResource> findByServiceIdOrderByIdAsc(UUID serviceId);
  List<PhysicalResource> findByTypeOrderByNameAsc(ResourceType type);
  List<PhysicalResource> findByAreaIdOrderByDisplayOrderAscNameAsc(UUID areaId);
+ List<PhysicalResource> findByAreaIdInOrderByDisplayOrderAscNameAsc(Collection<UUID> areaIds);
  List<PhysicalResource> findByServiceIdAndActiveTrueAndBookableTrueOrderByDisplayOrderAscNameAsc(UUID serviceId);
  @Query("select new com.game_manager.gm.resource.dto.ResourceSearchReference(r.id,r.areaId,a.locationId,r.name,r.code,r.type) "
   + "from PhysicalResource r join Area a on a.id=r.areaId join Location l on l.id=a.locationId "

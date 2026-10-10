@@ -191,6 +191,13 @@ public class ReservationService {
     @PreAuthorize("hasAuthority('RESERVATION_READ_ALL')")
     public ReservationSummaryResponse summary(ReservationScope scope, UUID resourceId, UUID locationId,
             UUID employeeId, UUID customerId, LocalDate from, LocalDate to, String search) {
+        return summary(scope,resourceId,locationId,employeeId,customerId,from,to,search,null);
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('RESERVATION_READ_ALL')")
+    public ReservationSummaryResponse summary(ReservationScope scope, UUID resourceId, UUID locationId,
+            UUID employeeId, UUID customerId, LocalDate from, LocalDate to, String search, UUID areaId) {
         validateDateRange(from, to);
         ZoneId zone = workingHoursService.getBusinessZone();
         Instant now = clock.instant();
@@ -198,6 +205,7 @@ public class ReservationService {
         LocalDate customersFrom = from != null ? from : to != null ? to.minusDays(6) : today;
         LocalDate customersTo = to != null ? to : customersFrom.plusDays(6);
         Specification<Reservation> visible = scopeFilter(scope, resourceId, locationId)
+                .and(ReservationSpecifications.hasArea(areaId))
                 .and(ReservationSpecifications.hasEmployee(employeeId))
                 .and(ReservationSpecifications.hasCustomer(customerId)).and(textFilter(search));
         Specification<Reservation> todayFilter = visible
@@ -229,13 +237,21 @@ public class ReservationService {
     @PreAuthorize("hasAuthority('RESERVATION_READ_ALL')")
     public List<CalendarReservationResponse> calendar(UUID employeeId,LocalDate from,LocalDate to,
             ReservationScope scope,UUID resourceId,UUID locationId,UUID customerId,ReservationStatus status) {
+        return calendar(employeeId,from,to,scope,resourceId,locationId,customerId,status,null);
+    }
+
+    @Transactional(readOnly=true)
+    @PreAuthorize("hasAuthority('RESERVATION_READ_ALL')")
+    public List<CalendarReservationResponse> calendar(UUID employeeId,LocalDate from,LocalDate to,
+            ReservationScope scope,UUID resourceId,UUID locationId,UUID customerId,ReservationStatus status,UUID areaId) {
         if(from==null||to==null||from.isAfter(to)||from.plusDays(92).isBefore(to))
             throw new ApplicationException(HttpStatus.BAD_REQUEST,"Calendar range must contain between 1 and 93 days");
         ZoneId zone=workingHoursService.getBusinessZone();
         Specification<Reservation> filter=scopeFilter(scope,resourceId,locationId)
+                .and(ReservationSpecifications.hasArea(areaId))
                 .and(ReservationSpecifications.hasEmployee(employeeId)).and(ReservationSpecifications.hasCustomer(customerId))
                 .and(ReservationSpecifications.hasStatus(status))
-                .and(ReservationSpecifications.startsFrom(from.atStartOfDay(zone).toInstant()))
+                .and((root,query,builder) -> builder.greaterThan(root.get("endTime"),from.atStartOfDay(zone).toInstant()))
                 .and(ReservationSpecifications.startsBefore(to.plusDays(1).atStartOfDay(zone).toInstant()));
         List<Reservation> values=reservationRepository.findAll(filter,org.springframework.data.domain.Sort.by("startTime"));
         return responses(values).values().stream().sorted(java.util.Comparator.comparing(ReservationResponse::startTime))
