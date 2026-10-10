@@ -1,6 +1,7 @@
 package com.game_manager.gm.customer;
 
 import com.game_manager.gm.common.dto.PageResponse;
+import com.game_manager.gm.common.config.GManagerProperties;
 import com.game_manager.gm.customer.dto.CustomerDetailResponse;
 import com.game_manager.gm.customer.dto.CustomerListItemResponse;
 import com.game_manager.gm.order.CustomerOrderSummary;
@@ -8,9 +9,12 @@ import com.game_manager.gm.order.OrderService;
 import com.game_manager.gm.reservation.CustomerReservationSummary;
 import com.game_manager.gm.reservation.ReservationService;
 import com.game_manager.gm.user.CustomerReference;
+import com.game_manager.gm.user.CustomerStatistics;
 import com.game_manager.gm.user.UserService;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -26,6 +30,16 @@ public class CustomerService {
     private final UserService userService;
     private final ReservationService reservationService;
     private final OrderService orderService;
+    private final GManagerProperties properties;
+    private final Clock clock;
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('CUSTOMER_READ')")
+    public CustomerStatistics statistics() {
+        var month = LocalDate.now(clock.withZone(properties.businessZone())).withDayOfMonth(1);
+        return userService.customerStatistics(month.atStartOfDay(properties.businessZone()).toInstant(),
+                month.plusMonths(1).atStartOfDay(properties.businessZone()).toInstant());
+    }
 
     @Transactional(readOnly = true)
     @PreAuthorize("hasAuthority('CUSTOMER_READ')")

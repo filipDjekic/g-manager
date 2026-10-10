@@ -87,6 +87,15 @@ public class UserService {
         return customerReference(user);
     }
 
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('CUSTOMER_READ')")
+    public CustomerStatistics customerStatistics(Instant monthStart, Instant monthEnd) {
+        currentUserProvider.requireCurrentUser();
+        var counts = userRepository.customerCounts(monthStart, monthEnd);
+        return new CustomerStatistics(counts.getTotal(), counts.getActive(),
+                counts.getNewThisMonth(), counts.getInactive());
+    }
+
     private static CustomerReference customerReference(User user) {
         return new CustomerReference(user.getId(), user.getName(), user.getEmail(), user.isActive(),
                 user.getCreatedAt(), user.getVersion());
