@@ -80,7 +80,7 @@ export function GamingSessionsPage() {
     } catch (cause) { setError(apiErrorMessage(cause, 'Recovery akcija nije uspela.')) }
     finally { await refresh(); inFlight.current = false; setBusy(false) }
   }
-  const openStart = useCallback((station: GamingStationCard) => { setError(''); setSelectedResourceId(station.resourceId); setStartStation(station); setNewSessionOpen(true) }, [])
+  const openStart = useCallback((station: GamingStationCard) => { setError(''); setStartStation(station); setNewSessionOpen(true) }, [])
   const openCustom = useCallback((station: GamingStationCard) => { setError(''); setMinutes(30); setCustomStation(station) }, [])
   const openEnd = useCallback((station: GamingStationCard) => { setError(''); setEndStation(station) }, [])
   const openRecovery = useCallback((station: GamingStationCard, confirm: boolean) => { setError(''); setRecoveryAction({ station, confirm }) }, [])
