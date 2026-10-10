@@ -38,6 +38,13 @@ export interface CustomerDetail {
 
 export type CustomerPage = PageResponse<CustomerListItem>
 
+export interface CustomerStatistics {
+  total: number
+  active: number
+  newThisMonth: number
+  inactive: number
+}
+
 export interface CustomerOnboarding {
   id: string
   name: string

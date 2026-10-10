@@ -1,6 +1,6 @@
 import { apiClient } from './client'
 import type { CustomerCrm, CustomerCrmNote, CustomerDetail, CustomerInput,
-  CustomerOnboarding, CustomerPage, CustomerUpdateInput } from '../types/customer.types'
+  CustomerOnboarding, CustomerPage, CustomerStatistics, CustomerUpdateInput } from '../types/customer.types'
 
 export const customerApi = {
   create: (request: CustomerInput) =>
@@ -10,6 +10,7 @@ export const customerApi = {
   deactivate: (id: string) => apiClient.post(`/customers/${id}/deactivate`),
   list: (params: { search?: string; active?: boolean; page: number; size: number }) =>
     apiClient.get<CustomerPage>('/customers', { params }).then(({ data }) => data),
+  statistics: () => apiClient.get<CustomerStatistics>('/customers/statistics').then(({ data }) => data),
   detail: (id: string) => apiClient.get<CustomerDetail>(`/customers/${id}`).then(({ data }) => data),
   crm: (id: string, search?: string) =>
     apiClient.get<CustomerCrm>(`/customers/${id}/crm`, { params: { search } }).then(({ data }) => data),

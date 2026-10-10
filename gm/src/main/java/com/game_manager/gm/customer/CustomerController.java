@@ -7,6 +7,7 @@ import com.game_manager.gm.customer.dto.CreateCustomerRequest;
 import com.game_manager.gm.customer.dto.CustomerOnboardingResponse;
 import com.game_manager.gm.customer.dto.UpdateCustomerRequest;
 import com.game_manager.gm.user.dto.UserResponse;
+import com.game_manager.gm.user.CustomerStatistics;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -53,6 +54,11 @@ public class CustomerController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return customerService.list(search, active, page, size);
+    }
+
+    @GetMapping("/statistics")
+    public CustomerStatistics statistics() {
+        return customerService.statistics();
     }
 
     @GetMapping("/{id}")
