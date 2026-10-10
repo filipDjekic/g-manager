@@ -21,17 +21,33 @@ public class ResourceManagementService {
  private final com.game_manager.gm.station.GamingStationProfileRepository stationProfiles;
  private final com.game_manager.gm.workinghours.WorkingHoursService workingHours;
  private final jakarta.persistence.EntityManager entityManager;
+ private final com.game_manager.gm.reservation.ReservationDurationPolicy durations;
+
+ public int reservationDuration(CatalogItem service,Integer requested){return durations.resolve(service,requested);}
+ public void requireBookingArea(UUID areaId,UUID locationId){
+  if(areaId==null)return;
+  Area value=area(areaId);
+  if(locationId!=null&&!value.getLocationId().equals(locationId))throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Area does not belong to the selected location");
+  if(!value.isActive())throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Area is inactive");
+  requireActiveLocation(value.getLocationId());
+ }
 
  /** Include restricted resources so occupancy cannot be inferred from missing free slots. */
  @Transactional(readOnly=true,noRollbackFor=ApplicationException.class) public List<PhysicalResource> bookingCandidates(UUID serviceId,UUID requestedId,UUID locationId){
+  return bookingCandidates(serviceId,requestedId,locationId,null);
+ }
+ @Transactional(readOnly=true,noRollbackFor=ApplicationException.class) public List<PhysicalResource> bookingCandidates(UUID serviceId,UUID requestedId,UUID locationId,UUID areaId){
+  requireBookingArea(areaId,locationId);
   List<PhysicalResource> values=requestedId==null?resources.findByServiceIdOrderByIdAsc(serviceId):List.of(resource(requestedId));
   Map<UUID,BookingResourceView> refs=resourceReferences(values.stream().map(PhysicalResource::getId).collect(java.util.stream.Collectors.toSet()));
   if(requestedId!=null){
    PhysicalResource selected=values.getFirst();
    if(!selected.getServiceId().equals(serviceId))throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Resource does not support the selected service");
    if(locationId!=null&&!locationId.equals(refs.get(requestedId).locationId()))throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Resource does not belong to the selected location");
+   if(areaId!=null&&!areaId.equals(selected.getAreaId()))throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Resource does not belong to the selected area");
   }
-  return values.stream().filter(v->locationId==null||locationId.equals(refs.get(v.getId()).locationId())).toList();
+  return values.stream().filter(v->locationId==null||locationId.equals(refs.get(v.getId()).locationId()))
+   .filter(v->areaId==null||areaId.equals(v.getAreaId())).toList();
  }
  @Transactional(readOnly=true) public Map<UUID,String> bookingRestrictions(List<PhysicalResource> values){
   if(values.isEmpty())return Map.of();
@@ -84,16 +100,27 @@ public class ResourceManagementService {
   return bookingOptions(serviceId,locationId,start,end,null,null);
  }
  @Transactional(readOnly=true) @PreAuthorize("hasAuthority('RESOURCE_READ')") public BookingOptionsResponse bookingOptions(UUID serviceId,UUID locationId,Instant start,Instant end,Set<UUID> allowedIds,UUID excludeId){
+  return bookingOptions(serviceId,locationId,start,end,allowedIds,excludeId,null);
+ }
+ @Transactional(readOnly=true) @PreAuthorize("hasAuthority('RESOURCE_READ')") public BookingOptionsResponse bookingOptions(UUID serviceId,UUID locationId,Instant start,Instant end,Set<UUID> allowedIds,UUID excludeId,UUID areaId){
   requireService(serviceId);
   if((start==null)!=(end==null)||(start!=null&&!end.isAfter(start)))
    throw new ApplicationException(HttpStatus.BAD_REQUEST,"Resource interval is invalid");
-  List<PhysicalResource> candidates=bookableResources(serviceId,locationId).stream().filter(v->allowedIds==null||allowedIds.contains(v.getId())).toList();
+  List<PhysicalResource> candidates=bookingCandidates(serviceId,null,locationId,areaId).stream().filter(v->allowedIds==null||allowedIds.contains(v.getId())).toList();
   Map<UUID,BookingResourceView> references=resourceReferences(candidates.stream().map(PhysicalResource::getId).collect(java.util.stream.Collectors.toSet()));
+  Map<UUID,String> restrictions=bookingRestrictions(candidates);
+  var rules=durations.rules(catalog.getActiveById(serviceId));
   return new BookingOptionsResponse(requiresResource(serviceId),candidates.stream().map(v->{
    BookingResourceView ref=references.get(v.getId());
+   String reason=restrictions.get(v.getId());
+   if(reason==null&&start!=null){
+    try{workingHours.validateWithinWorkingHours(ref.locationId(),start,end);}
+    catch(ApplicationException exception){if(exception.getStatus()!=HttpStatus.CONFLICT)throw exception;reason=exception.getMessage();}
+    if(reason==null&&!availability.isResourceAvailable(v.getId(),start,end,excludeId))reason="Resource is unavailable at this time";
+   }
    return new BookingResourceView(ref.id(),ref.serviceId(),ref.code(),ref.name(),ref.type(),ref.locationId(),ref.locationName(),
-    start==null||isAvailableForBooking(v,start,end,excludeId));
-  }).toList());
+    reason==null,ref.areaId(),ref.areaName(),reason);
+  }).toList(),rules.variable(),rules.minimum(),rules.maximum(),rules.defaultMinutes());
  }
  @Transactional(readOnly=true) public boolean isAvailableForBooking(PhysicalResource v,Instant start,Instant end){return isAvailableForBooking(v,start,end,null);}
  private boolean isAvailableForBooking(PhysicalResource v,Instant start,Instant end,UUID excludeId){
@@ -105,19 +132,25 @@ public class ResourceManagementService {
   return selectForBooking(serviceId,requestedId,locationId,start,end,null);
  }
  @Transactional(noRollbackFor=ApplicationException.class) public PhysicalResource selectForBooking(UUID serviceId,UUID requestedId,UUID locationId,Instant start,Instant end,Set<UUID> allowedIds){
+  return selectForBooking(serviceId,requestedId,locationId,start,end,allowedIds,null);
+ }
+ @Transactional(noRollbackFor=ApplicationException.class) public PhysicalResource selectForBooking(UUID serviceId,UUID requestedId,UUID locationId,Instant start,Instant end,Set<UUID> allowedIds,UUID areaId){
+  requireBookingArea(areaId,locationId);
   if(requestedId!=null&&allowedIds!=null&&!allowedIds.contains(requestedId))throw new ApplicationException(HttpStatus.FORBIDDEN,"Station management is not permitted");
   if(requestedId!=null){
    PhysicalResource v=lockBookable(requestedId,serviceId);
    if(locationId!=null&&!locationId.equals(locationId(v)))throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Resource does not belong to the selected location");
+   if(areaId!=null&&!areaId.equals(v.getAreaId()))throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Resource does not belong to the selected area");
    workingHours.validateWithinWorkingHours(locationId(v),start,end);
    availability.requireResourceAvailableForUpdate(v.getId(),start,end,null);
    return v;
   }
   if(!requiresResource(serviceId))return null;
-  for(PhysicalResource candidate:bookableResources(serviceId,locationId).stream().filter(v->allowedIds==null||allowedIds.contains(v.getId())).toList()){
+  for(PhysicalResource candidate:bookableResources(serviceId,locationId).stream().filter(v->allowedIds==null||allowedIds.contains(v.getId()))
+    .filter(v->areaId==null||areaId.equals(v.getAreaId())).toList()){
    PhysicalResource v=resources.findLocked(candidate.getId()).orElse(null);
    if(v!=null)entityManager.refresh(v,jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
-   if(v==null||!isBookableState(v,serviceId)||(locationId!=null&&!locationId.equals(locationId(v))))continue;
+   if(v==null||!isBookableState(v,serviceId)||(locationId!=null&&!locationId.equals(locationId(v)))||(areaId!=null&&!areaId.equals(v.getAreaId())))continue;
    try{workingHours.validateWithinWorkingHours(locationId(v),start,end);}
    catch(ApplicationException exception){if(exception.getStatus()!=HttpStatus.CONFLICT)throw exception;continue;}
    if(availability.isResourceAvailableForUpdate(v.getId(),start,end,null))return v;

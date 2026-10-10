@@ -24,16 +24,19 @@ export function businessLocalToInstant(value: string): string {
     minute: '2-digit',
     hourCycle: 'h23',
   })
-  const parts = Object.fromEntries(
-    formatter.formatToParts(new Date(desiredUtc))
-      .filter((part) => part.type !== 'literal')
-      .map((part) => [part.type, Number(part.value)]),
-  )
-  const representedUtc = Date.UTC(
-    parts.year, parts.month - 1, parts.day, parts.hour, parts.minute,
-  )
-  const offset = representedUtc - desiredUtc
-  return new Date(desiredUtc - offset).toISOString()
+  let candidate = desiredUtc
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const parts = Object.fromEntries(formatter.formatToParts(new Date(candidate))
+      .filter(part => part.type !== 'literal').map(part => [part.type, Number(part.value)]))
+    const represented = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute)
+    if (represented === desiredUtc) {
+      const instant = new Date(candidate).toISOString()
+      if (businessInstantToLocal(instant) === value) return instant
+      break
+    }
+    candidate += desiredUtc - represented
+  }
+  throw new Error('Izabrano lokalno vreme ne postoji ili datum nije validan. Proverite prelazak na letnje računanje vremena.')
 }
 
 export function formatBusinessDateTime(value: string, includeSeconds = false, locale = 'sr-RS'): string {
@@ -42,6 +45,11 @@ export function formatBusinessDateTime(value: string, includeSeconds = false, lo
     dateStyle: 'medium',
     timeStyle: includeSeconds ? 'medium' : 'short',
   }).format(new Date(value))
+}
+
+export function formatBusinessIntervalEnd(start: string, end: string, locale = 'sr-RS'): string {
+  return businessInstantToLocal(start).slice(0,10) === businessInstantToLocal(end).slice(0,10)
+    ? formatBusinessTime(end) : formatBusinessDateTime(end,false,locale)
 }
 
 export function formatBusinessTime(value: string): string {

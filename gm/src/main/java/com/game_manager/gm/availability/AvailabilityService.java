@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AvailabilityService {
     static final int SLOT_INCREMENT_MINUTES=15;
-    static final long MAX_RANGE_DAYS=31;
+    static final long MAX_RANGE_DAYS=BookingAvailabilityPolicy.MAX_RANGE_DAYS;
     private final CatalogService catalogService;
     private final UserRepository userRepository;
     private final WorkingHoursService workingHoursService;
@@ -40,16 +40,17 @@ public class AvailabilityService {
         if(days<0||days>=MAX_RANGE_DAYS)throw new ApplicationException(HttpStatus.BAD_REQUEST,"Availability range must contain between 1 and 31 days");
         CatalogItem service=catalogService.getActiveById(query.serviceId());
         if(service.getType()!=ItemType.SERVICE)throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Catalog item is not a service");
+        int duration=query.durationMinutes()==null ? service.getDurationMinutes() : bookingPolicy.reservationDuration(service,query.durationMinutes());
         List<User> employees=employees(query.employeeId());
         ZoneId zone=workingHoursService.getBusinessZone();
         Instant from=query.from().atStartOfDay(zone).toInstant(),to=query.to().plusDays(1).atStartOfDay(zone).toInstant();
         var snapshot=bookingPolicy.prepare(service.getId(),query.resourceId(),query.locationId(),employees.stream().map(User::getId).toList(),
-                from,to.plus(service.getDurationMinutes(),ChronoUnit.MINUTES),null);
+                from,to.plus(duration,ChronoUnit.MINUTES),null,null,query.areaId());
         List<EmployeeAvailabilityResponse> result=new ArrayList<>();
         for(User employee:employees) {
             List<AvailabilitySlotResponse> slots=new ArrayList<>();
             for(Instant start:snapshot.starts(from,to,SLOT_INCREMENT_MINUTES)) {
-                Instant end=start.plus(service.getDurationMinutes(),ChronoUnit.MINUTES);
+                Instant end=start.plus(duration,ChronoUnit.MINUTES);
                 var state=snapshot.assess(employee.getId(),start,end);
                 if(!includeOccupied&&!state.available())continue;
                 var resource=state.resource();
@@ -59,7 +60,7 @@ public class AvailabilityService {
             result.add(new EmployeeAvailabilityResponse(employee.getId(),employee.getName(),slots));
         }
         var selected=result.stream().flatMap(e->e.slots().stream()).filter(s->Objects.equals(s.resourceId(),query.resourceId())).findFirst().orElse(null);
-        return new AvailabilityResponse(zone.getId(),service.getId(),service.getName(),service.getDurationMinutes(),SLOT_INCREMENT_MINUTES,
+        return new AvailabilityResponse(zone.getId(),service.getId(),service.getName(),duration,SLOT_INCREMENT_MINUTES,
                 query.from(),query.to(),result,query.resourceId(),selected==null?null:selected.resourceName(),
                 snapshot.resourceRequired(),clock.instant());
     }

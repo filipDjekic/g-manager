@@ -23,7 +23,7 @@ import type { Reservation, ReservationDetailAction, ReservationScope, Reservatio
 import '../reservations/reservations.css'
 
 const baseDefaults = { create: '', scope: 'ALL', resourceId: '', locationId: '', customerId: '', page: '0', size: '10',
-  status: 'PENDING', employeeId: '', from: '', to: '', sort: 'startTime', direction: 'ASC', reservationId: '', search: '' }
+  status: '', employeeId: '', from: '', to: '', sort: 'startTime', direction: 'ASC', reservationId: '', search: '' }
 const allowed = Object.keys(baseDefaults) as (keyof typeof baseDefaults)[]
 const statuses: ReservationStatus[] = ['PENDING', 'CONFIRMED', 'REJECTED', 'CANCELLED', 'COMPLETED']
 const formatBusinessDateTime = (value: string) => formatDateTime(value, false, 'sr-Latn-RS')

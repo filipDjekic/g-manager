@@ -104,14 +104,15 @@ public class ReservationService {
             throw new ApplicationException(
                     HttpStatus.UNPROCESSABLE_ENTITY, "Catalog item is not a service");
         }
-        Instant endTime = request.startTime().plus(service.getDurationMinutes(), ChronoUnit.MINUTES);
+        int duration = request.durationMinutes()==null ? service.getDurationMinutes() : resourceService.reservationDuration(service,request.durationMinutes());
+        Instant endTime = request.startTime().plus(duration, ChronoUnit.MINUTES);
         AuthenticatedUser actor=currentUserProvider.requireCurrentUser();
         Set<UUID> allowed=actor.role()==Role.EMPLOYEE ? resourceAccess.assignedResources(actor) : null;
         if(actor.role()==Role.EMPLOYEE) resourceAccess.requireManageForUpdate(actor,
                 request.resourceId()==null ? allowed : java.util.Collections.singletonList(request.resourceId()),Permission.RESERVATION_CREATE);
         User employee = selectEmployee(request.employeeId(), request.startTime(), endTime);
         PhysicalResource resource = resourceService.selectForBooking(request.serviceId(), request.resourceId(),
-                request.locationId(), request.startTime(), endTime,allowed);
+                request.locationId(), request.startTime(), endTime,allowed,request.areaId());
         if (actor.role()!=Role.CUSTOMER) resourceAccess.requireManageForUpdate(actor,
                 java.util.Collections.singletonList(resource==null ? null : resource.getId()),Permission.RESERVATION_CREATE);
         if(resource==null && request.locationId()!=null) resourceService.requireActiveLocation(request.locationId());
@@ -277,7 +278,7 @@ public class ReservationService {
         ReservationResponse enriched = response(reservation);
         return new ReservationDetailResponse(
                 reservation.getId(), readOnly ? "Klijent" : customer.getName(), canSeeContact ? customer.getEmail() : null,
-                employee.getName(), service.name(), service.durationMinutes(),
+                employee.getName(), service.name(), Math.toIntExact(java.time.Duration.between(reservation.getStartTime(),reservation.getEndTime()).toMinutes()),
                 reservation.getStartTime(), reservation.getEndTime(), reservation.getStatus(),
                 readOnly ? null : reservation.getNote(), reservation.getCreatedAt(), reservation.getUpdatedAt(),
                 reservation.getVersion(), actions, history, reservation.getServiceId(), reservation.getLocationId(),
@@ -364,7 +365,8 @@ public class ReservationService {
         if(!canEdit(actor,value,true)) throw new ApplicationException(HttpStatus.CONFLICT,"Only upcoming active reservations can be edited");
         Instant start=request.startTime()==null ? value.getStartTime() : request.startTime();
         if(!start.isAfter(clock.instant())) throw new ApplicationException(HttpStatus.BAD_REQUEST,"Reservation must be in the future");
-        Instant end=start.plus(java.time.Duration.between(value.getStartTime(),value.getEndTime()));
+        Instant end=request.durationMinutes()==null ? start.plus(java.time.Duration.between(value.getStartTime(),value.getEndTime()))
+                : start.plus(resourceService.reservationDuration(catalogService.getActiveById(value.getServiceId()),request.durationMinutes()),ChronoUnit.MINUTES);
         if(target==null && resourceService.requiresResource(value.getServiceId()))
             throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Assign a compatible physical resource before editing");
         userRepository.findByIdForUpdate(value.getEmployeeId())

@@ -12,8 +12,13 @@ public record CreateReservationRequest(
         @NotNull Instant startTime,
         @Size(max = 500) String note,
         UUID locationId,
-        UUID customerId
+        UUID customerId,
+        UUID areaId,
+        @jakarta.validation.constraints.Min(1) Integer durationMinutes
 ) {
+    public CreateReservationRequest(UUID employeeId, UUID serviceId, UUID resourceId, Instant startTime, String note, UUID locationId, UUID customerId) {
+        this(employeeId,serviceId,resourceId,startTime,note,locationId,customerId,null,null);
+    }
     public CreateReservationRequest(UUID employeeId, UUID serviceId, UUID resourceId, Instant startTime, String note, UUID locationId) {
         this(employeeId,serviceId,resourceId,startTime,note,locationId,null);
     }

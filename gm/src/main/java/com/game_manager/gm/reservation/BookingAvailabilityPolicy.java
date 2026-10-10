@@ -19,6 +19,7 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class BookingAvailabilityPolicy {
+    public static final long MAX_RANGE_DAYS = 31;
     private final ReservationAvailabilityPolicy reservations;
     private final TimeOffAvailabilityPolicy timeOff;
     private final ResourceManagementService resources;
@@ -37,8 +38,18 @@ public class BookingAvailabilityPolicy {
 
     public Snapshot prepare(UUID serviceId, UUID resourceId, UUID locationId, Collection<UUID> employeeIds,
             Instant from, Instant to, Set<UUID> allowedIds, Set<LocalDate> occurrenceDays) {
+        return prepare(serviceId,resourceId,locationId,employeeIds,from,to,allowedIds,occurrenceDays,null);
+    }
+
+    public int reservationDuration(com.game_manager.gm.catalog.CatalogItem service,Integer requested) {
+        return resources.reservationDuration(service,requested);
+    }
+
+    public Snapshot prepare(UUID serviceId, UUID resourceId, UUID locationId, Collection<UUID> employeeIds,
+            Instant from, Instant to, Set<UUID> allowedIds, Set<LocalDate> occurrenceDays,UUID areaId) {
+        resources.requireBookingArea(areaId,locationId);
         boolean required = resources.requiresResource(serviceId) || resourceId != null;
-        List<PhysicalResource> candidates = required ? resources.bookingCandidates(serviceId,resourceId,locationId)
+        List<PhysicalResource> candidates = required ? resources.bookingCandidates(serviceId,resourceId,locationId,areaId)
                 .stream().filter(v -> allowedIds == null || allowedIds.contains(v.getId())).toList() : List.of();
         Set<UUID> ids = candidates.stream().map(PhysicalResource::getId).collect(Collectors.toSet());
         Map<UUID,BookingResourceView> refs = resources.resourceReferences(ids);

@@ -8,6 +8,7 @@ import type {
   ReservationDetail,
   ReservationStatus,
   ReservationSummary,
+  ReservationBookingPlan,
   CalendarReservation,
   RecurrenceInput,
   RecurrencePreview,
@@ -33,6 +34,8 @@ export interface ReservationFilters {
 }
 
 export const reservationApi = {
+  bookingPlan: (params: {serviceId: string; employeeId?: string; resourceId?: string; locationId?: string; areaId?: string; date: string; start?: string; durationMinutes?: number}) =>
+    apiClient.get<ReservationBookingPlan>('/reservations/booking-plan', {params}).then(({data}) => data),
   calendar: (params: { employeeId?: string; from: string; to: string; scope?: ReservationScope; resourceId?: string; locationId?: string; customerId?: string; status?: ReservationStatus }) =>
     apiClient.get<CalendarReservation[]>('/reservations/calendar', { params }).then(({ data }) => data),
   create: (input: CreateReservationInput, idempotencyKey: string) =>

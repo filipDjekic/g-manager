@@ -81,9 +81,11 @@ export interface ReservationDetail {
 
 export type ReservationScope = 'ALL' | 'MANAGEABLE'
 
-export interface UpdateReservationInput { version: number; startTime?: string; resourceId?: string; note?: string }
+export interface UpdateReservationInput { version: number; startTime?: string; resourceId?: string; note?: string; durationMinutes?: number }
 
 export interface CreateReservationInput {
+  areaId?: string
+  durationMinutes?: number
   customerId?: string
   employeeId?: string
   serviceId: string
@@ -91,6 +93,13 @@ export interface CreateReservationInput {
   locationId?: string
   startTime: string
   note?: string
+}
+
+export interface ReservationBookingPlan {
+  timezone: string; serverTime: string; date: string; startTime: string | null; endTime: string | null
+  available: boolean; reason: string | null; resourceId: string | null; employeeId: string | null
+  intervals: Array<{ startTime: string; endTime: string; status: 'AVAILABLE' | 'OCCUPIED' | 'CLOSED' | 'UNAVAILABLE' }>
+  alternatives: Array<{ startTime: string; endTime: string; resourceId: string | null; employeeId: string }>
 }
 
 export type RecurrenceFrequency = 'WEEKLY' | 'MONTHLY'
