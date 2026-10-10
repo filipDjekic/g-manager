@@ -7,6 +7,7 @@ import type {
   Reservation,
   ReservationDetail,
   ReservationStatus,
+  ReservationSummary,
   CalendarReservation,
   RecurrenceInput,
   RecurrencePreview,
@@ -15,7 +16,7 @@ import type {
 import type { BookingOptions } from '../types/resource.types'
 import type { BulkItem, BulkOperationResponse } from '../types/bulk.types'
 
-interface ReservationFilters {
+export interface ReservationFilters {
   page: number
   size: number
   status?: ReservationStatus
@@ -26,8 +27,9 @@ interface ReservationFilters {
   scope?: ReservationScope
   from?: string
   to?: string
-  sort?: 'startTime' | 'status' | 'createdAt'
+  sort?: 'startTime' | 'endTime' | 'status' | 'createdAt'
   direction?: 'ASC' | 'DESC'
+  search?: string
 }
 
 export const reservationApi = {
@@ -49,6 +51,8 @@ export const reservationApi = {
   list: (params: ReservationFilters) =>
     apiClient.get<PageResponse<Reservation>>('/reservations', { params })
       .then(({ data }) => data),
+  summary: (params: Omit<ReservationFilters, 'page' | 'size' | 'sort' | 'direction' | 'status'>) =>
+    apiClient.get<ReservationSummary>('/reservations/summary', { params }).then(({ data }) => data),
   detail: (id: string) =>
     apiClient.get<ReservationDetail>(`/reservations/${id}`).then(({ data }) => data),
   update: (id: string, input: UpdateReservationInput) =>

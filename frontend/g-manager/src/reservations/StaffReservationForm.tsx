@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { apiErrorMessage } from '../api/client'
 import { catalogApi } from '../api/catalogApi'
 import { resourceApi } from '../api/resourceApi'
@@ -10,8 +10,10 @@ import { useAuthStore } from '../auth/authStore'
 import { Button, EmptyState, ErrorState, Modal, Skeleton } from '../components/ui'
 import { CustomerPicker } from './CustomerPicker'
 import { RecurrencePreviewPanel, RecurrenceResultPanel } from './RecurrencePreviewPanel'
-import { businessInstantToLocal, businessLocalToInstant, formatBusinessDateTime } from './dateTime'
+import { ReservationIcon } from './ReservationIcon'
+import { businessInstantToLocal, businessLocalToInstant, formatBusinessDateTime as formatDateTime } from './dateTime'
 import type { RecurrenceInput, RecurrenceFrequency, RecurrenceConflictPolicy, RecurrenceCreateResult, ReservationCreationRequest } from '../types/reservation.types'
+import './reservations.css'
 
 type StaffReservationResult = {
   id: string
@@ -19,8 +21,11 @@ type StaffReservationResult = {
   recurrence: RecurrenceCreateResult | undefined
 }
 
+const formatBusinessDateTime = (value: string) => formatDateTime(value, false, 'sr-Latn-RS')
+
 export function StaffReservationForm({onClose,onCreated}:{onClose:()=>void;onCreated:(id:string,summary?:string)=>void}) {
   const actor=useAuthStore(s=>s.user),client=useQueryClient()
+  const formId = useId()
   const [customerName,setCustomerName]=useState('')
   const [customerId,setCustomerId]=useState(''),[serviceId,setServiceId]=useState(''),[serviceSearch,setServiceSearch]=useState('')
   const [employeeId,setEmployeeId]=useState(actor?.role==='EMPLOYEE'?actor.id:'')
@@ -65,12 +70,24 @@ export function StaffReservationForm({onClose,onCreated}:{onClose:()=>void;onCre
     &&(!repeat||!!employeeId&&!preview.isFetching&&!preview.error&&!!preview.data
       &&(conflictPolicy==='ALL_OR_NOTHING'?preview.data.occurrences.every(o=>o.available):preview.data.occurrences.some(o=>o.available)))
   const blocked=create.isPending||frozen
-  return <Modal open closeDisabled={create.isPending || frozen} title="Nova rezervacija" onClose={()=>{if(!create.isPending&&!frozen)onClose()}}>
-    {seriesResult ? <><RecurrenceResultPanel result={seriesResult} /><div className="form-actions"><Button onClick={()=>onCreated(seriesResult.created[0].id,`Kreirano ${seriesResult.created.length}, preskočeno ${seriesResult.skipped.length} termina.`)}>Otvori kreiranu rezervaciju</Button><Button variant="secondary" onClick={onClose}>Zatvori</Button></div></> : <>
+  return <Modal open closeDisabled={blocked} title="Nova rezervacija" titleIcon={<ReservationIcon />}
+    className="reservation-create-dialog" onClose={()=>{if(!blocked)onClose()}}
+    footer={<div className="dialog-actions reservation-create-actions">
+      {seriesResult ? <>
+        <Button variant="secondary" type="button" onClick={onClose}>Zatvori</Button>
+        <Button type="button" onClick={()=>onCreated(seriesResult.created[0].id,`Kreirano ${seriesResult.created.length}, preskočeno ${seriesResult.skipped.length} termina.`)}>Otvori kreiranu rezervaciju</Button>
+      </> : <>
+        <Button type="button" variant="secondary" disabled={blocked} onClick={onClose}>Otkaži</Button>
+        {review&&!blocked&&<Button type="button" variant="secondary" onClick={()=>setReview(false)}>Izmeni podatke</Button>}
+        <Button type="submit" form={formId} loading={create.isPending} disabled={!eligible&&!frozen}>{review?'Kreiraj rezervaciju':'Pregled rezervacije'}</Button>
+      </>}
+    </div>}>
+    {seriesResult ? <RecurrenceResultPanel result={seriesResult} locale="sr-Latn-RS" /> : <>
+    <p className="reservation-create-intro">{review ? 'Proverite podatke i dostupnost pre konačnog kreiranja.' : 'Izaberite klijenta, uslugu i slobodan termin.'}</p>
     {create.error&&<ErrorState message={apiErrorMessage(create.error,'Rezervaciju nije moguće kreirati.')}/>}
     {scope.error&&<ErrorState message="Dodele stanica nisu dostupne." action={<Button onClick={()=>scope.refetch()}>Pokušaj ponovo</Button>}/>}
     {!scope.isLoading&&!scope.error&&!scope.data?.allResources&&!scope.data?.resourceIds.length&&<EmptyState title="Nemate dodeljene stanice" description="Administrator treba da vam dodeli stanicu pre kreiranja rezervacije."/>}
-    <form className="form-grid reservation-editor" onSubmit={e=>{e.preventDefault();if(eligible||frozen){if(review)create.mutate();else {if(selected)setResourceId(selected.id);setReview(true)}}}}>
+    <form id={formId} className="form-grid reservation-editor reservation-create-form" onSubmit={e=>{e.preventDefault();if(create.isPending)return;if(eligible||frozen){if(review)create.mutate();else {if(selected)setResourceId(selected.id);setReview(true)}}}}>
       {!review?<>
         <CustomerPicker value={customerId} required disabled={blocked} onChange={(id,name)=>{setCustomerId(id);setCustomerName(name??'Izabrani klijent')}}/>
         <label>Pretraga usluge<input disabled={blocked} value={serviceSearch} onChange={e=>setServiceSearch(e.target.value)}/></label>
@@ -83,13 +100,17 @@ export function StaffReservationForm({onClose,onCreated}:{onClose:()=>void;onCre
         <label>Datum i vreme (Europe/Belgrade)<input type="datetime-local" required disabled={blocked} value={localStart} onChange={e=>setLocalStart(e.target.value)}/></label>
         {options.isLoading?<Skeleton lines={2}/>:options.error?<ErrorState message={apiErrorMessage(options.error,'Stanice nisu dostupne.')} action={<Button type="button" onClick={()=>options.refetch()}>Pokušaj ponovo</Button>}/>:<label>Računar / resurs<select disabled={blocked||!service} value={resourceId} onChange={e=>setResourceId(e.target.value)}><option value="">{needsResource?'Automatski dodeli slobodan resurs':'Bez fizičkog resursa'}</option>{compatible.map(r=><option key={r.id} value={r.id} disabled={!repeat&&!r.available}>{r.code} · {r.name} · {r.locationName}{r.available?'':' — Zauzet'}</option>)}</select></label>}
         {service&&needsResource&&!options.isLoading&&!options.error&&!selected&&<p className="warning-banner">Nema slobodnog kompatibilnog resursa u izabranom opsegu.</p>}
+        {service && <div className="reservation-duration-note" aria-live="polite"><span>Trajanje usluge <strong>{service.durationMinutes} min</strong></span>
+          <span>Kraj termina <strong>{end ? formatBusinessDateTime(end) : 'Unesite datum i vreme'}</strong></span></div>}
+        <fieldset className="reservation-repeat-fields"><legend>Ponavljanje termina</legend>
         <label className="checkbox-field"><input type="checkbox" disabled={blocked} checked={repeat} onChange={e=>setRepeat(e.target.checked)}/> Ponavljajuća rezervacija</label>
         {repeat&&<><p className="search-help">Izaberite zaposlenog i isti resurs za sve termine serije.</p>
           <label>Učestalost<select disabled={blocked} value={frequency} onChange={e=>setFrequency(e.target.value as RecurrenceFrequency)}><option value="WEEKLY">Nedeljno</option><option value="MONTHLY">Mesečno</option></select></label>
           <label>Interval<input type="number" min={1} max={4} required disabled={blocked} value={interval} onChange={e=>setInterval(Number(e.target.value))}/></label>
           <label>Broj termina<input type="number" min={2} max={20} required disabled={blocked} value={occurrences} onChange={e=>setOccurrences(Number(e.target.value))}/></label>
           <label>Konflikti<select disabled={blocked} value={conflictPolicy} onChange={e=>setConflictPolicy(e.target.value as RecurrenceConflictPolicy)}><option value="ALL_OR_NOTHING">Kreiraj samo ako su svi termini slobodni</option><option value="SKIP_CONFLICTS">Preskoči zauzete termine</option></select></label></>}
-        <label>Napomena<textarea maxLength={500} disabled={blocked} value={note} onChange={e=>setNote(e.target.value)}/></label>
+        </fieldset>
+        <label className="reservation-form-wide">Napomena<textarea rows={3} maxLength={500} disabled={blocked} value={note} onChange={e=>setNote(e.target.value)}/></label>
       </>:<section className="panel reservation-review"><h3>Pregled pre kreiranja</h3>
         <p><strong>Klijent:</strong> {customerName}</p><p><strong>Usluga:</strong> {service?.name}</p>
         <p><strong>Lokacija:</strong> {selected?.locationName??locations.data?.find(l=>l.id===locationId)?.name??'Bez lokacije'}</p><p><strong>Računar / resurs:</strong> {selected?`${selected.code} · ${selected.name}`:'Bez fizičkog resursa'}</p>
@@ -97,10 +118,8 @@ export function StaffReservationForm({onClose,onCreated}:{onClose:()=>void;onCre
         {note&&<p>{note}</p>}{frozen&&<p role="status">Prethodni zahtev čeka konačan ishod. Ponovite isti zahtev.</p>}
       </section>}
       {repeat&&<section aria-label="Dostupnost ponavljajućih termina">
-        {preview.isFetching?<Skeleton lines={3}/>:preview.error?<ErrorState message={apiErrorMessage(preview.error,'Pregled serije nije dostupan.')} action={<Button type="button" onClick={()=>preview.refetch()}>Pokušaj ponovo</Button>}/>:preview.data?<RecurrencePreviewPanel preview={preview.data} policy={conflictPolicy}/>:<p>Unesite klijenta, uslugu, zaposlenog i vreme za pregled serije.</p>}
+        {preview.isFetching?<Skeleton lines={3}/>:preview.error?<ErrorState message={apiErrorMessage(preview.error,'Pregled serije nije dostupan.')} action={<Button type="button" onClick={()=>preview.refetch()}>Pokušaj ponovo</Button>}/>:preview.data?<RecurrencePreviewPanel preview={preview.data} policy={conflictPolicy} locale="sr-Latn-RS"/>:<p>Unesite klijenta, uslugu, zaposlenog i vreme za pregled serije.</p>}
       </section>}
-      <div className="form-actions">{review&&!blocked&&<Button type="button" variant="secondary" onClick={()=>setReview(false)}>Izmeni podatke</Button>}
-        <Button type="submit" loading={create.isPending} disabled={!eligible&&!frozen}>{review?'Kreiraj rezervaciju':'Pregled rezervacije'}</Button></div>
     </form></>}
   </Modal>
 }

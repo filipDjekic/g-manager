@@ -1,37 +1,37 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import { apiErrorMessage } from '../api/client'
 import { resourceApi } from '../api/resourceApi'
 import { reservationApi } from '../api/reservationApi'
 import { ActionDialog } from '../components/ui/ActionDialog'
 import { Badge, Button, Drawer, ErrorState, Skeleton } from '../components/ui'
-import { reservationTones } from '../components/ui/statusPresentation'
+import { reservationLabels as labels, reservationTones } from '../components/ui/statusPresentation'
 import { queryKeys } from '../query/queryKeys'
 import { ReservationEditForm } from './ReservationEditForm'
-import { formatBusinessDateTime } from './dateTime'
-import type { ReservationStatus } from '../types/reservation.types'
-
-const labels: Record<ReservationStatus, string> = {
-  PENDING: 'Na čekanju', CONFIRMED: 'Potvrđena', REJECTED: 'Odbijena',
-  CANCELLED: 'Otkazana', COMPLETED: 'Završena',
-}
-const actionLabels: Partial<Record<ReservationStatus, string>> = {
-  CONFIRMED: 'Potvrdi', REJECTED: 'Odbij', CANCELLED: 'Otkaži', COMPLETED: 'Završi',
-}
+import { formatBusinessDateTime as formatDateTime } from './dateTime'
+import type { ReservationDetailAction, ReservationStatus } from '../types/reservation.types'
+import { reservationActionLabels as actionLabels } from './ReservationIcon'
+import './reservations.css'
 
 type ReservationDetailsProps = {
   reservationId: string | null
   onClose: () => void
   onChanged?: () => void | Promise<void>
+  initialAction?: ReservationDetailAction
+  appearance?: 'operations'
+  returnFocusRef?: RefObject<HTMLElement | null>
 }
 export function ReservationDetailsDrawer(props: ReservationDetailsProps) {
   return <ReservationDetailsContent key={props.reservationId??'closed'} {...props}/>
 }
-function ReservationDetailsContent({ reservationId, onClose, onChanged }: ReservationDetailsProps) {
+function ReservationDetailsContent({ reservationId, onClose, onChanged, initialAction, appearance, returnFocusRef }: ReservationDetailsProps) {
+  const formatBusinessDateTime = (instant: string) => formatDateTime(instant, false, appearance === 'operations' ? 'sr-Latn-RS' : 'sr-RS')
   const client = useQueryClient()
   const [action, setAction] = useState<ReservationStatus | null>(null)
   const [editId,setEditId]=useState<string|null>(null)
   const [editBusy,setEditBusy]=useState(false)
+  const [requestedAction, setRequestedAction] = useState(initialAction)
+  const assignment = useRef<HTMLElement>(null)
   const detail = useQuery({
     queryKey: queryKeys.reservationDetail(reservationId ?? ''),
     queryFn: () => reservationApi.detail(reservationId!),
@@ -54,6 +54,16 @@ function ReservationDetailsContent({ reservationId, onClose, onChanged }: Reserv
   })
   const [resourceChoice, setResourceChoice] = useState<{ reservationId: string; resourceId: string } | null>(null)
   const value = detail.error ? undefined : detail.data
+  useEffect(() => {
+    if (!requestedAction || !value || detail.isFetching) return
+    if (!value.readOnly) {
+      if (requestedAction === 'EDIT' && value.canEdit) setEditId(value.id)
+      else if (requestedAction === 'ASSIGN_RESOURCE' && value.canAssignResource) {
+        assignment.current?.scrollIntoView({ block: 'nearest' }); assignment.current?.focus({ preventScroll: true })
+      } else if (requestedAction !== 'EDIT' && requestedAction !== 'ASSIGN_RESOURCE' && value.allowedActions.includes(requestedAction)) setAction(requestedAction)
+    }
+    setRequestedAction(undefined)
+  }, [requestedAction, value, detail.isFetching])
   const resourceId = resourceChoice?.reservationId === reservationId ? resourceChoice.resourceId : ''
   const resourceOptions = useQuery({
     queryKey: ['reservation-resource-options', reservationId, value?.serviceId, value?.startTime, value?.endTime],
@@ -70,7 +80,8 @@ function ReservationDetailsContent({ reservationId, onClose, onChanged }: Reserv
   })
   const title = value ? `${value.serviceName} · ${formatBusinessDateTime(value.startTime)}` : 'Detalji rezervacije'
   return <>
-    <Drawer size="wide" open={Boolean(reservationId)} title={title} onClose={onClose} closeDisabled={transition.isPending || assign.isPending || editBusy}>
+    <Drawer size="wide" open={Boolean(reservationId)} title={title} onClose={onClose} returnFocusRef={returnFocusRef}
+      className={appearance === 'operations' ? 'reservation-detail-drawer' : ''} closeDisabled={transition.isPending || assign.isPending || editBusy}>
       {detail.isLoading && <Skeleton lines={7} label="Učitavanje detalja rezervacije" />}
       {detail.error && <ErrorState message={apiErrorMessage(detail.error, 'Detalje rezervacije nije moguće učitati.')}
         action={<Button onClick={() => detail.refetch()}>Pokušaj ponovo</Button>} />}
@@ -88,12 +99,12 @@ function ReservationDetailsContent({ reservationId, onClose, onChanged }: Reserv
             : value.resourceRequired ? 'Obavezni resurs nije dodeljen' : 'Usluga ne zahteva resurs'}</dd></div>
           <div><dt>Početak</dt><dd>{formatBusinessDateTime(value.startTime)}</dd></div>
           <div><dt>Kraj</dt><dd>{formatBusinessDateTime(value.endTime)}</dd></div>
-          <div><dt>Trajanje</dt><dd>{value.durationMinutes ?? 'N/D'} min</dd></div>
+          <div><dt>Trajanje</dt><dd>{value.durationMinutes ?? Math.round((Date.parse(value.endTime) - Date.parse(value.startTime)) / 60000)} min</dd></div>
           {!value.readOnly&&<div><dt>Napomena</dt><dd>{value.note || 'Nema napomene'}</dd></div>}
           <div><dt>Kreirano</dt><dd>{formatBusinessDateTime(value.createdAt)}</dd></div>
           <div><dt>Izmenjeno</dt><dd>{formatBusinessDateTime(value.updatedAt)}</dd></div>
         </dl>
-        {value.resourceRequired && !value.resourceId && <section>
+        {value.resourceRequired && !value.resourceId && <section ref={assignment} tabIndex={-1} className="reservation-resource-assignment">
           <p className="error-banner" role="alert">Rezervacija nema zahtevan fizički resurs. Potrebna je ručna dodela; potvrđivanje nije dozvoljeno.</p>
           {value.canAssignResource && <>
             {resourceOptions.isLoading && <Skeleton lines={2} label="Učitavanje slobodnih resursa" />}
@@ -114,7 +125,7 @@ function ReservationDetailsContent({ reservationId, onClose, onChanged }: Reserv
           </>}
         </section>}
         {value.canEdit&&!value.readOnly&&<>
-          {editId===value.id?<ReservationEditForm key={`${value.id}:${value.version}`} value={value} onBusyChange={setEditBusy} onClose={()=>setEditId(null)} onChanged={async()=>{
+          {editId===value.id?<ReservationEditForm key={`${value.id}:${value.version}`} value={value} locale={appearance === 'operations' ? 'sr-Latn-RS' : 'sr-RS'} onBusyChange={setEditBusy} onClose={()=>setEditId(null)} onChanged={async()=>{
             await Promise.all([client.invalidateQueries({queryKey:['reservations']}),detail.refetch(),Promise.resolve(onChanged?.())])
           }}/>:<Button variant="secondary" onClick={()=>setEditId(value.id)}>Izmeni vreme ili stanicu</Button>}
         </>}

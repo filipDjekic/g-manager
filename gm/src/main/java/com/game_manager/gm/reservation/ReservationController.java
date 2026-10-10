@@ -6,6 +6,7 @@ import com.game_manager.gm.reservation.dto.CreateReservationRequest;
 import com.game_manager.gm.reservation.dto.ReservationResponse;
 import com.game_manager.gm.reservation.dto.ReservationDetailResponse;
 import com.game_manager.gm.reservation.dto.CalendarReservationResponse;
+import com.game_manager.gm.reservation.dto.ReservationSummaryResponse;
 import com.game_manager.gm.reservation.dto.BulkReservationStatusRequest;
 import com.game_manager.gm.common.dto.BulkOperationResponse;
 import com.game_manager.gm.common.observability.BulkOperationExecutor;
@@ -76,9 +77,23 @@ public class ReservationController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "startTime") String sort,
-            @RequestParam(defaultValue = "ASC") String direction) {
+            @RequestParam(defaultValue = "ASC") String direction,
+            @RequestParam(required = false) String search) {
         return reservationService.listAll(
-                employeeId, status, from, to, page, size, sort, direction,scope,resourceId,locationId,customerId);
+                employeeId, status, from, to, page, size, sort, direction,scope,resourceId,locationId,customerId,search);
+    }
+
+    @GetMapping("/summary")
+    public ReservationSummaryResponse summary(
+            @RequestParam(defaultValue = "ALL") ReservationScope scope,
+            @RequestParam(required = false) UUID resourceId,
+            @RequestParam(required = false) UUID locationId,
+            @RequestParam(required = false) UUID employeeId,
+            @RequestParam(required = false) UUID customerId,
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to,
+            @RequestParam(required = false) String search) {
+        return reservationService.summary(scope, resourceId, locationId, employeeId, customerId, from, to, search);
     }
 
     @GetMapping("/calendar")

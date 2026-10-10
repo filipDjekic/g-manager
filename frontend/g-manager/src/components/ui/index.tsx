@@ -56,10 +56,29 @@ export function TableShell({ label, children }: { label: string; children: React
   return <div className="ui-table-shell" role="region" aria-label={label} tabIndex={0}>{children}</div>
 }
 
-export function Pagination({ page, totalPages = 1, onPageChange, loading = false }: {
+export function Pagination({ page, totalPages = 1, onPageChange, loading = false, numbered = false,
+  totalElements = 0, pageSize = 10 }: {
   page: number; totalPages?: number; onPageChange: (page: number) => void; loading?: boolean
+  numbered?: boolean; totalElements?: number; pageSize?: number
 }) {
   const pages = Math.max(totalPages, 1)
+  if (numbered) {
+    const start = Math.max(0, Math.min(page - 2, pages - 5))
+    const visible = [...new Set([0, ...Array.from({ length: Math.min(5, pages) }, (_, index) => start + index), pages - 1])]
+      .sort((first, second) => first - second)
+    return <div className="pagination-numbered">
+      <span className="pagination-result-count" aria-live="polite">Prikazano {totalElements ? page * pageSize + 1 : 0}–{Math.min((page + 1) * pageSize, totalElements)} od {totalElements} rezervacija</span>
+      <nav className="pagination" aria-label="Stranice rezervacija">
+        <Button type="button" variant="secondary" disabled={loading || page <= 0} onClick={() => onPageChange(page - 1)}>Prethodna</Button>
+        {visible.map((number, index) => <span className="pagination-page" key={number}>
+          {index > 0 && number - visible[index - 1] > 1 && <span aria-hidden="true">…</span>}
+          <Button type="button" variant="secondary" disabled={loading} aria-label={`Stranica ${number + 1}`}
+            aria-current={page === number ? 'page' : undefined} onClick={() => onPageChange(number)}>{number + 1}</Button>
+        </span>)}
+        <Button type="button" variant="secondary" disabled={loading || page + 1 >= pages} onClick={() => onPageChange(page + 1)}>Sledeća</Button>
+      </nav>
+    </div>
+  }
   return <nav className="pagination" aria-label="Stranice rezultata">
     <Button type="button" variant="secondary" disabled={loading || page <= 0} onClick={() => onPageChange(page - 1)}>Prethodna</Button>
     <span aria-live="polite">Strana {page + 1} od {pages}</span>
@@ -88,11 +107,11 @@ function synchronizeDialogs() {
 }
 
 function DialogSurface({ title, children, onClose, className = '', initialFocusRef, returnFocusRef,
-  closeDisabled = false, descriptionId, footer }: {
+  closeDisabled = false, descriptionId, footer, titleIcon }: {
   title: string; children: ReactNode; onClose: () => void; className?: string
   initialFocusRef?: React.RefObject<HTMLElement | null>
   returnFocusRef?: React.RefObject<HTMLElement | null>
-  closeDisabled?: boolean; descriptionId?: string; footer?: ReactNode
+  closeDisabled?: boolean; descriptionId?: string; footer?: ReactNode; titleIcon?: ReactNode
 }) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
@@ -156,7 +175,7 @@ function DialogSurface({ title, children, onClose, className = '', initialFocusR
   }, [initialFocusRef, returnFocusRef])
   return <div ref={dialogRef} tabIndex={-1} className={className} role="dialog" aria-modal="true"
     aria-labelledby={titleId} aria-describedby={descriptionId} aria-busy={closeDisabled || undefined}>
-    <div className="ui-dialog-heading"><h2 id={titleId}>{title}</h2>
+    <div className="ui-dialog-heading"><h2 id={titleId}>{titleIcon}{title}</h2>
       <Button ref={closeRef} disabled={closeDisabled} variant="secondary" type="button" onClick={onClose} aria-label="Zatvori">×</Button></div>
     <div className="ui-dialog-body">{children}</div>
     {footer && <div className="ui-dialog-footer">{footer}</div>}
@@ -164,11 +183,11 @@ function DialogSurface({ title, children, onClose, className = '', initialFocusR
 }
 
 export function Modal({ open, title, children, onClose, initialFocusRef, returnFocusRef,
-  closeDisabled = false, descriptionId, footer, className = '' }: {
+  closeDisabled = false, descriptionId, footer, className = '', titleIcon }: {
   open: boolean; title: string; children: ReactNode; onClose: () => void
   initialFocusRef?: React.RefObject<HTMLElement | null>
   returnFocusRef?: React.RefObject<HTMLElement | null>
-  closeDisabled?: boolean; descriptionId?: string; footer?: ReactNode; className?: string
+  closeDisabled?: boolean; descriptionId?: string; footer?: ReactNode; className?: string; titleIcon?: ReactNode
 }) {
   if (!open) return null
   // Keep fixed positioning relative to the viewport, outside filtered layout containers.
@@ -176,21 +195,22 @@ export function Modal({ open, title, children, onClose, initialFocusRef, returnF
     if (event.target === event.currentTarget) { event.preventDefault(); if (!closeDisabled) onClose() }
   }}>
     <DialogSurface title={title} onClose={onClose} className={`ui-dialog ${className}`} closeDisabled={closeDisabled}
-      descriptionId={descriptionId} footer={footer} initialFocusRef={initialFocusRef} returnFocusRef={returnFocusRef}>{children}</DialogSurface>
+      descriptionId={descriptionId} footer={footer} titleIcon={titleIcon} initialFocusRef={initialFocusRef} returnFocusRef={returnFocusRef}>{children}</DialogSurface>
   </div>, document.body)
 }
 
-export function Drawer({ open, title, children, onClose, returnFocusRef, size = 'standard', closeDisabled = false }: {
+export function Drawer({ open, title, children, onClose, returnFocusRef, size = 'standard', closeDisabled = false, className = '' }: {
   open: boolean; title: string; children: ReactNode; onClose: () => void
   returnFocusRef?: React.RefObject<HTMLElement | null>
   size?: 'standard' | 'wide'
   closeDisabled?: boolean
+  className?: string
 }) {
   if (!open) return null
   return createPortal(<div className="ui-overlay ui-overlay--drawer" onMouseDown={(event) => {
     if (event.target === event.currentTarget) { event.preventDefault(); if (!closeDisabled) onClose() }
   }}>
-    <DialogSurface title={title} onClose={onClose} closeDisabled={closeDisabled} className={`ui-drawer${size === 'wide' ? ' ui-drawer--wide' : ''}`} returnFocusRef={returnFocusRef}>{children}</DialogSurface>
+    <DialogSurface title={title} onClose={onClose} closeDisabled={closeDisabled} className={`ui-drawer${size === 'wide' ? ' ui-drawer--wide' : ''} ${className}`} returnFocusRef={returnFocusRef}>{children}</DialogSurface>
   </div>, document.body)
 }
 
