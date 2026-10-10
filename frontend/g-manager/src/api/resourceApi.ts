@@ -1,6 +1,8 @@
 import { apiClient } from './client'
-import type { AreaView, LocationView, ResourceAvailability, ResourceView, LocationInput, AreaInput, ResourceInput, BookingOptions, BookingResource } from '../types/resource.types'
+import type { AreaView, LocationView, ResourceAvailability, ResourceView, LocationInput, AreaInput, ResourceInput, BookingOptions, BookingResource, LocationFloorPlan, FloorPlanInput, FloorPlanSaveResult } from '../types/resource.types'
 export const resourceApi={
+ floorPlan:(id:string)=>apiClient.get<LocationFloorPlan>(`/resources/locations/${id}/floor-plan`).then(r=>r.data),
+ saveFloorPlan:(id:string,input:FloorPlanInput)=>apiClient.put<FloorPlanSaveResult>(`/resources/locations/${id}/floor-plan`,input).then(r=>r.data),
  reservationResources:()=>apiClient.get<BookingResource[]>('/resources/reservation-filters').then(r=>r.data),
  managementScope:()=>apiClient.get<{allResources:boolean;resourceIds:string[]}>('/resources/management-scope').then(r=>r.data),
  resourceEmployees:(id:string)=>apiClient.get<Array<{employeeId:string;active:boolean;version:number;employeeName:string;employeeActive:boolean}>>(`/resources/${id}/employees`).then(r=>r.data),
