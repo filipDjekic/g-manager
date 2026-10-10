@@ -4,6 +4,7 @@ import type {
   CatalogItem,
   CatalogItemInput,
   CatalogItemUpdate,
+  CatalogStatistics,
   ItemType,
 } from '../types/catalog.types'
 import type { BulkItem, BulkOperationResponse } from '../types/bulk.types'
@@ -21,6 +22,10 @@ export interface CatalogFilters {
 }
 
 export const catalogApi = {
+  get: (id: string) => apiClient.get<CatalogItem>(`/catalog/${id}`).then(({ data }) => data),
+  statistics: () => apiClient.get<CatalogStatistics>('/catalog/statistics').then(({ data }) => data),
+  imageContent: (id: string, signal?: AbortSignal) => apiClient.get<Blob>(`/documents/${id}/content`,
+    { params: { preview: true }, responseType: 'blob', signal }).then(({ data }) => data),
   list: (params: CatalogFilters) =>
     apiClient.get<PageResponse<CatalogItem>>('/catalog', { params }).then(({ data }) => data),
   create: (request: CatalogItemInput) =>
@@ -37,8 +42,8 @@ export const catalogApi = {
     }).then(({ data }) => data),
   bulkActivation: (action: 'ACTIVATE' | 'DEACTIVATE', items: BulkItem[]) =>
     apiClient.post<BulkOperationResponse>('/catalog/bulk/activation', { action, items }).then(({ data }) => data),
-  deleted: (page = 0, size = 20) =>
-    apiClient.get<PageResponse<CatalogItem>>('/catalog/deleted', { params: { page, size } })
+  deleted: (page = 0, size = 20, filters?: Omit<CatalogFilters, 'page' | 'size'>) =>
+    apiClient.get<PageResponse<CatalogItem>>('/catalog/deleted', { params: { ...filters, page, size } })
       .then(({ data }) => data),
   remove: (id: string, reason: string) =>
     apiClient.delete<void>(`/catalog/${id}`, { data: { reason } }),

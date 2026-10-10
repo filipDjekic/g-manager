@@ -1,6 +1,7 @@
 package com.game_manager.gm.catalog;
 
 import com.game_manager.gm.catalog.dto.CatalogItemResponse;
+import com.game_manager.gm.catalog.dto.CatalogStatisticsResponse;
 import com.game_manager.gm.catalog.dto.CreateCatalogItemRequest;
 import com.game_manager.gm.catalog.dto.UpdateCatalogItemRequest;
 import com.game_manager.gm.catalog.dto.BulkCatalogRequest;
@@ -61,6 +62,9 @@ public class CatalogController {
                 type, active, search, minPrice, maxPrice, page, size, sort, direction);
     }
 
+    @GetMapping("/statistics")
+    public CatalogStatisticsResponse statistics() { return catalogService.statistics(); }
+
     @GetMapping("/{id}")
     public CatalogItemResponse get(@PathVariable UUID id) {
         return catalogService.get(id);
@@ -104,8 +108,15 @@ public class CatalogController {
 
     @GetMapping("/deleted")
     public PageResponse<CatalogItemResponse> listDeleted(
+            @RequestParam(required = false) ItemType type,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return catalogService.listDeleted(page, size);
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "deletedAt") String sort,
+            @RequestParam(defaultValue = "DESC") String direction) {
+        return catalogService.listDeleted(type, active, search, minPrice, maxPrice, page, size, sort, direction);
     }
 }

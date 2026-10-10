@@ -1,5 +1,14 @@
 export type ItemType = 'PRODUCT' | 'SERVICE'
 
+export interface CatalogStatistics {
+  serviceCount: number
+  activeServiceCount: number
+  productCount: number
+  inactiveCount: number | null
+  administrative: boolean
+  maxImageBytes: number
+}
+
 export interface CatalogItem {
   id: string
   name: string

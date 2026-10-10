@@ -13,6 +13,7 @@ public class ResourceController {
  private final LocationAccessService access;
  private final ResourceAccessService resourceAccess;
  private final com.game_manager.gm.common.security.CurrentUserProvider currentUser;
+ @GetMapping("/catalog-services/{serviceId}") public List<BookingResourceView> catalogResources(@PathVariable UUID serviceId){return service.catalogResources(serviceId);}
  @GetMapping("/reservation-filters") public List<BookingResourceView> reservationResources(){return service.reservationResources();}
  @GetMapping("/management-scope") public ResourceAccessService.ManagementScope managementScope(){return resourceAccess.scope();}
  @GetMapping("/{id}/employees") public List<ResourceAccessService.Assignment> resourceEmployees(@PathVariable UUID id){return resourceAccess.list(id);}
