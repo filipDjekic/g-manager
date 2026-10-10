@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import { useAuthStore } from '../auth/authStore'
+import { hasCapability } from '../auth/capabilities'
 import { Badge, Button, EmptyState, TableShell } from '../components/ui'
 import { formatBusinessDateTime } from '../reservations/dateTime'
 import type { GamingStationCard } from '../types/gamingSession.types'
@@ -28,36 +29,46 @@ export interface StationActionHandlers {
   onRecovery: (station: GamingStationCard, confirm: boolean) => void
 }
 
-function StationActions({ station, disabled, handlers, compact = false }: {
-  station: GamingStationCard; disabled: boolean; handlers: StationActionHandlers; compact?: boolean
+function StationActions({ station, disabled, handlers, variant = 'panel' }: {
+  station: GamingStationCard; disabled: boolean; handlers: StationActionHandlers; variant?: 'card' | 'table' | 'panel'
 }) {
   const actor = useAuthStore((state) => state.user)
   const permit = (action: Parameters<typeof permitsStationAction>[2]) => permitsStationAction(actor, station, action)
+  const compact = variant !== 'panel'
   const additional = <>
     {permit('EXTEND') && <>
       <Button type="button" variant="secondary" disabled={disabled} onClick={() => handlers.onExtend(station, 60)}>+60 min</Button>
       <Button type="button" variant="secondary" disabled={disabled} onClick={() => handlers.onCustom(station)}>Prilagođeno produženje</Button>
     </>}
-    <Button type="button" variant="secondary" onClick={() => handlers.onHistory(station)}>Detalji i istorija</Button>
+    {hasCapability(actor, 'GAMING_SESSION_READ') && <Button type="button" variant="secondary" onClick={() => handlers.onHistory(station)}>Detalji i istorija</Button>}
   </>
-  return <div className={`ops-station-actions${compact ? ' ops-station-actions--compact' : ''}`}>
+  if (variant === 'card' && !permit('START') && !permit('EXTEND') && !permit('TERMINATE')) return null
+  return <div className={`ops-station-actions${compact ? ' ops-station-actions--compact' : ''}`}
+    onClick={event => event.stopPropagation()}>
     {permit('START') && <Button type="button" disabled={disabled} onClick={() => handlers.onStart(station)}>Pokreni sesiju</Button>}
     {permit('EXTEND') && <Button type="button" variant="secondary" disabled={disabled} onClick={() => handlers.onExtend(station, 30)}>+30 min</Button>}
     {permit('TERMINATE') && <Button type="button" variant="danger" disabled={disabled} onClick={() => handlers.onEnd(station)}>Završi</Button>}
-    {permit('FORCE_LOCK') && <Button type="button" variant="danger" disabled={disabled} onClick={() => handlers.onRecovery(station, false)}>Ponovo pošalji force-lock</Button>}
-    {permit('CONFIRM_LOCKED') && <Button type="button" variant="secondary" disabled={disabled} onClick={() => handlers.onRecovery(station, true)}>Potvrdi fizički lock</Button>}
-    {compact ? <details className="ops-more-actions"><summary>Još akcija</summary><div>{additional}</div></details> : additional}
+    {variant !== 'card' && <>
+      {permit('FORCE_LOCK') && <Button type="button" variant="danger" disabled={disabled} onClick={() => handlers.onRecovery(station, false)}>Ponovo pošalji force-lock</Button>}
+      {permit('CONFIRM_LOCKED') && <Button type="button" variant="secondary" disabled={disabled} onClick={() => handlers.onRecovery(station, true)}>Potvrdi fizički lock</Button>}
+      {variant === 'table' ? <details className="ops-more-actions"><summary>Još akcija</summary><div>{additional}</div></details> : additional}
+    </>}
   </div>
 }
 
-function StationWarnings({ station }: { station: GamingStationCard }) {
+function StationWarnings({ station, compact = false }: { station: GamingStationCard; compact?: boolean }) {
   const pending = !!station.commandSequence && !station.commandAcknowledgedAt
+  const recoveryWarning = (compact || !!station.sessionId) && (station.status === 'LOCK_PENDING' || station.status === 'EXPIRED')
   return <>
     {station.staleHeartbeat && <p className="ops-station-warning ops-station-warning--danger">
-      {station.sessionId ? 'Sesija je aktivna na serveru. Proverite vezu i lokalno stanje računara.' : 'Heartbeat je zastareo. Proverite vezu i lokalno stanje računara.'}
+      {compact
+        ? station.sessionId ? 'Sesija na serveru; heartbeat zastareo. Proverite računar.' : 'Heartbeat zastareo. Proverite računar.'
+        : station.sessionId ? 'Sesija je aktivna na serveru. Proverite vezu i lokalno stanje računara.' : 'Heartbeat je zastareo. Proverite vezu i lokalno stanje računara.'}
     </p>}
-    {pending && <p className="ops-station-warning">Komanda #{station.commandSequence} čeka potvrdu klijenta.</p>}
-    {station.sessionId && (station.status === 'LOCK_PENDING' || station.status === 'EXPIRED') && <p className="ops-station-warning">{stationMessage(station)}</p>}
+    {compact && station.status === 'OFFLINE' && !station.staleHeartbeat && <p className="ops-station-warning ops-station-warning--danger">Proverite vezu i lokalno stanje računara.</p>}
+    {pending && <p className="ops-station-warning">Komanda #{station.commandSequence} čeka potvrdu{compact ? '.' : ' klijenta.'}</p>}
+    {recoveryWarning && <p className="ops-station-warning">{stationMessage(station)}</p>}
+    {compact && !recoveryWarning && station.enforcementStatus === 'LOCK_PENDING' && <p className="ops-station-warning">Čeka se potvrda lokalnog zaključavanja.</p>}
   </>
 }
 
@@ -67,28 +78,28 @@ export const StationTile = memo(function StationTile({ station, seconds, selecte
 }) {
   const connectivity = stationConnection(station)
   const expiring = !!station.sessionId && seconds <= 600
+  const connectionLabel = connectivity.tone === 'success' ? 'Povezan' : connectivity.tone === 'danger' ? 'Veza nepoznata' : connectivity.label
   return <article id={`station-${station.resourceId}`}
     className={`ops-station ops-station--${station.status.toLowerCase().replace('_', '-')}${selected ? ' ops-station--selected' : ''}${expiring ? ' ops-station--expiring' : ''}`}
-    onClick={(event) => { if (!(event.target as Element).closest('button, a, summary, details')) onSelect(station) }}>
+    onClick={(event) => { if (!(event.target as Element).closest('button, a')) onSelect(station) }}>
     <header className="ops-station-header">
       <span className="ops-monitor"><GamingOperationsIcon /></span>
       <h3><button type="button" className="ops-station-select" aria-pressed={selected}
-        aria-label={`Pregled stanice ${station.resourceName}`} onClick={() => onSelect(station)}>
-        {station.resourceName}<small>{station.resourceCode}</small>
+        aria-controls="ops-selected-station" aria-label={`Pregled stanice ${station.resourceName}`} onClick={() => onSelect(station)}>
+        {station.resourceName}
       </button></h3>
     </header>
-    <Badge tone={stationTones[station.status]}>{stationLabels[station.status]}</Badge>
-    <p className="ops-station-location">{station.locationName ?? 'Lokacija'}{station.areaName && ` / ${station.areaName}`}</p>
-    {station.sessionId ? <div className="ops-station-session">
+    <div className="ops-station-signals">
+      <Badge tone={stationTones[station.status]}>{stationLabels[station.status]}</Badge>
+      <span className={`ops-station-connection ops-station-connection--${connectivity.tone}`}
+        title={connectivity.label} aria-label={`Gaming Client: ${connectivity.label}`}><span aria-hidden="true">●</span>{connectionLabel}</span>
+    </div>
+    {station.sessionId && <div className="ops-station-session">
       <strong className="ops-station-customer">{station.customerDisplayName ?? 'Klijent'}</strong>
-      <span className="ops-timer-label">Preostalo vreme</span>
-      <strong className={`ops-timer${expiring ? ' ops-timer--warning' : ''}`} aria-label={`Preostalo vreme ${remaining(seconds)}`}>{stationTimer(seconds)}</strong>
-    </div> : <p className={`ops-station-message${station.status === 'LOCK_PENDING' || station.status === 'EXPIRED' ? ' ops-text-warning' : station.status === 'OFFLINE' ? ' ops-text-danger' : ''}`}>{stationMessage(station)}</p>}
-    <p className="ops-station-profile">Profil <strong>{station.applicationProfileName ?? 'Nije podešen'}</strong></p>
-    <div className="ops-station-signals"><Badge tone={connectivity.tone}><span aria-hidden="true">●</span>{connectivity.label}</Badge>
-      <Badge tone={station.enforcementStatus === 'LOCK_PENDING' ? 'warning' : 'neutral'}>{enforcementLabels[station.enforcementStatus]}</Badge></div>
-    <StationWarnings station={station} />
-    <footer><StationActions station={station} disabled={disabled} handlers={handlers} compact /></footer>
+      <strong className="ops-timer" aria-label={`Preostalo vreme ${remaining(seconds)}`}>{stationTimer(seconds)}</strong>
+    </div>}
+    <StationWarnings station={station} compact />
+    <StationActions station={station} disabled={disabled} handlers={handlers} variant="card" />
   </article>
 })
 
@@ -97,7 +108,7 @@ export function StationDetailsPanel({ station, now, disabled, handlers, unavaila
 }) {
   const connectivity = station && stationConnection(station)
   const seconds = station ? stationSeconds(station, now) : 0
-  return <aside className="ui-card ops-detail-panel" aria-labelledby="ops-detail-title">
+  return <aside id="ops-selected-station" className="ui-card ops-detail-panel" aria-labelledby="ops-detail-title">
     <div className="ops-section-heading"><div><p className="eyebrow">Kontrolni panel</p><h2 id="ops-detail-title">Detalji stanice</h2></div><GamingOperationsIcon /></div>
     {!station ? <EmptyState title={unavailable ? 'Izabrana stanica više nije dostupna' : 'Izaberite računar'}
       description="Izaberite karticu ili red u tabeli da biste videli trenutno stanje i dozvoljene akcije." /> : <>
@@ -147,7 +158,7 @@ export function GamingSessionsTable({ stations, selectedId, now, disabled, onSel
         <td><Badge tone={stationTones[station.status]}>{stationLabels[station.status]}</Badge>
           {!!station.commandSequence && !station.commandAcknowledgedAt && <small>Komanda čeka potvrdu</small>}
           {station.staleHeartbeat && <small className="ops-text-danger">Heartbeat zastareo</small>}</td>
-        <td><StationActions station={station} disabled={disabled} handlers={handlers} compact /></td>
+        <td><StationActions station={station} disabled={disabled} handlers={handlers} variant="table" /></td>
       </tr>
     })}</tbody>
   </table></TableShell>
