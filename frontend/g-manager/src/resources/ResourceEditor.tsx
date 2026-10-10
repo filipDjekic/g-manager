@@ -5,6 +5,7 @@ import { catalogApi } from '../api/catalogApi'
 import { apiErrorMessage } from '../api/client'
 import { Button, Modal } from '../components/ui'
 import type { LocationView, AreaView, ResourceView, ResourceType } from '../types/resource.types'
+import './resources.css'
 
 export type ResourceEditorKind='LOCATION'|'AREA'|'RESOURCE'
 export function ResourceEditor({kind,initial,locationId='',areaId='',onClose,onSaved}:{kind:ResourceEditorKind;initial?:LocationView|AreaView|ResourceView;locationId?:string;areaId?:string;onClose:()=>void;onSaved:(id:string)=>void}) {
@@ -29,7 +30,7 @@ export function ResourceEditor({kind,initial,locationId='',areaId='',onClose,onS
     } catch(cause){setError(apiErrorMessage(cause,'Podešavanje nije moguće sačuvati.'))}
     finally{inFlight.current=false;setBusy(false)}
   }
-  return <Modal open closeDisabled={busy} title={`${initial?'Izmeni':'Dodaj'} ${kind==='LOCATION'?'lokaciju':kind==='AREA'?'zonu':'resurs'}`} onClose={()=>{if(!busy)onClose()}}><form className="form-grid" onSubmit={save}>
+  return <Modal open className="resource-editor-dialog" closeDisabled={busy} title={`${initial?'Izmeni':'Dodaj'} ${kind==='LOCATION'?'lokaciju':kind==='AREA'?'zonu':'resurs'}`} onClose={()=>{if(!busy)onClose()}}><form className="form-grid resource-editor-form" onSubmit={save}>
     {error&&<p className="error-banner" role="alert">{error}</p>}
     <label>Naziv<input required maxLength={120} disabled={busy} value={name} onChange={e=>setName(e.target.value)}/></label>
     <label>Šifra<input required maxLength={40} disabled={busy} value={code} onChange={e=>setCode(e.target.value)}/></label>

@@ -12,3 +12,12 @@ export interface ResourceAvailability extends Omit<ResourceView,'description'|'a
 export type LocationInput=Omit<LocationView,'id'|'version'> & {version?:number}
 export type AreaInput=Omit<AreaView,'id'|'locationId'|'version'> & {version?:number}
 export type ResourceInput=Omit<ResourceView,'id'|'areaId'|'version'> & {version?:number}
+
+export interface FloorPlanRoom { id:string;label:string;areaId:string|null;x:number;y:number;width:number;height:number }
+export interface FloorPlanWall { id:string;x1:number;y1:number;x2:number;y2:number;thickness:number }
+export interface FloorPlanDoor { id:string;kind:'DOOR'|'PASSAGE';x1:number;y1:number;x2:number;y2:number }
+export interface FloorPlanGeometry { rooms:FloorPlanRoom[];walls:FloorPlanWall[];doors:FloorPlanDoor[] }
+export interface LocationFloorPlan { locationId:string;version:number;geometry:FloorPlanGeometry }
+export type ResourcePosition=Pick<ResourceView,'id'|'version'|'x'|'y'|'width'|'height'|'rotation'>
+export interface FloorPlanInput { version:number;geometry:FloorPlanGeometry;areaVersions:Pick<AreaView,'id'|'version'>[];resourcePositions:ResourcePosition[] }
+export interface FloorPlanSaveResult extends LocationFloorPlan { resourcePositions:ResourcePosition[] }
