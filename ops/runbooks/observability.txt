@@ -5,6 +5,14 @@ then Prometheus target health and the Grafana overview dashboard. Search backend
 logs by requestId. Never paste tokens, cookies, request bodies, email addresses,
 or database credentials into an incident record.
 
+Backend readiness checks application lifecycle and database connectivity. Liveness
+checks the process state and must not depend on the database or gaming stations.
+Station lock/expiry/offline warnings and delayed commands report DEGRADED (HTTP 200)
+in aggregate health, while readiness remains available for API and recovery work.
+DOWN and OUT_OF_SERVICE still return HTTP 503 for infrastructure/lifecycle failures.
+Operational counters and Prometheus alerts remain active; healthy backend readiness
+never confirms that a gaming station is safe to start a new session.
+
 GManagerInstanceDown: verify the backend management port and network route, then
 check liveness. Restart only when liveness fails; a readiness-only failure needs
 dependency diagnosis.

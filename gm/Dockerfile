@@ -29,5 +29,5 @@ ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -Djava.io.tmpdir=/tmp/gmanager" \
     APP_RELEASE=${APP_VERSION}
 EXPOSE 8080 9091
 HEALTHCHECK --interval=15s --timeout=3s --start-period=45s --retries=5 \
-  CMD curl --fail --silent http://127.0.0.1:9091/actuator/health/readiness || exit 1
+  CMD curl --fail --silent --show-error --max-time 2 http://127.0.0.1:9091/actuator/health/readiness || exit 1
 ENTRYPOINT ["/app/container-entrypoint.sh"]

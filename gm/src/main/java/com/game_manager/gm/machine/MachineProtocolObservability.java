@@ -13,11 +13,12 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/** Production signals for the machine protocol. No labels contain station, user or secret data. */
+/** Operational machine signals, separate from backend readiness. No labels contain station, user or secret data. */
 @Component("machineProtocol")
 public class MachineProtocolObservability implements HealthIndicator {
     private final JdbcTemplate jdbc;
@@ -54,10 +55,16 @@ public class MachineProtocolObservability implements HealthIndicator {
     public void authenticationFailed() { authenticationFailures.increment(); }
 
     @Override public Health health() {
-        refresh();
+        try {
+            refresh();
+        } catch (DataAccessException exception) {
+            return Health.down().withDetail("reason", "database-unavailable").build();
+        }
         boolean delayed = oldestCommandLagSeconds.get() > commandLagWarning.toSeconds();
-        boolean unsafe = expiredUnacknowledged.get() > 0;
-        Health.Builder result = unsafe ? Health.down() : delayed ? Health.status("DEGRADED") : Health.up();
+        boolean stationAttention = expiredUnacknowledged.get() > 0
+                || lockPending.get() > 0 || offlineStations.get() > 0;
+        // Station recovery needs a reachable API; operational warnings must not stop the backend.
+        Health.Builder result = stationAttention || delayed ? Health.status("DEGRADED") : Health.up();
         return result.withDetail("activeSessions", activeSessions.get())
                 .withDetail("offlineStations", offlineStations.get())
                 .withDetail("lockPending", lockPending.get())
