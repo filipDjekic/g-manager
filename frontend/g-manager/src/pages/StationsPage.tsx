@@ -1,201 +1,202 @@
-import { useQuery } from '@tanstack/react-query'
-import { type FormEvent, useRef, useState } from 'react'
-import { apiErrorMessage } from '../api/client'
-import { ResourceEmployees } from '../resources/ResourceEmployees'
+﻿import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { stationApi } from '../api/stationApi'
 import { hasCapability } from '../auth/capabilities'
 import { useAuthStore } from '../auth/authStore'
-import { Button, EmptyState, ErrorState, Modal, Skeleton, TableShell } from '../components/ui'
-import type { ApplicationDefinition, ApplicationProfile, ApplicationType,
-  StationOperationalStatus, StationOverview } from '../types/station.types'
+import { Badge, Button, EmptyState, ErrorState, Input, Select, Skeleton } from '../components/ui'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
-import { stationLabels, stationTones } from '../gaming/presentation'
-import { Badge } from '../components/ui'
+import { useToast } from '../components/ui/toastContext'
+import { GamingBoardPagination, readGamingPage } from '../gaming/GamingBoardPagination'
+import { permitsStationAction } from '../gaming/operationsPresentation'
+import { stationLabels } from '../gaming/presentation'
+import { useGamingOperations } from '../gaming/useGamingOperations'
+import { useServerNow } from '../gaming/useServerNow'
+import { useListUrlState } from '../lists/useListUrlState'
+import { ResourceEmployees } from '../resources/ResourceEmployees'
 import { formatBusinessDateTime } from '../reservations/dateTime'
+import { StationAdministration, StationClientPackage } from '../stations/StationAdministration'
+import { ApplicationDialog, ApplicationProfileDialog, StationConfigurationDialog } from '../stations/StationConfigurationDialogs'
+import { StationDetails } from '../stations/StationDetails'
+import { StationIdentityDialog } from '../stations/StationIdentityDialog'
+import { StationCard, StationsTable, type StationViewHandlers } from '../stations/StationViews'
+import { connectionStatus, problematicStation, StationIcon, stationError, stationStatus, type StationTab, type StationView } from '../stations/stationPresentation'
+import type { ApplicationDefinition, ApplicationProfile, StationOverview } from '../types/station.types'
+import '../stations/stations.css'
 
-const emptyDefinition = { code:'', name:'', type:'GAME' as ApplicationType, executablePath:'',
-  publisher:'', publisherCertificateThumbprint:'', executableSha256:'', minimumFileVersion:'', defaultArguments:'', active:true }
+const defaults = { search: '', status: '', locationId: '', areaId: '', profileId: '', connection: '', view: 'cards', page: '1', size: '9', stationId: '' }
+const urlKeys = Object.keys(defaults) as Array<keyof typeof defaults>
+const connections = { CONNECTED: 'Povezan', OFFLINE: 'Bez veze', WAITING: 'Čeka prvi kontakt', MANUAL: 'Ručni režim', UNKNOWN: 'Veza nije potvrđena' }
+const pageSizes = [9, 18, 36]
 
 export function StationsPage() {
+  const user = useAuthStore(state => state.user), client = useQueryClient(), toast = useToast()
+  const canRead = hasCapability(user, 'STATION_READ'), canOperate = canRead && hasCapability(user, 'GAMING_SESSION_READ')
+  const manage = hasCapability(user, 'APPLICATION_PROFILE_MANAGE'), maintain = hasCapability(user, 'STATION_MAINTENANCE')
+  const machineManage = hasCapability(user, 'MACHINE_IDENTITY_MANAGE'), resourceManage = hasCapability(user, 'RESOURCE_MANAGE')
+  const operations = useGamingOperations(canOperate), board = operations.board
+  const now = useServerNow(canOperate ? board.data?.serverTime : undefined)
+  const stations = useQuery({ queryKey: ['stations', 'overview', user?.id], queryFn: stationApi.overview, enabled: canRead,
+    refetchInterval: operations.visible && (!canOperate || board.isError) ? 15000 : false, refetchIntervalInBackground: false })
+  const definitions = useQuery({ queryKey: ['stations', 'applications', user?.id], queryFn: stationApi.definitions, enabled: canRead })
+  const profiles = useQuery({ queryKey: ['stations', 'profiles', user?.id], queryFn: stationApi.profiles, enabled: canRead })
+  const clientPackage = useQuery({ queryKey: ['stations', 'client-package', user?.id], queryFn: stationApi.clientPackage, enabled: canRead })
+  // The existing board owns SSE and polling. Its fresh snapshots also refresh station configuration/heartbeat metadata.
+  useEffect(() => { if (canOperate && board.dataUpdatedAt) void client.invalidateQueries({ queryKey: ['stations', 'overview'] }) }, [canOperate, board.dataUpdatedAt, client])
+  const url = useListUrlState(defaults, urlKeys), state = url.state
+  const [search, setSearch] = useState(state.search), [moreFilters, setMoreFilters] = useState(Boolean(state.profileId || state.connection))
+  const [stationEdit, setStationEdit] = useState<StationOverview | null>(null), [machineStation, setMachineStation] = useState<StationOverview | null>(null)
+  const [resourceEmployees, setResourceEmployees] = useState<StationOverview | null>(null)
+  const [definitionEdit, setDefinitionEdit] = useState<ApplicationDefinition | null | undefined>(undefined)
+  const [profileEdit, setProfileEdit] = useState<ApplicationProfile | null | undefined>(undefined)
+  const [detailTab, setDetailTab] = useState<StationTab>('OVERVIEW'), [deleting, setDeleting] = useState(false)
+  const titleRef = useRef<HTMLHeadingElement>(null), detailOpener = useRef<HTMLElement | null>(null), deleteInFlight = useRef(false)
   const { confirm, confirmationDialog } = useConfirmDialog()
-  const user = useAuthStore((state) => state.user)
-  const manage = hasCapability(user, 'APPLICATION_PROFILE_MANAGE')
-  const maintain = hasCapability(user, 'STATION_MAINTENANCE')
-  const machineManage = hasCapability(user, 'MACHINE_IDENTITY_MANAGE')
-  const resourceManage = hasCapability(user, 'RESOURCE_MANAGE')
-  const stations = useQuery({ queryKey:['stations'], queryFn:stationApi.overview })
-  const definitions = useQuery({ queryKey:['stations','applications'], queryFn:stationApi.definitions })
-  const profiles = useQuery({ queryKey:['stations','profiles'], queryFn:stationApi.profiles })
-  const clientPackage = useQuery({ queryKey:['stations','client-package'], queryFn:stationApi.clientPackage })
-  const [resourceEmployees,setResourceEmployees]=useState<StationOverview|null>(null)
-  const [stationEdit, setStationEdit] = useState<StationOverview|null>(null)
-  const [definitionEdit, setDefinitionEdit] = useState<ApplicationDefinition|null|undefined>(undefined)
-  const [profileEdit, setProfileEdit] = useState<ApplicationProfile|null|undefined>(undefined)
-  const [definitionForm, setDefinitionForm] = useState(emptyDefinition)
-  const [selectedApps, setSelectedApps] = useState<string[]>([])
-  const [dependencyGroups, setDependencyGroups] = useState<Record<string,string>>({})
-  const [profileCode, setProfileCode] = useState('')
-  const [profileName, setProfileName] = useState('')
-  const [profileDescription, setProfileDescription] = useState('')
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
-  const inFlight = useRef(false)
-  const [machineStation, setMachineStation] = useState<StationOverview|null>(null)
-  const [enrollment, setEnrollment] = useState<{token:string;expiresAt:string;purpose:string}|null>(null)
-  const machineIdentities = useQuery({queryKey:['stations','machine-identities',machineStation?.resourceId],
-    queryFn:()=>stationApi.machineIdentities(machineStation!.resourceId),enabled:machineStation!==null})
+  useEffect(() => { setSearch(state.search) }, [state.search])
+  const setUrl = url.set
+  useEffect(() => {
+    if (search === state.search) return
+    const timer = window.setTimeout(() => setUrl({ search, page: '1' }, true), 300)
+    return () => window.clearTimeout(timer)
+  }, [search, state.search, setUrl])
 
-  const refresh = async () => { await Promise.all([stations.refetch(), definitions.refetch(), profiles.refetch()]) }
-  const openDefinition = (value?:ApplicationDefinition) => {
-    setError('')
-    setDefinitionEdit(value ?? null); setDefinitionForm(value ? { code:value.code,name:value.name,type:value.type,
-      executablePath:value.executablePath,publisher:value.publisher ?? '',publisherCertificateThumbprint:value.publisherCertificateThumbprint ?? '',executableSha256:value.executableSha256 ?? '',minimumFileVersion:value.minimumFileVersion ?? '',
-      defaultArguments:value.defaultArguments ?? '',active:value.active } : emptyDefinition)
+  const allStations = useMemo<StationView[]>(() => {
+    const liveById = new Map((canOperate ? board.data?.stations ?? [] : []).map(value => [value.resourceId, value]))
+    return (stations.data ?? []).map<StationView>(value => {
+      const live = liveById.get(value.resourceId)
+      return { ...value, live, locationName: value.locationName ?? live?.locationName, areaName: value.areaName ?? live?.areaName,
+        operationalStatus: live?.operationalStatus === 'AVAILABLE' || live?.operationalStatus === 'MAINTENANCE' || live?.operationalStatus === 'RETIRED' ? live.operationalStatus : value.operationalStatus,
+        effectiveStatus: live?.effectiveStatus === 'AVAILABLE' || live?.effectiveStatus === 'MAINTENANCE' || live?.effectiveStatus === 'RETIRED' || live?.effectiveStatus === 'IN_SESSION' || live?.effectiveStatus === 'OFFLINE' ? live.effectiveStatus : value.effectiveStatus,
+        // Live session absence clears an older overview snapshot after termination.
+        activeSessionId: live ? live.sessionId : value.activeSessionId, lastHeartbeatAt: live ? live.lastHeartbeatAt : value.lastHeartbeatAt,
+        clientVersion: live?.clientVersion ?? value.clientVersion, clientEnabled: live?.clientEnabled ?? value.clientEnabled }
+    }).sort((a, b) => a.resourceName.localeCompare(b.resourceName, 'sr-Latn-RS', { numeric: true }))
+  }, [stations.data, board.data, canOperate])
+  const locations = useMemo(() => [...new Map(allStations.map(value => [value.locationId, value.locationName || value.locationId])).entries()], [allStations])
+  const areas = useMemo(() => [...new Map(allStations.filter(value => !state.locationId || value.locationId === state.locationId)
+    .map(value => [value.areaId, value.areaName || value.areaId])).entries()], [allStations, state.locationId])
+  useEffect(() => {
+    if (stations.data && !stations.isError && state.areaId && !areas.some(([id]) => id === state.areaId)) setUrl({ areaId: '', page: '1' }, true)
+  }, [areas, stations.data, stations.isError, state.areaId, setUrl])
+  const filtered = useMemo(() => {
+    const term = state.search.trim().toLocaleLowerCase('sr-Latn-RS')
+    return allStations.filter(value => (!term || [value.resourceName, value.resourceCode,
+      hasCapability(user, 'CUSTOMER_READ') && value.live?.sessionId ? value.live.customerDisplayName : ''].some(text => text?.toLocaleLowerCase('sr-Latn-RS').includes(term)))
+      && (!state.status || stationStatus(value).value === state.status) && (!state.locationId || value.locationId === state.locationId)
+      && (!state.areaId || value.areaId === state.areaId) && (!state.profileId || (state.profileId === 'none' ? !value.applicationProfileId : value.applicationProfileId === state.profileId))
+      && (!state.connection || connectionStatus(value).key === state.connection))
+  }, [allStations, state, user])
+  const pageSize = pageSizes.includes(Number(state.size)) ? Number(state.size) : 9
+  const page = Math.min(readGamingPage(state.page), Math.max(0, Math.ceil(filtered.length / pageSize) - 1))
+  useEffect(() => { if (stations.data && state.page !== String(page + 1)) setUrl({ page: String(page + 1) }, true) }, [stations.data, state.page, page, setUrl])
+  const current = filtered.slice(page * pageSize, (page + 1) * pageSize), selected = allStations.find(value => value.resourceId === state.stationId)
+  const operationalStations = allStations.filter(value => value.live)
+  const operationalReady = canOperate && Boolean(board.data) && Boolean(stations.data), applicationLoading = definitions.isLoading || profiles.isLoading
+  const applicationError = definitions.error ?? profiles.error
+  const boardTooOld = canOperate && Boolean(board.data) && now - Date.parse(board.data!.serverTime) > 30000
+  const stale = stations.isError || (canOperate && (board.isError || boardTooOld || !operations.visible || !board.data))
+  const configurationUnavailable = stations.isError || profiles.isLoading || profiles.isError
+  const refresh = () => { void client.invalidateQueries({ queryKey: ['stations'] }); if (canOperate) void client.invalidateQueries({ queryKey: ['gaming-operations'] }) }
+  const filter = (changes: Partial<typeof defaults>) => setUrl({ ...changes, search, page: '1' })
+  const clearFilters = () => { setSearch(''); setUrl({ search: '', status: '', locationId: '', areaId: '', profileId: '', connection: '', page: '1' }) }
+  const hasFilters = Boolean(state.search || state.status || state.locationId || state.areaId || state.profileId || state.connection)
+  const resourceQuery = new URLSearchParams()
+  if (state.locationId) resourceQuery.set('locationId', state.locationId)
+  if (state.areaId) resourceQuery.set('areaId', state.areaId)
+  const resourceUrl = `/resources${resourceQuery.size ? `?${resourceQuery}` : ''}`
+  const handlers: StationViewHandlers = {
+    configurationDisabled: configurationUnavailable,
+    administrationDisabled: stations.isError,
+    details: (station, tab = 'OVERVIEW', trigger) => {
+      detailOpener.current = trigger ?? (document.activeElement instanceof HTMLElement ? document.activeElement : titleRef.current)
+      setDetailTab(tab); setUrl({ stationId: station.resourceId })
+    },
+    configure: station => { if (maintain && !configurationUnavailable) setStationEdit(station) },
+    identity: station => { if (machineManage && !stations.isError) setMachineStation(station) },
+    employees: station => { if (resourceManage && !stations.isError) setResourceEmployees(station) },
   }
-  const openProfile = (value?:ApplicationProfile) => {
-    setError('')
-    setProfileEdit(value ?? null); setProfileCode(value?.code ?? ''); setProfileName(value?.name ?? '')
-    setProfileDescription(value?.description ?? ''); setSelectedApps(value?.entries.map((entry) => entry.applicationDefinitionId) ?? []);setDependencyGroups(Object.fromEntries(value?.entries.map(entry=>[entry.applicationDefinitionId,entry.dependencyGroup??''])??[]))
+  const closeDetails = () => {
+    if (!detailOpener.current?.isConnected) window.requestAnimationFrame(() => titleRef.current?.focus({ preventScroll: true }))
+    setUrl({ stationId: '' })
   }
-  async function saveDefinition(event:FormEvent) {
-    event.preventDefault(); if (inFlight.current) return
-    inFlight.current = true; setBusy(true); setError('')
-    const request = { ...definitionForm, publisher:definitionForm.publisher || undefined,
-      publisherCertificateThumbprint:definitionForm.publisherCertificateThumbprint || undefined,
-      executableSha256:definitionForm.executableSha256 || undefined,
-      minimumFileVersion:definitionForm.minimumFileVersion || undefined,
-      defaultArguments:definitionForm.defaultArguments || undefined, version:definitionEdit?.version }
-    try { if (definitionEdit) await stationApi.updateDefinition(definitionEdit.id, request)
-      else await stationApi.createDefinition(request); setDefinitionEdit(undefined); await refresh() }
-    catch (cause) { setError(apiErrorMessage(cause, 'Aplikaciju nije moguće sačuvati.')) }
-    finally { inFlight.current = false; setBusy(false) }
+  function deleteItem(kind: 'application' | 'profile', value: ApplicationDefinition | ApplicationProfile) {
+    if (!manage || deleting) return
+    const label = kind === 'application' ? 'aplikaciju' : 'profil'
+    confirm({ title: kind === 'application' ? 'Obriši aplikaciju' : 'Obriši profil aplikacija', description: `„${value.name}“ biće uklonjen${kind === 'application' ? 'a' : ''}. Stavke koje su u upotrebi nije moguće obrisati.`,
+      variant: 'danger', confirmLabel: `Obriši ${label}`, formatError: cause => stationError(cause, `Nije moguće obrisati ${label}.`),
+      onConfirm: async () => {
+        if (deleteInFlight.current) throw new Error('Sačekajte završetak prethodne akcije.')
+        deleteInFlight.current = true; setDeleting(true)
+        try {
+          if (kind === 'application') await stationApi.deleteDefinition(value.id, value.version)
+          else await stationApi.deleteProfile(value.id, value.version)
+          toast(kind === 'application' ? 'Aplikacija je obrisana.' : 'Profil je obrisan.', 'success')
+        } finally {
+          await Promise.all([client.invalidateQueries({ queryKey: ['stations'] }), client.invalidateQueries({ queryKey: ['gaming-operations'] })])
+          deleteInFlight.current = false; setDeleting(false)
+        }
+      } })
   }
-  async function saveProfile(event:FormEvent) {
-    event.preventDefault(); if (inFlight.current) return
-    inFlight.current = true; setBusy(true); setError('')
-    const selected = definitions.data?.filter((value) => selectedApps.includes(value.id)) ?? []
-    const request = { code:profileCode,name:profileName,description:profileDescription || undefined,active:true,
-      version:profileEdit?.version,entries:selected.map((value,index) => ({ applicationDefinitionId:value.id,
-        requiredProcess:value.type !== 'GAME',autoStart:value.type !== 'GAME',launchOrder:index,dependencyGroup:dependencyGroups[value.id] || undefined })) }
-    try { if (profileEdit) await stationApi.updateProfile(profileEdit.id,request)
-      else await stationApi.createProfile(request); setProfileEdit(undefined); await refresh() }
-    catch (cause) { setError(apiErrorMessage(cause, 'Profil nije moguće sačuvati.')) }
-    finally { inFlight.current = false; setBusy(false) }
-  }
-  async function saveStation(event:FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (!stationEdit || inFlight.current) return
-    inFlight.current = true; setBusy(true); setError('')
-    const data = new FormData(event.currentTarget)
-    try { await stationApi.saveStation(stationEdit.resourceId,{ operationalStatus:data.get('status') as StationOperationalStatus,
-      applicationProfileId:String(data.get('profile') || '') || undefined,clientEnabled:data.get('clientEnabled') === 'on',
-      heartbeatIntervalSeconds:Number(data.get('heartbeat')),offlineGraceSeconds:Number(data.get('grace')),
-      version:stationEdit.version }); setStationEdit(null); await refresh() }
-    catch (cause) { setError(apiErrorMessage(cause, 'Stanicu nije moguće sačuvati.')) }
-    finally { inFlight.current = false; setBusy(false) }
-  }
-  async function deleteDefinition(value:ApplicationDefinition) {
-    confirm({ title: 'Obriši aplikaciju', description: `Aplikacija “${value.name}” biće uklonjena iz konfiguracije.`,
-      variant: 'danger', confirmLabel: 'Obriši aplikaciju', errorMessage: 'Aplikaciju nije moguće obrisati.',
-      onConfirm: async () => { await stationApi.deleteDefinition(value.id,value.version); await refresh() } })
-  }
-  async function deleteProfile(value:ApplicationProfile) {
-    confirm({ title: 'Obriši profil aplikacija', description: `Profil “${value.name}” biće uklonjen.`,
-      variant: 'danger', confirmLabel: 'Obriši profil', errorMessage: 'Profil nije moguće obrisati.',
-      onConfirm: async () => { await stationApi.deleteProfile(value.id,value.version); await refresh() } })
-  }
-  async function issueEnrollment(rotation:boolean) { if(!machineStation || inFlight.current)return
-    inFlight.current = true; setBusy(true);setError('')
-    try { const value=rotation?await stationApi.createRotationToken(machineStation.resourceId):await stationApi.createEnrollmentToken(machineStation.resourceId)
-      setEnrollment({token:value.enrollmentToken,expiresAt:value.expiresAt,purpose:value.purpose});await machineIdentities.refetch() }
-    catch(cause){setError(apiErrorMessage(cause,'Kod za upis klijenta nije moguće kreirati.'))}
-    finally { inFlight.current = false; setBusy(false) } }
-  async function revokeIdentities(){if(!machineStation)return
-    const station = machineStation
-    confirm({ title: 'Opozovi identitete stanice', description: `${station.resourceName}: svi aktivni identiteti će biti opozvani. Za novi pristup potreban je ponovni upis klijenta.`,
-      variant: 'danger', confirmLabel: 'Opozovi identitete', errorMessage: 'Identitete nije moguće opozvati.',
-      onConfirm: async () => { await stationApi.revokeMachineIdentities(station.resourceId);setEnrollment(null);await Promise.all([machineIdentities.refetch(),stations.refetch()]) } })}
+  if (!canRead) return <main className="workspace gm-stations"><EmptyState title="Gaming stanice nisu dostupne" description="Nemate dozvolu za pregled stanica." /></main>
 
-  return <main className="workspace">{confirmationDialog}<div className="page-heading"><div><p className="eyebrow">Gaming operativa</p>
-    <h1>Gaming stanice</h1></div>{manage && <div className="form-actions">
-      <Button variant="secondary" onClick={() => openDefinition()}>Nova aplikacija</Button>
-      <Button onClick={() => openProfile()}>Novi profil</Button></div>}</div>
-    {error && <p className="error-banner" role="alert">{error}</p>}
-    <section className="panel"><div className="section-heading"><div><h2>G-Manager Gaming Client</h2>
-      <p>Windows Service i fullscreen Shell za gaming stanice.</p></div>
-      {clientPackage.data && <a className="button button-primary" href={clientPackage.data.downloadUrl}>Preuzmi Client</a>}</div>
-      {clientPackage.isLoading ? <Skeleton lines={2} label="Učitavanje Client paketa" /> : clientPackage.error ?
-        <ErrorState message={apiErrorMessage(clientPackage.error,'Informacije o Client paketu nisu dostupne.')} /> : clientPackage.data &&
-        <p>Verzija <strong>{clientPackage.data.version}</strong> · status <strong>{clientPackage.data.status}</strong> · SHA-256 <code>{clientPackage.data.sha256}</code></p>}
-    </section>
-    {stations.isLoading ? <Skeleton lines={6} label="Učitavanje stanica" /> : stations.error ?
-      <ErrorState message={apiErrorMessage(stations.error,'Stanice nisu dostupne.')} action={<Button onClick={() => stations.refetch()}>Pokušaj ponovo</Button>} /> :
-      !stations.data?.length ? <EmptyState title="Nema gaming PC resursa" description="Prvo kreirajte fizički resurs tipa Gaming računar." /> :
-      <TableShell label="Gaming stanice"><table className="data-table responsive-table"><thead><tr><th>Stanica</th><th>Stanje</th>
-        <th>Profil aplikacija</th><th>Klijent</th>{(maintain||machineManage||resourceManage) && <th>Akcija</th>}</tr></thead><tbody>
-        {stations.data.map((station) => <tr key={station.resourceId}><td data-label="Stanica"><strong>{station.resourceName}</strong><small className="table-secondary">{station.resourceCode}</small></td>
-          <td data-label="Stanje"><Badge tone={stationTones[station.effectiveStatus === 'IN_SESSION' ? 'ACTIVE' : station.effectiveStatus]}>{stationLabels[station.effectiveStatus === 'IN_SESSION' ? 'ACTIVE' : station.effectiveStatus]}</Badge></td>
-          <td data-label="Profil">{station.applicationProfileName ?? 'Nije dodeljen'}{station.configurationVersion > 0 && <small> v{station.configurationVersion}</small>}</td>
-          <td data-label="Veza">{station.clientEnabled ? station.lastHeartbeatAt ? `Poslednji kontakt ${formatBusinessDateTime(station.lastHeartbeatAt)}` : 'Čeka prvi kontakt' : 'Isključena'}</td>
-          {(maintain||machineManage||resourceManage) && <td data-label="Akcije"><div className="form-actions">{maintain&&<Button variant="secondary" onClick={() => {setError('');setStationEdit(station)}}>Podesi</Button>}
-            {resourceManage&&<Button variant="secondary" onClick={()=>setResourceEmployees(station)}>Zaposleni</Button>}
-            {machineManage&&<Button variant="secondary" onClick={()=>{setError('');setMachineStation(station);setEnrollment(null)}}>Identitet klijenta</Button>}</div></td>}</tr>)}</tbody></table></TableShell>}
-
-    {manage && <section className="panel"><h2>Dozvoljene aplikacije</h2>
-      {definitions.data?.map((value) => <article className="exception-row" key={value.id}><div><strong>{value.name}</strong>
-        <p>{value.type} · {value.executablePath}</p><small>{value.publisher || value.executableSha256}</small></div>
-        <div className="form-actions"><Button variant="secondary" onClick={() => openDefinition(value)}>Izmeni</Button>
-          <Button variant="danger" onClick={() => void deleteDefinition(value)}>Obriši</Button></div></article>)}</section>}
-    {manage && <section className="panel"><h2>Profili aplikacija</h2>
-      {profiles.data?.map((value) => <article className="exception-row" key={value.id}><div><strong>{value.name}</strong>
-        <p>Konfiguracija v{value.configurationVersion}</p><div className="policy-preview">{value.entries.map((entry) => {const definition=definitions.data?.find(item=>item.id===entry.applicationDefinitionId);return <small key={entry.id}><strong>{entry.applicationType}</strong> · {entry.applicationName} · <code>{definition?.executablePath}</code> · {definition?.executableSha256?'SHA-256':definition?.publisherCertificateThumbprint?'CERT':`Publisher ${definition?.publisher??'nije definisan'}`} · grupa {entry.dependencyGroup??'samostalno'}</small>})}</div></div>
-        <div className="form-actions"><Button variant="secondary" onClick={() => openProfile(value)}>Izmeni</Button>
-          <Button variant="danger" onClick={() => void deleteProfile(value)}>Obriši</Button></div></article>)}</section>}
-
-    {resourceEmployees&&<ResourceEmployees resourceId={resourceEmployees.resourceId} resourceName={resourceEmployees.resourceName} onClose={()=>setResourceEmployees(null)}/>}
-    <Modal closeDisabled={busy} open={stationEdit !== null} title={`Podesi ${stationEdit?.resourceName ?? 'stanicu'}`} onClose={() => setStationEdit(null)}>
-      {error && <p className="error-banner" role="alert">{error}</p>}
-      {stationEdit && <form className="form-grid" onSubmit={saveStation}><label>Operativno stanje<select disabled={busy} name="status" defaultValue={stationEdit.operationalStatus}>
-        <option value="AVAILABLE">Dostupna</option><option value="MAINTENANCE">Održavanje</option><option value="RETIRED">Van upotrebe</option></select></label>
-        <label>Profil aplikacija<select disabled={busy} name="profile" defaultValue={stationEdit.applicationProfileId ?? ''}><option value="">Bez profila</option>
-          {profiles.data?.filter((value) => value.active).map((value) => <option key={value.id} value={value.id}>{value.name}</option>)}</select></label>
-        <label><input disabled={busy} name="clientEnabled" type="checkbox" defaultChecked={stationEdit.clientEnabled} /> Klijent uključen</label>
-        <label>Interval kontakta (sekunde)<input disabled={busy} name="heartbeat" type="number" min={1} defaultValue={stationEdit.heartbeatIntervalSeconds} /></label>
-        <label>Tolerancija prekida veze (sekunde)<input disabled={busy} name="grace" type="number" min={1} defaultValue={stationEdit.offlineGraceSeconds} /></label>
-        <Button type="submit" loading={busy}>Sačuvaj</Button></form>}
-    </Modal>
-    <Modal closeDisabled={busy} open={machineStation!==null} title={`Identitet klijenta · ${machineStation?.resourceName??''}`} onClose={()=>{setMachineStation(null);setEnrollment(null)}}>
-      <div className="form-grid">{error && <p className="error-banner" role="alert">{error}</p>}<p>Stanje veze: <strong>{machineStation?.effectiveStatus==='OFFLINE'?'Bez veze':machineStation?.lastHeartbeatAt?'Povezan':'Čeka prvi kontakt'}</strong></p>
-        {machineStation?.lastHeartbeatAt&&<p>Poslednji kontakt: <time dateTime={machineStation.lastHeartbeatAt}>{formatBusinessDateTime(machineStation.lastHeartbeatAt)}</time></p>}
-        {machineIdentities.isLoading?<Skeleton lines={3} label="Učitavanje identiteta klijenta"/>:machineIdentities.error?<ErrorState message={apiErrorMessage(machineIdentities.error,'Identiteti klijenta nisu dostupni.')} action={<Button onClick={()=>machineIdentities.refetch()}>Pokušaj ponovo</Button>}/>:<div>{machineIdentities.data?.map(identity=><article className="exception-row" key={identity.id}>
-          <div><strong>Ključ v{identity.keyVersion} · {{ACTIVE:'Aktivan',ROTATING:'Rotacija u toku',REVOKED:'Opozvan'}[identity.status]}</strong><p>Otisak javnog ključa: <code>{identity.publicKeyFingerprint}</code></p>
-            <small>Upisan {formatBusinessDateTime(identity.enrolledAt)}{identity.lastAuthenticatedAt&&` · poslednja prijava ${formatBusinessDateTime(identity.lastAuthenticatedAt)}`}</small></div></article>)}</div>}
-        {enrollment&&<div className="warning-banner" role="status"><strong>{enrollment.purpose==='ROTATION'?'Kod za rotaciju':'Kod za upis'} — prikazuje se samo sada</strong>
-          <code className="secret-display">{enrollment.token}</code><p>Važi do {formatBusinessDateTime(enrollment.expiresAt)}. Ne čuvajte ga u repozitorijumu ili logovima.</p>
-          <Button type="button" variant="secondary" onClick={()=>void navigator.clipboard.writeText(enrollment.token)}>Kopiraj kod</Button></div>}
-        <div className="form-actions"><Button type="button" onClick={()=>void issueEnrollment(false)} loading={busy} disabled={machineIdentities.isLoading || !!machineIdentities.error || Boolean(machineIdentities.data?.some(value=>value.status==='ACTIVE'))}>Novi kod za upis</Button>
-          <Button type="button" variant="secondary" onClick={()=>void issueEnrollment(true)} disabled={busy || machineIdentities.isLoading || !!machineIdentities.error || !machineIdentities.data?.some(value=>value.status==='ACTIVE')}>Rotiraj ključ</Button>
-          <Button type="button" variant="danger" onClick={()=>void revokeIdentities()} disabled={busy || machineIdentities.isLoading || !!machineIdentities.error || !machineIdentities.data?.some(value=>value.status!=='REVOKED')}>Opozovi</Button></div>
+  return <main className="workspace gm-stations">
+    {confirmationDialog}
+    <header className="gm-stations-heading"><div className="gm-stations-heading-title"><span className="gm-stations-heading-icon"><StationIcon /></span><div>
+      <h1 ref={titleRef} tabIndex={-1}>Gaming stanice</h1><p>Pregled i upravljanje gaming stanicama, njihovim stanjem i konfiguracijom.</p></div></div>
+      <div className="gm-stations-heading-actions"><Button type="button" variant="secondary" loading={stations.isFetching || canOperate && board.isFetching} onClick={refresh}><StationIcon kind="refresh" />Osveži</Button>
+        {resourceManage && <Link className="button button-primary" to={resourceUrl} title="Otvara postojeće upravljanje resursima za kreiranje gaming računara">+ Nova stanica</Link>}</div></header>
+    <div className="gm-stations-kpis" aria-label="Statistika gaming stanica">
+      <div className="gm-stations-kpi gm-stations-kpi--total"><StationIcon /><span>Ukupno stanica</span><strong>{stations.data ? allStations.length : '—'}</strong><small>Sve gaming PC stanice u pregledu</small></div>
+      <div className="gm-stations-kpi gm-stations-kpi--active"><StationIcon /><span>U upotrebi</span><strong>{operationalReady ? operationalStations.filter(value => value.live?.sessionId).length : '—'}</strong><small>Stvarna aktivna gaming sesija</small></div>
+      <div className="gm-stations-kpi gm-stations-kpi--available"><StationIcon /><span>Slobodne stanice</span><strong>{operationalReady ? operationalStations.filter(value => permitsStationAction(user, value.live!, 'START')).length : '—'}</strong><small>Sistem dozvoljava pokretanje sesije</small></div>
+      <div className="gm-stations-kpi gm-stations-kpi--problem"><StationIcon kind="shield" /><span>Problematične stanice</span><strong>{operationalReady ? operationalStations.filter(problematicStation).length : '—'}</strong><small>Održavanje, van upotrebe, veza ili potrebna intervencija</small></div>
+    </div>
+    <p className="gm-stations-stat-scope">Ukupan broj obuhvata sve stanice u pregledu. {operationalReady
+      ? `Operativni pokazatelji obuhvataju ${operationalStations.length} stanica u vašem Gaming Operations opsegu, bez uticaja filtera i paginacije.`
+      : 'Operativni pokazatelji zahtevaju dozvolu i dostupan pregled Gaming operative.'} Problematične uključuju i isteklu sesiju, nepotvrđeno zaključavanje, komandu bez potvrde i nedovršenu konfiguraciju.</p>
+    <section className="gm-stations-section gm-stations-filters" aria-label="Pretraga i filteri stanica">
+      <div className="gm-stations-filter-main"><label className="gm-stations-search"><span>Pretraga stanica</span><div><StationIcon kind="search" /><Input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Pretraži po nazivu, kodu ili klijentu..." /></div></label>
+        <label>Status<Select value={state.status} onChange={event => filter({ status: event.target.value })}><option value="">Svi statusi</option>{Object.entries(stationLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></label>
+        <label>Lokal<Select value={state.locationId} onChange={event => filter({ locationId: event.target.value, areaId: '' })}><option value="">Svi lokali</option>{locations.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+          {state.locationId && !locations.some(([id]) => id === state.locationId) && <option value={state.locationId}>Izabrani lokal nije dostupan</option>}</Select></label>
+        <label>Zona<Select value={state.areaId} onChange={event => filter({ areaId: event.target.value })}><option value="">Sve zone</option>{areas.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</Select></label>
       </div>
-    </Modal>
-    <Modal closeDisabled={busy} open={definitionEdit !== undefined} title={definitionEdit ? 'Izmeni aplikaciju' : 'Nova aplikacija'} onClose={() => setDefinitionEdit(undefined)}>
-      <form className="form-grid" onSubmit={saveDefinition}>{error && <p className="error-banner" role="alert">{error}</p>}<label>Kod<input disabled={busy} required value={definitionForm.code} onChange={(e) => setDefinitionForm({...definitionForm,code:e.target.value})} /></label>
-        <label>Naziv<input disabled={busy} required value={definitionForm.name} onChange={(e) => setDefinitionForm({...definitionForm,name:e.target.value})} /></label>
-        <label>Tip<select disabled={busy} value={definitionForm.type} onChange={(e) => setDefinitionForm({...definitionForm,type:e.target.value as ApplicationType})}><option value="LAUNCHER">Pokretač</option><option value="GAME">Igra</option><option value="HELPER">Pomoćna aplikacija</option></select></label>
-        <label>Putanja izvršne datoteke<input disabled={busy} required placeholder="C:\\Games\\game.exe" value={definitionForm.executablePath} onChange={(e) => setDefinitionForm({...definitionForm,executablePath:e.target.value})} /></label>
-        <label>Izdavač<input disabled={busy} value={definitionForm.publisher} onChange={(e) => setDefinitionForm({...definitionForm,publisher:e.target.value})} /></label>
-        <label>Otisak sertifikata izdavača<input disabled={busy} value={definitionForm.publisherCertificateThumbprint} onChange={(e) => setDefinitionForm({...definitionForm,publisherCertificateThumbprint:e.target.value})} /></label>
-        <label>SHA-256<input disabled={busy} value={definitionForm.executableSha256} onChange={(e) => setDefinitionForm({...definitionForm,executableSha256:e.target.value})} /></label>
-        <label>Minimalna verzija datoteke<input disabled={busy} placeholder="1.2.3.4" value={definitionForm.minimumFileVersion} onChange={(e) => setDefinitionForm({...definitionForm,minimumFileVersion:e.target.value})} /></label>
-        <label>Argumenti<input disabled={busy} value={definitionForm.defaultArguments} onChange={(e) => setDefinitionForm({...definitionForm,defaultArguments:e.target.value})} /></label>
-        <Button type="submit" loading={busy}>Sačuvaj</Button></form>
-    </Modal>
-    <Modal closeDisabled={busy} open={profileEdit !== undefined} title={profileEdit ? 'Izmeni profil' : 'Novi profil'} onClose={() => setProfileEdit(undefined)}>
-      <form className="form-grid" onSubmit={saveProfile}>{error && <p className="error-banner" role="alert">{error}</p>}<label>Kod<input disabled={busy} required value={profileCode} onChange={(e) => setProfileCode(e.target.value)} /></label>
-        <label>Naziv<input disabled={busy} required value={profileName} onChange={(e) => setProfileName(e.target.value)} /></label>
-        <label>Opis<textarea disabled={busy} value={profileDescription} onChange={(e) => setProfileDescription(e.target.value)} /></label>
-        <fieldset><legend>Aplikacije (najmanje jedna igra)</legend>{definitions.data?.filter((value) => value.active).map((value) =>
-          <div key={value.id}><label><input disabled={busy} type="checkbox" checked={selectedApps.includes(value.id)} onChange={(e) => setSelectedApps(e.target.checked ? [...selectedApps,value.id] : selectedApps.filter((id) => id !== value.id))} /> {value.name} ({value.type})</label>{selectedApps.includes(value.id)&&<label>Grupa zavisnosti<input disabled={busy} placeholder={value.type==='GAME'?'steam-cs2':'npr. steam-cs2'} value={dependencyGroups[value.id]??''} onChange={event=>setDependencyGroups({...dependencyGroups,[value.id]:event.target.value})}/></label>}</div>)}</fieldset>
-        <Button type="submit" loading={busy} disabled={!selectedApps.length}>Sačuvaj profil</Button></form>
-    </Modal>
+      <div className="gm-stations-filter-actions"><Button type="button" variant="secondary" aria-expanded={moreFilters} aria-controls="station-extra-filters" onClick={() => setMoreFilters(value => !value)}><StationIcon kind="filter" />Više filtera{(state.profileId || state.connection) && <span aria-label="Aktivni dodatni filteri"> •</span>}</Button>
+        {hasFilters && <Button type="button" variant="secondary" onClick={clearFilters}>Očisti filtere</Button>}</div>
+      {moreFilters && <div className="gm-stations-filter-extra" id="station-extra-filters"><label>Profil aplikacija<Select value={state.profileId} onChange={event => filter({ profileId: event.target.value })}><option value="">Svi profili</option><option value="none">Bez profila</option>
+        {(profiles.data ?? []).map(value => <option key={value.id} value={value.id}>{value.name}{!value.active && ' · neaktivan'}</option>)}
+        {state.profileId && state.profileId !== 'none' && !profiles.data?.some(value => value.id === state.profileId) && <option value={state.profileId}>Izabrani profil nije dostupan</option>}</Select></label>
+        <label>Gaming Client konekcija<Select value={state.connection} onChange={event => filter({ connection: event.target.value })}><option value="">Sva stanja veze</option>{Object.entries(connections).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></label></div>}
+    </section>
+    <section className="gm-stations-results" aria-labelledby="station-results-title">
+      <header className="gm-stations-results-heading"><div><h2 id="station-results-title">Pregled stanica <span>{filtered.length}</span></h2>
+        <div className="gm-stations-live-status">{canOperate ? <><Badge tone={stale ? 'warning' : operations.connection === 'connected' ? 'success' : 'warning'}>{!operations.visible ? 'Osvežavanje pauzirano' : board.isError || boardTooOld ? 'Podaci mogu biti zastareli' : operations.connection === 'connected' ? 'Povezano' : operations.connection === 'reconnecting' ? 'Ponovno povezivanje' : 'Povezivanje'}</Badge>
+          {board.data && <small>Podaci od {formatBusinessDateTime(board.data.serverTime, false, 'sr-Latn-RS')}</small>}</> : <small>Pregled konfiguracije · automatsko osvežavanje</small>}</div></div>
+        <div className="gm-stations-view-switch" role="group" aria-label="Način prikaza stanica"><button type="button" aria-pressed={state.view !== 'table'} onClick={() => setUrl({ view: 'cards' })}><StationIcon kind="grid" />Kartice</button>
+          <button type="button" aria-pressed={state.view === 'table'} onClick={() => setUrl({ view: 'table' })}><StationIcon kind="table" />Tabela</button></div></header>
+      {canOperate && (board.isError || boardTooOld || operations.connection === 'reconnecting') && <div className="gm-stations-warning" role="status">{board.isError ? stationError(board.error, 'Operativno stanje trenutno nije dostupno.') : 'Ponovno povezivanje ili kašnjenje operativnih podataka.'} Podaci mogu biti zastareli. Automatsko osvežavanje će pokušati ponovo.</div>}
+      {stations.isError && stations.data && <div className="gm-stations-warning" role="alert">{stationError(stations.error, 'Osvežavanje stanica nije uspelo.')} Prikazani podaci mogu biti zastareli.<Button type="button" variant="secondary" onClick={refresh}>Pokušaj ponovo</Button></div>}
+      {stations.isLoading ? <div className="gm-stations-grid">{[0, 1, 2].map(index => <div className="gm-stations-card" key={index}><Skeleton lines={7} label="Učitavanje stanice" /></div>)}</div>
+        : stations.isError && !stations.data ? <ErrorState message={stationError(stations.error, 'Stanice nisu dostupne.')} action={<Button type="button" onClick={refresh}>Pokušaj ponovo</Button>} />
+          : !allStations.length ? <EmptyState title="Nema gaming stanica" description="Gaming računar dodaje se kroz postojeće upravljanje fizičkim resursima." action={resourceManage ? <Link className="button button-primary" to={resourceUrl}>+ Nova stanica</Link> : undefined} />
+            : !filtered.length ? <EmptyState title="Nema stanica za izabrane filtere" description="Promenite pretragu ili filtere da biste proširili pregled." action={<Button type="button" variant="secondary" onClick={clearFilters}>Očisti filtere</Button>} />
+              : state.view === 'table' ? <StationsTable stations={current} user={user} now={now} selectedId={state.stationId} disabled={stale} handlers={handlers} />
+                : <div className="gm-stations-grid">{current.map(value => <StationCard key={value.resourceId} station={value} user={user} now={now} selected={state.stationId === value.resourceId} disabled={stale} handlers={handlers} />)}</div>}
+      {Boolean(allStations.length) && <div className="gm-stations-pagination"><div><span>Stranica {page + 1} od {Math.max(1, Math.ceil(filtered.length / pageSize))}</span><label>Po stranici<Select value={String(pageSize)} onChange={event => setUrl({ size: event.target.value, page: '1' })}>{pageSizes.map(size => <option key={size} value={size}>{size}</option>)}</Select></label></div>
+        <GamingBoardPagination page={page} pageSize={pageSize} total={filtered.length} label="Stranice gaming stanica" onChange={next => setUrl({ page: String(next + 1) })} /></div>}
+    </section>
+    <StationClientPackage data={clientPackage.data} loading={clientPackage.isLoading} error={clientPackage.error} onRefresh={refresh} />
+    <StationAdministration definitions={definitions.data ?? []} profiles={profiles.data ?? []} loadingDefinitions={definitions.isLoading} loadingProfiles={profiles.isLoading}
+      definitionsError={definitions.error} profilesError={profiles.error} manage={manage} busy={deleting || definitions.isFetching || profiles.isFetching}
+      onDefinition={value => { if (manage) setDefinitionEdit(value) }} onProfile={value => { if (manage && !applicationLoading && !applicationError) setProfileEdit(value) }}
+      deleteDefinition={value => deleteItem('application', value)} deleteProfile={value => deleteItem('profile', value)} onRefresh={refresh} />
+    {selected && <StationDetails station={selected} user={user} now={now} initialTab={detailTab} profiles={profiles.data ?? []} definitions={definitions.data ?? []}
+      applicationLoading={applicationLoading} applicationError={applicationError} stale={stale} returnFocusRef={detailOpener} handlers={handlers} onClose={closeDetails} onRefresh={refresh} />}
+    {state.stationId && !selected && stations.data && !stations.isError && <div className="gm-stations-warning" role="status">Izabrana stanica više nije dostupna u ovom pregledu.<Button type="button" variant="secondary" onClick={closeDetails}>Zatvori selekciju</Button></div>}
+    {stationEdit && maintain && <StationConfigurationDialog key={stationEdit.resourceId} station={stationEdit} profiles={profiles.data ?? []} onClose={() => setStationEdit(null)} />}
+    {definitionEdit !== undefined && manage && <ApplicationDialog value={definitionEdit} onClose={() => setDefinitionEdit(undefined)} />}
+    {profileEdit !== undefined && manage && <ApplicationProfileDialog value={profileEdit} definitions={definitions.data ?? []} onClose={() => setProfileEdit(undefined)} />}
+    {machineStation && machineManage && <StationIdentityDialog key={machineStation.resourceId} station={machineStation} onClose={() => setMachineStation(null)} />}
+    {resourceEmployees && resourceManage && <ResourceEmployees resourceId={resourceEmployees.resourceId} resourceName={resourceEmployees.resourceName} onClose={() => setResourceEmployees(null)} />}
   </main>
 }
