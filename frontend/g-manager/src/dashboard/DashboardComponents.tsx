@@ -32,12 +32,12 @@ export function DashboardHeader({ title, eyebrow, description, date, timezone, l
   </div>
 }
 
-export function DashboardMetricCard({ label, value, detail, icon, tone = 'info', children }: {
-  label: string; value: ReactNode; detail?: ReactNode; icon: string; tone?: StatusTone; children?: ReactNode
+export function DashboardMetricCard({ label, value, detail, icon, iconNode, tone = 'info', children }: {
+  label: string; value: ReactNode; detail?: ReactNode; icon: string; iconNode?: ReactNode; tone?: StatusTone; children?: ReactNode
 }) {
   return <article className={`ui-card dashboard-metric dashboard-metric--${tone}`}>
     <div className="dashboard-metric-heading"><span>{label}</span>
-      <span className="dashboard-metric-icon"><NavigationIcon to={icon} /></span>
+      <span className="dashboard-metric-icon">{iconNode ?? <NavigationIcon to={icon} />}</span>
     </div>
     <strong className="dashboard-metric-value">{typeof value === 'number' ? value.toLocaleString('sr-RS') : value}</strong>
     {detail && <div className="dashboard-metric-detail">{detail}</div>}
@@ -45,13 +45,13 @@ export function DashboardMetricCard({ label, value, detail, icon, tone = 'info',
   </article>
 }
 
-export function DashboardSection({ title, description, icon, actions, className = '', children }: {
-  title: string; description?: ReactNode; icon?: string; actions?: ReactNode; className?: string; children: ReactNode
+export function DashboardSection({ title, description, icon, iconNode, actions, className = '', children }: {
+  title: string; description?: ReactNode; icon?: string; iconNode?: ReactNode; actions?: ReactNode; className?: string; children: ReactNode
 }) {
   const titleId = useId()
   return <section className={`ui-card dashboard-section ${className}`} aria-labelledby={titleId}>
     <header className="dashboard-section-heading">
-      {icon && <span className="dashboard-section-icon"><NavigationIcon to={icon} /></span>}
+      {(icon || iconNode) && <span className="dashboard-section-icon">{iconNode ?? <NavigationIcon to={icon!} />}</span>}
       <div><h2 id={titleId}>{title}</h2>{description && <p>{description}</p>}</div>
       {actions && <div className="dashboard-section-actions">{actions}</div>}
     </header>
@@ -78,14 +78,14 @@ export function DashboardQuickActions() {
   </nav>
 }
 
-export function DashboardOrderCard({ order, children }: {
-  order: Pick<DashboardTodayOrder, 'status' | 'totalPrice' | 'createdAt'>; children?: ReactNode
+export function DashboardOrderCard({ order, children, locale = 'sr-RS' }: {
+  order: Pick<DashboardTodayOrder, 'status' | 'totalPrice' | 'createdAt'>; children?: ReactNode; locale?: string
 }) {
   return <article className="dashboard-order">
-    <div className="dashboard-order-heading"><strong>{formatDashboardMoney(order.totalPrice)}</strong>
+    <div className="dashboard-order-heading"><strong>{formatDashboardMoney(order.totalPrice, locale)}</strong>
       <Badge tone={orderTones[order.status]}>{orderLabels[order.status]}</Badge>
     </div>
-    <time dateTime={order.createdAt}>{formatBusinessDateTime(order.createdAt)}</time>
+    <time dateTime={order.createdAt}>{formatBusinessDateTime(order.createdAt, false, locale)}</time>
     {children && <div className="dashboard-order-actions">{children}</div>}
   </article>
 }
