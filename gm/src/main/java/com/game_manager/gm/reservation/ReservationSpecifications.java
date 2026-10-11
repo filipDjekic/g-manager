@@ -59,6 +59,11 @@ public final class ReservationSpecifications {
                 ? null : builder.lessThan(root.get("startTime"), toExclusive);
     }
 
+    public static Specification<Reservation> upcoming(Instant now) {
+        return startsFrom(now).and((root, query, builder) ->
+                root.get("status").in(ReservationStatus.PENDING, ReservationStatus.CONFIRMED));
+    }
+
     public static Specification<Reservation> matchesSearch(String query) {
         UUID id = parseUuid(query);
         ReservationStatus status = parseStatus(query);

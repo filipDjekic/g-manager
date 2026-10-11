@@ -14,6 +14,7 @@ import com.game_manager.gm.reservation.dto.ReservationDetailResponse;
 import com.game_manager.gm.reservation.dto.ReservationHistoryResponse;
 import com.game_manager.gm.reservation.dto.CalendarReservationResponse;
 import com.game_manager.gm.reservation.dto.ReservationSummaryResponse;
+import com.game_manager.gm.reservation.dto.MyReservationSummaryResponse;
 import com.game_manager.gm.common.security.AuthenticatedUser;
 import com.game_manager.gm.common.security.CurrentUserProvider;
 import com.game_manager.gm.common.security.Role;
@@ -149,11 +150,41 @@ public class ReservationService {
             int size,
             String sort,
             String direction) {
+        return listMine(status, from, to, page, size, sort, direction, false);
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('RESERVATION_READ_OWN')")
+    public PageResponse<ReservationResponse> listMine(ReservationStatus status, LocalDate from,
+            LocalDate to, int page, int size, String sort, String direction, boolean upcoming) {
         AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
         if (actor.role() != Role.CUSTOMER) {
             throw new ApplicationException(HttpStatus.FORBIDDEN, "Customer access is required");
         }
-        return listInternal(actor.id(), null, status, from, to, page, size, sort, direction);
+        if (!upcoming) return listInternal(actor.id(), null, status, from, to, page, size, sort, direction);
+        return listInternal(actor.id(), null, status, from, to, page, size, sort, direction,
+                ReservationScope.ALL, null, null, null, ReservationSpecifications.upcoming(clock.instant()));
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('RESERVATION_READ_OWN')")
+    public MyReservationSummaryResponse mineSummary() {
+        AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
+        if (actor.role() != Role.CUSTOMER)
+            throw new ApplicationException(HttpStatus.FORBIDDEN, "Customer access is required");
+        Instant now = clock.instant();
+        ZoneId zone = workingHoursService.getBusinessZone();
+        LocalDate today = now.atZone(zone).toLocalDate();
+        Specification<Reservation> own = ReservationSpecifications.hasCustomer(actor.id());
+        Specification<Reservation> todayFilter = own
+                .and(ReservationSpecifications.startsFrom(today.atStartOfDay(zone).toInstant()))
+                .and(ReservationSpecifications.startsBefore(today.plusDays(1).atStartOfDay(zone).toInstant()))
+                .and((root, query, builder) -> root.get("status").in(ReservationStatus.PENDING, ReservationStatus.CONFIRMED));
+        return new MyReservationSummaryResponse(
+                reservationRepository.count(own.and(ReservationSpecifications.upcoming(now))),
+                reservationRepository.count(todayFilter),
+                reservationRepository.count(own.and(ReservationSpecifications.hasStatus(ReservationStatus.COMPLETED))),
+                today, zone.getId(), now);
     }
 
     @Transactional(readOnly = true)
@@ -501,6 +532,14 @@ public class ReservationService {
     private PageResponse<ReservationResponse> listInternal(UUID customerId,UUID employeeId,ReservationStatus status,
             LocalDate from,LocalDate to,int page,int size,String sort,String direction,
             ReservationScope scope,UUID resourceId,UUID locationId,String search) {
+        return listInternal(customerId, employeeId, status, from, to, page, size, sort, direction,
+                scope, resourceId, locationId, search, null);
+    }
+
+    private PageResponse<ReservationResponse> listInternal(UUID customerId, UUID employeeId, ReservationStatus status,
+            LocalDate from, LocalDate to, int page, int size, String sort, String direction,
+            ReservationScope scope, UUID resourceId, UUID locationId, String search,
+            Specification<Reservation> additionalFilter) {
         validateDateRange(from, to);
         ZoneId zone = workingHoursService.getBusinessZone();
         Instant fromInstant = from == null ? null : from.atStartOfDay(zone).toInstant();
@@ -515,6 +554,7 @@ public class ReservationService {
                 .and(ReservationSpecifications.startsFrom(fromInstant))
                 .and(ReservationSpecifications.startsBefore(toInstant))
                 .and(textFilter(search));
+        if (additionalFilter != null) specification = specification.and(additionalFilter);
         var pageable = pageRequestFactory.create(page, size, sort, direction, ALLOWED_SORTS);
         Page<Reservation> values = reservationRepository.findAll(specification,
                 org.springframework.data.domain.PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
