@@ -176,15 +176,18 @@ public class ReservationService {
         ZoneId zone = workingHoursService.getBusinessZone();
         LocalDate today = now.atZone(zone).toLocalDate();
         Specification<Reservation> own = ReservationSpecifications.hasCustomer(actor.id());
+        Specification<Reservation> upcoming = own.and(ReservationSpecifications.upcoming(now));
+        Instant weekEnd = now.atZone(zone).plusDays(7).toInstant();
         Specification<Reservation> todayFilter = own
                 .and(ReservationSpecifications.startsFrom(today.atStartOfDay(zone).toInstant()))
                 .and(ReservationSpecifications.startsBefore(today.plusDays(1).atStartOfDay(zone).toInstant()))
                 .and((root, query, builder) -> root.get("status").in(ReservationStatus.PENDING, ReservationStatus.CONFIRMED));
         return new MyReservationSummaryResponse(
-                reservationRepository.count(own.and(ReservationSpecifications.upcoming(now))),
+                reservationRepository.count(upcoming),
                 reservationRepository.count(todayFilter),
                 reservationRepository.count(own.and(ReservationSpecifications.hasStatus(ReservationStatus.COMPLETED))),
-                today, zone.getId(), now);
+                today, zone.getId(), now,
+                reservationRepository.count(upcoming.and(ReservationSpecifications.startsBefore(weekEnd))));
     }
 
     @Transactional(readOnly = true)

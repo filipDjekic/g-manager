@@ -6,6 +6,7 @@ export type ReservationDetailAction = ReservationStatus | 'EDIT' | 'ASSIGN_RESOU
 export interface MyReservationSummary {
   upcomingReservations: number; todayReservations: number; completedReservations: number
   today: string; timezone: string; serverTime: string
+  nextSevenDaysReservations: number
 }
 
 export interface ReservationSummary {

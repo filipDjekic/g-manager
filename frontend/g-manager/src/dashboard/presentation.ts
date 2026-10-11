@@ -7,7 +7,9 @@ const money = new Intl.NumberFormat('sr-RS', { style: 'currency', currency: 'RSD
 const calendarDate = new Intl.DateTimeFormat('sr-RS', { dateStyle: 'long', timeZone: 'UTC' })
 const chartDate = new Intl.DateTimeFormat('sr-RS', { day: '2-digit', month: '2-digit', timeZone: 'UTC' })
 
-export const formatDashboardMoney = (value: number) => money.format(value)
+export const formatDashboardMoney = (value: number, locale = 'sr-RS') => locale === 'sr-RS'
+  ? money.format(value)
+  : new Intl.NumberFormat(locale, { style: 'currency', currency: 'RSD', maximumFractionDigits: 2 }).format(value)
 export const formatDashboardDate = (value: string) => calendarDate.format(new Date(`${value}T12:00:00Z`))
 export const formatChartDate = (value: string) => chartDate.format(new Date(`${value}T12:00:00Z`))
 
