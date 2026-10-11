@@ -12,6 +12,33 @@ import org.springframework.data.domain.Pageable;
 
 public interface OrderRepository
         extends JpaRepository<Order, UUID>, JpaSpecificationExecutor<Order> {
+    interface Statistics {
+        long getTotal();
+        long getCompleted();
+        long getInProgress();
+        long getCancelled();
+    }
+
+    @Query("""
+            select count(o) as total,
+              coalesce(sum(case when o.status = com.game_manager.gm.order.OrderStatus.COMPLETED
+                then 1 else 0 end), 0) as completed,
+              coalesce(sum(case when o.status = com.game_manager.gm.order.OrderStatus.IN_PROGRESS
+                then 1 else 0 end), 0) as inProgress,
+              coalesce(sum(case when o.status = com.game_manager.gm.order.OrderStatus.CANCELLED
+                then 1 else 0 end), 0) as cancelled
+            from Order o
+            where (:from is null or o.createdAt >= :from)
+              and (:to is null or o.createdAt < :to)
+              and (:handledBy is null or o.handledBy = :handledBy)
+            """)
+    Statistics statistics(@Param("from") Instant from, @Param("to") Instant to,
+            @Param("handledBy") UUID handledBy);
+
+    @EntityGraph(attributePaths = "items")
+    @Query("select distinct o from Order o where o.id in :ids")
+    java.util.List<Order> findWithItems(@Param("ids") Collection<UUID> ids);
+
     @Override
     @EntityGraph(attributePaths = "items")
     java.util.Optional<Order> findById(UUID id);

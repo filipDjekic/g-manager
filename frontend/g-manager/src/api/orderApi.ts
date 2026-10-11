@@ -1,6 +1,6 @@
 import { apiClient } from './client'
 import type { PageResponse } from '../types/api.types'
-import type { CreateOrderInput, Order, OrderStatus } from '../types/order.types'
+import type { CreateOrderInput, ManagedOrder, Order, OrderStatistics, OrderStatus } from '../types/order.types'
 import type { BulkItem, BulkOperationResponse } from '../types/bulk.types'
 
 export interface OrderFilters {
@@ -10,7 +10,8 @@ export interface OrderFilters {
   handledBy?: string
   from?: string
   to?: string
-  sort?: 'createdAt' | 'status' | 'totalPrice'
+  search?: string
+  sort?: 'createdAt' | 'updatedAt' | 'status' | 'totalPrice'
   direction?: 'ASC' | 'DESC'
 }
 
@@ -22,7 +23,10 @@ export const orderApi = {
   mine: (params: OrderFilters) =>
     apiClient.get<PageResponse<Order>>('/orders/me', { params }).then(({ data }) => data),
   list: (params: OrderFilters) =>
-    apiClient.get<PageResponse<Order>>('/orders', { params }).then(({ data }) => data),
+    apiClient.get<PageResponse<ManagedOrder>>('/orders', { params }).then(({ data }) => data),
+  detail: (id: string) => apiClient.get<ManagedOrder>(`/orders/${id}`).then(({ data }) => data),
+  statistics: (params: Pick<OrderFilters, 'from' | 'to' | 'handledBy'>) =>
+    apiClient.get<OrderStatistics>('/orders/statistics', { params }).then(({ data }) => data),
   changeStatus: (order: Pick<Order, 'id' | 'version'>, status: OrderStatus) =>
     apiClient.patch<Order>(`/orders/${order.id}/status`, {
       status,

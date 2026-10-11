@@ -3,6 +3,8 @@ package com.game_manager.gm.order;
 import com.game_manager.gm.common.dto.PageResponse;
 import com.game_manager.gm.order.dto.CreateOrderRequest;
 import com.game_manager.gm.order.dto.OrderResponse;
+import com.game_manager.gm.order.dto.OrderManagementResponse;
+import com.game_manager.gm.order.dto.OrderStatisticsResponse;
 import com.game_manager.gm.order.dto.UpdateOrderStatusRequest;
 import com.game_manager.gm.order.dto.BulkOrderStatusRequest;
 import com.game_manager.gm.common.dto.BulkOperationResponse;
@@ -27,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class OrderController {
     private final OrderService orderService;
+    private final OrderManagementService managementService;
     private final BulkOperationExecutor bulkOperationExecutor;
 
     @PostMapping
@@ -47,17 +50,27 @@ public class OrderController {
     }
 
     @GetMapping
-    public PageResponse<OrderResponse> list(
+    public PageResponse<OrderManagementResponse> list(
             @RequestParam(required = false) UUID handledBy,
             @RequestParam(required = false) OrderStatus status,
             @RequestParam(required = false) LocalDate from,
             @RequestParam(required = false) LocalDate to,
+            @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt") String sort,
             @RequestParam(defaultValue = "DESC") String direction) {
-        return orderService.listAll(handledBy, status, from, to, page, size, sort, direction);
+        return managementService.list(handledBy, status, from, to, search, page, size, sort, direction);
     }
+
+    @GetMapping("/statistics")
+    public OrderStatisticsResponse statistics(@RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to, @RequestParam(required = false) UUID handledBy) {
+        return managementService.statistics(from, to, handledBy);
+    }
+
+    @GetMapping("/{id}")
+    public OrderManagementResponse get(@PathVariable UUID id) { return managementService.get(id); }
 
     @PatchMapping("/{id}/status")
     public OrderResponse changeStatus(

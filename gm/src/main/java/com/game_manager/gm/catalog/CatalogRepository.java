@@ -9,6 +9,21 @@ import java.util.Optional;
 
 public interface CatalogRepository
         extends JpaRepository<CatalogItem, UUID>, JpaSpecificationExecutor<CatalogItem> {
+    interface ProductDisplay {
+        UUID getId();
+        String getName();
+        String getImageUrl();
+    }
+
+    @Query("""
+            select p.id as id, p.name as name, p.imageUrl as imageUrl
+            from CatalogItem p where p.id in :ids
+              and p.type = com.game_manager.gm.catalog.ItemType.PRODUCT and p.deletedAt is null
+              and (:activeOnly = false or p.active = true)
+            """)
+    java.util.List<ProductDisplay> productDisplays(@Param("ids") java.util.Collection<UUID> ids,
+            @Param("activeOnly") boolean activeOnly);
+
     interface Statistics {
         long getServiceCount();
         long getActiveServiceCount();

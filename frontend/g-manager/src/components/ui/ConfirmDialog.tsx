@@ -13,6 +13,7 @@ export interface ConfirmDialogProps {
   disabled?: boolean
   error?: string
   errorMessage?: string
+  formatError?: (cause: unknown) => string
   reasonLabel?: string
   reasonRequired?: boolean
   initialReason?: string
@@ -25,7 +26,7 @@ export interface ConfirmDialogProps {
 }
 
 function Confirmation({ title, description, confirmLabel = 'Potvrdi', cancelLabel = 'Odustani',
-  variant = 'default', loading = false, disabled = false, error, errorMessage = 'Akciju nije moguće izvršiti.',
+  variant = 'default', loading = false, disabled = false, error, errorMessage = 'Akciju nije moguće izvršiti.', formatError,
   reasonLabel, reasonRequired = false, initialReason = '', reasonMaxLength = 500,
   inputMode = 'textarea', autoClose = true, onConfirm, onClose, onCancel }: ConfirmDialogProps) {
   const [reason, setReason] = useState(initialReason)
@@ -48,7 +49,7 @@ function Confirmation({ title, description, confirmLabel = 'Potvrdi', cancelLabe
     try {
       await onConfirm(reason.trim() || undefined)
       if (autoClose) onClose()
-    } catch (cause) { setFailure(apiErrorMessage(cause, errorMessage)) }
+    } catch (cause) { setFailure(formatError ? formatError(cause) : apiErrorMessage(cause, errorMessage)) }
     finally { submitting.current = false; setPending(false) }
   }
 

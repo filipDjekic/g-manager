@@ -11,6 +11,19 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificationExecutor<User> {
+    interface DisplayName {
+        UUID getId();
+        String getName();
+        com.game_manager.gm.common.security.Role getRole();
+        boolean getActive();
+    }
+
+    @Query("""
+            select u.id as id, u.name as name, u.role as role, u.active as active
+            from User u where u.id in :ids and u.deletedAt is null
+            """)
+    java.util.List<DisplayName> displayNames(@Param("ids") java.util.Collection<UUID> ids);
+
     interface CustomerCounts {
         long getTotal();
         long getActive();
