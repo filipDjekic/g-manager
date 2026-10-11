@@ -6,7 +6,7 @@ import { hasCapability } from '../auth/capabilities'
 import type { CatalogItem } from '../types/catalog.types'
 import { CatalogIcon, catalogTypeLabel } from './CatalogPresentation'
 
-export function CatalogImage({ item, eager = false }: { item: CatalogItem; eager?: boolean }) {
+export function CatalogImage({ item, eager = false }: { item: Pick<CatalogItem, 'type' | 'imageUrl'>; eager?: boolean }) {
   const user = useAuthStore(state => state.user)
   const container = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(eager)
