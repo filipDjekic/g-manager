@@ -3,6 +3,11 @@ export type ReservationStatus =
 
 export type ReservationDetailAction = ReservationStatus | 'EDIT' | 'ASSIGN_RESOURCE'
 
+export interface MyReservationSummary {
+  upcomingReservations: number; todayReservations: number; completedReservations: number
+  today: string; timezone: string; serverTime: string
+}
+
 export interface ReservationSummary {
   todayReservations: number
   upcomingReservations: number

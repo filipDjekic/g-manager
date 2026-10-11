@@ -8,6 +8,7 @@ import type {
   ReservationDetail,
   ReservationStatus,
   ReservationSummary,
+  MyReservationSummary,
   ReservationBookingPlan,
   CalendarContext,
   CalendarReservation,
@@ -33,6 +34,7 @@ export interface ReservationFilters {
   sort?: 'startTime' | 'endTime' | 'status' | 'createdAt'
   direction?: 'ASC' | 'DESC'
   search?: string
+  upcoming?: boolean
 }
 
 export const reservationApi = {
@@ -55,6 +57,7 @@ export const reservationApi = {
   mine: (params: ReservationFilters) =>
     apiClient.get<PageResponse<Reservation>>('/reservations/me', { params })
       .then(({ data }) => data),
+  mineSummary: () => apiClient.get<MyReservationSummary>('/reservations/me/summary').then(({ data }) => data),
   list: (params: ReservationFilters) =>
     apiClient.get<PageResponse<Reservation>>('/reservations', { params })
       .then(({ data }) => data),

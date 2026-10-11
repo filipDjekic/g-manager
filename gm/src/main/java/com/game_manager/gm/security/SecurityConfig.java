@@ -177,7 +177,7 @@ public class SecurityConfig {
                             "/api/v1/reservations/*/resource"
                         ).hasAuthority("RESERVATION_CHANGE_STATUS")
                         .requestMatchers("/api/v1/waitlist/**", "/api/v1/waitlist").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/reservations/me").hasAuthority("RESERVATION_READ_OWN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/reservations/me", "/api/v1/reservations/me/summary").hasAuthority("RESERVATION_READ_OWN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/reservations/calendar").hasAuthority("RESERVATION_READ_ALL")
                         .requestMatchers(HttpMethod.GET, "/api/v1/reservations").hasAuthority("RESERVATION_READ_ALL")
                         .requestMatchers(HttpMethod.GET, "/api/v1/reservations/*").authenticated()

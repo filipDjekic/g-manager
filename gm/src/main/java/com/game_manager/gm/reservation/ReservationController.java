@@ -7,6 +7,7 @@ import com.game_manager.gm.reservation.dto.ReservationResponse;
 import com.game_manager.gm.reservation.dto.ReservationDetailResponse;
 import com.game_manager.gm.reservation.dto.CalendarReservationResponse;
 import com.game_manager.gm.reservation.dto.ReservationSummaryResponse;
+import com.game_manager.gm.reservation.dto.MyReservationSummaryResponse;
 import com.game_manager.gm.reservation.dto.BulkReservationStatusRequest;
 import com.game_manager.gm.common.dto.BulkOperationResponse;
 import com.game_manager.gm.common.observability.BulkOperationExecutor;
@@ -62,8 +63,14 @@ public class ReservationController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "startTime") String sort,
-            @RequestParam(defaultValue = "DESC") String direction) {
-        return reservationService.listMine(status, from, to, page, size, sort, direction);
+            @RequestParam(defaultValue = "DESC") String direction,
+            @RequestParam(defaultValue = "false") boolean upcoming) {
+        return reservationService.listMine(status, from, to, page, size, sort, direction, upcoming);
+    }
+
+    @GetMapping("/me/summary")
+    public MyReservationSummaryResponse mineSummary() {
+        return reservationService.mineSummary();
     }
 
     @GetMapping
