@@ -201,9 +201,12 @@ public class UserService {
         if (active != null) {
             specification = specification.and(UserSpecifications.isActive(active));
         }
+        var pageable = pageRequestFactory.create(page, size, sort, direction, ALLOWED_SORTS);
+        // Keep employee pages stable when names or creation timestamps are equal.
+        if (role == Role.EMPLOYEE) pageable = org.springframework.data.domain.PageRequest.of(
+                pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort().and(Sort.by("id")));
         Page<UserResponse> result = userRepository
-                .findAll(specification,
-                        pageRequestFactory.create(page, size, sort, direction, ALLOWED_SORTS))
+                .findAll(specification, pageable)
                 .map(UserResponse::from);
         return PageResponse.from(result);
     }

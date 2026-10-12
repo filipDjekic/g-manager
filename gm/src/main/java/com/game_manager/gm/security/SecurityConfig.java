@@ -88,6 +88,9 @@ public class SecurityConfig {
                             .hasAuthority("PROFILE_UPDATE")
                         .requestMatchers(HttpMethod.POST, "/api/v1/users/me/avatar").hasAuthority("PROFILE_UPDATE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/users/employees").hasAuthority("EMPLOYEE_LIST")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/users/employees/statistics", "/api/v1/users/employees/*",
+                                "/api/v1/users/employees/*/assignments", "/api/v1/users/employees/*/time-off")
+                            .hasAuthority("USER_LIST")
                         .requestMatchers(HttpMethod.GET, "/api/v1/users").hasAuthority("USER_LIST")
                         .requestMatchers(HttpMethod.POST, "/api/v1/users").hasAuthority("USER_CREATE")
                         .requestMatchers(HttpMethod.POST, "/api/v1/users/bulk/deactivate").hasAuthority("USER_DEACTIVATE")
