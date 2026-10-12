@@ -98,6 +98,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/users/*").hasAuthority("USER_DELETE")
                         .requestMatchers(HttpMethod.POST, "/api/v1/users/*/restore").hasAuthority("USER_RESTORE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/users/deleted").hasAuthority("USER_RESTORE")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/users/statistics", "/api/v1/users/*")
+                            .hasAuthority("USER_LIST")
                         .requestMatchers("/api/v1/customers/*/crm/**", "/api/v1/customers/*/crm")
                             .hasAuthority("CUSTOMER_CRM_MANAGE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/customers/**").hasAuthority("CUSTOMER_READ")

@@ -29,6 +29,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -38,6 +39,8 @@ import org.springframework.web.multipart.MultipartFile;
 public class UserService {
     private static final Set<String> ALLOWED_SORTS =
             Set.of("name", "email", "role", "active", "createdAt");
+    private static final Set<String> DELETED_SORTS =
+            Set.of("name", "email", "role", "active", "createdAt", "deletedAt");
 
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
@@ -202,8 +205,8 @@ public class UserService {
             specification = specification.and(UserSpecifications.isActive(active));
         }
         var pageable = pageRequestFactory.create(page, size, sort, direction, ALLOWED_SORTS);
-        // Keep employee pages stable when names or creation timestamps are equal.
-        if (role == Role.EMPLOYEE) pageable = org.springframework.data.domain.PageRequest.of(
+        // Keep pages stable when names or creation timestamps are equal.
+        pageable = org.springframework.data.domain.PageRequest.of(
                 pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort().and(Sort.by("id")));
         Page<UserResponse> result = userRepository
                 .findAll(specification, pageable)
@@ -283,12 +286,49 @@ public class UserService {
     @Transactional(readOnly = true)
     @PreAuthorize("hasAuthority('USER_RESTORE')")
     public PageResponse<UserResponse> listDeletedUsers(int page, int size) {
+        return listDeletedUsers(null, null, page, size, "deletedAt", "DESC", null);
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('USER_RESTORE')")
+    public PageResponse<UserResponse> listDeletedUsers(Role role, Boolean active, int page, int size,
+            String sort, String direction, String search) {
         AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
-        Specification<User> spec = UserSpecifications.deleted();
+        requireManagementRole(actor.role());
+        Specification<User> spec = UserSpecifications.deleted().and(UserSpecifications.matchesSearch(search))
+                .and(UserSpecifications.hasRole(role)).and(UserSpecifications.isActive(active));
         if (actor.role() == Role.ADMIN) spec = spec.and(UserSpecifications.adminVisibleOnly(true));
-        return PageResponse.from(userRepository.findAll(spec,
-                pageRequestFactory.create(page, size, Sort.by("deletedAt").descending()))
+        var pageable = pageRequestFactory.create(page, size, sort, direction, DELETED_SORTS);
+        return PageResponse.from(userRepository.findAll(spec, org.springframework.data.domain.PageRequest.of(
+                pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort().and(Sort.by("id"))))
                 .map(UserResponse::from));
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('USER_LIST')")
+    public UserStatistics statistics() {
+        AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
+        requireManagementRole(actor.role());
+        var counts = userRepository.managementCounts(actor.role() == Role.ADMIN);
+        return new UserStatistics(counts.getTotal(), counts.getActive(), counts.getAdministrators(), counts.getInactive());
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('USER_LIST')")
+    public UserResponse getUser(UUID id, boolean deleted) {
+        AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
+        requireManagementRole(actor.role());
+        if (deleted) {
+            var authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || authentication.getAuthorities().stream()
+                    .noneMatch(authority -> "USER_RESTORE".equals(authority.getAuthority()))) {
+                throw new ApplicationException(HttpStatus.FORBIDDEN, "Deleted user access is not permitted");
+            }
+        }
+        User target = (deleted ? userRepository.findDeletedById(id) : userRepository.findById(id))
+                .filter(user -> actor.role() != Role.ADMIN || user.getRole() == Role.EMPLOYEE)
+                .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND, "User not found"));
+        return UserResponse.from(target);
     }
 
     @Transactional(readOnly = true)

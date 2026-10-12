@@ -1,9 +1,12 @@
 import { apiClient } from './client'
 import type { PageResponse } from '../types/api.types'
-import type { CreateUserRequest, EmployeeAssignments, EmployeeLeave, EmployeeStatistics, UserResponse } from '../types/user.types'
+import type { CreateUserRequest, EmployeeAssignments, EmployeeLeave, EmployeeStatistics, UserResponse, UserStatistics } from '../types/user.types'
 import type { BulkOperationResponse } from '../types/bulk.types'
 
 export const userApi = {
+  statistics: () => apiClient.get<UserStatistics>('/users/statistics').then(({ data }) => data),
+  detail: (id: string, deleted = false) => apiClient.get<UserResponse>(`/users/${encodeURIComponent(id)}`,
+    { params: { deleted } }).then(({ data }) => data),
   employeeStatistics: () => apiClient.get<EmployeeStatistics>('/users/employees/statistics').then(({ data }) => data),
   employee: (id: string) => apiClient.get<UserResponse>(`/users/employees/${encodeURIComponent(id)}`).then(({ data }) => data),
   employeeAssignments: (id: string) => apiClient.get<EmployeeAssignments>(`/users/employees/${encodeURIComponent(id)}/assignments`).then(({ data }) => data),
@@ -27,8 +30,8 @@ export const userApi = {
   deactivate: (id: string) => apiClient.patch<void>(`/users/${id}/deactivate`),
   bulkDeactivate: (ids: string[]) => apiClient.post<BulkOperationResponse>('/users/bulk/deactivate', { ids })
     .then(({ data }) => data),
-  deleted: (page = 0, size = 20) =>
-    apiClient.get<PageResponse<UserResponse>>('/users/deleted', { params: { page, size } })
+  deleted: (page = 0, size = 20, filters?: { role?: string; active?: boolean; search?: string; sort?: string; direction?: string }) =>
+    apiClient.get<PageResponse<UserResponse>>('/users/deleted', { params: { page, size, ...filters } })
       .then(({ data }) => data),
   remove: (id: string, reason: string) => apiClient.delete<void>(`/users/${id}`, { data: { reason } }),
   restore: (id: string) => apiClient.post<UserResponse>(`/users/${id}/restore`).then(({ data }) => data),
