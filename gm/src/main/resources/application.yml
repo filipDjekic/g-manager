@@ -80,8 +80,6 @@ app:
   features:
     reports:
       enabled: ${FEATURE_REPORTS_ENABLED:true}
-    workflows:
-      enabled: ${FEATURE_WORKFLOWS_ENABLED:true}
     pwa-offline:
       enabled: ${FEATURE_PWA_OFFLINE_ENABLED:true}
     ai-assistant:

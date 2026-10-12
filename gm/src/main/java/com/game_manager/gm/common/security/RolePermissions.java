@@ -38,8 +38,7 @@ public final class RolePermissions {
                 Permission.GAMING_SESSION_EXTEND, Permission.GAMING_SESSION_TERMINATE,
                 Permission.RESERVATION_CREATE, Permission.RESERVATION_READ_ALL, Permission.RESERVATION_CHANGE_STATUS,
                 Permission.ORDER_READ_ALL, Permission.ORDER_CHANGE_STATUS,
-                Permission.DASHBOARD_OPERATIONAL, Permission.REPORT_READ,
-                Permission.WORKFLOW_SUBMIT));
+                Permission.DASHBOARD_OPERATIONAL, Permission.REPORT_READ));
         permissions.put(Role.ADMIN, immutableWithProfile(
                 Permission.WAITLIST_MANAGE,
                 Permission.USER_LIST, Permission.USER_CREATE, Permission.USER_DEACTIVATE,
@@ -59,7 +58,6 @@ public final class RolePermissions {
                 Permission.ORDER_READ_ALL, Permission.ORDER_CHANGE_STATUS,
                 Permission.DASHBOARD_SUMMARY, Permission.DASHBOARD_OPERATIONAL,
                 Permission.METRICS_READ, Permission.REPORT_READ, Permission.REPORT_MANAGE,
-                Permission.WORKFLOW_ACT, Permission.WORKFLOW_MANAGE,
                 Permission.FEATURE_FLAG_MANAGE));
         permissions.put(Role.OWNER, immutableWithProfile(
                 Permission.WAITLIST_MANAGE,
@@ -80,7 +78,6 @@ public final class RolePermissions {
                 Permission.ORDER_READ_ALL, Permission.ORDER_CHANGE_STATUS,
                 Permission.DASHBOARD_SUMMARY, Permission.DASHBOARD_OPERATIONAL,
                 Permission.METRICS_READ, Permission.REPORT_READ, Permission.REPORT_MANAGE,
-                Permission.WORKFLOW_ACT, Permission.WORKFLOW_MANAGE,
                 Permission.FEATURE_FLAG_MANAGE));
         return Map.copyOf(permissions);
     }

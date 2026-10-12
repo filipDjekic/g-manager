@@ -26,8 +26,6 @@ const management: NavigationGroup[] = [
   ] },
   { label: 'Upravljanje', items: [
     { label: 'Izveštaji', to: '/reports', capability: 'REPORT_READ', flag: 'REPORTS' },
-    { label: 'Workflow', to: '/workflows', capability: ['WORKFLOW_SUBMIT', 'WORKFLOW_ACT', 'WORKFLOW_MANAGE'], flag: 'WORKFLOWS' },
-    { label: 'Dokumenti', to: '/documents', capability: 'PROFILE_READ' },
     { label: 'Podešavanja', to: '/settings', capability: 'WORKING_HOURS_MANAGE' },
   ] },
   { label: 'Sistem', items: [
@@ -57,8 +55,6 @@ const employee: NavigationGroup[] = [
     { label: 'Klijenti', to: '/customers', capability: 'CUSTOMER_READ' },
     { label: 'Katalog', to: '/catalog', capability: 'CATALOG_READ' },
     { label: 'Izveštaji', to: '/reports', capability: 'REPORT_READ', flag: 'REPORTS' },
-    { label: 'Workflow', to: '/workflows', capability: ['WORKFLOW_SUBMIT', 'WORKFLOW_ACT', 'WORKFLOW_MANAGE'], flag: 'WORKFLOWS' },
-    { label: 'Dokumenti', to: '/documents', capability: 'PROFILE_READ' },
   ] },
   { label: 'Moj nalog', items: [
     { label: 'Profil', to: '/profile', capability: 'PROFILE_READ' },
@@ -78,7 +74,6 @@ const customer: NavigationGroup[] = [
     { label: 'Profil', to: '/profile', capability: 'PROFILE_READ' },
     { label: 'Obaveštenja', to: '/notification-preferences', capability: 'PROFILE_READ' },
     { label: 'Sesije', to: '/sessions', capability: 'PROFILE_READ' },
-    { label: 'Dokumenti', to: '/documents', capability: 'PROFILE_READ' },
   ] },
 ]
 

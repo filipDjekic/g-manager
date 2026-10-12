@@ -4,7 +4,6 @@ import java.time.LocalDate;
 
 public enum FeatureFlag {
     REPORTS(true, "Operations", LocalDate.of(2027, 2, 1)),
-    WORKFLOWS(true, "Product", LocalDate.of(2027, 2, 1)),
     PWA_OFFLINE(true, "Platform", LocalDate.of(2027, 2, 1)),
     AI_ASSISTANT(false, "Security", LocalDate.of(2026, 12, 1));
 

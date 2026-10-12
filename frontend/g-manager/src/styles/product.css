@@ -92,7 +92,7 @@ small { color: var(--color-text-muted); }
 .setup-checklist li small { font-size: .75rem; }
 .setup-step-number { color: var(--color-secondary); font-size: .8rem; font-variant-numeric: tabular-nums; }
 summary { cursor: pointer; color: var(--color-text-secondary); font-weight: 700; }
-summary:focus-visible, .document-actions label:focus-within { outline: 0; box-shadow: var(--focus-ring); }
+summary:focus-visible { outline: 0; box-shadow: var(--focus-ring); }
 .selected-resource { border-color: var(--color-primary); box-shadow: var(--glow-primary); }
 .station-detail-grid { display: grid; gap: var(--space-4); }
 .station-detail-grid dd { margin: var(--space-2) 0 0; overflow-wrap: anywhere; }

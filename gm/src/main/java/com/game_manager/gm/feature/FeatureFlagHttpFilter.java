@@ -45,7 +45,6 @@ public class FeatureFlagHttpFilter extends OncePerRequestFilter {
 
     private FeatureFlag flagFor(String uri) {
         if (uri.equals("/api/v1/reports") || uri.startsWith("/api/v1/reports/")) return FeatureFlag.REPORTS;
-        if (uri.equals("/api/v1/workflows") || uri.startsWith("/api/v1/workflows/")) return FeatureFlag.WORKFLOWS;
         return null;
     }
 

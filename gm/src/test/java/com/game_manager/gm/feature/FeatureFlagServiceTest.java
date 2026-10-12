@@ -45,9 +45,9 @@ class FeatureFlagServiceTest {
     @Test
     void percentageAssignmentIsStableForSameIdentity() {
         FeatureFlagOverride partial = override(true, 50, Instant.parse("2026-08-11T12:00:00Z"));
-        when(repository.findByFlagKey("WORKFLOWS")).thenReturn(Optional.of(partial));
-        boolean first = service.enabled(FeatureFlag.WORKFLOWS, subject);
-        assertThat(service.enabled(FeatureFlag.WORKFLOWS, subject)).isEqualTo(first);
+        when(repository.findByFlagKey("REPORTS")).thenReturn(Optional.of(partial));
+        boolean first = service.enabled(FeatureFlag.REPORTS, subject);
+        assertThat(service.enabled(FeatureFlag.REPORTS, subject)).isEqualTo(first);
     }
 
     private FeatureFlagOverride override(boolean enabled, int percentage, Instant expiresAt) {
