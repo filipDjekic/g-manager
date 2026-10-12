@@ -106,7 +106,7 @@ export function AppShell() {
       <div className="shell-page-context"><small>{current?.group ?? 'Moj prostor'}</small><strong>{current?.label ?? 'G-Manager'}</strong></div>
       <div className="shell-search"><CommandPalette /></div>
       <div className="shell-actions">
-        {hasCapability(user, 'RESERVATION_READ_ALL') && location.pathname !== '/reservations' && <NavLink className="shell-quick-action" to="/reservations">Rezervacije →</NavLink>}
+        {hasCapability(user, 'RESERVATION_READ_ALL') && location.pathname !== '/reservations'}
         <NotificationCenter />
         <Button className="shell-account-button" type="button" variant="secondary" onClick={() => setAccountOpen(true)}
           aria-label={`Moj nalog: ${user?.name ?? ''}, ${userLabel}`} aria-haspopup="dialog" aria-expanded={accountOpen}>

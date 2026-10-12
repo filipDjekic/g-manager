@@ -1,45 +1,94 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useRef, useState, type FormEvent } from 'react'
+import { useForm, useWatch } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 import { authApi } from '../api/authApi'
 import { apiErrorMessage } from '../api/client'
-import { activationSchema } from '../auth/schemas'
-import { Button, Card, ErrorState, FormField, Input } from '../components/ui'
+import { activationFormSchema } from '../auth/schemas'
+import { PasswordStrength } from '../auth/PasswordStrength'
+import { applyApiFieldErrors } from '../common/applyApiFieldErrors'
+import { Button, ErrorState } from '../components/ui'
+import { AuthLayout } from '../layout/AuthLayout'
+import { AuthField } from '../layout/AuthField'
 
-type ActivationValues = z.infer<typeof activationSchema>
+type ActivationValues = z.infer<typeof activationFormSchema>
 
 export function ActivatePage() {
   const navigate = useNavigate()
   const [error, setError] = useState('')
-  const form = useForm<ActivationValues>({ resolver: zodResolver(activationSchema) })
-  const submit = form.handleSubmit(async (values) => {
-    setError('')
-    try {
-      await authApi.activate(values)
-      navigate('/login', { replace: true, state: { activated: true } })
-    } catch (cause) {
-      setError(apiErrorMessage(cause, 'Aktivacija trenutno nije dostupna.'))
-    }
+  const [passwordVisible, setPasswordVisible] = useState(false)
+  const [confirmationVisible, setConfirmationVisible] = useState(false)
+  const submitting = useRef(false)
+  const form = useForm<ActivationValues>({
+    resolver: zodResolver(activationFormSchema),
+    defaultValues: { activationSecret: '', password: '', confirmPassword: '' },
   })
-  return <main className="auth-page"><Card className="auth-card">
-    <form className="auth-form" onSubmit={submit} noValidate>
-      <p className="eyebrow">G-Manager</p><h1>Aktivacija naloga</h1>
-      <p>Unesite jednokratni kod koji ste dobili od zaposlenog i postavite svoju lozinku.</p>
-      <FormField label="Aktivacioni kod" htmlFor="activation-secret"
-        error={form.formState.errors.activationSecret?.message}>
-        <Input id="activation-secret" autoComplete="one-time-code"
-          {...form.register('activationSecret')} />
-      </FormField>
-      <FormField label="Nova lozinka" htmlFor="activation-password"
-        error={form.formState.errors.password?.message}>
-        <Input id="activation-password" type="password" autoComplete="new-password"
-          {...form.register('password')} />
-      </FormField>
+  const password = useWatch({ control: form.control, name: 'password' })
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (submitting.current) return
+    submitting.current = true
+    try {
+      await form.handleSubmit(async (values) => {
+        setError('')
+        try {
+          await authApi.activate({ activationSecret: values.activationSecret, password: values.password })
+          navigate('/login', { replace: true, state: { activated: true } })
+        } catch (cause) {
+          applyApiFieldErrors(cause, form.setError, form.setFocus)
+          setError(apiErrorMessage(cause, 'Aktivacija trenutno nije dostupna.'))
+        }
+      })(event)
+    } finally {
+      submitting.current = false
+    }
+  }
+
+  return <AuthLayout>
+    <form className="gm-auth-form" onSubmit={submit} noValidate
+      aria-labelledby="activation-title" aria-describedby="activation-description">
+      <header className="gm-auth-heading">
+        <span className="gm-auth-heading-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"
+            strokeLinecap="round" strokeLinejoin="round" focusable="false">
+            <path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6z" />
+            <path d="m8 12 3 3 5-6" />
+          </svg>
+        </span>
+        <h1 id="activation-title">Aktivacija naloga</h1>
+        <p id="activation-description">Unesite aktivacioni kod i kreirajte lozinku za svoj nalog.</p>
+      </header>
+      <AuthField id="activation-secret" label="Aktivacioni kod" icon="key" required
+        placeholder="Unesite aktivacioni kod" autoComplete="one-time-code" autoCapitalize="none"
+        spellCheck={false} readOnly={form.formState.isSubmitting}
+        error={form.formState.errors.activationSecret?.message}
+        {...form.register('activationSecret')} />
+      <AuthField id="activation-password" label="Nova lozinka" icon="lock" required
+        autoComplete="new-password" autoCapitalize="none" spellCheck={false}
+        readOnly={form.formState.isSubmitting} error={form.formState.errors.password?.message}
+        hint={<PasswordStrength password={password} />}
+        passwordToggle={{
+          visible: passwordVisible,
+          label: passwordVisible ? 'Sakrij novu lozinku' : 'Prikaži novu lozinku',
+          onToggle: () => setPasswordVisible((visible) => !visible),
+          disabled: form.formState.isSubmitting,
+        }}
+        {...form.register('password')} />
+      <AuthField id="activation-confirm-password" label="Potvrda lozinke" icon="lock" required
+        autoComplete="new-password" autoCapitalize="none" spellCheck={false}
+        readOnly={form.formState.isSubmitting} error={form.formState.errors.confirmPassword?.message}
+        passwordToggle={{
+          visible: confirmationVisible,
+          label: confirmationVisible ? 'Sakrij potvrdu lozinke' : 'Prikaži potvrdu lozinke',
+          onToggle: () => setConfirmationVisible((visible) => !visible),
+          disabled: form.formState.isSubmitting,
+        }}
+        {...form.register('confirmPassword')} />
       {error && <ErrorState title="Aktivacija nije uspela" message={error} />}
-      <Button type="submit" loading={form.formState.isSubmitting}>Aktiviraj nalog</Button>
-      <Link to="/login">Nazad na prijavu</Link>
+      <Button className="gm-auth-submit" type="submit" loading={form.formState.isSubmitting}>Aktiviraj nalog</Button>
+      <p className="gm-auth-activation"><Link to="/login">← Nazad na prijavu</Link></p>
     </form>
-  </Card></main>
+  </AuthLayout>
 }
