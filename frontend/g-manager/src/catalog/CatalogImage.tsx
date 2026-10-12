@@ -6,7 +6,9 @@ import { hasCapability } from '../auth/capabilities'
 import type { CatalogItem } from '../types/catalog.types'
 import { CatalogIcon, catalogTypeLabel } from './CatalogPresentation'
 
-export function CatalogImage({ item, eager = false }: { item: Pick<CatalogItem, 'type' | 'imageUrl'>; eager?: boolean }) {
+export function CatalogImage({ item, eager = false, authenticatedPreview = false, alt = '' }: {
+  item: Pick<CatalogItem, 'type' | 'imageUrl'>; eager?: boolean; authenticatedPreview?: boolean; alt?: string
+}) {
   const user = useAuthStore(state => state.user)
   const container = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(eager)
@@ -14,7 +16,7 @@ export function CatalogImage({ item, eager = false }: { item: Pick<CatalogItem, 
   const [failed, setFailed] = useState(false)
   const documentId = /^\/api\/v1\/documents\/([\w-]+)\/content(?:\?|$)/.exec(item.imageUrl ?? '')?.[1]
   // Administrators can also see inactive images through the existing authenticated document policy.
-  const authenticated = Boolean(documentId && hasCapability(user, 'CATALOG_MANAGE'))
+  const authenticated = Boolean(documentId && (authenticatedPreview || hasCapability(user, 'CATALOG_MANAGE')))
   useEffect(() => {
     if (visible) return
     if (!('IntersectionObserver' in window)) { setVisible(true); return }
@@ -35,8 +37,9 @@ export function CatalogImage({ item, eager = false }: { item: Pick<CatalogItem, 
   }, [content.data])
   const source = authenticated ? objectUrl : item.imageUrl
   return <div ref={container} className="gm-catalog-image">
-    {source && !failed && !content.error ? <img src={source} alt="" loading={eager ? 'eager' : 'lazy'} decoding="async"
-      width="640" height="360" onError={() => setFailed(true)} /> : <div className="gm-catalog-image-placeholder">
+    {authenticatedPreview && content.isLoading ? <div className="gm-catalog-image-placeholder" role="status" aria-label="Učitavanje slike"><CatalogIcon type={item.type} /></div>
+      : source && !failed && !content.error ? <img src={source} alt={alt} loading={eager ? 'eager' : 'lazy'} decoding="async"
+        width="640" height="360" onError={() => setFailed(true)} /> : <div className="gm-catalog-image-placeholder">
       <CatalogIcon type={item.type} /><span>{catalogTypeLabel(item.type)}</span>
       {(failed || content.error) && <small>Slika trenutno nije dostupna</small>}
     </div>}

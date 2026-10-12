@@ -103,9 +103,10 @@ public class CatalogService {
                 .and(CatalogSpecifications.isActive(effectiveActive))
                 .and(CatalogSpecifications.nameContains(search))
                 .and(CatalogSpecifications.priceBetween(minPrice, maxPrice));
+        var request = pageRequestFactory.create(page, size, sort, direction, ALLOWED_SORTS);
         Page<CatalogItemResponse> result = catalogRepository
-                .findAll(specification,
-                        pageRequestFactory.create(page, size, sort, direction, ALLOWED_SORTS))
+                .findAll(specification, org.springframework.data.domain.PageRequest.of(request.getPageNumber(),
+                        request.getPageSize(), request.getSort().and(org.springframework.data.domain.Sort.by("id"))))
                 .map(CatalogItemResponse::from);
         return PageResponse.from(result);
     }

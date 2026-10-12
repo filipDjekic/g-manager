@@ -1,6 +1,6 @@
 import { apiClient } from './client'
 import type { PageResponse } from '../types/api.types'
-import type { CreateOrderInput, ManagedOrder, Order, OrderStatistics, OrderStatus } from '../types/order.types'
+import type { CreateOrderInput, CustomerOrderDetail, ManagedOrder, Order, OrderStatistics, OrderStatus } from '../types/order.types'
 import type { BulkItem, BulkOperationResponse } from '../types/bulk.types'
 
 export interface OrderFilters {
@@ -22,6 +22,7 @@ export const orderApi = {
     }).then(({ data }) => data),
   mine: (params: OrderFilters) =>
     apiClient.get<PageResponse<Order>>('/orders/me', { params }).then(({ data }) => data),
+  mineDetail: (id: string) => apiClient.get<CustomerOrderDetail>(`/orders/me/${encodeURIComponent(id)}`).then(({ data }) => data),
   list: (params: OrderFilters) =>
     apiClient.get<PageResponse<ManagedOrder>>('/orders', { params }).then(({ data }) => data),
   detail: (id: string) => apiClient.get<ManagedOrder>(`/orders/${id}`).then(({ data }) => data),

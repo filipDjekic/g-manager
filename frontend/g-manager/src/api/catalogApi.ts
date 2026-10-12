@@ -22,7 +22,7 @@ export interface CatalogFilters {
 }
 
 export const catalogApi = {
-  get: (id: string) => apiClient.get<CatalogItem>(`/catalog/${id}`).then(({ data }) => data),
+  get: (id: string) => apiClient.get<CatalogItem>(`/catalog/${encodeURIComponent(id)}`).then(({ data }) => data),
   statistics: () => apiClient.get<CatalogStatistics>('/catalog/statistics').then(({ data }) => data),
   imageContent: (id: string, signal?: AbortSignal) => apiClient.get<Blob>(`/documents/${id}/content`,
     { params: { preview: true }, responseType: 'blob', signal }).then(({ data }) => data),

@@ -13,6 +13,7 @@ import com.game_manager.gm.common.security.RolePermissions;
 import com.game_manager.gm.order.dto.OrderManagementItemResponse;
 import com.game_manager.gm.order.dto.OrderManagementResponse;
 import com.game_manager.gm.order.dto.OrderStatisticsResponse;
+import com.game_manager.gm.order.dto.CustomerOrderDetailResponse;
 import com.game_manager.gm.user.UserRepository;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -85,6 +86,28 @@ public class OrderManagementService {
         var counts = orders.statistics(start(from), end(to), handledBy);
         return new OrderStatisticsResponse(counts.getTotal(), counts.getCompleted(), counts.getInProgress(),
                 counts.getCancelled(), from, to, properties.businessZone().getId());
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('ORDER_READ_OWN')")
+    public CustomerOrderDetailResponse getMine(UUID id) {
+        var actor = currentUser.requireCurrentUser();
+        if (actor.role() != Role.CUSTOMER)
+            throw new ApplicationException(HttpStatus.FORBIDDEN, "Customer access is required");
+        var order = orders.findById(id)
+                .filter(value -> actor.id().equals(value.getCustomerId()))
+                .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND, "Order not found"));
+        var ids = order.getItems().stream().map(OrderItem::getProductId).collect(Collectors.toSet());
+        Map<UUID, CatalogRepository.ProductDisplay> products = !can(actor, Permission.CATALOG_READ) || ids.isEmpty()
+                ? Map.of() : catalog.productDisplays(ids, true).stream()
+                        .collect(Collectors.toMap(CatalogRepository.ProductDisplay::getId, Function.identity()));
+        return new CustomerOrderDetailResponse(order.getId(), order.getCustomerId(), order.getHandledBy(),
+                order.getStatus(), order.getTotalPrice(), order.getItems().stream().map(item -> {
+                    var product = products.get(item.getProductId());
+                    return new OrderManagementItemResponse(item.getProductId(), item.getQuantity(),
+                            item.getUnitPrice(), item.getLineTotal(), product == null ? null : product.getName(),
+                            product == null ? null : product.getImageUrl());
+                }).toList(), order.getCreatedAt(), order.getUpdatedAt(), order.getVersion());
     }
 
     private List<OrderManagementResponse> project(List<Order> values, AuthenticatedUser actor) {

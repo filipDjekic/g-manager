@@ -28,6 +28,10 @@ export interface ManagedOrderItem extends OrderItem {
   productImageUrl: string | null
 }
 
+export interface CustomerOrderDetail extends Omit<Order, 'items'> {
+  items: ManagedOrderItem[]
+}
+
 export interface ManagedOrder extends Omit<Order, 'items'> {
   items: ManagedOrderItem[]
   customerName: string | null
