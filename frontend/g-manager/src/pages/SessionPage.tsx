@@ -1,121 +1,88 @@
-import { useCallback, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { apiErrorMessage } from '../api/client'
-import { authApi } from '../api/authApi'
+import { useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuthStore } from '../auth/authStore'
+import { hasCapability } from '../auth/capabilities'
+import { Card, ErrorState } from '../components/ui'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
-import { Badge, EmptyState, Skeleton, TableShell } from '../components/ui'
-import type { SecurityEventInfo, SecurityEventType, SessionInfo } from '../types/auth.types'
+import { ActiveDevices, SecurityHistory, SessionHeading, SessionKpis } from '../sessions/SessionDashboardViews'
+import { SessionIcon, SessionTime, type SecurityFilter } from '../sessions/sessionPresentation'
+import { useSessionDashboard } from '../sessions/useSessionDashboard'
+import type { SessionInfo } from '../types/auth.types'
+import '../sessions/sessions.css'
 
-const eventLabels: Record<SecurityEventType, string> = {
-  LOGIN_SUCCESS: 'Uspešna prijava', LOGIN_FAILURE: 'Neuspešna prijava',
-  TOKEN_REFRESH: 'Sesija osvežena', TOKEN_REUSE: 'Otkrivena ponovna upotreba tokena',
-  SESSION_REVOKED: 'Sesija opozvana', ALL_SESSIONS_REVOKED: 'Sve sesije opozvane',
-  LOGOUT: 'Odjava',
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat('sr-Latn-RS', { dateStyle: 'medium', timeStyle: 'short' })
-    .format(new Date(value))
-}
+type RevocationSelection = { kind: 'session'; session: SessionInfo } | { kind: 'all' }
 
 export function SessionPage() {
-  const navigate = useNavigate()
-  const clearSession = useAuthStore((state) => state.clearSession)
-  const [sessions, setSessions] = useState<SessionInfo[]>([])
-  const [events, setEvents] = useState<SecurityEventInfo[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [pendingId, setPendingId] = useState<string | null>(null)
-  const [showRevokeAll, setShowRevokeAll] = useState(false)
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
+  const actor = useAuthStore(state => state.user)
+  if (!actor || !hasCapability(actor, 'PROFILE_READ')) return <main className="workspace gm-session">
+    <SessionHeading /><ErrorState title="Pristup nije dozvoljen" message="Nemate dozvolu za pregled aktivnih sesija." />
+  </main>
+  return <SessionWorkspace key={actor.id} actorId={actor.id} canChangePassword={hasCapability(actor, 'PROFILE_UPDATE')} />
+}
 
-  const load = useCallback(async () => {
-    try {
-      const [sessionData, eventData] = await Promise.all([
-        authApi.sessions(), authApi.securityEvents(),
-      ])
-      setSessions(sessionData)
-      setEvents(eventData)
-    } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Sesije trenutno nisu dostupne.'))
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+function SessionWorkspace({ actorId, canChangePassword }: { actorId: string; canChangePassword: boolean }) {
+  const dashboard = useSessionDashboard(actorId)
+  const [selection, setSelection] = useState<RevocationSelection | null>(null)
+  const [filter, setFilter] = useState<SecurityFilter>('all')
+  const devicesHeading = useRef<HTMLHeadingElement>(null)
+  const selectedRevoked = useRef(false)
+  const busy = dashboard.fetching || dashboard.pendingId !== null
+  const refresh = () => { void dashboard.refresh() }
+  const tokenReuse = dashboard.events.data?.some(event => event.type === 'TOKEN_REUSE') ?? false
 
-  useEffect(() => {
-    void Promise.all([authApi.sessions(), authApi.securityEvents()])
-      .then(([sessionData, eventData]) => { setSessions(sessionData); setEvents(eventData) })
-      .catch((requestError) => setError(apiErrorMessage(requestError, 'Sesije trenutno nisu dostupne.')))
-      .finally(() => setIsLoading(false))
-  }, [])
+  function openConfirmation(value: RevocationSelection) {
+    if (busy) return
+    selectedRevoked.current = false
+    setSelection(value)
+  }
 
-  async function revoke(session: SessionInfo) {
-    setPendingId(session.id)
-    setError('')
-    try {
-      await authApi.revokeSession(session.id)
-      if (session.current) {
-        clearSession()
-        navigate('/login', { replace: true })
-        return
-      }
-      setMessage('Izabrana sesija je opozvana.')
-      await load()
-    } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Sesija nije mogla biti opozvana.'))
-    } finally {
-      setPendingId(null)
+  function closeConfirmation() {
+    setSelection(null)
+    if (selectedRevoked.current) {
+      selectedRevoked.current = false
+      // A removed row cannot receive the shared dialog's restored focus.
+      window.requestAnimationFrame(() => devicesHeading.current?.focus({ preventScroll: true }))
     }
   }
 
-  async function revokeAll() {
-    setPendingId('all')
-    setError('')
-    try {
-      await authApi.revokeAllSessions()
-      clearSession()
-      navigate('/login', { replace: true })
-    } catch (requestError) {
-      setError(apiErrorMessage(requestError, 'Sesije nisu mogle biti opozvane.'))
-      setPendingId(null)
-      throw requestError
+  async function confirmRevocation() {
+    if (!selection) return
+    if (selection.kind === 'all') await dashboard.revokeAll()
+    else {
+      await dashboard.revoke(selection.session)
+      selectedRevoked.current = !selection.session.current
     }
   }
 
-  return <main className="workspace">
-    <div className="page-heading">
-      <div><p className="eyebrow">Bezbednost naloga</p><h1>Aktivne sesije</h1></div>
-      {sessions.length > 0 && <button className="danger-button" type="button"
-        onClick={() => setShowRevokeAll(true)}>Opozovi sve sesije</button>}
-    </div>
-    {error && <p className="error-banner" role="alert">{error}</p>}
-    {message && <p className="success-banner" role="status">{message}</p>}
-    {isLoading ? <Skeleton lines={4} label="Učitavanje sesija" /> : sessions.length === 0
-      ? <EmptyState title="Nema aktivnih sesija" />
-      : <div className="session-list">{sessions.map((session) =>
-        <article className={`panel session-card${session.current ? ' current' : ''}`} key={session.id}>
-          <div><h2>{session.deviceLabel}</h2>
-            {session.current && <Badge tone="info">Ovaj uređaj</Badge>}</div>
-          <p title={session.userAgentSummary}>Poslednja aktivnost: {formatDate(session.lastSeenAt)}</p>
-          <p>Prijavljena: {formatDate(session.createdAt)} · Ističe: {formatDate(session.expiresAt)}</p>
-          <button type="button" className="danger-button" disabled={pendingId === session.id}
-            onClick={() => void revoke(session)}>
-            {pendingId === session.id ? 'Opozivanje…' : session.current ? 'Odjavi ovaj uređaj' : 'Opozovi sesiju'}
-          </button>
-        </article>)}</div>}
-
-    <section className="security-history"><h2>Bezbednosna istorija</h2>
-      {events.length === 0 ? <p className="empty-state compact">Još nema događaja.</p>
-        : <TableShell label="Bezbednosna istorija"><table className="responsive-table"><thead><tr><th>Događaj</th><th>Uređaj</th><th>Vreme</th></tr></thead>
-          <tbody>{events.map((event, index) => <tr key={`${event.occurredAt}-${index}`}>
-            <td data-label="Događaj">{eventLabels[event.type]}</td><td data-label="Uređaj">{event.deviceLabel}</td><td data-label="Vreme">{formatDate(event.occurredAt)}</td>
-          </tr>)}</tbody></table></TableShell>}
-    </section>
-
-    <ConfirmDialog open={showRevokeAll} title="Opozovi sve sesije" variant="danger" confirmLabel="Opozovi sve"
-      description="Bićete odjavljeni i svi uređaji će morati ponovo da se prijave."
-      loading={pendingId === 'all'} autoClose={false} onClose={() => setShowRevokeAll(false)} onConfirm={revokeAll} />
+  return <main className="workspace gm-session">
+    <SessionHeading fetching={dashboard.fetching} disabled={dashboard.pendingId !== null} onRefresh={refresh} />
+    <SessionKpis sessions={dashboard.sessions} events={dashboard.events} />
+    {tokenReuse && <Card className="gm-session-risk">
+      <SessionIcon kind="alert" />
+      <div><h2>Proverite bezbednost naloga</h2>
+        <p>U dostupnoj istoriji zabeležena je neuobičajena bezbednosna aktivnost. Preporučujemo proveru aktivnih sesija i promenu lozinke.</p>
+      </div>
+      {canChangePassword && <Link className="ui-button ui-button--secondary" to="/profile">Promeni lozinku</Link>}
+    </Card>}
+    <ActiveDevices resource={dashboard.sessions} busy={busy} pendingId={dashboard.pendingId} headingRef={devicesHeading}
+      onRetry={refresh} onRevoke={session => openConfirmation({ kind: 'session', session })}
+      onRevokeAll={() => openConfirmation({ kind: 'all' })} />
+    <SecurityHistory resource={dashboard.events} filter={filter} busy={busy} onFilter={setFilter} onRetry={refresh} />
+    <p className="gm-session-timezone"><SessionIcon kind="info" />Datumi i vremena prikazani su za Europe/Belgrade.</p>
+    <ConfirmDialog open={selection !== null} className="gm-session-dialog" variant="danger"
+      title={selection?.kind === 'all' ? 'Odjavi sve sesije' : 'Odjavi uređaj'}
+      titleIcon={<SessionIcon kind="alert" />}
+      confirmLabel={selection?.kind === 'all' ? 'Odjavi sve sesije' : 'Odjavi uređaj'} cancelLabel="Otkaži"
+      loading={dashboard.pendingId !== null} disabled={dashboard.fetching}
+      errorMessage={selection?.kind === 'all' ? 'Sesije nisu mogle biti odjavljene. Pokušajte ponovo.' : 'Izabrani uređaj nije mogao biti odjavljen. Pokušajte ponovo.'}
+      onClose={closeConfirmation} onConfirm={confirmRevocation}
+      description={selection?.kind === 'all'
+        ? 'Ova akcija će prekinuti sve aktivne prijave na vašem nalogu, uključujući uređaj koji trenutno koristite. Moraćete ponovo da se prijavite.'
+        : selection?.kind === 'session' ? <div className="gm-session-confirmation">
+          <p>Da li želite da prekinete prijavu na izabranom uređaju?</p>
+          <dl><div><dt>Uređaj</dt><dd>{selection.session.deviceLabel || 'Nepoznat uređaj'}</dd></div>
+            <div><dt>Poslednja aktivnost</dt><dd><SessionTime value={selection.session.lastSeenAt} /></dd></div></dl>
+          {selection.session.current && <p className="gm-session-current-warning">Ovo je uređaj koji trenutno koristite. Nakon odjavljivanja moraćete ponovo da se prijavite.</p>}
+        </div> : ''} />
   </main>
 }

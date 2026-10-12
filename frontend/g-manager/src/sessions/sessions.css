@@ -1,0 +1,186 @@
+.gm-session,
+.gm-session-dialog {
+  --session-background: var(--color-bg);
+  --session-surface: color-mix(in srgb, var(--color-surface) 85%, var(--color-sidebar));
+  --session-raised: color-mix(in srgb, var(--color-surface-raised) 90%, var(--color-sidebar));
+  --session-muted: var(--color-text-muted);
+  --session-electric: var(--color-primary);
+  --session-purple: var(--color-secondary);
+  min-width: 0;
+  color: var(--color-text);
+}
+
+:root:not([data-theme='light']) :is(.gm-session, .gm-session-dialog) {
+  --session-background: #0b1020;
+  --session-surface: #111a2b;
+  --session-raised: #172238;
+  --session-muted: #98a6c0;
+  --session-electric: #1685ff;
+  --session-purple: #8b3dff;
+  --color-text: #f4f7ff;
+  --color-secondary: #ff1493;
+}
+
+.gm-session { display: grid; align-content: start; gap: var(--space-5); width: 100%; max-width: 88rem; container: session-dashboard / inline-size; background: var(--session-background); padding-bottom: max(var(--space-6), env(safe-area-inset-bottom, 0px)); }
+.gm-session :is(h1, h2, h3, p, dl), .gm-session-dialog p { margin: 0; }
+.gm-session > *, .gm-session :is(div, header, section), .gm-session-dialog :is(div, dl) { min-width: 0; }
+.gm-session-icon { width: 1.2rem; height: 1.2rem; flex: 0 0 auto; vertical-align: middle; }
+.gm-session-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); }
+.gm-session-heading { display: flex; align-items: center; gap: var(--space-4); }
+.gm-session-heading-icon { display: grid; place-items: center; flex: 0 0 auto; color: var(--color-primary); filter: drop-shadow(0 0 7px var(--color-primary-bg)); }
+.gm-session-heading-icon .gm-session-icon { width: 2.2rem; height: 2.2rem; }
+.gm-session-heading h1 { font-size: clamp(1.5rem, 2.5vw, 2.1rem); line-height: 1.25; }
+.gm-session-heading p { margin-top: .4rem; font-size: .85rem; line-height: 1.6; color: var(--session-muted); }
+.gm-session-refresh.ui-button { flex-shrink: 0; min-height: 2.75rem; font-size: .82rem; border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border)); background: var(--session-surface); }
+.gm-session-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); }
+.gm-session-kpi.ui-card { --kpi-accent: var(--color-primary); display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); padding: var(--space-4); border-color: color-mix(in srgb, var(--kpi-accent) 30%, var(--color-border)); background: var(--session-surface); border-radius: var(--radius-lg); }
+.gm-session-kpi--pink.ui-card { --kpi-accent: var(--color-secondary); }
+.gm-session-kpi--purple.ui-card { --kpi-accent: var(--session-purple); }
+.gm-session-kpi-heading { display: flex; align-items: center; gap: var(--space-2); }
+.gm-session-kpi-heading > span { display: grid; place-items: center; width: 2rem; height: 2rem; flex: 0 0 auto; color: var(--kpi-accent); background: color-mix(in srgb, var(--kpi-accent) 9%, transparent); border-radius: var(--radius-sm); }
+.gm-session-kpi-heading h2 { font-size: .78rem; line-height: 1.45; font-weight: 600; }
+.gm-session-kpi-value { color: var(--color-text); font-size: clamp(1.75rem, 2.7vw, 2.3rem); font-weight: 750; line-height: 1.2; overflow-wrap: anywhere; }
+.gm-session-kpi-value--date { font-size: 1rem; line-height: 1.6; }
+.gm-session-kpi-description { margin-top: auto !important; font-size: .71rem; color: var(--session-muted); line-height: 1.6; }
+.gm-session-stale { color: var(--color-warning); font-size: .7rem; line-height: 1.5; }
+.gm-session .ui-skeleton { min-height: 0; width: 100%; }
+.gm-session-kpi .ui-skeleton { margin-block: var(--space-2); }
+.gm-session-panel.ui-card { padding: var(--space-5); gap: var(--space-4); border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border)); background: var(--session-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+.gm-session-history.ui-card { border-color: color-mix(in srgb, var(--color-secondary) 18%, var(--color-border)); }
+.gm-session-panel-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+.gm-session-panel-title { display: flex; align-items: center; gap: var(--space-3); }
+.gm-session-panel-icon { display: grid; place-items: center; flex: 0 0 auto; width: 2.5rem; height: 2.5rem; border-radius: var(--radius-md); color: var(--color-primary); background: var(--color-primary-bg); }
+.gm-session-history .gm-session-panel-icon { color: var(--color-secondary); background: var(--color-secondary-bg); }
+.gm-session-panel-title h2 { font-size: 1.03rem; line-height: 1.4; }
+.gm-session-panel-title h2:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 4px; border-radius: .2rem; }
+.gm-session-panel-title p { margin-top: .3rem; color: var(--session-muted); font-size: .76rem; line-height: 1.6; }
+.gm-session-panel-note { color: var(--session-muted); font-size: .7rem; line-height: 1.6; }
+.gm-session .gm-session-revoke.ui-button, .gm-session .gm-session-revoke-all.ui-button { min-height: 2.75rem; color: var(--color-danger); border-color: color-mix(in srgb, var(--color-secondary) 50%, var(--color-border)); background: var(--color-danger-bg); font-size: .76rem; }
+.gm-session-revoke-all.ui-button { flex-shrink: 0; }
+.gm-session .gm-session-revoke.ui-button { flex-wrap: wrap; width: 100%; gap: .35rem; padding: var(--space-2) var(--space-3); line-height: 1.5; }
+.gm-session-filter { display: block; width: min(17rem, 100%); flex-shrink: 0; }
+.gm-session-filter .ui-input { min-height: 2.75rem; font-size: .76rem; background: var(--session-raised); padding-inline: var(--space-3); }
+.gm-session-table-wrap { min-width: 0; }
+.gm-session-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+.gm-session-table thead { background: var(--session-raised); }
+.gm-session-table thead th { color: var(--session-muted); padding: var(--space-3) var(--space-2); font-size: .68rem; font-weight: 600; line-height: 1.6; vertical-align: middle; border-bottom: 1px solid var(--color-border); }
+.gm-session-table thead th:first-child { border-top-left-radius: var(--radius-sm); }
+.gm-session-table thead th:last-child { border-top-right-radius: var(--radius-sm); }
+.gm-session-table tbody :is(th, td) { padding: var(--space-3) var(--space-2); border-bottom: 1px solid var(--color-border); color: var(--session-muted); font-size: .75rem; font-weight: 400; line-height: 1.65; vertical-align: middle; overflow-wrap: anywhere; }
+.gm-session-table tbody tr:last-child > :is(th, td) { border-bottom: 0; }
+.gm-session-table tbody tr:hover { background: var(--color-row-hover); }
+.gm-session-table strong { color: var(--color-text); font-size: .76rem; font-weight: 600; }
+.gm-session-devices-table thead th:nth-child(1) { width: 17%; }
+.gm-session-devices-table thead th:nth-child(2) { width: 22%; }
+.gm-session-devices-table thead th:nth-child(3), .gm-session-devices-table thead th:nth-child(4), .gm-session-devices-table thead th:nth-child(5) { width: 12%; }
+.gm-session-devices-table thead th:nth-child(6) { width: 10%; }
+.gm-session-devices-table thead th:nth-child(7) { width: 15%; }
+.gm-session-device-identity { display: flex; align-items: center; gap: var(--space-2); text-align: left; }
+.gm-session-device-icon { display: grid; place-items: center; flex: 0 0 auto; width: 2rem; height: 2rem; color: var(--color-primary); background: var(--color-primary-bg); border-radius: var(--radius-sm); }
+.gm-session-devices-table .is-current { background: color-mix(in srgb, var(--color-primary) 3%, transparent); }
+.gm-session-devices-table .is-current > :first-child { box-shadow: inset 2px 0 var(--color-primary); }
+.gm-session-table .ui-badge { font-size: .7rem; line-height: 1.5; padding: .2rem .4rem; }
+.gm-session-mobile-label { display: none; }
+.gm-session-history-table thead th:nth-child(1) { width: 17%; }
+.gm-session-history-table thead th:nth-child(2) { width: 29%; }
+.gm-session-history-table thead th:nth-child(3) { width: 20%; }
+.gm-session-history-table thead th:nth-child(4) { width: 34%; }
+.gm-session-event-name { text-align: left; }
+.gm-session-event-name > div { display: flex; align-items: center; gap: var(--space-2); }
+.gm-session-event-name > .ui-badge { margin-top: .3rem; }
+.gm-session-event-icon { display: grid; place-items: center; flex: 0 0 auto; width: 1.9rem; height: 1.9rem; border-radius: var(--radius-sm); color: var(--color-primary); background: var(--color-primary-bg); }
+.gm-session-event-icon--success { color: var(--color-success); background: var(--color-success-bg); }
+.gm-session-event-icon--danger { color: var(--color-danger); background: var(--color-danger-bg); }
+.gm-session-event-icon--warning { color: var(--color-warning); background: var(--color-warning-bg); }
+.gm-session-event-icon--info { color: var(--session-electric); }
+.gm-session-history-count { color: var(--session-muted); font-size: .71rem; line-height: 1.5; }
+.gm-session-risk.ui-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-4); background: var(--color-warning-bg); border-color: color-mix(in srgb, var(--color-warning) 40%, var(--color-border)); }
+.gm-session-risk > .gm-session-icon { width: 1.7rem; height: 1.7rem; color: var(--color-warning); }
+.gm-session-risk h2 { font-size: .9rem; line-height: 1.5; }
+.gm-session-risk p { margin-top: .35rem; font-size: .76rem; line-height: 1.7; color: var(--session-muted); }
+.gm-session-risk .ui-button { min-height: 2.75rem; font-size: .76rem; text-decoration: none; }
+.gm-session-resource-error { display: grid; gap: var(--space-2); }
+.gm-session-resource-error > p { color: var(--color-warning); font-size: .73rem; line-height: 1.6; }
+.gm-session .ui-error { padding: var(--space-4); border: 1px solid color-mix(in srgb, var(--color-danger) 45%, var(--color-border)); border-radius: var(--radius-md); color: var(--color-danger); background: var(--color-danger-bg); }
+.gm-session .ui-error h2 { font-size: .95rem; margin-bottom: .4rem; }
+.gm-session .ui-error p { font-size: .78rem; line-height: 1.6; }
+.gm-session .ui-error .ui-button { min-height: 2.75rem; margin-top: var(--space-3); }
+.gm-session .ui-empty { padding: var(--space-5); text-align: center; }
+.gm-session .ui-empty h2 { font-size: .9rem; line-height: 1.6; color: var(--session-muted); }
+.gm-session-timezone { display: flex; align-items: center; gap: .5rem; font-size: .71rem; line-height: 1.6; color: var(--session-muted); }
+.gm-session-timezone .gm-session-icon { width: .95rem; height: .95rem; }
+.gm-session-dialog.ui-dialog {
+  width: min(32rem, 100%);
+  max-width: calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - var(--space-4) * 2);
+  max-height: min(90dvh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - var(--space-4) * 2));
+  border: 1px solid color-mix(in srgb, var(--color-secondary) 50%, var(--color-border));
+  background: var(--session-surface);
+  box-shadow: var(--shadow-dialog), var(--glow-secondary);
+}
+.gm-session-dialog .ui-dialog-heading h2 { display: flex; align-items: center; gap: .6rem; font-size: 1.03rem; }
+.gm-session-dialog .ui-dialog-heading h2 .gm-session-icon { color: var(--color-secondary); width: 1.5rem; height: 1.5rem; }
+.gm-session-dialog .confirmation-description { font-size: .86rem; line-height: 1.7; color: var(--session-muted); }
+.gm-session-confirmation { display: grid; gap: var(--space-4); }
+.gm-session-confirmation dl { display: grid; gap: var(--space-3); margin: 0; padding: var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--color-border); background: var(--session-raised); }
+.gm-session-confirmation dl > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: var(--space-3); }
+.gm-session-confirmation dt { font-size: .74rem; }
+.gm-session-confirmation dd { margin: 0; color: var(--color-text); font-size: .78rem; text-align: right; overflow-wrap: anywhere; }
+.gm-session-current-warning { padding: var(--space-3); color: var(--color-warning); background: var(--color-warning-bg); border-radius: var(--radius-sm); }
+.gm-session-dialog .dialog-actions .ui-button { min-height: 2.75rem; }
+
+@container session-dashboard (max-width: 1080px) {
+  .gm-session-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gm-session-devices-table, .gm-session-devices-table tbody { display: block; }
+  .gm-session-devices-table thead { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .gm-session-devices-table tbody { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+  .gm-session-devices-table tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; align-items: start; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--session-raised); }
+  .gm-session-devices-table tbody tr.is-current { border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border)); }
+  .gm-session-devices-table tbody :is(th, td) { display: block; padding: 0; border: 0; min-width: 0; }
+  .gm-session-devices-table .is-current > :first-child { box-shadow: none; }
+  .gm-session-devices-table :is(.gm-session-device-cell, .gm-session-agent-cell, .gm-session-action-cell) { grid-column: 1 / -1; }
+  .gm-session-devices-table .gm-session-mobile-label { display: block; margin-bottom: .2rem; color: var(--session-muted); font-size: .69rem; }
+  .gm-session-devices-table .gm-session-action-cell { align-self: end; }
+  .gm-session-device-identity strong { font-size: .86rem; }
+}
+
+@container session-dashboard (max-width: 740px) {
+  .gm-session-header { flex-direction: column; align-items: stretch; gap: var(--space-4); }
+  .gm-session-refresh.ui-button { width: 100%; }
+  .gm-session-heading-icon .gm-session-icon { width: 1.85rem; height: 1.85rem; }
+  .gm-session-panel-header { flex-direction: column; align-items: stretch; }
+  .gm-session-revoke-all.ui-button, .gm-session-filter { width: 100%; }
+  .gm-session-devices-table tbody { grid-template-columns: minmax(0, 1fr); }
+  .gm-session-history-table, .gm-session-history-table tbody { display: block; }
+  .gm-session-history-table thead { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .gm-session-history-table tbody tr { display: grid; grid-template-columns: minmax(0, 1fr); gap: .6rem; padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--session-raised); margin-bottom: var(--space-3); }
+  .gm-session-history-table tbody :is(th, td) { display: block; padding: 0; border: 0; min-width: 0; }
+  .gm-session-history-table .gm-session-event-name { grid-row: 1; }
+  .gm-session-history-table .gm-session-event-time { grid-row: 2; color: var(--color-text); }
+  .gm-session-history-table .gm-session-mobile-label { display: inline; margin-right: .5rem; font-size: .71rem; color: var(--session-muted); }
+  .gm-session-history-table .gm-session-event-detail { padding-top: .5rem; border-top: 1px solid var(--color-border); }
+  .gm-session-risk.ui-card { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+  .gm-session-risk .ui-button { grid-column: 1 / -1; width: 100%; }
+}
+
+@container session-dashboard (max-width: 380px) {
+  .gm-session-heading { align-items: flex-start; gap: var(--space-3); }
+  .gm-session-heading h1 { font-size: 1.4rem; }
+  .gm-session-heading p { font-size: .78rem; }
+  .gm-session-panel.ui-card { padding: var(--space-4); }
+  .gm-session-panel-title { align-items: flex-start; }
+  .gm-session-panel-icon { width: 2rem; height: 2rem; }
+  .gm-session-panel-title h2 { font-size: .95rem; }
+  .gm-session-devices-table tbody tr { grid-template-columns: minmax(0, 1fr); }
+  .gm-session-devices-table tbody :is(th, td) { font-size: .77rem; }
+}
+
+@container session-dashboard (max-width: 320px) {
+  .gm-session-kpis { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 480px) {
+  .gm-session-dialog .dialog-actions { flex-direction: column-reverse; align-items: stretch; }
+  .gm-session-dialog .dialog-actions .ui-button { width: 100%; }
+  .gm-session-confirmation dl > div { grid-template-columns: minmax(0, 1fr); gap: .3rem; }
+  .gm-session-confirmation dd { text-align: left; }
+}
