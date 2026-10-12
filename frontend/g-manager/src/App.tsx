@@ -34,7 +34,6 @@ const AuditPage = lazyPage(() => import('./pages/AuditPage'), 'AuditPage')
 const DashboardPage = lazyPage(() => import('./pages/DashboardPage'), 'DashboardPage')
 const NotificationPreferencesPage = lazyPage(() => import('./pages/NotificationPreferencesPage'), 'NotificationPreferencesPage')
 const ReportsPage = lazyPage(() => import('./pages/ReportsPage'), 'ReportsPage')
-const FeatureFlagsPage = lazyPage(() => import('./pages/FeatureFlagsPage'), 'FeatureFlagsPage')
 const ResourcesPage = lazyPage(() => import('./pages/ResourcesPage'), 'ResourcesPage')
 const StationsPage = lazyPage(() => import('./pages/StationsPage'), 'StationsPage')
 const GamingSessionsPage = lazyPage(() => import('./pages/GamingSessionsPage'), 'GamingSessionsPage')
@@ -123,7 +122,6 @@ function App() {
                 <Route path="audit" element={<AuditPage />} />
               </Route>
               <Route element={<CapabilityGuard anyOf={['REPORT_READ']} />}><Route path="reports" element={reportsEnabled ? <ReportsPage /> : <FeatureUnavailable />} /></Route>
-              <Route element={<CapabilityGuard anyOf={['FEATURE_FLAG_MANAGE']} />}><Route path="features" element={<FeatureFlagsPage />} /></Route>
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

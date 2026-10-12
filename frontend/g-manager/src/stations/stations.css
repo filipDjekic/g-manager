@@ -123,6 +123,7 @@
 .gm-stations-profile-list li { padding: .5rem .65rem; border-radius: var(--radius-sm); background: var(--color-surface); font-size: .75rem; }
 .gm-stations-profile-list li small { display: block; }
 .gm-stations-client-package dl { grid-template-columns: minmax(0, .6fr) minmax(0, .8fr) minmax(0, 2fr); }
+.gm-stations-package-note { margin: 0; color: var(--color-text-muted); font-size: .76rem; line-height: 1.6; }
 .gm-stations-full { grid-column: 1 / -1; }
 /* These selectors target only this page's portal surfaces. */
 .gm-stations-dialog { width: min(42rem, calc(100vw - 2rem)); border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border)); box-shadow: var(--shadow-dialog), var(--glow-primary); }
