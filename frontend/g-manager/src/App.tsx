@@ -33,9 +33,7 @@ const OrdersPage = lazyPage(() => import('./pages/OrdersPage'), 'OrdersPage')
 const AuditPage = lazyPage(() => import('./pages/AuditPage'), 'AuditPage')
 const DashboardPage = lazyPage(() => import('./pages/DashboardPage'), 'DashboardPage')
 const NotificationPreferencesPage = lazyPage(() => import('./pages/NotificationPreferencesPage'), 'NotificationPreferencesPage')
-const DocumentsPage = lazyPage(() => import('./pages/DocumentsPage'), 'DocumentsPage')
 const ReportsPage = lazyPage(() => import('./pages/ReportsPage'), 'ReportsPage')
-const WorkflowsPage = lazyPage(() => import('./pages/WorkflowsPage'), 'WorkflowsPage')
 const FeatureFlagsPage = lazyPage(() => import('./pages/FeatureFlagsPage'), 'FeatureFlagsPage')
 const ResourcesPage = lazyPage(() => import('./pages/ResourcesPage'), 'ResourcesPage')
 const StationsPage = lazyPage(() => import('./pages/StationsPage'), 'StationsPage')
@@ -55,7 +53,6 @@ function HomeRedirect() {
 
 function App() {
   const reportsEnabled = useFeatureStore((state) => state.flags.REPORTS)
-  const workflowsEnabled = useFeatureStore((state) => state.flags.WORKFLOWS)
   useEffect(() => {
     void initializeSession()
   }, [])
@@ -75,7 +72,6 @@ function App() {
                 <Route path="sessions" element={<SessionPage />} />
                 <Route path="profile" element={<ProfilePage />} />
                 <Route path="notification-preferences" element={<NotificationPreferencesPage />} />
-                <Route path="documents" element={<DocumentsPage />} />
               </Route>
               <Route element={<CapabilityGuard anyOf={['CATALOG_READ']} />}>
                 <Route path="catalog" element={<CatalogPage />} />
@@ -127,7 +123,6 @@ function App() {
                 <Route path="audit" element={<AuditPage />} />
               </Route>
               <Route element={<CapabilityGuard anyOf={['REPORT_READ']} />}><Route path="reports" element={reportsEnabled ? <ReportsPage /> : <FeatureUnavailable />} /></Route>
-              <Route element={<CapabilityGuard anyOf={['WORKFLOW_SUBMIT','WORKFLOW_ACT','WORKFLOW_MANAGE']} />}><Route path="workflows" element={workflowsEnabled ? <WorkflowsPage /> : <FeatureUnavailable />} /></Route>
               <Route element={<CapabilityGuard anyOf={['FEATURE_FLAG_MANAGE']} />}><Route path="features" element={<FeatureFlagsPage />} /></Route>
             </Route>
           </Route>

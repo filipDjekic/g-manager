@@ -5,7 +5,7 @@ import type { FeatureFlagKey } from '../types/feature.types'
 import { homeForRole, navigationFor } from './navigation'
 
 const flags: Record<FeatureFlagKey, boolean> = {
-  REPORTS: true, WORKFLOWS: true, PWA_OFFLINE: true, AI_ASSISTANT: false,
+  REPORTS: true, PWA_OFFLINE: true, AI_ASSISTANT: false,
 }
 const user = (role: 'OWNER' | 'ADMIN' | 'EMPLOYEE' | 'CUSTOMER') =>
   authUser(role, { permissions: roleCapabilities[role] })
@@ -46,7 +46,7 @@ describe('role-aware product navigation', () => {
     expect(paths('OWNER')).toContain('/gaming-sessions')
     expect(navigationFor(authUser('OWNER', { permissions: ['PROFILE_READ'] }), flags)
       .flatMap((group) => group.items.map((item) => item.to))).toEqual([
-        '/documents', '/profile', '/sessions', '/notification-preferences',
+        '/profile', '/sessions', '/notification-preferences',
       ])
   })
 })

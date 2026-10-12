@@ -65,8 +65,9 @@ public class NotificationService implements OutboxConsumer {
         NavigationActionResponse action=action(actor,n).orElseThrow(()->new ApplicationException(HttpStatus.NOT_FOUND,"Notification resource is no longer available"));return new NotificationOpenResponse(action);}
 
     @Transactional(readOnly=true) public List<NotificationPreferenceResponse> preferenceList(){UUID id=currentUser.requireCurrentUser().id();Map<NotificationType,NotificationPreference> stored=new EnumMap<>(NotificationType.class);
-        preferences.findByRecipientIdOrderByType(id).forEach(p->stored.put(p.getType(),p));return Arrays.stream(NotificationType.values()).map(type->preferenceResponse(type,stored.get(type))).toList();}
+        preferences.findByRecipientIdOrderByType(id).forEach(p->stored.put(p.getType(),p));return Arrays.stream(NotificationType.values()).filter(type->!type.retired()).map(type->preferenceResponse(type,stored.get(type))).toList();}
     @Transactional public NotificationPreferenceResponse savePreference(NotificationPreferenceRequest request){UUID id=currentUser.requireCurrentUser().id();NotificationType type=request.type();
+        if(type.retired())throw new ApplicationException(HttpStatus.NOT_FOUND,"Notification type is no longer available");
         NotificationPreference value=preferences.findByRecipientIdAndType(id,type).orElseGet(NotificationPreference::new);value.setRecipientId(id);value.setType(type);
         value.setInAppEnabled(type.mandatory()||request.inAppEnabled());value.setEmailEnabled(type.mandatory()||request.emailEnabled());preferences.save(value);return preferenceResponse(type,value);}
 
@@ -134,7 +135,7 @@ public class NotificationService implements OutboxConsumer {
         case SECURITY_SESSION_STARTED,SECURITY_PASSWORD_CHANGED->List.of(new Recipient(aggregateId,null,"/profile"));
         case RESERVATION_CREATED->reservationService.notificationContext(aggregateId).map(c->List.of(new Recipient(c.employeeId(),SearchResourceType.RESERVATION,"/reservations?focus="+aggregateId))).orElse(List.of());
         case RESERVATION_STATUS_CHANGED->reservationService.notificationContext(aggregateId).map(c->java.util.stream.Stream.of(c.customerId(),c.employeeId()).distinct().map(id->new Recipient(id,SearchResourceType.RESERVATION,"/my-reservations?focus="+aggregateId)).toList()).orElse(List.of());
-        case ORDER_CREATED,ORDER_STATUS_CHANGED->orderService.notificationContext(aggregateId).map(c->List.of(new Recipient(c.customerId(),SearchResourceType.ORDER,"/my-orders?focus="+aggregateId))).orElse(List.of());case REPORT_COMPLETED,WORKFLOW_ACTION_REQUIRED,WORKFLOW_REMINDER,WORKFLOW_ESCALATED,WORKFLOW_COMPLETED,WAITLIST_OFFERED,WAITLIST_CANCELLED->List.of();};}
+        case ORDER_CREATED,ORDER_STATUS_CHANGED->orderService.notificationContext(aggregateId).map(c->List.of(new Recipient(c.customerId(),SearchResourceType.ORDER,"/my-orders?focus="+aggregateId))).orElse(List.of());case REPORT_COMPLETED,WAITLIST_OFFERED,WAITLIST_CANCELLED->List.of();default->List.of();};}
     private NotificationType mapType(String type){return switch(type){case "AUTH_SESSION_STARTED","SESSION_STARTED"->NotificationType.SECURITY_SESSION_STARTED;case "USER_PASSWORD_CHANGED"->NotificationType.SECURITY_PASSWORD_CHANGED;
         case "RESERVATION_CREATED"->NotificationType.RESERVATION_CREATED;case "RESERVATION_STATUS_CHANGED"->NotificationType.RESERVATION_STATUS_CHANGED;case "ORDER_CREATED"->NotificationType.ORDER_CREATED;case "ORDER_STATUS_CHANGED"->NotificationType.ORDER_STATUS_CHANGED;default->null;};}
     private Map<String,String> payload(String json){try{JsonNode node=mapper.readTree(json).path("payload");Map<String,String> values=new HashMap<>();node.properties().forEach(entry->values.put(entry.getKey(),entry.getValue().asText()));return values;}catch(RuntimeException e){throw new IllegalArgumentException("Notification event payload is invalid",e);}}
@@ -142,6 +143,7 @@ public class NotificationService implements OutboxConsumer {
     private NotificationPreferenceResponse preferenceResponse(NotificationType type,NotificationPreference value){return new NotificationPreferenceResponse(type,type.mandatory(),type.mandatory()||value==null||value.isInAppEnabled(),type.mandatory()||(value!=null&&value.isEmailEnabled()));}
     private NotificationResponse response(AuthenticatedUser actor,Notification n){return NotificationResponse.from(n,action(actor,n).orElse(null));}
     private Optional<NavigationActionResponse> action(AuthenticatedUser actor,Notification n){
+        if(n.getType().retired())return Optional.empty();
         if(n.getResourceType()==null)return Optional.ofNullable(n.getDeepLink()).filter(link->!link.isBlank()).map(link->NavigationActionResponse.navigate("Otvori",link));
         SearchSource source=searchSources.get(n.getResourceType());return source==null?Optional.empty():source.findVisible(actor,n.getResourceId()).map(entry->NavigationActionResponse.forResource(n.getResourceType(),entry.url()));}
     private void afterCommit(Runnable action){if(TransactionSynchronizationManager.isSynchronizationActive())TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization(){@Override public void afterCommit(){action.run();}});else action.run();}

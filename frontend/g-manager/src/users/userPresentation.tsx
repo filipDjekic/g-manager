@@ -139,7 +139,7 @@ const permissionLabels: Record<Permission, string> = {
   WAITLIST_MANAGE: 'Upravljanje listom čekanja',
   ORDER_CREATE: 'Kreiranje narudžbina', ORDER_READ_OWN: 'Pregled sopstvenih narudžbina', ORDER_READ_ALL: 'Pregled svih narudžbina', ORDER_CHANGE_STATUS: 'Promena statusa narudžbina',
   DASHBOARD_SUMMARY: 'Zbirni pregled poslovanja', DASHBOARD_OPERATIONAL: 'Operativni pregled', METRICS_READ: 'Pregled metrika', REPORT_READ: 'Pregled izveštaja', REPORT_MANAGE: 'Upravljanje izveštajima',
-  WORKFLOW_SUBMIT: 'Slanje operativnih zahteva', WORKFLOW_ACT: 'Obrada operativnih zahteva', WORKFLOW_MANAGE: 'Upravljanje operativnim zahtevima', FEATURE_FLAG_MANAGE: 'Upravljanje funkcionalnostima aplikacije',
+  FEATURE_FLAG_MANAGE: 'Upravljanje funkcionalnostima aplikacije',
 }
 function permissionGroup(permission: Permission) {
   if (permission.startsWith('PROFILE_')) return 'Lični nalog'
@@ -151,7 +151,6 @@ function permissionGroup(permission: Permission) {
   if (permission.startsWith('GAMING_') || permission.startsWith('STATION_') || ['APPLICATION_PROFILE_MANAGE', 'MACHINE_IDENTITY_MANAGE'].includes(permission)) return 'Gaming operativa'
   if (permission.startsWith('WORKING_') || permission.startsWith('RESOURCE_')) return 'Dostupnost i resursi'
   if (permission.startsWith('REPORT_') || permission.startsWith('DASHBOARD_') || permission === 'METRICS_READ') return 'Pregledi i izveštaji'
-  if (permission.startsWith('WORKFLOW_')) return 'Operativni zahtevi'
   return 'Administracija i evidencija'
 }
 export function UserDetails({ user, actor, busy, onClose, onAction, onRefresh }: {

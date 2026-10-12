@@ -9,8 +9,7 @@ const labels: Record<NotificationType, string> = {
   SECURITY_SESSION_STARTED: 'Nova prijava na nalog', SECURITY_PASSWORD_CHANGED: 'Promena lozinke',
   RESERVATION_CREATED: 'Nova rezervacija', RESERVATION_STATUS_CHANGED: 'Promena statusa rezervacije',
   ORDER_CREATED: 'Nova narudžbina', ORDER_STATUS_CHANGED: 'Promena statusa narudžbine',
-  REPORT_COMPLETED: 'Završen izveštaj', WORKFLOW_ACTION_REQUIRED: 'Proces zahteva odluku',
-  WORKFLOW_REMINDER: 'Podsetnik za proces', WORKFLOW_ESCALATED: 'Eskalacija procesa', WORKFLOW_COMPLETED: 'Završen proces',
+  REPORT_COMPLETED: 'Završen izveštaj',
   WAITLIST_OFFERED: 'Ponuda termina sa liste čekanja', WAITLIST_CANCELLED: 'Otkazivanje prijave na listi čekanja',
 }
 
@@ -24,7 +23,7 @@ export function NotificationPreferencesPage() {
   useEffect(() => {
     let active = true
     setLoading(true); setError('')
-    void notificationApi.preferences().then((values) => { if (active) setItems(values) })
+    void notificationApi.preferences().then((values) => { if (active) setItems(values.filter(value => Object.hasOwn(labels, value.type))) })
       .catch((cause) => { if (active) setError(apiErrorMessage(cause, 'Podešavanja nisu dostupna.')) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }

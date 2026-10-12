@@ -39,13 +39,11 @@ async function installApi(page: Page, role: Role, aiEnabled = false, reservation
     }
     if (path === '/features/bootstrap') return json([
       { key: 'REPORTS', enabled: true, rolloutPercentage: 100, owner: 'Operations', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
-      { key: 'WORKFLOWS', enabled: true, rolloutPercentage: 100, owner: 'Product', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
       { key: 'PWA_OFFLINE', enabled: true, rolloutPercentage: 100, owner: 'Platform', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
       { key: 'AI_ASSISTANT', enabled: aiEnabled, rolloutPercentage: aiEnabled ? 100 : 0, owner: 'Security', reviewBy: '2026-12-01', overridden: aiEnabled, overrideExpiresAt: null, version: null },
     ])
     if (path === '/features' && request.method() === 'GET') return json([
       { key: 'REPORTS', enabled: true, rolloutPercentage: 100, owner: 'Operations', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
-      { key: 'WORKFLOWS', enabled: true, rolloutPercentage: 100, owner: 'Product', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
       { key: 'PWA_OFFLINE', enabled: true, rolloutPercentage: 100, owner: 'Platform', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
       { key: 'AI_ASSISTANT', enabled: aiEnabled, rolloutPercentage: aiEnabled ? 100 : 0, owner: 'Security', reviewBy: '2026-12-01', overridden: aiEnabled, overrideExpiresAt: null, version: null },
     ])
