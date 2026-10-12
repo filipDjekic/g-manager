@@ -35,6 +35,8 @@ export const userApi = {
       .then(({ data }) => data),
   remove: (id: string, reason: string) => apiClient.delete<void>(`/users/${id}`, { data: { reason } }),
   restore: (id: string) => apiClient.post<UserResponse>(`/users/${id}/restore`).then(({ data }) => data),
+  employeesPage: (page = 0, size = 100) =>
+    apiClient.get<PageResponse<UserResponse>>('/users/employees', { params: { page, size } }).then(({ data }) => data),
   employees: () =>
     apiClient.get<PageResponse<UserResponse>>('/users/employees', {
       params: { page: 0, size: 100 },

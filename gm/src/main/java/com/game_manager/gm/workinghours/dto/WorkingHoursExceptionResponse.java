@@ -12,12 +12,13 @@ public record WorkingHoursExceptionResponse(
         boolean fullDayClosed,
         LocalTime overrideOpenTime,
         LocalTime overrideCloseTime,
-        Long version
+        Long version,
+        UUID locationId
 ) {
     public static WorkingHoursExceptionResponse from(WorkingHoursException exception) {
         return new WorkingHoursExceptionResponse(
                 exception.getId(), exception.getDate(), exception.getDescription(),
                 exception.isFullDayClosed(), exception.getOverrideOpenTime(),
-                exception.getOverrideCloseTime(), exception.getVersion());
+                exception.getOverrideCloseTime(), exception.getVersion(), exception.getLocationId());
     }
 }

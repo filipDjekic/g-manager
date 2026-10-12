@@ -6,9 +6,11 @@ import com.game_manager.gm.workinghours.dto.WorkingHoursExceptionResponse;
 import com.game_manager.gm.workinghours.dto.WorkingHoursResponse;
 import jakarta.validation.Valid;
 import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -41,8 +43,10 @@ public class WorkingHoursController {
     }
 
     @GetMapping("/exceptions")
-    public List<WorkingHoursExceptionResponse> listExceptions() {
-        return workingHoursService.listExceptions();
+    public List<WorkingHoursExceptionResponse> listExceptions(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return workingHoursService.listExceptions(from, to);
     }
 
     @PostMapping("/exceptions")

@@ -18,11 +18,11 @@ export const workingHoursApi = {
     }).then(({ data }) => data),
   updateDay: (
     dayOfWeek: DayOfWeek,
-    input: Pick<WorkingHours, 'openTime' | 'closeTime' | 'active' | 'version'>,
+    input: Pick<WorkingHours, 'openTime' | 'closeTime' | 'active'> & { version?: number },
   ) => apiClient.put<WorkingHours>(`/working-hours/${dayOfWeek}`, input)
     .then(({ data }) => data),
-  listExceptions: () =>
-    apiClient.get<WorkingHoursException[]>('/working-hours/exceptions')
+  listExceptions: (params?: { from: string; to: string }) =>
+    apiClient.get<WorkingHoursException[]>('/working-hours/exceptions', { params })
       .then(({ data }) => data),
   createException: (input: WorkingHoursExceptionInput) =>
     apiClient.post<WorkingHoursException>('/working-hours/exceptions', input)
