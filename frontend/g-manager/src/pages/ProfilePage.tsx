@@ -1,117 +1,76 @@
-import { type FormEvent, useEffect, useRef, useState } from 'react'
-import { apiErrorMessage } from '../api/client'
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { userApi } from '../api/userApi'
 import { useAuthStore } from '../auth/authStore'
-import type { UserResponse } from '../types/user.types'
-import { Button, ErrorState, Skeleton } from '../components/ui'
 import { hasCapability } from '../auth/capabilities'
+import { Button, ErrorState, Skeleton } from '../components/ui'
+import { useConfirmDialog } from '../components/ui/useConfirmDialog'
+import { useDirtyGuard } from '../forms/useDirtyGuard'
+import type { AuthUser } from '../types/auth.types'
+import type { UserResponse } from '../types/user.types'
+import { ProfilePersonalCard } from '../profile/ProfilePersonalCard'
+import { ProfilePasswordCard } from '../profile/ProfilePasswordCard'
+import { ProfileAccountCard } from '../profile/ProfileAccountCard'
+import { ProfileIcon, profileError } from '../profile/profilePresentation'
+import '../profile/profile.css'
+
+function ProfileHeading() {
+  return <header className="gm-profile-header"><span className="gm-profile-header-icon"><ProfileIcon kind="user" /></span>
+    <div><h1>Moj profil</h1><p>Lični podaci, avatar i bezbednost naloga.</p></div></header>
+}
 
 export function ProfilePage() {
-  const actor = useAuthStore((state) => state.user)
-  const [loading, setLoading] = useState(true)
-  const [busy, setBusy] = useState<'profile' | 'password' | 'avatar' | null>(null)
-  const inFlight = useRef(false)
-  const updateUser = useAuthStore((state) => state.updateUser)
-  const [profile, setProfile] = useState<UserResponse | null>(null)
-  const [name, setName] = useState('')
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
-  const [loadAttempt, setLoadAttempt] = useState(0)
+  const actor = useAuthStore(state => state.user)
+  if (!actor || !hasCapability(actor, 'PROFILE_READ')) return <main className="workspace gm-profile"><ProfileHeading />
+    <ErrorState title="Pristup nije dozvoljen" message="Nemate dozvolu za pregled profila." /></main>
+  return <ProfileWorkspace key={actor.id} actor={actor} />
+}
 
+function ProfileWorkspace({ actor }: { actor: AuthUser }) {
+  const [profile, setProfile] = useState<UserResponse | null>(null), [fetching, setFetching] = useState(true)
+  const [error, setError] = useState(''), [loadAttempt, setLoadAttempt] = useState(0)
+  const [personalDirty, setPersonalDirty] = useState(false), [passwordDirty, setPasswordDirty] = useState(false)
+  const profileRef = useRef<UserResponse | null>(null), mounted = useRef(true), navigate = useNavigate()
+  const { confirm, confirmationDialog } = useConfirmDialog()
+  const canUpdate = hasCapability(actor, 'PROFILE_UPDATE')
+  useDirtyGuard(personalDirty || passwordDirty)
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
+  const synchronize = useCallback((user: UserResponse) => {
+    if (!mounted.current || useAuthStore.getState().user?.id !== actor.id || user.id !== actor.id) return
+    if (profileRef.current && user.version < profileRef.current.version) return
+    profileRef.current = user; setProfile(user); useAuthStore.getState().updateUser(user)
+  }, [actor.id])
   useEffect(() => {
     let active = true
-    setLoading(true); setError('')
-    void userApi.me()
-      .then((user) => {
-        if (!active) return
-        setProfile(user)
-        setName(user.name)
-      })
-      .catch((cause) => { if (active) setError(apiErrorMessage(cause, 'Profil nije moguće učitati.')) })
-      .finally(() => { if (active) setLoading(false) })
+    setFetching(true); setError('')
+    void userApi.me().then(user => { if (active) synchronize(user) })
+      .catch(cause => { if (active) setError(profileError(cause, 'Profil nije moguće učitati.')) })
+      .finally(() => { if (active) setFetching(false) })
     return () => { active = false }
-  }, [loadAttempt])
-
-  function synchronize(user: UserResponse) {
-    setProfile(user)
-    updateUser(user)
-  }
-
-  async function saveProfile(event: FormEvent) {
+  }, [synchronize, loadAttempt])
+  const reload = useCallback(() => setLoadAttempt(value => value + 1), [])
+  function openSessions(event: MouseEvent<HTMLAnchorElement>) {
+    if (!personalDirty && !passwordDirty || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
     event.preventDefault()
-    if (inFlight.current) return
-    inFlight.current = true; setBusy('profile')
-    setError('')
-    try {
-      synchronize(await userApi.updateMe(name))
-      setMessage('Profil je sačuvan.')
-    } catch (cause) {
-      setError(apiErrorMessage(cause, 'Profil nije moguće sačuvati.'))
-    } finally { inFlight.current = false; setBusy(null) }
+    confirm({ title: 'Napusti profil?', description: 'Imate nesačuvane unose. Ako nastavite, ti unosi neće ostati u ovoj formi.',
+      confirmLabel: 'Upravljaj sesijama', cancelLabel: 'Ostani na profilu', variant: 'warning',
+      className: 'gm-profile-leave-dialog', titleIcon: <ProfileIcon kind="shield" />, onConfirm: () => { navigate('/sessions') } })
   }
-
-  async function savePassword(event: FormEvent) {
-    event.preventDefault()
-    if (inFlight.current) return
-    inFlight.current = true; setBusy('password')
-    setError('')
-    try {
-      await userApi.changePassword(currentPassword, newPassword)
-      setCurrentPassword('')
-      setNewPassword('')
-      setMessage('Lozinka je promenjena. Ostale sesije su odjavljene.')
-    } catch (cause) {
-      setError(apiErrorMessage(cause, 'Lozinku nije moguće promeniti.'))
-    } finally { inFlight.current = false; setBusy(null) }
-  }
-
-  async function upload(file?: File) {
-    if (!file || inFlight.current) return
-    inFlight.current = true; setBusy('avatar')
-    setError('')
-    try {
-      synchronize(await userApi.uploadAvatar(file))
-      setMessage('Avatar je sačuvan.')
-    } catch (cause) {
-      setError(apiErrorMessage(cause, 'Avatar nije moguće sačuvati.'))
-    } finally { inFlight.current = false; setBusy(null) }
-  }
-
-  return (
-    <main className="workspace">
-      <div className="page-heading">
-        <div><p className="eyebrow">Nalog</p><h1>Moj profil</h1></div>
-        {profile?.avatarUrl
-          ? <img className="avatar" src={profile.avatarUrl} alt="" decoding="async" width="80" height="80" />
-          : <span className="avatar avatar-fallback">{profile?.name?.slice(0, 1)}</span>}
-      </div>
-      {error && profile && <p className="error-banner" role="alert">{error}</p>}
-      {!loading && !profile && <ErrorState message={error || 'Profil nije dostupan.'}
-        action={<Button onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Pokušaj ponovo</Button>} />}
-      {message && <p className="success-banner" role="status">{message}</p>}
-      {loading && <Skeleton lines={4} label="Učitavanje profila" />}
-      {!loading && profile &&
-      <div className="panel-grid">
-        <form className="panel" onSubmit={saveProfile}>
-          <h2>Osnovni podaci</h2>
-          <label>Ime<input value={name} minLength={2} maxLength={120} required onChange={(e) => setName(e.target.value)} /></label>
-          <label>Email<input value={profile?.email ?? ''} disabled /></label>
-          <Button type="submit" loading={busy === 'profile'} disabled={Boolean(busy) || !hasCapability(actor,'PROFILE_UPDATE')}>Sačuvaj profil</Button>
-        </form>
-        <form className="panel" onSubmit={savePassword}>
-          <h2>Promena lozinke</h2>
-          <label>Trenutna lozinka<input type="password" autoComplete="current-password" value={currentPassword} required onChange={(e) => setCurrentPassword(e.target.value)} /></label>
-          <label>Nova lozinka<input type="password" autoComplete="new-password" value={newPassword} minLength={8} maxLength={100} required onChange={(e) => setNewPassword(e.target.value)} /></label>
-          <Button type="submit" loading={busy === 'password'} disabled={Boolean(busy) || !hasCapability(actor,'PROFILE_UPDATE')}>Promeni lozinku</Button>
-        </form>
-        <section className="panel">
-          <h2>Avatar</h2>
-          <p>PNG ili JPEG, najviše 5 MB.</p>
-          <label className="file-control">Izaberi sliku<input type="file" disabled={Boolean(busy) || !hasCapability(actor,'PROFILE_UPDATE')} accept="image/png,image/jpeg" onChange={(e) => void upload(e.target.files?.[0])} /></label>
-        </section>
-      </div>}
-    </main>
-  )
+  return <main className="workspace gm-profile"><ProfileHeading />{confirmationDialog}
+    {!profile ? fetching ? <div className="gm-profile-layout gm-profile-loading" aria-busy="true">
+      <section className="gm-profile-card gm-profile-personal"><Skeleton lines={2} label="Učitavanje ličnih podataka" /><div className="gm-profile-avatar-placeholder" aria-hidden="true" /><Skeleton lines={6} label="Učitavanje podataka profila" /></section>
+      <div className="gm-profile-right"><section className="gm-profile-card gm-profile-password"><Skeleton lines={7} label="Učitavanje bezbednosnih opcija" /></section>
+        <section className="gm-profile-card"><Skeleton lines={4} label="Učitavanje informacija o nalogu" /></section></div>
+    </div> : <ErrorState title="Profil nije dostupan" message={error || 'Podatke naloga trenutno nije moguće prikazati.'}
+      action={<Button type="button" onClick={reload}>Pokušaj ponovo</Button>} />
+      : <>
+        {error && <ErrorState title="Podaci o nalogu nisu osveženi" message={error}
+          action={<Button type="button" variant="secondary" loading={fetching} onClick={reload}>Pokušaj ponovo</Button>} />}
+        <div className="gm-profile-layout"><ProfilePersonalCard profile={profile} canUpdate={canUpdate} onSaved={synchronize} onDirty={setPersonalDirty} />
+          <div className="gm-profile-right"><ProfilePasswordCard canUpdate={canUpdate} onChanged={reload} onDirty={setPasswordDirty} />
+            <ProfileAccountCard profile={profile} canRead={hasCapability(actor, 'PROFILE_READ')} onSessions={openSessions} />
+          </div>
+        </div>
+      </>}
+  </main>
 }

@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { authApi } from '../api/authApi'
 import { useAuthStore } from '../auth/authStore'
 import { Button, Drawer, Select } from '../components/ui'
+import { AccountAvatar } from '../components/AccountAvatar'
 import { roleLabels } from '../components/ui/statusPresentation'
 import { useUiPreferences } from '../preferences/uiPreferencesContext'
 import { CommandPalette } from '../search/CommandPalette'
@@ -109,7 +110,7 @@ export function AppShell() {
         <NotificationCenter />
         <Button className="shell-account-button" type="button" variant="secondary" onClick={() => setAccountOpen(true)}
           aria-label={`Moj nalog: ${user?.name ?? ''}, ${userLabel}`} aria-haspopup="dialog" aria-expanded={accountOpen}>
-          <span className="shell-avatar" aria-hidden="true">{user?.name.slice(0, 1).toLocaleUpperCase('sr')}</span>
+          <span className="shell-avatar" aria-hidden="true"><AccountAvatar user={user} /></span>
           <span className="shell-user"><strong>{user?.name}</strong><small>{userLabel}</small></span>
           <svg className="shell-account-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"
