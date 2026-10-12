@@ -1,6 +1,6 @@
 import { apiClient } from './client'
 import type { ApplicationDefinition, ApplicationDefinitionInput, ApplicationProfile,
-  ApplicationProfileInput, EnrollmentToken, GamingClientPackage, MachineIdentity, StationOverview, StationProfileInput } from '../types/station.types'
+  ApplicationProfileInput, EnrollmentToken, GamingClientPackage, GamingClientPackageAvailability, MachineIdentity, StationOverview, StationProfileInput } from '../types/station.types'
 
 export const stationApi = {
   overview: () => apiClient.get<StationOverview[]>('/stations').then(({ data }) => data),
@@ -25,4 +25,6 @@ export const stationApi = {
   createRotationToken: (stationId:string) => apiClient.post<EnrollmentToken>(`/stations/${stationId}/machine-identity/rotation-token`).then(({data})=>data),
   revokeMachineIdentities: (stationId:string) => apiClient.post(`/stations/${stationId}/machine-identity/revoke`),
   clientPackage: () => apiClient.get<GamingClientPackage>('/stations/client-package').then(({data})=>data),
+  clientPackageAvailability: (signal?:AbortSignal) => apiClient.get<GamingClientPackageAvailability>('/stations/client-package/availability', { signal }).then(({data})=>data),
+  clientPackageDownload: (signal?:AbortSignal) => apiClient.get<ArrayBuffer>('/stations/client-package/download', { responseType:'arraybuffer', signal }).then(({data})=>data),
 }

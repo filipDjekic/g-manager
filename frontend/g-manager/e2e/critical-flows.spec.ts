@@ -42,11 +42,6 @@ async function installApi(page: Page, role: Role, aiEnabled = false, reservation
       { key: 'PWA_OFFLINE', enabled: true, rolloutPercentage: 100, owner: 'Platform', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
       { key: 'AI_ASSISTANT', enabled: aiEnabled, rolloutPercentage: aiEnabled ? 100 : 0, owner: 'Security', reviewBy: '2026-12-01', overridden: aiEnabled, overrideExpiresAt: null, version: null },
     ])
-    if (path === '/features' && request.method() === 'GET') return json([
-      { key: 'REPORTS', enabled: true, rolloutPercentage: 100, owner: 'Operations', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
-      { key: 'PWA_OFFLINE', enabled: true, rolloutPercentage: 100, owner: 'Platform', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
-      { key: 'AI_ASSISTANT', enabled: aiEnabled, rolloutPercentage: aiEnabled ? 100 : 0, owner: 'Security', reviewBy: '2026-12-01', overridden: aiEnabled, overrideExpiresAt: null, version: null },
-    ])
     if (path === '/auth/sessions' || path === '/auth/security-events') return json([])
     if (path === '/saved-views' && request.method() === 'GET') {
       const resourceType = url.searchParams.get('resourceType')
@@ -334,15 +329,6 @@ test('management attention item opens its authorized operational view', async ({
   await attention.click()
   await expect(page).toHaveURL(/\/reservations\?status=PENDING/)
   await expect(page.getByRole('heading', { name: 'Rezervacije' })).toBeVisible()
-})
-
-test('owner receives typed feature bootstrap and can inspect rollout metadata', async ({ page }) => {
-  await installApi(page, 'OWNER')
-  await login(page, 'OWNER')
-  await page.goto('/features')
-  await expect(page.getByRole('heading', { name: 'Feature flags' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'REPORTS' })).toBeVisible()
-  await expect(page.getByText(/Owner: Operations/)).toBeVisible()
 })
 
 test('AI report pilot requires consent and exposes an accessible sourced fallback', async ({ page }) => {

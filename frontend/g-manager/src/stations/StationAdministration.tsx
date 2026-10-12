@@ -1,6 +1,8 @@
+import { useEffect, useRef, useState } from 'react'
 import { Badge, Button, EmptyState, ErrorState, Skeleton } from '../components/ui'
 import type { ApplicationDefinition, ApplicationProfile, GamingClientPackage } from '../types/station.types'
 import { applicationTypeLabels, StationIcon, stationError } from './stationPresentation'
+import { downloadClientPackage, useClientPackageAvailability } from './clientPackageDistribution'
 
 export function StationAdministration({ definitions, profiles, loadingDefinitions, loadingProfiles, definitionsError, profilesError, manage, busy, onDefinition, onProfile, deleteDefinition, deleteProfile, onRefresh }: {
   definitions: ApplicationDefinition[]; profiles: ApplicationProfile[]; loadingDefinitions: boolean; loadingProfiles: boolean
@@ -45,15 +47,60 @@ export function StationAdministration({ definitions, profiles, loadingDefinition
   </div>
 }
 
-const packageStatus: Record<string, string> = { AVAILABLE: 'Dostupan', READY: 'Spreman', NOT_CONFIGURED: 'Nije konfigurisan', UNAVAILABLE: 'Nije dostupan', DEVELOPMENT: 'Razvojna verzija', MANUAL: 'Ručna distribucija' }
+const packageStatus: Record<string, string> = { RELEASED: 'Objavljen', AVAILABLE: 'Dostupan', READY: 'Spreman', NOT_CONFIGURED: 'Nije konfigurisan', UNAVAILABLE: 'Nije dostupan', DEVELOPMENT: 'Razvojna verzija', MANUAL: 'Ručna distribucija' }
 export function StationClientPackage({ data, loading, error, onRefresh }: { data?: GamingClientPackage; loading: boolean; error: unknown; onRefresh: () => void }) {
+  const availability = useClientPackageAvailability(!error && !loading ? data : undefined)
+  const [downloading, setDownloading] = useState(false)
+  const [downloadError, setDownloadError] = useState('')
+  const request = useRef<AbortController | null>(null), mounted = useRef(false)
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false; request.current?.abort() }
+  }, [])
+  useEffect(() => { setDownloadError('') }, [data?.downloadUrl, data?.sha256, data?.status])
+
+  async function download() {
+    if (!data || !availability.ready || availability.checking || request.current) return
+    const controller = new AbortController()
+    request.current = controller
+    setDownloading(true); setDownloadError('')
+    try {
+      await downloadClientPackage(data, controller.signal)
+    } catch (cause) {
+      if (mounted.current && !controller.signal.aborted) {
+        setDownloadError(cause instanceof Error && !(cause instanceof TypeError) && !('isAxiosError' in cause)
+          ? cause.message : stationError(cause, 'Preuzimanje Client paketa nije uspelo. Fajl nije sačuvan. Pokušajte ponovo.'))
+        void availability.refetch()
+      }
+    } finally {
+      request.current = null
+      if (mounted.current) setDownloading(false)
+    }
+  }
+
+  function retry() {
+    setDownloadError('')
+    if (availability.url) void availability.refetch()
+    else onRefresh()
+  }
+
   return <section className="gm-stations-section gm-stations-client-package" aria-labelledby="station-client-title">
     <header className="gm-stations-section-heading"><div><h2 id="station-client-title"><StationIcon kind="shield" />G-Manager Gaming Client</h2><p>Windows servis i klijentski interfejs za gaming računare.</p></div>
-      {data?.downloadUrl && !error && <a className="button button-primary" href={data.downloadUrl}>Preuzmi Client</a>}</header>
+      {!loading && !error && availability.ready && <Button type="button" loading={downloading} disabled={availability.checking || !globalThis.crypto?.subtle}
+        onClick={() => void download()}>Preuzmi Client</Button>}</header>
     {loading ? <Skeleton lines={2} label="Učitavanje Gaming Client paketa" /> : error
       ? <ErrorState message={stationError(error, 'Informacije o Client paketu nisu dostupne.')} action={<Button type="button" onClick={onRefresh}>Pokušaj ponovo</Button>} />
-      : data && <dl><div><dt>Dostupna verzija</dt><dd>{data.version || 'Nije objavljena'}</dd></div><div><dt>Status paketa</dt><dd>{packageStatus[data.status] ?? data.status}</dd></div>
-        <div className="gm-stations-package-digest"><dt>SHA-256</dt><dd><code>{data.sha256 || 'Nije objavljen'}</code></dd></div>
-        {!data.downloadUrl && <div className="gm-stations-full"><dd>Preuzimanje paketa trenutno nije dostupno.</dd></div>}</dl>}
+      : <>
+        {data && <dl><div><dt>Dostupna verzija</dt><dd>{data.version || 'Nije objavljena'}</dd></div><div><dt>Status paketa</dt><dd>{packageStatus[data.status] ?? data.status}</dd></div>
+          <div className="gm-stations-package-digest"><dt>SHA-256</dt><dd><code>{data.sha256 || 'Nije objavljen'}</code></dd></div></dl>}
+        <p className="gm-stations-package-note" role="status">{availability.checking ? 'Provera dostupnosti Client paketa…'
+          : availability.message || (!data ? 'Gaming Client paket još nije objavljen.' : availability.ready
+            ? 'Paket je dostupan. ZIP sadržaj i SHA-256 proveravaju se pre čuvanja fajla.' : 'Dostupnost paketa nije potvrđena.')}</p>
+        {data?.status === 'DEVELOPMENT' && <p className="gm-stations-package-note">Razvojna verzija nije označena kao produkcijska objava.</p>}
+        {availability.ready && !globalThis.crypto?.subtle && <p className="gm-stations-package-note">Za proveru integriteta paketa otvorite aplikaciju preko HTTPS-a ili localhost-a.</p>}
+        {!availability.ready && !availability.checking && <Button type="button" variant="secondary" disabled={downloading} onClick={retry}>Ponovi proveru</Button>}
+        {downloadError && <ErrorState title="Preuzimanje nije uspelo" message={downloadError}
+          action={<Button type="button" variant="secondary" disabled={downloading} onClick={retry}>Ponovi proveru</Button>} />}
+      </>}
   </section>
 }

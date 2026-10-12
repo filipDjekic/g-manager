@@ -35,4 +35,5 @@ export type MachineIdentityStatus = 'ACTIVE'|'ROTATING'|'REVOKED'
 export interface MachineIdentity { id:string;stationId:string;keyVersion:number;status:MachineIdentityStatus
   publicKeyFingerprint:string;enrolledAt:string;overlapExpiresAt?:string;revokedAt?:string;lastAuthenticatedAt?:string }
 export interface EnrollmentToken { tokenId:string;stationId:string;purpose:'INITIAL'|'ROTATION';enrollmentToken:string;expiresAt:string }
-export interface GamingClientPackage { version:string;status:string;downloadUrl:string;sha256:string }
+export interface GamingClientPackage { version:string;status:string;downloadUrl:string;sha256:string;signingSubject?:string;minimumVersion?:string }
+export interface GamingClientPackageAvailability { available:boolean;message:string }

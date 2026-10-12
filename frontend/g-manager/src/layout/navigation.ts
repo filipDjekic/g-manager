@@ -31,7 +31,6 @@ const management: NavigationGroup[] = [
   { label: 'Sistem', items: [
     { label: 'Korisnici', to: '/users', capability: 'USER_LIST' },
     { label: 'Audit', to: '/audit', capability: 'AUDIT_READ' },
-    { label: 'Feature flags', to: '/features', capability: 'FEATURE_FLAG_MANAGE' },
   ] },
   { label: 'Moj nalog', items: [
     { label: 'Profil', to: '/profile', capability: 'PROFILE_READ' },

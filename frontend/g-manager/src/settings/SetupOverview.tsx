@@ -10,6 +10,7 @@ import type { WorkingHours, WorkingHoursException } from '../types/workingHours.
 import type { TimeOff } from '../types/timeOff.types'
 import type { UserResponse } from '../types/user.types'
 import { SettingsIcon, useBusinessToday, type SettingsIconKind } from './settingsPresentation'
+import { useClientPackageAvailability } from '../stations/clientPackageDistribution'
 
 type SetupStep = { label: string; description: string; detail: string; icon: SettingsIconKind; ready: boolean; known: boolean; error: unknown
   retry?: () => unknown; to: string; tab?: 'hours' | 'exceptions' | 'timeoff'; permitted: boolean }
@@ -25,10 +26,11 @@ export function SetupOverview({ hours, employees, exceptions, timeOff, onOpenTab
   const services = useQuery({ queryKey: ['setup', 'services'], queryFn: () => catalogApi.list({ page: 0, size: 1, type: 'SERVICE', active: true, sort: 'name', direction: 'ASC' }),
     enabled: hasCapability(actor, 'CATALOG_READ') })
   const distribution = useQuery({ queryKey: ['stations', 'client-package'], queryFn: stationApi.clientPackage, enabled: canStations, staleTime: 300000 })
+  const clientPackage = useClientPackageAvailability(canStations && !distribution.error ? distribution.data : undefined)
   const active = locations.data?.find(item => item.active)
   const areas = useQuery({ queryKey: ['setup', 'areas', active?.id], queryFn: () => resourceApi.areas(active!.id), enabled: !!active })
   const configuredStations = stations.data?.filter(item => item.stationProfileId && item.applicationProfileId).length ?? 0
-  const released = distribution.data?.status === 'RELEASED' && !!distribution.data.downloadUrl && !!distribution.data.sha256
+  const released = clientPackage.ready && !clientPackage.checking
   const futureExceptions = exceptions.data?.filter(item => item.date > today).length ?? 0
   const relevantTimeOff = timeOff.data?.filter(item => (item.status === 'PENDING' || item.status === 'APPROVED') && Date.parse(item.endsAt) > Date.now()).length ?? 0
   const configuration: SetupStep[] = [
@@ -60,8 +62,9 @@ export function SetupOverview({ hours, employees, exceptions, timeOff, onOpenTab
       icon: 'calendar', ready: !!timeOff.data, known: !!timeOff.data, error: timeOff.error, retry: timeOff.refetch,
       to: '#time-off', tab: 'timeoff', permitted: hasCapability(actor, 'WORKING_HOURS_MANAGE') },
     { label: 'Gaming Client paket', description: 'Produkcijska objava, preuzimanje i SHA-256 kontrolna suma.',
-      detail: distribution.data?.version ? `Verzija ${distribution.data.version}` : 'Provera produkcijskog paketa', icon: 'client',
-      ready: released, known: !!distribution.data, error: distribution.error, retry: distribution.refetch, to: '/stations', permitted: canStations },
+      detail: clientPackage.checking ? 'Provera dostupnosti paketa…' : clientPackage.message || (distribution.data?.version ? `Verzija ${distribution.data.version}` : 'Provera produkcijskog paketa'), icon: 'client',
+      ready: released, known: !!distribution.data && clientPackage.known && !clientPackage.checking, error: distribution.error || clientPackage.error,
+      retry: () => { void distribution.refetch(); if (clientPackage.url) void clientPackage.refetch() }, to: '/stations', permitted: canStations },
   ]
   const steps = configuration.filter(step => step.permitted)
   const complete = steps.filter(step => step.ready && !step.error).length

@@ -38,6 +38,12 @@ services:
       INITIAL_OWNER_NAME: ${INITIAL_OWNER_NAME:-Initial Owner}
       INITIAL_OWNER_EMAIL: ${INITIAL_OWNER_EMAIL:-}
       INITIAL_OWNER_PASSWORD: ${INITIAL_OWNER_PASSWORD:-}
+      GAMING_CLIENT_VERSION: ${GAMING_CLIENT_VERSION:-0.1.0-dev}
+      GAMING_CLIENT_STATUS: ${GAMING_CLIENT_STATUS:-DEVELOPMENT}
+      GAMING_CLIENT_DOWNLOAD_URL: ${GAMING_CLIENT_DOWNLOAD_URL:-/downloads/gmanager-client/GManager.Client.zip}
+      GAMING_CLIENT_SHA256: ${GAMING_CLIENT_SHA256:-UNPUBLISHED}
+      GAMING_CLIENT_MINIMUM_VERSION: ${GAMING_CLIENT_MINIMUM_VERSION:-0.1.0}
+      GAMING_CLIENT_PACKAGE_SIGNING_SUBJECT: ${GAMING_CLIENT_PACKAGE_SIGNING_SUBJECT:-UNPUBLISHED}
     ports:
       - "8080:8080"
     volumes:
@@ -60,6 +66,8 @@ services:
     restart: unless-stopped
     ports:
       - "5173:8080"
+    volumes:
+      - ./client/artifacts:/usr/share/nginx/html/downloads/gmanager-client:ro
     depends_on:
       backend:
         condition: service_healthy
