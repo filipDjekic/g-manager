@@ -11,6 +11,7 @@ const labels: Record<NotificationType, string> = {
   ORDER_CREATED: 'Nova narudžbina', ORDER_STATUS_CHANGED: 'Promena statusa narudžbine',
   REPORT_COMPLETED: 'Završen izveštaj', WORKFLOW_ACTION_REQUIRED: 'Proces zahteva odluku',
   WORKFLOW_REMINDER: 'Podsetnik za proces', WORKFLOW_ESCALATED: 'Eskalacija procesa', WORKFLOW_COMPLETED: 'Završen proces',
+  WAITLIST_OFFERED: 'Ponuda termina sa liste čekanja', WAITLIST_CANCELLED: 'Otkazivanje prijave na listi čekanja',
 }
 
 export function NotificationPreferencesPage() {

@@ -105,6 +105,22 @@ public class NotificationService implements OutboxConsumer {
     @Transactional public void reportCompleted(UUID owner,UUID reportId,String definition){if(notifications.existsBySourceEventIdAndRecipientIdAndType(reportId,owner,NotificationType.REPORT_COMPLETED))return;Notification n=new Notification();n.setSourceEventId(reportId);n.setRecipientId(owner);n.setType(NotificationType.REPORT_COMPLETED);n.setPriority(NotificationPriority.NORMAL);n.setTitle("Izveštaj je spreman");n.setBody("Izveštaj "+definition+" je generisan i spreman za preuzimanje.");n.setDeepLink("/reports");n.setInAppVisible(true);notifications.saveAndFlush(n);metrics.counter("gm.notification.created","type",NotificationType.REPORT_COMPLETED.name()).increment();afterCommit(()->realtime.send(owner,NotificationResponse.from(n)));}
     @Transactional public void waitlistOffer(UUID customer,UUID offerId){if(notifications.existsBySourceEventIdAndRecipientIdAndType(offerId,customer,NotificationType.WAITLIST_OFFERED))return;Notification n=new Notification();n.setSourceEventId(offerId);n.setRecipientId(customer);n.setType(NotificationType.WAITLIST_OFFERED);n.setPriority(NotificationPriority.HIGH);n.setTitle("Termin je dostupan");n.setBody("Termin sa liste čekanja je dostupan do isteka ponude.");n.setDeepLink("/my-reservations?waitlistOffer="+offerId);n.setInAppVisible(true);notifications.saveAndFlush(n);metrics.counter("gm.notification.created","type",NotificationType.WAITLIST_OFFERED.name()).increment();afterCommit(()->realtime.send(customer,NotificationResponse.from(n)));}
 
+    @Transactional public void waitlistCancelled(UUID customer, UUID entryId) {
+        if(notifications.existsBySourceEventIdAndRecipientIdAndType(entryId,customer,NotificationType.WAITLIST_CANCELLED))return;
+        NotificationPreference pref=preferences.findByRecipientIdAndType(customer,NotificationType.WAITLIST_CANCELLED).orElse(null);
+        boolean inApp=pref==null||pref.isInAppEnabled();
+        boolean email=pref!=null&&pref.isEmailEnabled()&&config.emailEnabled();
+        if(!inApp&&!email)return;
+        Notification n=new Notification();n.setSourceEventId(entryId);n.setRecipientId(customer);
+        n.setType(NotificationType.WAITLIST_CANCELLED);n.setPriority(NotificationPriority.NORMAL);
+        n.setTitle("Prijava na listu čekanja je otkazana");
+        n.setBody("Osoblje je otkazalo vašu prijavu. Detalje možete proveriti u svojim terminima.");
+        n.setDeepLink("/my-reservations?section=waitlist");n.setInAppVisible(inApp);notifications.saveAndFlush(n);
+        if(email){NotificationDeliveryAttempt delivery=new NotificationDeliveryAttempt();delivery.setNotification(n);
+            delivery.setChannel("EMAIL");delivery.setStatus(DeliveryStatus.PENDING);delivery.setAvailableAt(clock.instant());deliveries.save(delivery);}
+        metrics.counter("gm.notification.created","type",NotificationType.WAITLIST_CANCELLED.name()).increment();
+        if(inApp)afterCommit(()->realtime.send(customer,NotificationResponse.from(n)));
+    }
     private void create(OutboxMessage message,NotificationType type,Recipient recipient,Map<String,String> values){if(recipient.id()==null||userService.activeEmail(recipient.id()).isEmpty())return;
         if(notifications.existsBySourceEventIdAndRecipientIdAndType(message.id(),recipient.id(),type))return;
         NotificationPreference pref=preferences.findByRecipientIdAndType(recipient.id(),type).orElse(null);boolean inApp=type.mandatory()||pref==null||pref.isInAppEnabled();boolean email=type.mandatory()||(pref!=null&&pref.isEmailEnabled());if(!inApp&&!email)return;
@@ -118,7 +134,7 @@ public class NotificationService implements OutboxConsumer {
         case SECURITY_SESSION_STARTED,SECURITY_PASSWORD_CHANGED->List.of(new Recipient(aggregateId,null,"/profile"));
         case RESERVATION_CREATED->reservationService.notificationContext(aggregateId).map(c->List.of(new Recipient(c.employeeId(),SearchResourceType.RESERVATION,"/reservations?focus="+aggregateId))).orElse(List.of());
         case RESERVATION_STATUS_CHANGED->reservationService.notificationContext(aggregateId).map(c->java.util.stream.Stream.of(c.customerId(),c.employeeId()).distinct().map(id->new Recipient(id,SearchResourceType.RESERVATION,"/my-reservations?focus="+aggregateId)).toList()).orElse(List.of());
-        case ORDER_CREATED,ORDER_STATUS_CHANGED->orderService.notificationContext(aggregateId).map(c->List.of(new Recipient(c.customerId(),SearchResourceType.ORDER,"/my-orders?focus="+aggregateId))).orElse(List.of());case REPORT_COMPLETED,WORKFLOW_ACTION_REQUIRED,WORKFLOW_REMINDER,WORKFLOW_ESCALATED,WORKFLOW_COMPLETED,WAITLIST_OFFERED->List.of();};}
+        case ORDER_CREATED,ORDER_STATUS_CHANGED->orderService.notificationContext(aggregateId).map(c->List.of(new Recipient(c.customerId(),SearchResourceType.ORDER,"/my-orders?focus="+aggregateId))).orElse(List.of());case REPORT_COMPLETED,WORKFLOW_ACTION_REQUIRED,WORKFLOW_REMINDER,WORKFLOW_ESCALATED,WORKFLOW_COMPLETED,WAITLIST_OFFERED,WAITLIST_CANCELLED->List.of();};}
     private NotificationType mapType(String type){return switch(type){case "AUTH_SESSION_STARTED","SESSION_STARTED"->NotificationType.SECURITY_SESSION_STARTED;case "USER_PASSWORD_CHANGED"->NotificationType.SECURITY_PASSWORD_CHANGED;
         case "RESERVATION_CREATED"->NotificationType.RESERVATION_CREATED;case "RESERVATION_STATUS_CHANGED"->NotificationType.RESERVATION_STATUS_CHANGED;case "ORDER_CREATED"->NotificationType.ORDER_CREATED;case "ORDER_STATUS_CHANGED"->NotificationType.ORDER_STATUS_CHANGED;default->null;};}
     private Map<String,String> payload(String json){try{JsonNode node=mapper.readTree(json).path("payload");Map<String,String> values=new HashMap<>();node.properties().forEach(entry->values.put(entry.getKey(),entry.getValue().asText()));return values;}catch(RuntimeException e){throw new IllegalArgumentException("Notification event payload is invalid",e);}}
