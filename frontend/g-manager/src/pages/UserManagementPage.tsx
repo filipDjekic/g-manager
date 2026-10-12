@@ -1,109 +1,230 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { type FormEvent, useState } from 'react'
-import { apiErrorMessage } from '../api/client'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { userApi } from '../api/userApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
 import { SavedViewBar } from '../components/lists/SavedViewBar'
 import { SelectionBar } from '../components/lists/SelectionBar'
-import { Pagination, Badge, Button, Drawer, EmptyState, ErrorState, Skeleton, TableShell } from '../components/ui'
-import { useDirtyGuard } from '../forms/useDirtyGuard'
-import { useListUrlState } from '../lists/useListUrlState'
-import { queryKeys } from '../query/queryKeys'
-import type { CreateUserRequest, UserResponse } from '../types/user.types'
+import { Badge, Button, Drawer, EmptyState, ErrorState, Input, Select, Skeleton } from '../components/ui'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useToast } from '../components/ui/toastContext'
-import { roleLabels } from '../components/ui/statusPresentation'
+import { useListUrlState } from '../lists/useListUrlState'
+import type { AuthUser, Permission, Role } from '../types/auth.types'
+import type { BulkOperationResponse } from '../types/bulk.types'
+import type { UserResponse } from '../types/user.types'
+import { NewUserDialog } from '../users/NewUserDialog'
+import { allowedUserActions, UserDetails, UserIcon, UserKpi, UserPagination, UsersTable, userError, type UserAction } from '../users/userPresentation'
+import { EmployeesPage } from './EmployeesPage'
+import '../users/users.css'
 
 interface Props { employeesOnly?: boolean }
-const defaults = { page: '0', active: '', deleted: '', sort: 'createdAt', direction: 'DESC', search: '', focus: '' }
-const allowed = ['page', 'active', 'deleted', 'sort', 'direction', 'search', 'focus'] as const
-const emptyForm: CreateUserRequest = { name: '', email: '', password: '', role: 'EMPLOYEE' }
+const defaults = { page: '0', size: '10', active: '', deleted: '', role: '', sort: 'createdAt', direction: 'DESC', search: '', focus: '' }
+const allowed = ['page', 'size', 'active', 'deleted', 'role', 'sort', 'direction', 'search', 'focus'] as const
+const roles: Role[] = ['OWNER', 'ADMIN', 'EMPLOYEE', 'CUSTOMER']
+const sorting = [{ sort: 'createdAt', direction: 'DESC', label: 'Najnoviji' }, { sort: 'createdAt', direction: 'ASC', label: 'Najstariji' },
+  { sort: 'name', direction: 'ASC', label: 'Ime A–Z' }, { sort: 'name', direction: 'DESC', label: 'Ime Z–A' }]
 
 export function UserManagementPage({ employeesOnly = false }: Props) {
-  const { confirm, confirmationDialog } = useConfirmDialog()
-  const toast = useToast()
-  const actor = useAuthStore((state) => state.user)
-  const url = useListUrlState(defaults, allowed)
-  const client = useQueryClient()
-  const page = Math.max(0, Number(url.state.page) || 0)
-  const showDeleted = url.state.deleted === 'true' && hasCapability(actor, 'USER_RESTORE')
-  const [form, setForm] = useState<CreateUserRequest>(emptyForm)
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [bulkSummary, setBulkSummary] = useState('')
-  const dirty = Object.entries(form).some(([key, value]) => value !== emptyForm[key as keyof CreateUserRequest])
-  useDirtyGuard(dirty)
-  const result = useQuery({ queryKey: queryKeys.users(`${employeesOnly}:${url.query}`), queryFn: () => showDeleted
-    ? userApi.deleted(page, 20) : userApi.list({ page, size: 20, role: employeesOnly ? 'EMPLOYEE' : undefined,
-      search: url.state.search || undefined, sort: url.state.sort, direction: url.state.direction, active: url.state.active === '' ? undefined : url.state.active === 'true' }) })
-  const focusedUser = result.data?.content.find(user => user.id === url.state.focus)
-  const refresh = () => client.invalidateQueries({ queryKey: ['users'] })
-  const create = useMutation({ mutationFn: userApi.create, onSuccess: async () => {
-    setForm(emptyForm); url.set({ page: '0' }); await refresh()
-  } })
-  const deactivate = useMutation({ mutationFn: userApi.deactivate, onSuccess: refresh })
-  const bulk = useMutation({ mutationFn: () => userApi.bulkDeactivate([...selected]), onSuccess: async (response) => {
-    setBulkSummary(`${response.succeeded} uspešno, ${response.failed} neuspešno.`); setSelected(new Set()); await refresh()
-  } })
-  const error = result.error || create.error || deactivate.error || bulk.error
+  const actor = useAuthStore(state => state.user)
+  if (employeesOnly) return <EmployeesPage />
+  if (!actor || !hasCapability(actor, 'USER_LIST') || !['OWNER', 'ADMIN'].includes(actor.role)) return <main className="workspace">
+    <EmptyState title="Pregled korisnika nije dostupan" description="Nemate odgovarajuću dozvolu." />
+  </main>
+  return <UserWorkspace key={`${actor.id}:${actor.role}`} actor={actor} />
+}
 
-  async function remove(user: UserResponse) {
-    confirm({ title: 'Obriši korisnički nalog', description: `${user.name} · ${user.email}`, variant: 'danger',
-      reasonLabel: 'Razlog brisanja', reasonRequired: true, confirmLabel: 'Obriši nalog', onConfirm: async (reason) => {
-        await userApi.remove(user.id, reason!); await refresh(); toast('Nalog je obrisan.', 'success')
+function UserWorkspace({ actor }: { actor: AuthUser }) {
+  const client = useQueryClient(), toast = useToast(), url = useListUrlState(defaults, allowed)
+  const { confirm, confirmationDialog } = useConfirmDialog()
+  const canCreate = hasCapability(actor, 'USER_CREATE') && ['OWNER', 'ADMIN'].includes(actor.role)
+  const canRestore = hasCapability(actor, 'USER_RESTORE'), canDeactivate = hasCapability(actor, 'USER_DEACTIVATE')
+  const deleted = url.state.deleted === 'true' && canRestore
+  const pageValue = Number(url.state.page), page = Number.isSafeInteger(pageValue) && pageValue >= 0 ? pageValue : 0
+  const size = [10, 20, 50].includes(Number(url.state.size)) ? Number(url.state.size) : 10
+  const active = ['true', 'false'].includes(url.state.active) ? url.state.active === 'true' : undefined
+  const role = roles.find(value => value === url.state.role)
+  const fields = url.state.sort.split(',').map(value => value.trim())
+  const sortFields = ['name', 'email', 'role', 'active', 'createdAt', ...(deleted ? ['deletedAt'] : [])]
+  const sort = fields.length <= 3 && fields.length > 0 && new Set(fields).size === fields.length && fields.every(value => sortFields.includes(value)) ? fields.join(',') : 'createdAt'
+  const directions = url.state.direction.split(',').map(value => value.trim().toUpperCase())
+  const direction = (directions.length === 1 || directions.length === sort.split(',').length) && directions.every(value => ['ASC', 'DESC'].includes(value)) ? directions.join(',') : 'DESC'
+  const [search, setSearch] = useState(url.state.search), [selected, setSelected] = useState<Set<string>>(new Set())
+  const [createOpen, setCreateOpen] = useState(false), [wide, setWide] = useState(false), [busy, setBusy] = useState('')
+  const [bulkResult, setBulkResult] = useState<BulkOperationResponse | null>(null)
+  const root = useRef<HTMLElement>(null), detailsRegion = useRef<HTMLElement>(null), searchInput = useRef<HTMLInputElement>(null)
+  const createOpener = useRef<HTMLElement | null>(null), detailsOpener = useRef<HTMLElement | null>(null)
+  const mounted = useRef(false), inFlight = useRef(false)
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
+  useLayoutEffect(() => {
+    const element = root.current; if (!element) return
+    const measure = (width: number) => setWide(width >= (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16) * 60)
+    const resize = () => { const css = getComputedStyle(element); measure(element.clientWidth - parseFloat(css.paddingLeft) - parseFloat(css.paddingRight)) }
+    resize()
+    if (typeof ResizeObserver === 'undefined') { window.addEventListener('resize', resize); return () => window.removeEventListener('resize', resize) }
+    const observer = new ResizeObserver(entries => { if (entries[0]) measure(entries[0].contentRect.width) })
+    observer.observe(element); return () => observer.disconnect()
+  }, [])
+  useEffect(() => setSearch(url.state.search), [url.state.search])
+  useEffect(() => {
+    if (search === url.state.search) return
+    const timer = window.setTimeout(() => { setSelected(new Set()); url.set({ search: search.trim(), page: '0' }, true) }, 300)
+    return () => window.clearTimeout(timer)
+  }, [search, url.state.search, url.set])
+  const filters = { role, active, search: url.state.search.trim() || undefined, sort, direction }
+  const users = useQuery({ queryKey: ['users', 'management', actor.id, actor.role, deleted, page, size, filters],
+    queryFn: () => deleted ? userApi.deleted(page, size, filters) : userApi.list({ page, size, ...filters }), staleTime: 15000 })
+  const statistics = useQuery({ queryKey: ['users', 'statistics', actor.id, actor.role], queryFn: userApi.statistics,
+    staleTime: 15000, refetchInterval: 60000, refetchIntervalInBackground: false, retry: false })
+  const detail = useQuery({ queryKey: ['users', 'detail', actor.id, actor.role, url.state.focus, deleted],
+    queryFn: () => userApi.detail(url.state.focus, deleted), enabled: Boolean(url.state.focus), staleTime: 15000, retry: false,
+    initialData: () => users.data?.content.find(user => user.id === url.state.focus), initialDataUpdatedAt: () => users.dataUpdatedAt || undefined })
+  useEffect(() => { setSelected(new Set()) }, [page, size, role, active, sort, direction, deleted, url.state.search])
+  useEffect(() => {
+    if (!users.isSuccess) return
+    const eligible = new Set(users.data.content.filter(user => allowedUserActions(actor, user).deactivate).map(user => user.id))
+    setSelected(previous => [...previous].some(id => !eligible.has(id)) ? new Set([...previous].filter(id => eligible.has(id))) : previous)
+    if (page >= Math.max(1, users.data.totalPages)) url.set({ page: String(Math.max(0, users.data.totalPages - 1)) }, true)
+  }, [users.data, users.isSuccess, actor, page, url.set])
+  function current(permission: Permission) {
+    const live = useAuthStore.getState().user
+    return mounted.current && live?.id === actor.id && live.role === actor.role && hasCapability(live, permission)
+  }
+  const refresh = () => client.invalidateQueries({ queryKey: ['users'] })
+  function closeDetails() {
+    url.set({ focus: '' })
+    window.requestAnimationFrame(() => {
+      const target = detailsOpener.current
+      if (target?.isConnected && target.getClientRects().length) target.focus({ preventScroll: true }); else searchInput.current?.focus({ preventScroll: true })
+    })
+  }
+  function openCreate(element: HTMLButtonElement) { createOpener.current = element; setCreateOpen(true) }
+  function onAction(target: UserResponse, action: UserAction, opener: HTMLButtonElement | null) {
+    if (action === 'details') {
+      detailsOpener.current = opener; url.set({ focus: target.id })
+      if (wide) window.requestAnimationFrame(() => detailsRegion.current?.focus({ preventScroll: true }))
+      return
+    }
+    const actions = allowedUserActions(actor, target)
+    const permitted = action === 'deactivate' ? actions.deactivate : action === 'delete' ? actions.remove : actions.restore
+    if (!permitted || inFlight.current) return
+    const title = action === 'deactivate' ? 'Deaktiviraj korisnički nalog' : action === 'delete' ? 'Obriši korisnički nalog' : 'Vrati korisnički nalog'
+    confirm({ title, titleIcon: <UserIcon kind={action === 'deactivate' ? 'lock' : action === 'delete' ? 'delete' : 'restore'} />, className: 'gm-user-dialog',
+      description: <><strong>{target.name}</strong> · {target.email}. {action === 'restore' ? 'Nalog će biti vraćen u pregled postojećih korisnika.'
+        : action === 'delete' ? 'Korisnik gubi pristup aplikaciji. Nalog će biti uklonjen iz aktivnog pregleda.' : 'Korisnik gubi pristup aplikaciji. Nalog i istorija ostaju sačuvani.'}</>,
+      variant: action === 'delete' ? 'danger' : action === 'deactivate' ? 'warning' : 'default', confirmLabel: action === 'restore' ? 'Vrati nalog' : action === 'delete' ? 'Obriši nalog' : 'Deaktiviraj nalog',
+      reasonLabel: action === 'delete' ? 'Razlog brisanja' : undefined, reasonRequired: action === 'delete',
+      formatError: cause => userError(cause, 'Akciju nad nalogom nije moguće izvršiti.'), onConfirm: async reason => {
+        const permission: Permission = action === 'delete' ? 'USER_DELETE' : action === 'restore' ? 'USER_RESTORE' : 'USER_DEACTIVATE'
+        const live = useAuthStore.getState().user
+        const liveActions = live ? allowedUserActions(live, target) : null
+        if (inFlight.current || !current(permission) || !(action === 'delete' ? liveActions?.remove : action === 'restore' ? liveActions?.restore : liveActions?.deactivate))
+          throw new Error('Akcija nije dostupna sa trenutnim dozvolama.')
+        inFlight.current = true; setBusy(target.id)
+        try {
+          if (action === 'delete') await userApi.remove(target.id, reason!)
+          else if (action === 'restore') await userApi.restore(target.id)
+          else await userApi.deactivate(target.id)
+          if (!current('USER_LIST')) return
+          toast(action === 'delete' ? 'Nalog je obrisan.' : action === 'restore' ? 'Nalog je vraćen.' : 'Nalog je deaktiviran.', 'success')
+          if (action !== 'deactivate' && url.state.focus === target.id) closeDetails()
+          setSelected(previous => new Set([...previous].filter(id => id !== target.id)))
+          await refresh()
+          window.requestAnimationFrame(() => {
+            if (opener?.isConnected && !opener.disabled && opener.getClientRects().length) opener.focus({ preventScroll: true })
+            else if (wide && action === 'deactivate' && url.state.focus === target.id) detailsRegion.current?.focus({ preventScroll: true })
+            else searchInput.current?.focus({ preventScroll: true })
+          })
+        } catch (cause) { if (current('USER_LIST')) await refresh(); throw cause }
+        finally { inFlight.current = false; if (mounted.current) setBusy('') }
       } })
   }
-  async function restore(user: UserResponse) {
-    confirm({ title: 'Vrati korisnički nalog', description: `${user.name} · ${user.email}`, confirmLabel: 'Vrati nalog',
-      onConfirm: async () => { await userApi.restore(user.id); await refresh(); toast('Nalog je vraćen.', 'success') } })
+  function bulkDeactivate() {
+    const ids = users.data?.content.filter(user => selected.has(user.id) && allowedUserActions(actor, user).deactivate).map(user => user.id) ?? []
+    if (!canDeactivate || deleted || !ids.length || inFlight.current) return
+    confirm({ title: 'Deaktiviraj izabrane naloge', titleIcon: <UserIcon kind="lock" />, className: 'gm-user-dialog', variant: 'danger',
+      description: `${ids.length} izabranih naloga izgubiće pristup aplikaciji.`, confirmLabel: 'Deaktiviraj izabrane', formatError: cause => userError(cause, 'Grupnu deaktivaciju nije moguće izvršiti.'),
+      onConfirm: async () => {
+        const live = useAuthStore.getState().user
+        if (inFlight.current || !current('USER_DEACTIVATE') || !live || ids.some(id => {
+          const target = users.data?.content.find(user => user.id === id); return !target || !allowedUserActions(live, target).deactivate
+        })) throw new Error('Izbor sadrži naloge nad kojima akcija više nije dostupna.')
+        inFlight.current = true; setBusy('bulk')
+        try {
+          const response = await userApi.bulkDeactivate(ids)
+          if (!current('USER_LIST')) return
+          setBulkResult(response); setSelected(new Set()); toast(`${response.succeeded} uspešno, ${response.failed} neuspešno.`, response.failed ? 'info' : 'success')
+          await refresh()
+        } catch (cause) { if (current('USER_LIST')) await refresh(); throw cause }
+        finally { inFlight.current = false; if (mounted.current) setBusy('') }
+      } })
   }
-  const toggle = (id: string) => setSelected((current) => {
-    const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next
-  })
+  function resetFilters() { setSearch(''); setSelected(new Set()); url.set({ search: '', active: '', role: '', page: '0', sort: 'createdAt', direction: 'DESC' }) }
+  const filtered = Boolean(url.state.search || role || active !== undefined)
+  const sortValue = `${sort}:${direction}`, standardSort = sorting.some(value => `${value.sort}:${value.direction}` === sortValue)
+  const detailBody = detail.isLoading ? <Skeleton lines={8} label="Učitavanje detalja korisnika" /> : detail.isError
+    ? <ErrorState message={userError(detail.error, 'Detalje naloga nije moguće učitati.')} action={<Button type="button" onClick={() => void detail.refetch()}>Pokušaj ponovo</Button>} />
+    : detail.data && <UserDetails user={detail.data} actor={actor} busy={Boolean(busy)} onAction={onAction} onClose={closeDetails} onRefresh={() => void detail.refetch()} />
 
-  return <main className="workspace">
+  return <main ref={root} className="workspace gm-users">
     {confirmationDialog}
-    <div className="page-heading"><div><p className="eyebrow">Administracija</p><h1>{employeesOnly ? 'Zaposleni' : 'Korisnici'}</h1></div>
-      {!employeesOnly && hasCapability(actor, 'USER_RESTORE') && <Button type="button" variant="secondary"
-        onClick={() => {setSelected(new Set());url.set({ deleted: showDeleted ? '' : 'true', page: '0', focus: '' })}}>{showDeleted ? 'Aktivni korisnici' : 'Obrisani korisnici'}</Button>}
+    <header className="gm-users-heading"><div><span className="gm-users-heading-icon"><UserIcon /></span><div><h1>Korisnici i uloge</h1><p>Upravljanje nalozima, statusima i korisničkim ulogama.</p></div></div>
+      {canCreate && <Button type="button" className="gm-user-primary" aria-haspopup="dialog" aria-expanded={createOpen} onClick={event => openCreate(event.currentTarget)}><UserIcon kind="add" />+ Novi korisnik</Button>}
+    </header>
+    <div className="gm-user-kpis">
+      <UserKpi title="Ukupno korisnika" kind="users" tone="blue" value={statistics.isError ? undefined : statistics.data?.total} loading={statistics.isLoading} />
+      <UserKpi title="Aktivni nalozi" kind="check" tone="green" value={statistics.isError ? undefined : statistics.data?.active} loading={statistics.isLoading} />
+      <UserKpi title="Administratori" kind="shield" tone="purple" value={statistics.isError ? undefined : statistics.data?.administrators} loading={statistics.isLoading} />
+      <UserKpi title="Neaktivni nalozi" kind="lock" tone="pink" value={statistics.isError ? undefined : statistics.data?.inactive} loading={statistics.isLoading} />
     </div>
-    <div className="filter-bar customer-filters">
-      <label>Status<select value={url.state.active} onChange={(event) => {setSelected(new Set());url.set({ active: event.target.value, page: '0' })}}>
-        <option value="">Svi</option><option value="true">Aktivni</option><option value="false">Neaktivni</option>
-      </select></label>
-      <label>Pretraga<input type="search" value={url.state.search} onChange={event => {setSelected(new Set());url.set({ search: event.target.value, page: '0', focus: '' })}} placeholder="Ime ili email" /></label>
+    <p className="gm-user-note">Statistika uključuje naloge koje smete da vidite i koji nisu obrisani.</p>
+    {statistics.isError && <ErrorState message={userError(statistics.error, 'Statistiku korisnika nije moguće učitati.')}
+      action={<Button type="button" variant="secondary" onClick={() => void statistics.refetch()}>Ponovo učitaj statistiku</Button>} />}
+    <div className={`gm-users-layout${wide && url.state.focus ? ' has-details' : ''}`}>
+      <section className="ui-card gm-users-list" aria-labelledby="gm-users-list-title">
+        <header className="gm-users-list-heading"><h2 id="gm-users-list-title">{deleted ? 'Obrisani korisnici' : 'Pregled korisnika'}</h2>
+          {canRestore && <Button type="button" variant="secondary" disabled={Boolean(busy)} onClick={() => { setSelected(new Set()); url.set({ deleted: deleted ? '' : 'true', page: '0', focus: '' }) }}>
+            <UserIcon kind={deleted ? 'users' : 'restore'} />{deleted ? 'Postojeći korisnici' : 'Obrisani korisnici'}</Button>}
+          <Button type="button" variant="secondary" disabled={Boolean(busy)} onClick={() => { void users.refetch(); void statistics.refetch(); if (url.state.focus) void detail.refetch() }}><UserIcon kind="refresh" />Osveži</Button>
+        </header>
+        <div className="gm-user-filters"><label className="gm-user-search"><span>Pretraga</span><div><UserIcon kind="search" /><Input ref={searchInput} type="search" maxLength={200}
+          value={search} placeholder="Pretraži korisnike po imenu ili email adresi..." onChange={event => setSearch(event.target.value)} /></div></label>
+          <label><span>Uloga</span><Select value={role ?? ''} onChange={event => url.set({ role: event.target.value, page: '0' })}><option value="">Sve uloge</option>
+            <option value="OWNER">Vlasnik</option><option value="ADMIN">Administrator</option><option value="EMPLOYEE">Zaposleni</option><option value="CUSTOMER">Klijent</option></Select></label>
+          <label><span>Status naloga</span><Select value={active === undefined ? '' : String(active)} onChange={event => url.set({ active: event.target.value, page: '0' })}>
+            <option value="">Svi statusi</option><option value="true">Aktivni</option><option value="false">Neaktivni</option></Select></label>
+          <label><span>Sortiranje</span><Select value={sortValue} onChange={event => { const option = sorting.find(value => `${value.sort}:${value.direction}` === event.target.value); if (option) url.set({ sort: option.sort, direction: option.direction, page: '0' }) }}>
+            {!standardSort && <option value={sortValue}>Sačuvano sortiranje</option>}{sorting.map(option => <option key={`${option.sort}:${option.direction}`} value={`${option.sort}:${option.direction}`}>{option.label}</option>)}</Select></label>
+        </div>
+        {filtered && <Button type="button" variant="secondary" className="gm-user-reset" onClick={resetFilters}>Ukloni filtere</Button>}
+        <SavedViewBar resource="USERS" query={url.queryObject} apply={query => { setSelected(new Set()); url.apply(query) }} />
+        {deleted && <p className="gm-user-archive-notice"><Badge tone="warning">Obrisani nalozi</Badge> Obrisani nalozi prikazuju se odvojeno od neaktivnih. Vraćanje ne menja ulogu naloga.</p>}
+        {canDeactivate && <SelectionBar count={selected.size} summary={bulkResult ? `${bulkResult.succeeded} uspešno, ${bulkResult.failed} neuspešno.` : undefined}>
+          <Button type="button" variant="danger" loading={busy === 'bulk'} disabled={!selected.size || Boolean(busy) || users.isFetching || users.isError || deleted} onClick={bulkDeactivate}>Deaktiviraj izabrane</Button>
+          {selected.size > 0 && <Button type="button" variant="secondary" disabled={Boolean(busy)} onClick={() => setSelected(new Set())}>Poništi izbor</Button>}
+          {bulkResult && <Button type="button" variant="secondary" onClick={() => setBulkResult(null)}>Zatvori rezultat</Button>}
+        </SelectionBar>}
+        {bulkResult?.failed ? <ul className="gm-user-bulk-errors" aria-label="Neuspešne grupne akcije">{bulkResult.outcomes.filter(value => !value.success).map(value => <li key={value.id}>
+          <strong>{users.data?.content.find(user => user.id === value.id)?.name ?? `Nalog ${value.id.slice(0, 8)}`}</strong><span>{userError(value.message, 'Operacija nije uspela.')}</span></li>)}</ul> : null}
+        {users.isLoading ? <Skeleton lines={7} label="Učitavanje korisnika" /> : users.isError ? <ErrorState message={userError(users.error, 'Korisnike nije moguće učitati.')}
+          action={<Button type="button" onClick={() => void users.refetch()}>Pokušaj ponovo</Button>} /> : !users.data?.content.length
+            ? <EmptyState title={filtered ? 'Nema korisnika koji odgovaraju izabranim filterima.' : deleted ? 'Nema obrisanih korisnika.' : 'Nema korisnika.'}
+              action={filtered ? <Button type="button" variant="secondary" onClick={resetFilters}>Ukloni filtere</Button> : !deleted && canCreate ? <Button type="button" aria-haspopup="dialog" onClick={event => openCreate(event.currentTarget)}>Novi korisnik</Button> : undefined} />
+            : <UsersTable users={users.data.content} actor={actor} selected={selected} focus={url.state.focus} busy={Boolean(busy)} onAction={onAction} onToggle={id => setSelected(previous => {
+              const next = new Set(previous); if (next.has(id)) next.delete(id); else next.add(id); return next
+            })} />}
+        {users.isSuccess && <UserPagination page={page} size={size} totalPages={users.data.totalPages} totalElements={users.data.totalElements} busy={users.isFetching || Boolean(busy)}
+          onPage={next => url.set({ page: String(next) })} onSize={next => url.set({ size: String(next), page: '0' })} />}
+      </section>
+      {wide && url.state.focus && <aside ref={detailsRegion} tabIndex={-1} className="ui-card gm-user-details-panel" aria-label="Detalji izabranog korisnika">
+        {(!detail.data || detail.isError) && <header className="gm-user-details-heading"><span>Detalji korisnika</span><Button type="button" variant="secondary" className="gm-user-inline-close" aria-label="Zatvori detalje korisnika" onClick={closeDetails}>×</Button></header>}{detailBody}
+      </aside>}
     </div>
-    {!employeesOnly && <SavedViewBar resource="USERS" query={url.queryObject} apply={(query) => {setSelected(new Set());url.apply(query)}} />}
-    {error && <ErrorState message={apiErrorMessage(error, 'Operaciju nad korisnicima nije moguće izvršiti.')}
-      action={<Button onClick={() => result.refetch()}>Pokušaj ponovo</Button>} />}
-    {!showDeleted && hasCapability(actor, 'USER_CREATE') && <details className="panel user-create-section"><summary>{employeesOnly ? 'Dodaj zaposlenog' : 'Dodaj korisnika'}</summary>
-    <form className="create-user form-grid" onSubmit={(event: FormEvent) => { event.preventDefault(); if (!create.isPending) create.mutate(form) }}>
-      <label>Ime<input value={form.name} minLength={2} maxLength={120} required onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
-      <label>Email<input type="email" value={form.email} required onChange={(event) => setForm({ ...form, email: event.target.value })} /></label>
-      <label>Početna lozinka<input type="password" minLength={8} maxLength={100} value={form.password} required onChange={(event) => setForm({ ...form, password: event.target.value })} /></label>
-      {actor?.role === 'OWNER' && !employeesOnly && <label>Uloga<select value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as CreateUserRequest['role'] })}>
-        <option value="EMPLOYEE">Zaposleni</option><option value="ADMIN">Administrator</option></select></label>}
-      <Button type="submit" loading={create.isPending}>Kreiraj</Button>
-    </form></details>}
-    {hasCapability(actor, 'USER_DEACTIVATE') && <SelectionBar count={selected.size} summary={bulkSummary}><Button variant="danger" loading={bulk.isPending}
-      onClick={() => confirm({ title: 'Deaktiviraj izabrane naloge', description: `${selected.size} naloga izgubiće pristup aplikaciji.`,
-        variant: 'danger', confirmLabel: 'Deaktiviraj', onConfirm: () => bulk.mutateAsync() })}>Deaktiviraj izabrane</Button></SelectionBar>}
-    {result.isLoading ? <Skeleton lines={7} label="Učitavanje korisnika" /> : !result.data?.content.length
-      ? <EmptyState title="Nema korisnika" description="Promenite filter ili kreirajte korisnika." />
-      : <TableShell label="Lista korisnika"><table className="responsive-table"><thead><tr><th scope="col">Izbor</th><th scope="col">Ime</th>
-        <th scope="col">Email</th><th scope="col">Uloga</th><th scope="col">Status</th><th scope="col">Akcije</th></tr></thead>
-        <tbody>{result.data.content.map((user) => <tr key={user.id}><td data-label="Izbor"><input type="checkbox" checked={selected.has(user.id)}
-          disabled={showDeleted || user.id === actor?.id || !user.active || !hasCapability(actor,'USER_DEACTIVATE')} onChange={() => toggle(user.id)} aria-label={`Izaberi korisnika ${user.email}`} /></td>
-          <td data-label="Ime"><button className="link-button" onClick={() => url.set({ focus: user.id })}>{user.name}</button></td><td data-label="Email">{user.email}</td><td data-label="Uloga">{roleLabels[user.role]}</td><td data-label="Status"><Badge tone={user.active?'success':'neutral'}>{user.active ? 'Aktivan' : 'Neaktivan'}</Badge></td><td data-label="Akcije"><div className="form-actions">{showDeleted
-            ? <button type="button" onClick={() => void restore(user)}>Vrati</button>
-            : <>{user.active && user.id !== actor?.id && hasCapability(actor,'USER_DEACTIVATE') && <button className="secondary-button" type="button"
-              onClick={() => confirm({ title: 'Deaktiviraj nalog', description: `${user.name} · ${user.email}. Korisnik gubi pristup aplikaciji.`,
-                variant: 'warning', confirmLabel: 'Deaktiviraj', onConfirm: () => deactivate.mutateAsync(user.id) })}>Deaktiviraj</button>}
-              {user.id !== actor?.id && hasCapability(actor, 'USER_DELETE') && <button className="danger-button" type="button"
-                onClick={() => void remove(user)}>Obriši</button>}</>}</div></td></tr>)}</tbody></table></TableShell>}
-    <Pagination page={page} totalPages={result.data?.totalPages} onPageChange={(page) => { setSelected(new Set()); url.set({ page: String(page) }) }} loading={result.isFetching} />
-    <Drawer open={!!focusedUser} title={focusedUser?.name ?? 'Korisnik'} onClose={() => url.set({ focus: '' })}>
-      {focusedUser && <dl className="station-detail-grid"><div><dt>Email</dt><dd>{focusedUser.email}</dd></div><div><dt>Uloga</dt><dd>{roleLabels[focusedUser.role]}</dd></div><div><dt>Status naloga</dt><dd><Badge tone={focusedUser.active ? 'success' : 'neutral'}>{focusedUser.active ? 'Aktivan' : 'Neaktivan'}</Badge></dd></div></dl>}
-    </Drawer>
+    <Drawer open={!wide && Boolean(url.state.focus)} title="Detalji korisnika" className="gm-user-details-drawer" size="wide" returnFocusRef={detailsOpener} closeDisabled={Boolean(busy)} onClose={closeDetails}>{detailBody}</Drawer>
+    {createOpen && canCreate && <NewUserDialog actor={actor} returnFocusRef={createOpener} onClose={() => setCreateOpen(false)} onCreated={user => {
+      setCreateOpen(false); setSearch(''); setSelected(new Set())
+      url.set({ page: '0', deleted: '', role: '', active: '', search: '', sort: 'createdAt', direction: 'DESC', focus: user.id })
+      toast('Korisnik je uspešno kreiran.', 'success'); void refresh()
+      if (wide) window.requestAnimationFrame(() => detailsRegion.current?.focus({ preventScroll: true }))
+    }} />}
   </main>
 }

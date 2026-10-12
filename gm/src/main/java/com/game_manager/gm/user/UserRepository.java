@@ -57,6 +57,24 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
     EmployeeCounts employeeCounts(@Param("monthStart") java.time.Instant monthStart,
             @Param("monthEnd") java.time.Instant monthEnd);
 
+    interface ManagementCounts {
+        long getTotal();
+        long getActive();
+        long getAdministrators();
+        long getInactive();
+    }
+
+    @Query("""
+            select count(u) as total,
+              coalesce(sum(case when u.active = true then 1 else 0 end), 0) as active,
+              coalesce(sum(case when u.role = com.game_manager.gm.common.security.Role.ADMIN
+                then 1 else 0 end), 0) as administrators,
+              coalesce(sum(case when u.active = false then 1 else 0 end), 0) as inactive
+            from User u where u.deletedAt is null
+              and (:employeesOnly = false or u.role = com.game_manager.gm.common.security.Role.EMPLOYEE)
+            """)
+    ManagementCounts managementCounts(@Param("employeesOnly") boolean employeesOnly);
+
     @org.springframework.data.jpa.repository.Query("""
             select new com.game_manager.gm.user.EmployeeAnalyticsRow(u.id, u.name)
             from User u where u.role = com.game_manager.gm.common.security.Role.EMPLOYEE

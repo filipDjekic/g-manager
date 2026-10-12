@@ -101,8 +101,21 @@ public class UserController {
 
     @GetMapping("/deleted")
     public PageResponse<UserResponse> listDeletedUsers(
+            @RequestParam(required = false) Role role,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return userService.listDeletedUsers(page, size);
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "deletedAt") String sort,
+            @RequestParam(defaultValue = "DESC") String direction) {
+        return userService.listDeletedUsers(role, active, page, size, sort, direction, search);
+    }
+
+    @GetMapping("/statistics")
+    public UserStatistics statistics() { return userService.statistics(); }
+
+    @GetMapping("/{id}")
+    public UserResponse getUser(@PathVariable UUID id, @RequestParam(defaultValue = "false") boolean deleted) {
+        return userService.getUser(id, deleted);
     }
 }

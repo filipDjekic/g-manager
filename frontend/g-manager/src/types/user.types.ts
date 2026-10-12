@@ -23,6 +23,13 @@ export interface CreateUserRequest {
   role: 'ADMIN' | 'EMPLOYEE'
 }
 
+export interface UserStatistics {
+  total: number
+  active: number
+  administrators: number
+  inactive: number
+}
+
 export interface EmployeeStatistics {
   total: number; active: number; newThisMonth: number; inactive: number; onLeave: number | null
   businessDate: string; businessZone: string
