@@ -20,6 +20,7 @@ export interface WorkingHoursException {
   overrideOpenTime: string | null
   overrideCloseTime: string | null
   version: number
+  locationId?: string | null
 }
 
 export interface WorkingHoursExceptionInput {

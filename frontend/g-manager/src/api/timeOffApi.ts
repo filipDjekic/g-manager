@@ -5,9 +5,10 @@ export const timeOffApi = {
   list: () => apiClient.get<TimeOff[]>('/time-off').then(({ data }) => data),
   create: (input: TimeOffInput) =>
     apiClient.post<TimeOff>('/time-off', input).then(({ data }) => data),
-  decide: (item: TimeOff, status: TimeOffStatus) =>
+  decide: (item: TimeOff, status: TimeOffStatus, reason?: string) =>
     apiClient.patch<TimeOff>(`/time-off/${item.id}/status`, {
       status,
       version: item.version,
+      reason,
     }).then(({ data }) => data),
 }

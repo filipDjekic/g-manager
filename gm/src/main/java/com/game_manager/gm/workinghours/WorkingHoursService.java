@@ -99,6 +99,19 @@ public class WorkingHoursService {
                 .stream().map(WorkingHoursExceptionResponse::from).toList();
     }
 
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('WORKING_HOURS_READ')")
+    public List<WorkingHoursExceptionResponse> listExceptions(LocalDate from, LocalDate to) {
+        if (from == null && to == null) return listExceptions();
+        currentUserProvider.requireCurrentUser();
+        if (from == null || to == null || to.isBefore(from)
+                || java.time.temporal.ChronoUnit.DAYS.between(from, to) > 366) {
+            throw new ApplicationException(HttpStatus.BAD_REQUEST, "Exception range must contain between 1 and 367 days");
+        }
+        return exceptionRepository.findAllByDateBetweenOrderByDateAsc(from, to).stream()
+                .map(WorkingHoursExceptionResponse::from).toList();
+    }
+
     @Transactional
     @PreAuthorize("hasAuthority('WORKING_HOURS_MANAGE')")
     public WorkingHoursExceptionResponse createException(WorkingHoursExceptionRequest request) {

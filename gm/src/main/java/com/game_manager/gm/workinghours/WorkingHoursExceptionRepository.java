@@ -15,4 +15,5 @@ public interface WorkingHoursExceptionRepository
     Optional<WorkingHoursException> findByLocationIdAndDate(UUID locationId, LocalDate date);
     boolean existsByDate(LocalDate date);
     List<WorkingHoursException> findAllByDateGreaterThanEqualOrderByDateAsc(LocalDate date);
+    List<WorkingHoursException> findAllByDateBetweenOrderByDateAsc(LocalDate from, LocalDate to);
 }
