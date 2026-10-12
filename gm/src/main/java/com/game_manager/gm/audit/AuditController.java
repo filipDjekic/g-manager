@@ -1,6 +1,7 @@
 package com.game_manager.gm.audit;
 
 import com.game_manager.gm.audit.dto.AuditEventResponse;
+import com.game_manager.gm.audit.dto.AuditStatisticsResponse;
 import com.game_manager.gm.common.dto.PageResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -20,10 +21,21 @@ public class AuditController {
             @RequestParam(required = false) UUID actorId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt") String sort,
             @RequestParam(defaultValue = "DESC") String direction) {
-        return service.list(action, resourceType, actorId, from, to, page, size, sort, direction);
+        return service.list(action, resourceType, actorId, from, to, search, page, size, sort, direction);
+    }
+
+    @GetMapping("/statistics")
+    public AuditStatisticsResponse statistics(@RequestParam(required = false) String action,
+            @RequestParam(required = false) String resourceType,
+            @RequestParam(required = false) UUID actorId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) String search) {
+        return service.statistics(action, resourceType, actorId, from, to, search);
     }
 
     @GetMapping("/{id}")
