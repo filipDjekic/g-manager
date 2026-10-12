@@ -30,6 +30,7 @@ public final class RolePermissions {
                 Permission.RESERVATION_CHANGE_STATUS, Permission.ORDER_CREATE,
                 Permission.ORDER_READ_OWN, Permission.ORDER_CHANGE_STATUS));
         permissions.put(Role.EMPLOYEE, immutableWithProfile(
+                Permission.WAITLIST_MANAGE,
                 Permission.CUSTOMER_READ, Permission.CUSTOMER_CREATE,
                 Permission.CUSTOMER_UPDATE_LIMITED, Permission.CUSTOMER_DEACTIVATE,
                 Permission.STATION_READ,
@@ -40,6 +41,7 @@ public final class RolePermissions {
                 Permission.DASHBOARD_OPERATIONAL, Permission.REPORT_READ,
                 Permission.WORKFLOW_SUBMIT));
         permissions.put(Role.ADMIN, immutableWithProfile(
+                Permission.WAITLIST_MANAGE,
                 Permission.USER_LIST, Permission.USER_CREATE, Permission.USER_DEACTIVATE,
                 Permission.USER_DELETE, Permission.USER_RESTORE, Permission.CUSTOMER_READ,
                 Permission.CUSTOMER_CREATE, Permission.CUSTOMER_UPDATE_LIMITED,
@@ -60,6 +62,7 @@ public final class RolePermissions {
                 Permission.WORKFLOW_ACT, Permission.WORKFLOW_MANAGE,
                 Permission.FEATURE_FLAG_MANAGE));
         permissions.put(Role.OWNER, immutableWithProfile(
+                Permission.WAITLIST_MANAGE,
                 Permission.USER_LIST, Permission.USER_CREATE, Permission.USER_DEACTIVATE,
                 Permission.USER_DELETE, Permission.USER_RESTORE, Permission.CUSTOMER_READ,
                 Permission.CUSTOMER_CREATE, Permission.CUSTOMER_UPDATE_LIMITED,

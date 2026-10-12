@@ -136,6 +136,7 @@ const permissionLabels: Record<Permission, string> = {
   STATION_READ: 'Pregled gaming stanica', STATION_MAINTENANCE: 'Održavanje gaming stanica', APPLICATION_PROFILE_MANAGE: 'Upravljanje aplikacionim profilima', MACHINE_IDENTITY_MANAGE: 'Upravljanje identitetima gaming klijenata',
   GAMING_SESSION_READ: 'Pregled gaming sesija', GAMING_SESSION_START: 'Pokretanje gaming sesija', GAMING_SESSION_EXTEND: 'Produžavanje gaming sesija', GAMING_SESSION_TERMINATE: 'Završavanje gaming sesija',
   RESERVATION_CREATE: 'Kreiranje rezervacija', RESERVATION_READ_OWN: 'Pregled sopstvenih rezervacija', RESERVATION_READ_ALL: 'Pregled svih rezervacija', RESERVATION_CHANGE_STATUS: 'Promena statusa rezervacija',
+  WAITLIST_MANAGE: 'Upravljanje listom čekanja',
   ORDER_CREATE: 'Kreiranje narudžbina', ORDER_READ_OWN: 'Pregled sopstvenih narudžbina', ORDER_READ_ALL: 'Pregled svih narudžbina', ORDER_CHANGE_STATUS: 'Promena statusa narudžbina',
   DASHBOARD_SUMMARY: 'Zbirni pregled poslovanja', DASHBOARD_OPERATIONAL: 'Operativni pregled', METRICS_READ: 'Pregled metrika', REPORT_READ: 'Pregled izveštaja', REPORT_MANAGE: 'Upravljanje izveštajima',
   WORKFLOW_SUBMIT: 'Slanje operativnih zahteva', WORKFLOW_ACT: 'Obrada operativnih zahteva', WORKFLOW_MANAGE: 'Upravljanje operativnim zahtevima', FEATURE_FLAG_MANAGE: 'Upravljanje funkcionalnostima aplikacije',
@@ -145,7 +146,7 @@ function permissionGroup(permission: Permission) {
   if (permission.startsWith('USER_') || permission === 'EMPLOYEE_LIST') return 'Korisnici i uloge'
   if (permission.startsWith('CUSTOMER_')) return 'Klijenti'
   if (permission.startsWith('CATALOG_')) return 'Katalog'
-  if (permission.startsWith('RESERVATION_')) return 'Rezervacije'
+  if (permission.startsWith('RESERVATION_') || permission === 'WAITLIST_MANAGE') return 'Rezervacije'
   if (permission.startsWith('ORDER_')) return 'Narudžbine'
   if (permission.startsWith('GAMING_') || permission.startsWith('STATION_') || ['APPLICATION_PROFILE_MANAGE', 'MACHINE_IDENTITY_MANAGE'].includes(permission)) return 'Gaming operativa'
   if (permission.startsWith('WORKING_') || permission.startsWith('RESOURCE_')) return 'Dostupnost i resursi'

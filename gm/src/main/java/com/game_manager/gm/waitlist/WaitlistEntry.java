@@ -22,5 +22,11 @@ public class WaitlistEntry extends BaseEntity {
     @Column(name = "desired_start", nullable = false) private Instant desiredStart;
     @Column(name = "desired_end") private Instant desiredEnd;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20) private WaitlistStatus status;
-    @Column(name = "active_key", length = 180, unique = true) private String activeKey;
+    @Column(name = "active_key", length = 280, unique = true) private String activeKey;
+    @JdbcTypeCode(SqlTypes.CHAR) @Column(name = "area_id", length = 36) private UUID areaId;
+    @Column(name = "queue_entered_at", nullable = false) private Instant queueEnteredAt;
+    @Column(name = "internal_note", length = 500) private String internalNote;
+    @JdbcTypeCode(SqlTypes.CHAR) @Column(name = "created_by_id", length = 36) private UUID createdById;
+    @Column(name = "consent_at") private Instant consentAt;
+    @Column(name = "status_changed_at") private Instant statusChangedAt;
 }

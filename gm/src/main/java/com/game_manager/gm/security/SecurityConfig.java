@@ -181,6 +181,11 @@ public class SecurityConfig {
                             HttpMethod.PATCH,
                             "/api/v1/reservations/*/resource"
                         ).hasAuthority("RESERVATION_CHANGE_STATUS")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/waitlist/statistics", "/api/v1/waitlist/management-scope", "/api/v1/waitlist/management/*")
+                            .hasAuthority("RESERVATION_READ_ALL")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/waitlist/management").hasAuthority("WAITLIST_MANAGE")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/waitlist/management/*").hasAuthority("WAITLIST_MANAGE")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/waitlist/management/*").hasAuthority("WAITLIST_MANAGE")
                         .requestMatchers("/api/v1/waitlist/**", "/api/v1/waitlist").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/reservations/me", "/api/v1/reservations/me/summary").hasAuthority("RESERVATION_READ_OWN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/reservations/calendar").hasAuthority("RESERVATION_READ_ALL")
