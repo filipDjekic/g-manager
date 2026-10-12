@@ -145,9 +145,10 @@ public class OrderService {
                 .and(OrderSpecifications.hasStatus(status))
                 .and(OrderSpecifications.createdFrom(fromInstant))
                 .and(OrderSpecifications.createdBefore(toInstant));
+        var request = pageRequestFactory.create(page, size, sort, direction, ALLOWED_SORTS);
         Page<OrderResponse> result = orderRepository
-                .findAll(specification,
-                        pageRequestFactory.create(page, size, sort, direction, ALLOWED_SORTS))
+                .findAll(specification, org.springframework.data.domain.PageRequest.of(request.getPageNumber(),
+                        request.getPageSize(), request.getSort().and(org.springframework.data.domain.Sort.by("id"))))
                 .map(OrderResponse::from);
         return PageResponse.from(result);
     }

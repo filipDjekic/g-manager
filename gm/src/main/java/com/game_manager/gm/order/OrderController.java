@@ -5,6 +5,7 @@ import com.game_manager.gm.order.dto.CreateOrderRequest;
 import com.game_manager.gm.order.dto.OrderResponse;
 import com.game_manager.gm.order.dto.OrderManagementResponse;
 import com.game_manager.gm.order.dto.OrderStatisticsResponse;
+import com.game_manager.gm.order.dto.CustomerOrderDetailResponse;
 import com.game_manager.gm.order.dto.UpdateOrderStatusRequest;
 import com.game_manager.gm.order.dto.BulkOrderStatusRequest;
 import com.game_manager.gm.common.dto.BulkOperationResponse;
@@ -61,6 +62,11 @@ public class OrderController {
             @RequestParam(defaultValue = "createdAt") String sort,
             @RequestParam(defaultValue = "DESC") String direction) {
         return managementService.list(handledBy, status, from, to, search, page, size, sort, direction);
+    }
+
+    @GetMapping("/me/{id}")
+    public CustomerOrderDetailResponse getMine(@PathVariable UUID id) {
+        return managementService.getMine(id);
     }
 
     @GetMapping("/statistics")

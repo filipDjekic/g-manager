@@ -184,7 +184,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/reservations/*/status")
                             .hasAuthority("RESERVATION_CHANGE_STATUS")
                         .requestMatchers(HttpMethod.POST, "/api/v1/orders").hasAuthority("ORDER_CREATE")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/orders/me").hasAuthority("ORDER_READ_OWN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/orders/me", "/api/v1/orders/me/*")
+                            .hasAuthority("ORDER_READ_OWN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/orders", "/api/v1/orders/statistics",
                                 "/api/v1/orders/*").hasAuthority("ORDER_READ_ALL")
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/orders/*/status")

@@ -19,6 +19,8 @@ export interface ConfirmDialogProps {
   initialReason?: string
   reasonMaxLength?: number
   inputMode?: 'text' | 'textarea'
+  className?: string
+  titleIcon?: ReactNode
   autoClose?: boolean
   onConfirm: (reason?: string) => void | Promise<unknown>
   onClose: () => void
@@ -28,7 +30,7 @@ export interface ConfirmDialogProps {
 function Confirmation({ title, description, confirmLabel = 'Potvrdi', cancelLabel = 'Odustani',
   variant = 'default', loading = false, disabled = false, error, errorMessage = 'Akciju nije moguće izvršiti.', formatError,
   reasonLabel, reasonRequired = false, initialReason = '', reasonMaxLength = 500,
-  inputMode = 'textarea', autoClose = true, onConfirm, onClose, onCancel }: ConfirmDialogProps) {
+  inputMode = 'textarea', className = '', titleIcon, autoClose = true, onConfirm, onClose, onCancel }: ConfirmDialogProps) {
   const [reason, setReason] = useState(initialReason)
   const [pending, setPending] = useState(false)
   const [failure, setFailure] = useState('')
@@ -54,7 +56,7 @@ function Confirmation({ title, description, confirmLabel = 'Potvrdi', cancelLabe
   }
 
   return <Modal open title={title} onClose={close} closeDisabled={busy}
-    className={`ui-confirm ui-confirm--${variant}`} descriptionId={descriptionId}
+    className={`ui-confirm ui-confirm--${variant} ${className}`} titleIcon={titleIcon} descriptionId={descriptionId}
     initialFocusRef={showReason ? inputMode === 'text' ? inputRef : textareaRef : cancelRef}
     footer={<div className="dialog-actions">
       <Button ref={cancelRef} type="button" variant="secondary" disabled={busy} onClick={close}>{cancelLabel}</Button>
