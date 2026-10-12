@@ -43,6 +43,20 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
     CustomerCounts customerCounts(@Param("monthStart") java.time.Instant monthStart,
             @Param("monthEnd") java.time.Instant monthEnd);
 
+    interface EmployeeCounts extends CustomerCounts {}
+
+    @Query("""
+            select count(u) as total,
+              coalesce(sum(case when u.active = true then 1 else 0 end), 0) as active,
+              coalesce(sum(case when u.createdAt >= :monthStart and u.createdAt < :monthEnd
+                then 1 else 0 end), 0) as newThisMonth,
+              coalesce(sum(case when u.active = false then 1 else 0 end), 0) as inactive
+            from User u
+            where u.role = com.game_manager.gm.common.security.Role.EMPLOYEE and u.deletedAt is null
+            """)
+    EmployeeCounts employeeCounts(@Param("monthStart") java.time.Instant monthStart,
+            @Param("monthEnd") java.time.Instant monthEnd);
+
     @org.springframework.data.jpa.repository.Query("""
             select new com.game_manager.gm.user.EmployeeAnalyticsRow(u.id, u.name)
             from User u where u.role = com.game_manager.gm.common.security.Role.EMPLOYEE

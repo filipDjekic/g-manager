@@ -1,0 +1,241 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { userApi } from '../api/userApi'
+import { useAuthStore } from '../auth/authStore'
+import { hasCapability } from '../auth/capabilities'
+import { SelectionBar } from '../components/lists/SelectionBar'
+import { Badge, Button, Drawer, EmptyState, ErrorState, Input, Select, Skeleton } from '../components/ui'
+import { useConfirmDialog } from '../components/ui/useConfirmDialog'
+import { useToast } from '../components/ui/toastContext'
+import { EmployeeLocationDialog } from '../employees/EmployeeLocationDialog'
+import { EmployeeProfile } from '../employees/EmployeeProfile'
+import { NewEmployeeDialog } from '../employees/NewEmployeeDialog'
+import { EmployeeIcon, EmployeeKpi, EmployeePagination, EmployeesTable, employeeError, type EmployeeAction } from '../employees/employeePresentation'
+import { useListUrlState } from '../lists/useListUrlState'
+import type { AuthUser, Permission } from '../types/auth.types'
+import type { BulkOperationResponse } from '../types/bulk.types'
+import type { UserResponse } from '../types/user.types'
+import '../employees/employees.css'
+
+const defaults = { page: '0', size: '10', active: '', search: '', sort: 'createdAt', direction: 'DESC', focus: '' }
+const allowed = ['page', 'size', 'active', 'search', 'sort', 'direction', 'focus'] as const
+
+export function EmployeesPage() {
+  const actor = useAuthStore(state => state.user)
+  if (!actor || !hasCapability(actor, 'USER_LIST') || !['ADMIN', 'OWNER'].includes(actor.role)) return <main className="workspace">
+    <EmptyState title="Pregled zaposlenih nije dostupan" description="Nemate odgovarajuću dozvolu." />
+  </main>
+  return <EmployeeWorkspace key={actor.id} actor={actor} />
+}
+
+function EmployeeWorkspace({ actor }: { actor: AuthUser }) {
+  const client = useQueryClient(), toast = useToast(), url = useListUrlState(defaults, allowed)
+  const { confirm, confirmationDialog } = useConfirmDialog()
+  const canCreate = hasCapability(actor, 'USER_CREATE'), canDeactivate = hasCapability(actor, 'USER_DEACTIVATE')
+  const canDelete = hasCapability(actor, 'USER_DELETE'), canAssign = hasCapability(actor, 'RESOURCE_MANAGE')
+  const canLeave = hasCapability(actor, 'WORKING_HOURS_MANAGE'), canReadResources = hasCapability(actor, 'RESOURCE_READ')
+  const canChooseLocation = canAssign && canReadResources
+  const canSettings = canLeave && hasCapability(actor, 'WORKING_HOURS_READ')
+  const parsedPage = Number(url.state.page), page = Number.isSafeInteger(parsedPage) && parsedPage >= 0 ? parsedPage : 0
+  const size = [10, 20, 50].includes(Number(url.state.size)) ? Number(url.state.size) : 10
+  const sort = ['name', 'email', 'createdAt', 'active', 'role'].includes(url.state.sort) ? url.state.sort : 'createdAt'
+  const direction = url.state.direction === 'ASC' ? 'ASC' : 'DESC'
+  const active = ['true', 'false'].includes(url.state.active) ? url.state.active === 'true' : undefined
+  const [search, setSearch] = useState(url.state.search), [selected, setSelected] = useState<Set<string>>(new Set())
+  const [createOpen, setCreateOpen] = useState(false), [assignEmployee, setAssignEmployee] = useState<UserResponse | null>(null)
+  const [createdEmployee, setCreatedEmployee] = useState<UserResponse | null>(null), [busy, setBusy] = useState('')
+  const [bulkResult, setBulkResult] = useState<BulkOperationResponse | null>(null), [wide, setWide] = useState(false)
+  const inFlight = useRef(false), mounted = useRef(false), root = useRef<HTMLElement>(null)
+  const createOpener = useRef<HTMLElement | null>(null), searchInput = useRef<HTMLInputElement>(null)
+  const profileOpener = useRef<HTMLElement | null>(null), profileRegion = useRef<HTMLElement>(null)
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
+  useLayoutEffect(() => {
+    const element = root.current; if (!element) return
+    const measure = (width: number) => setWide(width >= (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16) * 60)
+    const style = getComputedStyle(element)
+    measure(element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight))
+    if (typeof ResizeObserver === 'undefined') {
+      const resize = () => { const css = getComputedStyle(element); measure(element.clientWidth - parseFloat(css.paddingLeft) - parseFloat(css.paddingRight)) }
+      window.addEventListener('resize', resize); return () => window.removeEventListener('resize', resize)
+    }
+    const observer = new ResizeObserver(entries => { if (entries[0]) measure(entries[0].contentRect.width) })
+    observer.observe(element); return () => observer.disconnect()
+  }, [])
+  useEffect(() => setSearch(url.state.search), [url.state.search])
+  useEffect(() => {
+    if (search === url.state.search) return
+    const timer = window.setTimeout(() => { setSelected(new Set()); url.set({ search: search.trim(), page: '0' }, true) }, 300)
+    return () => window.clearTimeout(timer)
+  }, [search, url.state.search, url.set])
+  const filters = { page, size, role: 'EMPLOYEE', active, search: url.state.search.trim() || undefined, sort, direction }
+  const employees = useQuery({ queryKey: ['users', 'employees', actor.id, filters], queryFn: () => userApi.list(filters), staleTime: 15000 })
+  const statistics = useQuery({ queryKey: ['users', 'employee-statistics', actor.id], queryFn: userApi.employeeStatistics,
+    staleTime: 15000, refetchInterval: 60000, refetchIntervalInBackground: false, retry: false })
+  const profile = useQuery({ queryKey: ['users', 'employee-profile', actor.id, url.state.focus],
+    queryFn: () => userApi.employee(url.state.focus), enabled: Boolean(url.state.focus), staleTime: 15000, retry: false,
+    initialData: () => employees.data?.content.find(value => value.id === url.state.focus),
+    initialDataUpdatedAt: () => employees.dataUpdatedAt || undefined })
+  useEffect(() => {
+    setSelected(new Set())
+  }, [page, size, active, sort, direction, url.state.search])
+  useEffect(() => {
+    if (!employees.isSuccess) return
+    const eligible = new Set(employees.data.content.filter(value => value.active && value.id !== actor.id && value.role === 'EMPLOYEE').map(value => value.id))
+    setSelected(previous => [...previous].some(id => !eligible.has(id)) ? new Set([...previous].filter(id => eligible.has(id))) : previous)
+    if (page >= Math.max(1, employees.data.totalPages)) url.set({ page: String(Math.max(0, employees.data.totalPages - 1)) }, true)
+  }, [employees.data, employees.isSuccess, page, actor.id, url.set])
+  function current(permission: Permission) {
+    const user = useAuthStore.getState().user
+    return mounted.current && user?.id === actor.id && hasCapability(user, permission)
+  }
+  const refresh = () => client.invalidateQueries({ queryKey: ['users'] })
+  function closeProfile() {
+    url.set({ focus: '' })
+    window.requestAnimationFrame(() => { const target = profileOpener.current; if (target?.isConnected && target.getClientRects().length) target.focus({ preventScroll: true }); else searchInput.current?.focus({ preventScroll: true }) })
+  }
+  function openProfile(employee: UserResponse, opener: HTMLButtonElement | null) {
+    profileOpener.current = opener; url.set({ focus: employee.id })
+    if (wide) window.requestAnimationFrame(() => profileRegion.current?.focus({ preventScroll: true }))
+  }
+  function deactivate(employee: UserResponse) {
+    if (!canDeactivate || !employee.active || employee.id === actor.id || inFlight.current) return
+    confirm({ title: 'Deaktiviraj zaposlenog', titleIcon: <EmployeeIcon kind="lock" />, className: 'gm-employee-dialog',
+      description: <><strong>{employee.name}</strong> izgubiće pristup aplikaciji. Nalog i njegova istorija ostaju sačuvani.</>,
+      variant: 'warning', confirmLabel: 'Deaktiviraj nalog', formatError: cause => employeeError(cause, 'Nalog nije moguće deaktivirati.'),
+      onConfirm: async () => {
+        if (inFlight.current || !current('USER_DEACTIVATE')) throw new Error('Deaktivacija nije dostupna sa trenutnim dozvolama.')
+        inFlight.current = true; setBusy(employee.id)
+        try {
+          await userApi.deactivate(employee.id)
+          if (!current('USER_LIST')) return
+          toast('Nalog zaposlenog je deaktiviran.', 'success')
+          if (createdEmployee?.id === employee.id) setCreatedEmployee(null)
+          await refresh()
+        } catch (cause) { if (current('USER_LIST')) await refresh(); throw cause }
+        finally { inFlight.current = false; if (mounted.current) setBusy('') }
+      } })
+  }
+  function remove(employee: UserResponse) {
+    if (!canDelete || employee.id === actor.id || inFlight.current) return
+    confirm({ title: 'Obriši nalog zaposlenog', titleIcon: <EmployeeIcon kind="delete" />, className: 'gm-employee-dialog',
+      description: <><strong>{employee.name}</strong> izgubiće pristup aplikaciji. Nalog će biti uklonjen iz aktivnog pregleda.</>,
+      variant: 'danger', confirmLabel: 'Obriši nalog', reasonLabel: 'Razlog brisanja', reasonRequired: true,
+      formatError: cause => employeeError(cause, 'Nalog nije moguće obrisati.'), onConfirm: async reason => {
+        if (inFlight.current || !current('USER_DELETE')) throw new Error('Brisanje nije dostupno sa trenutnim dozvolama.')
+        inFlight.current = true; setBusy(employee.id)
+        try {
+          await userApi.remove(employee.id, reason!)
+          if (!current('USER_LIST')) return
+          toast('Nalog zaposlenog je obrisan.', 'success')
+          if (url.state.focus === employee.id) closeProfile()
+          if (createdEmployee?.id === employee.id) setCreatedEmployee(null)
+          setSelected(previous => new Set([...previous].filter(id => id !== employee.id)))
+          await refresh()
+          window.requestAnimationFrame(() => searchInput.current?.focus({ preventScroll: true }))
+        } catch (cause) { if (current('USER_LIST')) await refresh(); throw cause }
+        finally { inFlight.current = false; if (mounted.current) setBusy('') }
+      } })
+  }
+  function bulkDeactivate() {
+    const ids = employees.data?.content.filter(value => selected.has(value.id) && value.active && value.id !== actor.id && value.role === 'EMPLOYEE').map(value => value.id) ?? []
+    if (!canDeactivate || !ids.length || inFlight.current) return
+    confirm({ title: 'Deaktiviraj izabrane zaposlene', titleIcon: <EmployeeIcon kind="lock" />, className: 'gm-employee-dialog',
+      description: `${ids.length} izabranih naloga izgubiće pristup aplikaciji.`, variant: 'danger', confirmLabel: 'Deaktiviraj izabrane',
+      formatError: cause => employeeError(cause, 'Grupnu deaktivaciju nije moguće izvršiti.'), onConfirm: async () => {
+        if (inFlight.current || !current('USER_DEACTIVATE')) throw new Error('Grupna deaktivacija nije dostupna sa trenutnim dozvolama.')
+        inFlight.current = true; setBusy('bulk')
+        try {
+          const response = await userApi.bulkDeactivate(ids)
+          if (!current('USER_LIST')) return
+          setBulkResult(response); setSelected(new Set())
+          if (createdEmployee && ids.includes(createdEmployee.id)) setCreatedEmployee(null)
+          toast(`${response.succeeded} uspešno, ${response.failed} neuspešno.`, response.failed ? 'info' : 'success')
+          await refresh()
+        } catch (cause) { if (current('USER_LIST')) await refresh(); throw cause }
+        finally { inFlight.current = false; if (mounted.current) setBusy('') }
+      } })
+  }
+  function action(employee: UserResponse, value: EmployeeAction, opener: HTMLButtonElement | null) {
+    if (value === 'profile') openProfile(employee, opener)
+    else if (value === 'deactivate') deactivate(employee)
+    else remove(employee)
+  }
+  function resetFilters() { setSearch(''); setSelected(new Set()); url.set({ search: '', active: '', sort: 'createdAt', direction: 'DESC', page: '0' }) }
+  const filtered = Boolean(url.state.search || url.state.active)
+  const onLeaveAvailable = canLeave && statistics.data?.onLeave !== null && statistics.data?.onLeave !== undefined
+  const profileBody = profile.isLoading ? <Skeleton lines={8} label="Učitavanje profila zaposlenog" /> : profile.isError
+    ? <ErrorState message={employeeError(profile.error, 'Profil zaposlenog nije moguće učitati.')} action={<Button type="button" onClick={() => void profile.refetch()}>Pokušaj ponovo</Button>} />
+    : profile.data && <EmployeeProfile employee={profile.data} actorId={actor.id} canAssignments={canAssign} canAssignLocation={canChooseLocation}
+      canLeave={canLeave} canSettings={canSettings} canResourceRead={canReadResources}
+      canDeactivate={canDeactivate && profile.data.active && profile.data.id !== actor.id} canDelete={canDelete && profile.data.id !== actor.id} busy={Boolean(busy)}
+      onClose={closeProfile} onRefresh={() => void profile.refetch()} onDeactivate={() => { if (profile.data) deactivate(profile.data) }}
+      onDelete={() => { if (profile.data) remove(profile.data) }} onAssign={() => { if (profile.data?.active) setAssignEmployee(profile.data) }} />
+
+  return <main ref={root} className="workspace gm-employees">
+    {confirmationDialog}
+    <header className="gm-employees-heading"><div><span className="gm-employees-heading-icon"><EmployeeIcon /></span><div><h1>Zaposleni</h1>
+      <p>Pregled zaposlenih, njihovih naloga i dostupnosti.</p></div></div>
+      {canCreate && <Button type="button" className="gm-employee-primary" aria-haspopup="dialog" aria-expanded={createOpen}
+        onClick={event => { createOpener.current = event.currentTarget; setCreateOpen(true) }}><EmployeeIcon kind="add" />+ Novi zaposleni</Button>}
+    </header>
+    <div className="gm-employee-kpis">
+      <EmployeeKpi title="Ukupno zaposlenih" kind="users" tone="blue" value={statistics.isError ? undefined : statistics.data?.total} loading={statistics.isLoading} description="Nalozi koji nisu obrisani" />
+      <EmployeeKpi title="Aktivni nalozi" kind="check" tone="green" value={statistics.isError ? undefined : statistics.data?.active} loading={statistics.isLoading} description="Omogućen pristup aplikaciji" />
+      <EmployeeKpi title="Novi ovog meseca" kind="calendar" tone="purple" value={statistics.isError ? undefined : statistics.data?.newThisMonth} loading={statistics.isLoading} description="Kreirani u poslovnom mesecu" />
+      <EmployeeKpi title={onLeaveAvailable ? 'Na odsustvu' : 'Neaktivni nalozi'} kind={onLeaveAvailable ? 'leave' : 'lock'} tone="pink"
+        value={statistics.isError ? undefined : onLeaveAvailable ? statistics.data?.onLeave ?? undefined : statistics.data?.inactive} loading={statistics.isLoading}
+        description={onLeaveAvailable ? 'Jedinstveni zaposleni · odobreno danas' : 'Pristup aplikaciji je isključen'} />
+    </div>
+    {statistics.isError && <ErrorState message={employeeError(statistics.error, 'Statistiku zaposlenih nije moguće učitati.')}
+      action={<Button type="button" variant="secondary" onClick={() => void statistics.refetch()}>Ponovo učitaj statistiku</Button>} />}
+    {createdEmployee && <div className="gm-employee-created-banner" role="status"><div><strong>Zaposleni je uspešno kreiran.</strong><p>{createdEmployee.name}{canChooseLocation && ' · Želite li da mu dodelite pristup lokaciji?'}</p></div>
+      {canChooseLocation && <Button type="button" variant="secondary" onClick={() => setAssignEmployee(createdEmployee)}><EmployeeIcon kind="location" />Dodeli lokaciju</Button>}
+      <Button type="button" variant="secondary" onClick={() => setCreatedEmployee(null)}>{canChooseLocation ? 'Kasnije' : 'Zatvori'}</Button></div>}
+    <div className={`gm-employees-layout${wide && url.state.focus ? ' has-profile' : ''}`}>
+      <section className="ui-card gm-employees-list" aria-labelledby="gm-employees-list-title"><header className="gm-employees-list-heading"><h2 id="gm-employees-list-title">Pregled zaposlenih</h2>
+        <Badge tone="info">Zaposleni</Badge><Button type="button" variant="secondary" disabled={Boolean(busy)} onClick={() => { void employees.refetch(); void statistics.refetch() }}><EmployeeIcon kind="refresh" />Osveži</Button></header>
+        <div className="gm-employee-filters"><label className="gm-employee-search"><span>Pretraga</span><div><EmployeeIcon kind="search" /><Input ref={searchInput} type="search" value={search} maxLength={200}
+          placeholder="Pretraži zaposlene po imenu ili email adresi..." onChange={event => setSearch(event.target.value)} /></div></label>
+          <label><span>Status naloga</span><Select value={active === undefined ? '' : String(active)} onChange={event => { setSelected(new Set()); url.set({ active: event.target.value, page: '0' }) }}>
+            <option value="">Svi statusi</option><option value="true">Aktivni</option><option value="false">Neaktivni</option></Select></label>
+          <label><span>Sortiranje</span><Select value={sort} onChange={event => url.set({ sort: event.target.value, page: '0' })}>
+            <option value="createdAt">Datum kreiranja</option><option value="name">Ime i prezime</option><option value="email">Email adresa</option><option value="active">Status naloga</option>
+            {sort === 'role' && <option value="role">Uloga</option>}</Select></label>
+          <label><span>Smer</span><Select value={direction} onChange={event => url.set({ direction: event.target.value, page: '0' })}>
+            <option value="ASC">{sort === 'createdAt' ? 'Najstariji prvo' : 'Rastuće'}</option><option value="DESC">{sort === 'createdAt' ? 'Najnoviji prvo' : 'Opadajuće'}</option></Select></label>
+        </div>
+        {filtered && <Button type="button" variant="secondary" className="gm-employee-reset" onClick={resetFilters}>Ukloni filtere</Button>}
+        {canDeactivate && <SelectionBar count={selected.size} summary={bulkResult ? `${bulkResult.succeeded} uspešno, ${bulkResult.failed} neuspešno.` : undefined}>
+          <Button type="button" variant="danger" loading={busy === 'bulk'} disabled={!selected.size || Boolean(busy) || employees.isError || employees.isFetching} onClick={bulkDeactivate}>Deaktiviraj izabrane</Button>
+          {selected.size > 0 && <Button type="button" variant="secondary" disabled={Boolean(busy)} onClick={() => setSelected(new Set())}>Poništi izbor</Button>}
+          {bulkResult && <Button type="button" variant="secondary" onClick={() => setBulkResult(null)}>Zatvori rezultat</Button>}
+        </SelectionBar>}
+        {bulkResult?.failed ? <ul className="gm-employee-bulk-errors" aria-label="Neuspešne grupne akcije">{bulkResult.outcomes.filter(value => !value.success).map(value => <li key={value.id}>
+          <strong>{employees.data?.content.find(employee => employee.id === value.id)?.name ?? `Nalog ${value.id.slice(0, 8)}`}</strong><span>{employeeError(new Error(value.message), 'Operacija nije uspela.')}</span></li>)}</ul> : null}
+        {employees.isLoading ? <Skeleton lines={7} label="Učitavanje zaposlenih" /> : employees.isError ? <ErrorState message={employeeError(employees.error, 'Zaposlene nije moguće učitati.')}
+          action={<Button type="button" onClick={() => void employees.refetch()}>Pokušaj ponovo</Button>} /> : !employees.data?.content.length
+            ? <EmptyState title={filtered ? 'Nema zaposlenih koji odgovaraju filterima.' : 'Nema zaposlenih.'}
+              action={filtered ? <Button type="button" variant="secondary" onClick={resetFilters}>Ukloni filtere</Button> : canCreate ? <Button type="button" aria-haspopup="dialog"
+                onClick={event => { createOpener.current = event.currentTarget; setCreateOpen(true) }}>Dodaj zaposlenog</Button> : undefined} />
+            : <EmployeesTable employees={employees.data.content} actorId={actor.id} focus={url.state.focus} selected={selected}
+              canDeactivate={canDeactivate} canDelete={canDelete} busy={Boolean(busy)} onAction={action} onToggle={id => setSelected(previous => {
+                const next = new Set(previous); if (next.has(id)) next.delete(id); else next.add(id); return next
+              })} />}
+        {employees.isSuccess && <EmployeePagination page={page} size={size} totalPages={employees.data.totalPages} totalElements={employees.data.totalElements}
+          busy={employees.isFetching || Boolean(busy)} onPage={next => { setSelected(new Set()); url.set({ page: String(next) }) }} onSize={next => url.set({ size: String(next), page: '0' })} />}
+      </section>
+      {wide && url.state.focus && <aside ref={profileRegion} tabIndex={-1} className="ui-card gm-employee-profile-panel" aria-label="Profil izabranog zaposlenog">
+        {(!profile.data || profile.isError) && <header className="gm-employee-profile-heading"><span>Profil zaposlenog</span>
+          <Button type="button" variant="secondary" className="gm-employee-inline-close" onClick={closeProfile} aria-label="Zatvori profil zaposlenog">×</Button></header>}{profileBody}
+      </aside>}
+    </div>
+    <Drawer open={!wide && Boolean(url.state.focus)} title="Profil zaposlenog" size="wide" className="gm-employee-profile-drawer"
+      returnFocusRef={profileOpener} closeDisabled={Boolean(busy)} onClose={closeProfile}>{profileBody}</Drawer>
+    {createOpen && canCreate && <NewEmployeeDialog actorId={actor.id} returnFocusRef={createOpener} onClose={() => setCreateOpen(false)} onCreated={employee => {
+      setCreateOpen(false); setCreatedEmployee(employee); setSelected(new Set()); url.set({ page: '0', focus: employee.id })
+      toast('Zaposleni je uspešno kreiran.', 'success'); void refresh()
+      if (wide) window.requestAnimationFrame(() => profileRegion.current?.focus({ preventScroll: true }))
+    }} />}
+    {assignEmployee && canChooseLocation && <EmployeeLocationDialog key={assignEmployee.id} employee={assignEmployee} actorId={actor.id} onClose={() => setAssignEmployee(null)} />}
+  </main>
+}

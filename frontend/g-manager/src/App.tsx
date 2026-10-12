@@ -21,6 +21,7 @@ const ActivatePage = lazyPage(() => import('./pages/ActivatePage'), 'ActivatePag
 const SessionPage = lazyPage(() => import('./pages/SessionPage'), 'SessionPage')
 const ProfilePage = lazyPage(() => import('./pages/ProfilePage'), 'ProfilePage')
 const UserManagementPage = lazyPage(() => import('./pages/UserManagementPage'), 'UserManagementPage')
+const EmployeesPage = lazyPage(() => import('./pages/EmployeesPage'), 'EmployeesPage')
 const CustomersPage = lazyPage(() => import('./pages/CustomersPage'), 'CustomersPage')
 const CatalogPage = lazyPage(() => import('./pages/CatalogPage'), 'CatalogPage')
 const SettingsPage = lazyPage(() => import('./pages/SettingsPage'), 'SettingsPage')
@@ -89,7 +90,7 @@ function App() {
                 <Route path="gaming-sessions" element={<GamingSessionsPage />} />
               </Route>
               <Route element={<CapabilityGuard anyOf={['USER_LIST']} />}>
-                <Route path="employees" element={<UserManagementPage employeesOnly />} />
+                <Route path="employees" element={<EmployeesPage />} />
               </Route>
               <Route element={<CapabilityGuard anyOf={['CUSTOMER_READ']} />}>
                 <Route path="customers" element={<CustomersPage />} />

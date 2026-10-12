@@ -22,3 +22,18 @@ export interface CreateUserRequest {
   password: string
   role: 'ADMIN' | 'EMPLOYEE'
 }
+
+export interface EmployeeStatistics {
+  total: number; active: number; newThisMonth: number; inactive: number; onLeave: number | null
+  businessDate: string; businessZone: string
+}
+
+export interface EmployeeAssignments {
+  locations: Array<{ id: string; name: string; code: string; active: boolean; version: number }>
+  resources: Array<{ id: string; name: string; code: string; type: string; areaId: string; areaName: string
+    locationId: string; locationName: string; active: boolean; version: number }>
+}
+
+export interface EmployeeLeave {
+  id: string; startsAt: string; endsAt: string; status: 'APPROVED'
+}
