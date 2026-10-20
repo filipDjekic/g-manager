@@ -217,3 +217,4 @@ C:\Users\cofid\Desktop\GITHUB\g-manager\client\tests\GManager.Client.Tests\obj\D
 C:\Users\cofid\Desktop\GITHUB\g-manager\client\tests\GManager.Client.Tests\obj\Debug\net10.0-windows10.0.19041.0\GManager.Client.Tests.pdb
 C:\Users\cofid\Desktop\GITHUB\g-manager\client\tests\GManager.Client.Tests\obj\Debug\net10.0-windows10.0.19041.0\GManager.Client.Tests.genruntimeconfig.cache
 C:\Users\cofid\Desktop\GITHUB\g-manager\client\tests\GManager.Client.Tests\obj\Debug\net10.0-windows10.0.19041.0\ref\GManager.Client.Tests.dll
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\tests\GManager.Client.Tests\bin\Debug\net10.0-windows10.0.19041.0\runtime-capabilities.json

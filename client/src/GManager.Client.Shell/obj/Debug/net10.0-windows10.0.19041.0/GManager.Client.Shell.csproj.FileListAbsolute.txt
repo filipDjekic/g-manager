@@ -25,3 +25,5 @@ C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Shell\obj\Deb
 C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Shell\obj\Debug\net10.0-windows10.0.19041.0\GManager.Client.Shell.pdb
 C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Shell\obj\Debug\net10.0-windows10.0.19041.0\GManager.Client.Shell.genruntimeconfig.cache
 C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Shell\obj\Debug\net10.0-windows10.0.19041.0\ref\GManager.Client.Shell.dll
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Shell\obj\Debug\net10.0-windows10.0.19041.0\GManager.Client.Shell_Content.g.cs
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Shell\bin\Debug\net10.0-windows10.0.19041.0\runtime-capabilities.json

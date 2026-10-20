@@ -1,7 +1,12 @@
-param([Parameter(Mandatory=$true)][string]$PackageDirectory,[string]$BackendUrl="https://localhost:8080/",[Parameter(Mandatory=$true)][string]$PolicySigningPublicKey,[Parameter(Mandatory=$true)][string]$PolicySigningKeyId)
-$ErrorActionPreference='Stop';$target=Join-Path $env:ProgramFiles 'GManager Client';New-Item -ItemType Directory -Force $target|Out-Null;Copy-Item (Join-Path $PackageDirectory 'service') $target -Recurse -Force;Copy-Item (Join-Path $PackageDirectory 'shell') $target -Recurse -Force;Copy-Item (Join-Path $PackageDirectory 'update-client.ps1'),(Join-Path $PackageDirectory 'support-bundle.ps1') $target -Force
-$settings=Get-Content (Join-Path $target 'service\appsettings.json') -Raw|ConvertFrom-Json;$settings.Backend.BaseUrl=$BackendUrl;$settings.Policy.SigningPublicKey=$PolicySigningPublicKey;$settings.Policy.SigningKeyId=$PolicySigningKeyId;$settings|ConvertTo-Json -Depth 5|Set-Content (Join-Path $target 'service\appsettings.json') -Encoding utf8
-sc.exe create GManagerClient binPath= "`"$target\service\GManager.Client.Service.exe`"" start= auto obj= "NT SERVICE\GManagerClient" DisplayName= "G-Manager Gaming Client";sc.exe sidtype GManagerClient unrestricted;sc.exe failure GManagerClient reset= 86400 actions= restart/5000/restart/15000/restart/60000
-$state=Join-Path $env:ProgramData 'GManager\Client';New-Item -ItemType Directory -Force $state|Out-Null;icacls $state /inheritance:r /grant:r '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' 'NT SERVICE\GManagerClient:(OI)(CI)M'|Out-Null;icacls $target /inheritance:r /grant:r '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' 'NT SERVICE\GManagerClient:(OI)(CI)RX'|Out-Null
-$action=New-ScheduledTaskAction -Execute (Join-Path $target 'shell\GManager.Client.Shell.exe');$trigger=New-ScheduledTaskTrigger -AtLogOn;Register-ScheduledTask -TaskName 'GManagerClientShell' -Action $action -Trigger $trigger -Description 'G-Manager fullscreen station shell' -Force|Out-Null
-$updateAction=New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -ExecutionPolicy AllSigned -File `"$target\update-client.ps1`" -BackendUrl `"$BackendUrl`"";$updateTrigger=New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(5) -RepetitionInterval (New-TimeSpan -Minutes 15);Register-ScheduledTask -TaskName 'GManagerClientUpdate' -Action $updateAction -Trigger $updateTrigger -User 'SYSTEM' -RunLevel Highest -Force|Out-Null;sc.exe start GManagerClient
+﻿# Compatibility entry point; installation uses the same transactional implementation.
+param(
+    [Parameter(Mandatory=$true)][string]$PackageDirectory,
+    [string]$BackendUrl,
+    [Parameter(Mandatory=$true)][string]$PolicySigningPublicKey,
+    [Parameter(Mandatory=$true)][string]$PolicySigningKeyId,
+    [Parameter(Mandatory=$true)][string]$SigningSubject,
+    [Parameter(Mandatory=$true)][string]$SigningThumbprint,
+    [Parameter(Mandatory=$true)][string]$PlayerAccount,
+    [string]$LocalCaCertificate,[string]$ExpectedCaSha256
+)
+& (Join-Path $PSScriptRoot 'GManager-Setup.ps1') @PSBoundParameters

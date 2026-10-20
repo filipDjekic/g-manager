@@ -6,5 +6,9 @@ public class ClientStateTests {
  [Fact]public void ActiveSnapshotRecoversToLoginWithoutCredential(){var snapshot=new SessionSnapshot(Guid.NewGuid(),Guid.NewGuid(),DateTimeOffset.UtcNow.AddHours(1),DateTimeOffset.UtcNow,0,"AVAILABLE");Assert.Equal(ClientMode.Login,ClientViewState.Locked().Apply(snapshot,DateTimeOffset.UtcNow).Mode);}
  [Fact]public void BackendFailureProducesOfflineState(){Assert.Equal(ClientMode.Offline,ClientViewState.Locked().Disconnected().Mode);}
  [Fact]public void LocalContractContainsNoMachineSecret(){Assert.DoesNotContain(typeof(LocalRequest).GetProperties(),p=>p.Name.Contains("Key",StringComparison.OrdinalIgnoreCase)||p.Name.Contains("Token",StringComparison.OrdinalIgnoreCase));}
- [Fact]public void PipeAclIsExplicitlyConfigured(){using var pipe=LocalPipeAcl.Create();Assert.NotNull(pipe);}
+ [Fact]public void PipeAclIsExplicitlyConfigured(){
+  var environment=new ClientEnvironment(Development:true,StateDirectory:Path.GetTempPath(),PipeName:$"GManager.Client.Tests.{Guid.NewGuid():N}",Version:"0.1.0-dev",PlayerSid:null);
+  using var pipe=LocalPipeAcl.Create(environment,admin:false);
+  Assert.NotNull(pipe);
+ }
 }

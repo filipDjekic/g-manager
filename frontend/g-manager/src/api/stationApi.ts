@@ -1,9 +1,10 @@
 import { apiClient } from './client'
 import type { ApplicationDefinition, ApplicationDefinitionInput, ApplicationProfile,
-  ApplicationProfileInput, EnrollmentToken, GamingClientPackage, GamingClientPackageAvailability, MachineIdentity, StationOverview, StationProfileInput } from '../types/station.types'
+  ApplicationProfileInput, EnrollmentToken, GamingClientPackage, GamingClientPackageAvailability, MachineIdentity, StationOverview, StationProfileInput, StationClientManagementStatus } from '../types/station.types'
 
 export const stationApi = {
   overview: () => apiClient.get<StationOverview[]>('/stations').then(({ data }) => data),
+  clientStatus: (resourceId:string) => apiClient.get<StationClientManagementStatus>(`/stations/${resourceId}/client-status`).then(({ data }) => data),
   saveStation: (resourceId:string, request:StationProfileInput) =>
     apiClient.put<StationOverview>(`/stations/${resourceId}/profile`, request).then(({ data }) => data),
   definitions: () => apiClient.get<ApplicationDefinition[]>('/stations/applications').then(({ data }) => data),
