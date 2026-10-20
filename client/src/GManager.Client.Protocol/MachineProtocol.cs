@@ -22,8 +22,8 @@ public sealed record StationPolicy(Guid StationId,Guid ProfileId,long Configurat
 public sealed record PolicyApplication(string Code,string Name,string Type,string ExecutablePath,string? Publisher,string? PublisherCertificateThumbprint,string? ExecutableSha256,string? MinimumFileVersion,string? Arguments,bool RequiredProcess,bool AutoStart,int LaunchOrder,string? DependencyGroup);
 public sealed record SignedSessionLease(string Payload,string Algorithm,string KeyId,string Signature);
 public sealed record SessionLease(Guid LeaseId,Guid StationId,Guid? SessionId,Guid? CustomerId,DateTimeOffset? SessionEndsAt,long ConfigurationVersion,DateTimeOffset IssuedAt,DateTimeOffset ExpiresAt,DateTimeOffset GraceEndsAt,long CommandCursor,string Directive);
-public sealed record MachineCommand(long Sequence,string Type,int PayloadVersion,string Payload,DateTimeOffset AvailableAt);
-public sealed record Heartbeat(string ClientVersion,string Status,long LastCommandSequence,string EnforcementStatus,Guid? SessionId,Guid? LeaseId,long ConfigurationVersion);
+public sealed record MachineCommand(long Sequence,string Type,int PayloadVersion,string Payload,DateTimeOffset AvailableAt,bool Expired=false);
+public sealed record Heartbeat(string ClientVersion,string Status,long LastCommandSequence,string EnforcementStatus,Guid? SessionId,Guid? LeaseId,long ConfigurationVersion,string? InstallationStatus=null,string? UpdateStatus=null,bool? MaintenanceActive=null,string? ErrorCode=null);
 internal sealed record ChallengeRequest(Guid IdentityId);internal sealed record Challenge(Guid ChallengeId,Guid IdentityId,string Nonce,DateTimeOffset ExpiresAt,string SigningFormat);internal sealed record TokenRequest(Guid IdentityId,Guid ChallengeId,string Nonce,string Signature);
 public sealed class MachineProtocolClient(HttpClient http):IMachineProtocolClient {
  public async Task<EnrollmentResult> EnrollAsync(string token,IChallengeSigner signer,string version,CancellationToken ct)=>await Post<EnrollmentResult>("api/v1/machine/enroll",new{enrollmentToken=token,publicKeyBase64=signer.PublicKeyBase64,clientVersion=version},null,ct);

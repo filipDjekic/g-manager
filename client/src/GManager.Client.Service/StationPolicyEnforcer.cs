@@ -1,27 +1,165 @@
-using System.Diagnostics;using System.Management;using System.Security.Cryptography;using System.Security.Cryptography.X509Certificates;using System.Text;using System.Text.Json;using System.Xml.Linq;using GManager.Client.Domain;using GManager.Client.Protocol;using NSec.Cryptography;
-#pragma warning disable SYSLIB0026
+﻿using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using System.Text.Json;
+using GManager.Client.Domain;
+using GManager.Client.Protocol;
+using NSec.Cryptography;
+
 namespace GManager.Client.Service;
-public sealed class StationPolicyEnforcer(IConfiguration configuration,ProtectedIdentityStore store,ILogger<StationPolicyEnforcer> logger) {
- static readonly SignatureAlgorithm Signature=SignatureAlgorithm.Ed25519;readonly Dictionary<string,PolicyApplication> allowed=new(StringComparer.OrdinalIgnoreCase);readonly HashSet<int> roots=[];long version;
- public IReadOnlyList<ClientApplication> VisibleApplications=>allowed.Values.Where(x=>x.Type is "GAME" or "LAUNCHER").OrderBy(x=>x.LaunchOrder).Select(x=>new ClientApplication(x.Code,x.Name,x.Type)).ToList();
- public long CurrentVersion=>version;
- public async Task ApplyAsync(SignedStationPolicy signed,Guid stationId,CancellationToken ct){byte[] payload=Decode(signed.Payload),signature=Decode(signed.Signature);var keyId=configuration["Policy:SigningKeyId"]??throw new InvalidOperationException("Policy signing key id is not configured");if(signed.Algorithm!="Ed25519"||signed.KeyId!=keyId)throw new CryptographicException("Station policy signing key is not trusted");var key=NSec.Cryptography.PublicKey.Import(Signature,Convert.FromBase64String(configuration["Policy:SigningPublicKey"]??throw new InvalidOperationException("Policy public key is not configured")),KeyBlobFormat.PkixPublicKey);if(!Signature.Verify(key,payload,signature))throw new CryptographicException("Station policy signature is invalid");var policy=JsonSerializer.Deserialize<StationPolicy>(payload,new JsonSerializerOptions(JsonSerializerDefaults.Web))??throw new InvalidDataException("Station policy payload is invalid");if(policy.StationId!=stationId)throw new CryptographicException("Station policy belongs to another station");if(policy.ConfigurationVersion<version)throw new CryptographicException("Station policy downgrade is forbidden");if(policy.ConfigurationVersion==version)return;foreach(var app in policy.Applications)Validate(app);var previous=store.LoadPolicy<StationPolicy>();try{await ApplyOsPolicy(policy,ct);store.SavePolicy(policy);allowed.Clear();foreach(var app in policy.Applications)allowed.Add(app.Code,app);version=policy.ConfigurationVersion;}catch{if(previous is not null)await ApplyOsPolicy(previous,ct);throw;}}
- public void Launch(string code){if(!allowed.TryGetValue(code,out var app)||app.Type=="HELPER")throw new UnauthorizedAccessException("Executable is not launchable from Shell");Start(app);}
- public void StartAutoApplications(){foreach(var app in allowed.Values.Where(value=>value.AutoStart).OrderBy(value=>value.LaunchOrder))Start(app);}
- void Start(PolicyApplication app){Validate(app);if(Process.GetProcessesByName(Path.GetFileNameWithoutExtension(app.ExecutablePath)).Any())return;var start=new ProcessStartInfo(app.ExecutablePath){UseShellExecute=false,WorkingDirectory=Path.GetDirectoryName(app.ExecutablePath)!};if(!string.IsNullOrWhiteSpace(app.Arguments))foreach(var value in CommandLine.Split(app.Arguments))start.ArgumentList.Add(value);var process=Process.Start(start)??throw new InvalidOperationException("Configured application could not be started");lock(roots)roots.Add(process.Id);_ = GuardTree(process.Id);}
- public void StopCustomerProcesses(){lock(roots){foreach(var id in roots)try{Process.GetProcessById(id).Kill(true);}catch(ArgumentException){}roots.Clear();}}
- static X509Certificate2 LoadSignerCertificate(string path){
-  // Signed PE files require this extraction API; X509CertificateLoader accepts certificate data.
-  // https://github.com/dotnet/runtime/issues/111158
+
+public sealed class StationPolicyEnforcer(IConfiguration configuration, ProtectedIdentityStore store, ClientEnvironment environment)
+{
+    static readonly SignatureAlgorithm Signature = SignatureAlgorithm.Ed25519;
+    readonly Dictionary<string, PolicyApplication> allowed = new(StringComparer.OrdinalIgnoreCase);
+    readonly object sync = new();
+    readonly object osSync = new();
+    long version;
+    bool active;
+    bool? appliedActive;
+    public long CurrentVersion => version;
+    public IReadOnlyList<ClientApplication> VisibleApplications { get { lock(sync) return allowed.Values.Where(x => x.Type is "GAME" or "LAUNCHER").OrderBy(x => x.LaunchOrder).Select(x => new ClientApplication(x.Code,x.Name,x.Type)).ToList(); } }
+
+    public Task ApplyAsync(SignedStationPolicy signed, Guid stationId, CancellationToken ct)
+    {
+        if(string.IsNullOrEmpty(signed.Payload) || string.IsNullOrEmpty(signed.Signature)) throw new CryptographicException("Signed station policy is required");
+        byte[] payload = Decode(signed.Payload);
+        if (signed.Algorithm != "Ed25519" || signed.KeyId != configuration["Policy:SigningKeyId"])
+            throw new CryptographicException("Station policy signing key is not trusted");
+        var key = NSec.Cryptography.PublicKey.Import(Signature, Convert.FromBase64String(configuration["Policy:SigningPublicKey"] ?? ""), KeyBlobFormat.PkixPublicKey);
+        if (!Signature.Verify(key, payload, Decode(signed.Signature))) throw new CryptographicException("Station policy signature is invalid");
+        var policy = JsonSerializer.Deserialize<StationPolicy>(payload, new JsonSerializerOptions(JsonSerializerDefaults.Web)) ?? throw new InvalidDataException("Invalid station policy");
+        if (policy.StationId != stationId || policy.ConfigurationVersion < version) throw new CryptographicException("Station policy scope/version is invalid");
+        if (policy.ConfigurationVersion == version) return Task.CompletedTask;
+        foreach (var app in policy.Applications) Validate(app);
+        lock(osSync)
+        {
+            PolicyApplication[] previous; lock(sync) previous=allowed.Values.ToArray();
+            try
+            {
+                lock(sync) { allowed.Clear(); foreach (var app in policy.Applications) allowed.Add(app.Code,app); }
+                ApplyOsPolicy(ct).GetAwaiter().GetResult();
+                store.SavePolicy(signed);
+                version=policy.ConfigurationVersion;
+            }
+            catch
+            {
+                lock(sync) { allowed.Clear(); foreach(var app in previous) allowed.Add(app.Code,app); }
+                appliedActive=null;
+                throw;
+            }
+        }
+        return Task.CompletedTask;
+    }
+
+    public void SetSessionActive(bool value)
+    {
+        lock(osSync)
+        {
+            lock(sync) { if(active == value && appliedActive == value) return; }
+            if(value) { PolicyApplication[] applications; lock(sync) applications=allowed.Values.ToArray(); foreach(var app in applications) Validate(app); }
+            lock(sync) active=value;
+            ApplyOsPolicy(CancellationToken.None).GetAwaiter().GetResult();
+        }
+    }
+    public void ReapplyLocked()
+    {
+        lock(osSync) { appliedActive=null; SetSessionActive(false); }
+    }
+
+    public ClientLaunch Launch(string code)
+    {
+        lock(sync)
+        {
+            if (!active || !allowed.TryGetValue(code,out var app) || app.Type == "HELPER") throw new UnauthorizedAccessException("Application is not launchable");
+            Validate(app);
+            return new(app.ExecutablePath,app.Arguments);
+        }
+    }
+    public IReadOnlyList<ClientLaunch> AutoApplications()
+    {
+        lock(sync) return allowed.Values.Where(x => x.AutoStart).OrderBy(x => x.LaunchOrder).Select(x => { Validate(x); return new ClientLaunch(x.ExecutablePath,x.Arguments); }).ToList();
+    }
+    public void StopCustomerProcesses()
+    {
+        if (environment.Development) return;
+        // Includes processes left behind by a previous Service instance; never targets another account.
+        string shell = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","shell","GManager.Client.Shell.exe"));
+        string[] essentials = ["LogonUI.exe","userinit.exe","winlogon.exe","dwm.exe","fontdrvhost.exe","ctfmon.exe","RuntimeBroker.exe","sihost.exe","taskhostw.exe"];
+        var essentialPaths=essentials.Select(name=>Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32",name)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach(var process in Process.GetProcesses())
+        {
+            using(process)
+            {
+                try
+                {
+                    if (!WindowsProcessOwner.IsPlayer(process, environment.PlayerSid!)) continue;
+                    string? executable=process.MainModule?.FileName;
+                    if (string.Equals(executable,shell,StringComparison.OrdinalIgnoreCase) || executable is not null && essentialPaths.Contains(executable)) continue;
+                    process.Kill();
+                    if(!process.WaitForExit(3000)) throw new InvalidOperationException("Customer process could not be stopped");
+                }
+                catch (ArgumentException) { }
+                catch (InvalidOperationException) when(process.HasExited) { }
+                catch (System.ComponentModel.Win32Exception ex) { throw new InvalidOperationException("Customer process enforcement failed",ex); }
+            }
+        }
+    }
+    Task ApplyOsPolicy(CancellationToken ct)
+    {
+        if(environment.Development) { appliedActive=active; return Task.CompletedTask; }
+        lock(osSync)
+        {
+        string path = Path.Combine(environment.StateDirectory,"allowed-paths.json");
+        string[] paths; lock(sync) paths = active ? allowed.Values.Select(x => x.ExecutablePath).ToArray() : [];
+        ProtectedIdentityStore.AtomicWrite(path,JsonSerializer.SerializeToUtf8Bytes(paths));
+        var info = new ProcessStartInfo("powershell.exe") { UseShellExecute=false,CreateNoWindow=true };
+        foreach(string arg in new[]{"-NoProfile","-NonInteractive","-ExecutionPolicy","AllSigned","-File",Path.Combine(AppContext.BaseDirectory,"apply-policy.ps1"),"-Action","Apply","-StateDirectory",environment.StateDirectory}) info.ArgumentList.Add(arg);
+        using var process = Process.Start(info) ?? throw new InvalidOperationException("Policy process could not start");
+        ct.ThrowIfCancellationRequested();
+        if(!process.WaitForExit(45000)) { process.Kill(); appliedActive=null; throw new InvalidOperationException("Windows policy timed out"); }
+        if(process.ExitCode != 0) { appliedActive=null; throw new InvalidOperationException("G-Manager Windows politika nije primenjena; koristite administratorski recovery."); }
+        appliedActive=active;
+        return Task.CompletedTask;
+        }
+    }
+    static void Validate(PolicyApplication app)
+    {
+        if(!Path.IsPathFullyQualified(app.ExecutablePath) || !app.ExecutablePath.EndsWith(".exe",StringComparison.OrdinalIgnoreCase) || app.ExecutablePath.IndexOfAny(['*','?','"']) >= 0) throw new InvalidDataException("Invalid executable path");
+        if(!File.Exists(app.ExecutablePath)) throw new FileNotFoundException("Configured executable is unavailable",app.ExecutablePath);
+        if(app.ExecutableSha256 is not null)
+        {
+            using var stream=File.OpenRead(app.ExecutablePath);
+            if(!Convert.ToHexString(SHA256.HashData(stream)).Equals(app.ExecutableSha256,StringComparison.OrdinalIgnoreCase)) throw new CryptographicException("Executable hash mismatch");
+        }
+        if(app.PublisherCertificateThumbprint is not null || app.Publisher is not null)
+        {
 #pragma warning disable SYSLIB0057
-  using var signer=X509Certificate.CreateFromSignedFile(path);
+            using var signer=X509Certificate.CreateFromSignedFile(app.ExecutablePath);
 #pragma warning restore SYSLIB0057
-  return X509CertificateLoader.LoadCertificate(signer.GetRawCertData());
- }
- void Validate(PolicyApplication app){if(!Path.IsPathFullyQualified(app.ExecutablePath)||!app.ExecutablePath.EndsWith(".exe",StringComparison.OrdinalIgnoreCase)||app.ExecutablePath.IndexOfAny(['*','?'])>=0)throw new InvalidDataException("Policy contains an invalid executable path");if(!File.Exists(app.ExecutablePath))throw new FileNotFoundException("Configured executable is unavailable",app.ExecutablePath);if(app.ExecutableSha256 is not null){using var stream=File.OpenRead(app.ExecutablePath);if(!Convert.ToHexString(SHA256.HashData(stream)).Equals(app.ExecutableSha256,StringComparison.OrdinalIgnoreCase))throw new CryptographicException("Executable hash does not match station policy");}if(app.PublisherCertificateThumbprint is not null||app.Publisher is not null){using var certificate=LoadSignerCertificate(app.ExecutablePath);if(app.PublisherCertificateThumbprint is not null&&!certificate.Thumbprint.Equals(app.PublisherCertificateThumbprint,StringComparison.OrdinalIgnoreCase))throw new CryptographicException("Executable signer certificate does not match station policy");if(app.Publisher is not null&&!certificate.Subject.Contains(app.Publisher,StringComparison.OrdinalIgnoreCase))throw new CryptographicException("Executable publisher does not match station policy");}if(app.ExecutableSha256 is null&&app.PublisherCertificateThumbprint is null&&app.Publisher is null)throw new CryptographicException("Executable has no trust constraint");if(app.MinimumFileVersion is not null&&Version.Parse(FileVersionInfo.GetVersionInfo(app.ExecutablePath).FileVersion??"0.0")<Version.Parse(app.MinimumFileVersion))throw new CryptographicException("Executable version is below station policy minimum");}
- async Task ApplyOsPolicy(StationPolicy policy,CancellationToken ct){var root=Path.GetDirectoryName(store.SnapshotPath)!;Directory.CreateDirectory(root);var path=Path.Combine(root,$"applocker-{policy.ConfigurationVersion}.xml");await File.WriteAllTextAsync(path,AppLockerXml.Create(policy),ct);var script=Path.Combine(AppContext.BaseDirectory,"apply-policy.ps1");var info=new ProcessStartInfo("powershell.exe"){UseShellExecute=false,CreateNoWindow=true};foreach(var arg in new[]{"-NoProfile","-NonInteractive","-ExecutionPolicy","AllSigned","-File",script,"-PolicyPath",path,"-RollbackDirectory",root})info.ArgumentList.Add(arg);var process=Process.Start(info)??throw new InvalidOperationException("AppLocker policy process could not start");await process.WaitForExitAsync(ct);if(process.ExitCode!=0)throw new InvalidOperationException("AppLocker policy update failed; previous policy was restored");}
- async Task GuardTree(int root){while(true){await Task.Delay(1000);try{using var query=new ManagementObjectSearcher("SELECT ProcessId,ParentProcessId,ExecutablePath FROM Win32_Process");foreach(ManagementObject item in query.Get()){var parent=Convert.ToInt32((uint)item["ParentProcessId"]);lock(roots)if(parent!=root&&!roots.Contains(parent))continue;var id=Convert.ToInt32((uint)item["ProcessId"]);var path=item["ExecutablePath"] as string;if(path is not null&&!allowed.Values.Any(x=>x.ExecutablePath.Equals(path,StringComparison.OrdinalIgnoreCase))){logger.LogWarning("Terminating executable outside signed station policy");try{Process.GetProcessById(id).Kill(true);}catch(ArgumentException){}}else lock(roots)roots.Add(id);}if(!Process.GetProcesses().Any(x=>x.Id==root))return;}catch(ManagementException){return;}}}
- static byte[] Decode(string value){string padded=value.Replace('-','+').Replace('_','/');padded+=new string('=',(4-padded.Length%4)%4);return Convert.FromBase64String(padded);}
+            using var certificate=X509CertificateLoader.LoadCertificate(signer.GetRawCertData());
+            if(app.PublisherCertificateThumbprint is not null && !certificate.Thumbprint.Equals(app.PublisherCertificateThumbprint,StringComparison.OrdinalIgnoreCase)) throw new CryptographicException("Executable signer mismatch");
+            if(app.Publisher is not null && !certificate.Subject.Contains(app.Publisher,StringComparison.OrdinalIgnoreCase)) throw new CryptographicException("Executable publisher mismatch");
+            var verify=new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32","WindowsPowerShell","v1.0","powershell.exe")) { UseShellExecute=false,CreateNoWindow=true };
+            verify.ArgumentList.Add("-NoProfile");verify.ArgumentList.Add("-NonInteractive");verify.ArgumentList.Add("-Command");
+            verify.ArgumentList.Add("$s=Get-AuthenticodeSignature -LiteralPath $env:GM_VERIFY_PATH; if($s.Status -ne 'Valid'){exit 1}");
+            verify.Environment["GM_VERIFY_PATH"]=app.ExecutablePath;
+            using var process=Process.Start(verify) ?? throw new CryptographicException("Authenticode verification unavailable");
+            if(!process.WaitForExit(15000)) { process.Kill(); throw new CryptographicException("Authenticode verification timed out"); }
+            if(process.ExitCode!=0) throw new CryptographicException("Executable Authenticode signature is invalid");
+        }
+        if(app.ExecutableSha256 is null && app.PublisherCertificateThumbprint is null && app.Publisher is null) throw new CryptographicException("Executable has no trust constraint");
+        if(app.MinimumFileVersion is not null && Version.Parse(FileVersionInfo.GetVersionInfo(app.ExecutablePath).FileVersion ?? "0.0") < Version.Parse(app.MinimumFileVersion)) throw new CryptographicException("Executable is too old");
+    }
+    static byte[] Decode(string value) { var text=value.Replace('-','+').Replace('_','/'); return Convert.FromBase64String(text+new string('=',(4-text.Length%4)%4)); }
 }
-static class CommandLine {public static IEnumerable<string> Split(string value){var current=new StringBuilder();bool quoted=false;foreach(char c in value){if(c=='\"'){quoted=!quoted;continue;}if(char.IsWhiteSpace(c)&&!quoted){if(current.Length>0){yield return current.ToString();current.Clear();}}else current.Append(c);}if(quoted)throw new InvalidDataException("Unbalanced command line quotes");if(current.Length>0)yield return current.ToString();}}
-public static class AppLockerXml {public static string Create(StationPolicy policy){XNamespace ns="http://schemas.microsoft.com/windows/2010/12/applicationcontrolpolicy";var rules=policy.Applications.Select(app=>new XElement(ns+"FilePathRule",new XAttribute("Id",Guid.NewGuid()),new XAttribute("Name",app.Code),new XAttribute("Description",$"G-Manager config {policy.ConfigurationVersion}"),new XAttribute("UserOrGroupSid","S-1-5-32-545"),new XAttribute("Action","Allow"),new XElement(ns+"Conditions",new XElement(ns+"FilePathCondition",new XAttribute("Path",app.ExecutablePath)))));return new XDocument(new XElement(ns+"AppLockerPolicy",new XAttribute("Version","1"),new XElement(ns+"RuleCollection",new XAttribute("Type","Exe"),new XAttribute("EnforcementMode","Enabled"),rules),new XElement(ns+"RuleCollection",new XAttribute("Type","Script"),new XAttribute("EnforcementMode","Enabled")),new XElement(ns+"RuleCollection",new XAttribute("Type","Msi"),new XAttribute("EnforcementMode","Enabled")))).ToString(SaveOptions.DisableFormatting);}}
+
+// Retained for existing policy preview consumers; OS deployment is owned by apply-policy.ps1.
+public static class AppLockerXml
+{
+    public static string Create(StationPolicy policy)
+    {
+        var rules = policy.Applications.Select(app => new System.Xml.Linq.XElement("FilePathRule",new System.Xml.Linq.XAttribute("Id",Guid.NewGuid()),new System.Xml.Linq.XAttribute("Name",app.Code),new System.Xml.Linq.XAttribute("Description","G-Manager preview"),new System.Xml.Linq.XAttribute("UserOrGroupSid","S-1-5-32-545"),new System.Xml.Linq.XAttribute("Action","Allow"),new System.Xml.Linq.XElement("Conditions",new System.Xml.Linq.XElement("FilePathCondition",new System.Xml.Linq.XAttribute("Path",app.ExecutablePath)))));
+        return new System.Xml.Linq.XElement("AppLockerPolicy",new System.Xml.Linq.XAttribute("Version","1"),new System.Xml.Linq.XElement("RuleCollection",new System.Xml.Linq.XAttribute("Type","Exe"),new System.Xml.Linq.XAttribute("EnforcementMode","Enabled"),rules),new System.Xml.Linq.XElement("RuleCollection",new System.Xml.Linq.XAttribute("Type","Script"),new System.Xml.Linq.XAttribute("EnforcementMode","Enabled")),new System.Xml.Linq.XElement("RuleCollection",new System.Xml.Linq.XAttribute("Type","Msi"),new System.Xml.Linq.XAttribute("EnforcementMode","Enabled"))).ToString();
+    }
+}

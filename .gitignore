@@ -3,3 +3,4 @@
 !.env.example
 ops/deploy/secrets/
 ops/backup/output/
+/client/artifacts/GManager.Client.zip

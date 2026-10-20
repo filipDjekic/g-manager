@@ -14,8 +14,13 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class StationController {
     private final StationReadinessService service;
+    private final StationClientManagementService clientManagement;
 
     @GetMapping public List<StationOverview> overview() { return service.overview(); }
+    @GetMapping("/{resourceId}/client-status")
+    public StationClientManagementService.ClientManagementStatus clientStatus(@PathVariable UUID resourceId) {
+        return clientManagement.status(resourceId);
+    }
     @PutMapping("/{resourceId}/profile") public StationOverview saveStation(@PathVariable UUID resourceId,
             @Valid @RequestBody StationProfileRequest request) { return service.saveStation(resourceId, request); }
     @GetMapping("/applications") public List<DefinitionView> definitions() { return service.definitions(); }

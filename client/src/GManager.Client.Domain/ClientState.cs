@@ -1,5 +1,5 @@
 namespace GManager.Client.Domain;
-public enum ClientMode { Locked, Login, Active, Offline }
+public enum ClientMode { Locked, Login, Active, Offline, Maintenance }
 public sealed record SessionSnapshot(Guid StationId,Guid? SessionId,DateTimeOffset? EndsAt,DateTimeOffset ServerTime,long CommandCursor,string StationStatus);
 public sealed record ClientViewState(ClientMode Mode,string Connectivity,string Heading,Guid? SessionId,string? CustomerName,DateTimeOffset? EndsAt,TimeSpan ServerOffset)
 {
@@ -11,4 +11,5 @@ public sealed record ClientViewState(ClientMode Mode,string Connectivity,string 
 }
 public sealed record LocalRequest(string Type,string RequestId,string? Email=null,string? Password=null,Guid? SessionId=null,string? ApplicationCode=null);
 public sealed record ClientApplication(string Code,string Name,string Type);
-public sealed record LocalResponse(bool Success,string? Error,ClientViewState State,IReadOnlyList<ClientApplication>? Applications=null);
+public sealed record ClientLaunch(string ExecutablePath,string? Arguments);
+public sealed record LocalResponse(bool Success,string? Error,ClientViewState State,IReadOnlyList<ClientApplication>? Applications=null,IReadOnlyList<ClientLaunch>? Launches=null);

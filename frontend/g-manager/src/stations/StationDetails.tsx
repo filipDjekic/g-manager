@@ -2,6 +2,7 @@
 import { useEffect, useId, useState, type RefObject } from 'react'
 import { hasCapability } from '../auth/capabilities'
 import { gamingSessionApi } from '../api/gamingSessionApi'
+import { stationApi } from '../api/stationApi'
 import { Badge, Button, Drawer, EmptyState, ErrorState, Skeleton } from '../components/ui'
 import { enforcementLabels } from '../gaming/presentation'
 import { stationSeconds, stationTimer } from '../gaming/operationsPresentation'
@@ -14,12 +15,19 @@ import { applicationTypeLabels, connectionStatus, operationalLabels, StationIllu
 const tabs: Array<[StationTab, string]> = [['OVERVIEW', 'Pregled'], ['CONFIGURATION', 'Konfiguracija'], ['APPLICATIONS', 'Aplikacije'], ['HISTORY', 'Istorija']]
 const actionLabels: Record<string, string> = { SESSION_STARTED: 'Pokretanje sesije', SESSION_EXTENDED: 'Produženje sesije', SESSION_TERMINATED: 'Završavanje sesije', FORCE_LOCK: 'Prinudno zaključavanje', OPERATOR_RECOVERY: 'Fizička potvrda zaključavanja' }
 const historyStatusLabels: Record<string, string> = { PENDING: 'Čeka potvrdu', ACKNOWLEDGED: 'Potvrđena', ...enforcementLabels }
+const clientErrorLabels: Record<string, string> = { BACKEND_UNAVAILABLE: 'Server nije dostupan.', BACKEND_TIMEOUT: 'Server nije odgovorio na vreme.',
+  RECOVERY_FAILED: 'Lokalni oporavak nije uspeo.', POLICY_FAILED: 'Windows politika nije primenjena.', SIGNATURE_REJECTED: 'Potpis konfiguracije ili sesije je odbijen.',
+  SESSION_RECONCILIATION_REQUIRED: 'Osoblje treba da usaglasi prekinutu gaming sesiju.', MAINTENANCE_STATE_INVALID: 'Stanje održavanja nije ispravno.', MAINTENANCE_STATE_UNAVAILABLE: 'Stanje održavanja nije dostupno.' }
 export function StationDetails({ station, user, now, initialTab, profiles, definitions, applicationLoading, applicationError, stale, returnFocusRef, handlers, onClose, onRefresh }: {
   station: StationView; user: AuthUser | null; now: number; initialTab: StationTab; profiles: ApplicationProfile[]; definitions: ApplicationDefinition[]
   applicationLoading: boolean; applicationError: unknown; stale: boolean; returnFocusRef: RefObject<HTMLElement | null>
   handlers: StationViewHandlers; onClose: () => void; onRefresh: () => void
 }) {
   const [tab, setTab] = useState<StationTab>(initialTab), id = useId()
+  const management = useQuery({ queryKey: ['stations', station.resourceId, 'client-status'], queryFn: () => stationApi.clientStatus(station.resourceId),
+    enabled: Boolean(station.stationProfileId) && hasCapability(user, 'STATION_READ'), refetchInterval: 15_000 })
+  const client = management.data
+  const updateLabels: Record<string, string> = { CURRENT: 'Ažuran', DOWNLOADING: 'Preuzimanje', FAILED: 'Neuspešno ažuriranje', ROLLED_BACK: 'Vraćena prethodna verzija', UNKNOWN: 'Nije poznato' }
   useEffect(() => { setTab(initialTab) }, [initialTab, station.resourceId])
   const canHistory = hasCapability(user, 'GAMING_SESSION_READ') && Boolean(station.live)
   const history = useQuery({ queryKey: ['gaming-operations', 'history', station.resourceId], queryFn: () => gamingSessionApi.history(station.resourceId), enabled: canHistory && tab === 'HISTORY' })
@@ -50,10 +58,16 @@ export function StationDetails({ station, user, now, initialTab, profiles, defin
               <div><dt>Gaming Client konekcija</dt><dd><Badge tone={connection.tone}>{connection.label}</Badge></dd></div>
               <div><dt>Poslednji heartbeat</dt><dd>{date(station.lastHeartbeatAt)}{live?.staleHeartbeat && <small>Heartbeat je zastareo</small>}</dd></div>
               <div><dt>Verzija klijenta</dt><dd>{station.clientVersion || 'Nije prijavljena'}</dd></div>
+              <div><dt>Instalacija klijenta</dt><dd>{client?.installationStatus === 'INSTALLED' ? 'Produkcioni servis' : client?.installationStatus === 'DEVELOPMENT' ? 'Razvojni režim' : 'Nije prijavljena'}</dd></div>
+              <div><dt>Ažuriranje klijenta</dt><dd>{client?.updateStatus ? updateLabels[client.updateStatus] ?? client.updateStatus : 'Nije prijavljeno'}</dd></div>
+              <div><dt>Lokalno održavanje</dt><dd>{client?.maintenanceActive === true ? 'Aktivno · Windows administrator' : client?.maintenanceActive === false ? 'Nije aktivno' : 'Nije prijavljeno'}{client && !client.online && <small>Poslednje prijavljeno stanje · klijent je offline</small>}</dd></div>
+              {client?.errorCode && <div className="gm-stations-full"><dt>Greška klijenta</dt><dd>{clientErrorLabels[client.errorCode] ?? 'Klijent je prijavio grešku.'}<small><code>{client.errorCode}</code></small></dd></div>}
               <div><dt>Potvrda zaključavanja</dt><dd>{live ? enforcementLabels[live.enforcementStatus] ?? live.enforcementStatus : 'Operativni podatak nije dostupan'}</dd></div>
               {live?.lastLockAckAt && <div><dt>Poslednja potvrda zaključavanja</dt><dd>{date(live.lastLockAckAt)}</dd></div>}
               {Boolean(live?.commandSequence) && <div className="gm-stations-full"><dt>Poslednja komanda</dt><dd>{actionLabels[live?.commandType ?? ''] ?? live?.commandType ?? 'Komanda'} #{live?.commandSequence} · {live?.commandAcknowledgedAt ? 'Potvrđena' : 'Čeka potvrdu'}<small>{date(live?.commandAvailableAt)}</small></dd></div>}
             </dl>
+            {management.isError && <p className="gm-stations-warning" role="status">Status instalacije i održavanja trenutno nije dostupan.</p>}
+            {hasCapability(user, 'STATION_MAINTENANCE') && <p className="gm-stations-form-note">Lokalno održavanje i oporavak zahtevaju Windows administratorski nalog na stanici. Operativni status „Održavanje” u konfiguraciji ne isključuje Windows zaštitu.</p>}
             {warnings.length > 0 && <div className="gm-stations-detail-warnings">{warnings.map(warning => <p className="gm-stations-warning" key={warning}>{warning}</p>)}</div>}
             {live?.sessionId ? <div className="gm-stations-detail-session"><h3>{live.status === 'EXPIRED' ? 'Sesija je istekla' : 'Aktivna sesija'}</h3>
               {hasCapability(user, 'CUSTOMER_READ') && <strong>{live.customerDisplayName ?? 'Klijent nije dostupan'}</strong>}

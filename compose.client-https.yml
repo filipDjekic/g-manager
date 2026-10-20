@@ -1,0 +1,15 @@
+services:
+  client-https:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "8443:8443"
+    volumes:
+      - ./Caddyfile.client-local:/etc/caddy/Caddyfile:ro
+      - gmanager_client_https_data:/data
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  gmanager_client_https_data:
