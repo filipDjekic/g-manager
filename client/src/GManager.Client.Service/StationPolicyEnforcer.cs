@@ -22,34 +22,56 @@ public sealed class StationPolicyEnforcer(IConfiguration configuration, Protecte
 
     public Task ApplyAsync(SignedStationPolicy signed, Guid stationId, CancellationToken ct)
     {
-        if(string.IsNullOrEmpty(signed.Payload) || string.IsNullOrEmpty(signed.Signature)) throw new CryptographicException("Signed station policy is required");
-        byte[] payload = Decode(signed.Payload);
-        if (signed.Algorithm != "Ed25519" || signed.KeyId != configuration["Policy:SigningKeyId"])
-            throw new CryptographicException("Station policy signing key is not trusted");
-        var key = NSec.Cryptography.PublicKey.Import(Signature, Convert.FromBase64String(configuration["Policy:SigningPublicKey"] ?? ""), KeyBlobFormat.PkixPublicKey);
-        if (!Signature.Verify(key, payload, Decode(signed.Signature))) throw new CryptographicException("Station policy signature is invalid");
-        var policy = JsonSerializer.Deserialize<StationPolicy>(payload, new JsonSerializerOptions(JsonSerializerDefaults.Web)) ?? throw new InvalidDataException("Invalid station policy");
-        if (policy.StationId != stationId || policy.ConfigurationVersion < version) throw new CryptographicException("Station policy scope/version is invalid");
-        if (policy.ConfigurationVersion == version) return Task.CompletedTask;
-        foreach (var app in policy.Applications) Validate(app);
-        lock(osSync)
+        var phase=CryptographicFailurePhase.ConfigurationSignature;
+        try
         {
-            PolicyApplication[] previous; lock(sync) previous=allowed.Values.ToArray();
-            try
+            if(string.IsNullOrEmpty(signed.Payload) || string.IsNullOrEmpty(signed.Signature)) throw new CryptographicException("Signed station policy is required");
+            byte[] payload = Decode(signed.Payload);
+            if (signed.Algorithm != "Ed25519" || signed.KeyId != configuration["Policy:SigningKeyId"])
+                throw new CryptographicException("Station policy signing key is not trusted");
+            var key = NSec.Cryptography.PublicKey.Import(Signature, Convert.FromBase64String(configuration["Policy:SigningPublicKey"] ?? ""), KeyBlobFormat.PkixPublicKey);
+            if (!Signature.Verify(key, payload, Decode(signed.Signature))) throw new CryptographicException("Station policy signature is invalid");
+            var policy = JsonSerializer.Deserialize<StationPolicy>(payload, new JsonSerializerOptions(JsonSerializerDefaults.Web)) ?? throw new InvalidDataException("Invalid station policy");
+            phase=CryptographicFailurePhase.ConfigurationScope;
+            if (policy.StationId != stationId) throw new CryptographicException("Station policy scope/version is invalid");
+            phase=CryptographicFailurePhase.ConfigurationVersion;
+            if (policy.ConfigurationVersion < version)
             {
-                lock(sync) { allowed.Clear(); foreach (var app in policy.Applications) allowed.Add(app.Code,app); }
-                ApplyOsPolicy(ct).GetAwaiter().GetResult();
-                store.SavePolicy(signed);
-                version=policy.ConfigurationVersion;
+                var exception=new CryptographicException("Station policy scope/version is invalid");
+                if(environment.Development)
+                {
+                    exception.Data[OperationalEventWriter.CurrentVersionKey]=version;
+                    exception.Data[OperationalEventWriter.ReceivedVersionKey]=policy.ConfigurationVersion;
+                }
+                throw exception;
             }
-            catch
+            if (policy.ConfigurationVersion == version) return Task.CompletedTask;
+            foreach (var app in policy.Applications) Validate(app);
+            phase=CryptographicFailurePhase.LocalPolicyUpdate;
+            lock(osSync)
             {
-                lock(sync) { allowed.Clear(); foreach(var app in previous) allowed.Add(app.Code,app); }
-                appliedActive=null;
-                throw;
+                PolicyApplication[] previous; lock(sync) previous=allowed.Values.ToArray();
+                try
+                {
+                    lock(sync) { allowed.Clear(); foreach (var app in policy.Applications) allowed.Add(app.Code,app); }
+                    ApplyOsPolicy(ct).GetAwaiter().GetResult();
+                    store.SavePolicy(signed);
+                    version=policy.ConfigurationVersion;
+                }
+                catch
+                {
+                    lock(sync) { allowed.Clear(); foreach(var app in previous) allowed.Add(app.Code,app); }
+                    appliedActive=null;
+                    throw;
+                }
             }
+            return Task.CompletedTask;
         }
-        return Task.CompletedTask;
+        catch(CryptographicException exception) when(environment.Development)
+        {
+            OperationalEventWriter.MarkCryptographicPhase(exception,phase);
+            throw;
+        }
     }
 
     public void SetSessionActive(bool value)
@@ -123,7 +145,16 @@ public sealed class StationPolicyEnforcer(IConfiguration configuration, Protecte
         return Task.CompletedTask;
         }
     }
-    static void Validate(PolicyApplication app)
+    void Validate(PolicyApplication app)
+    {
+        try { ValidateApplication(app); }
+        catch(CryptographicException exception) when(environment.Development)
+        {
+            OperationalEventWriter.MarkCryptographicPhase(exception,CryptographicFailurePhase.ApplicationValidation);
+            throw;
+        }
+    }
+    static void ValidateApplication(PolicyApplication app)
     {
         if(!Path.IsPathFullyQualified(app.ExecutablePath) || !app.ExecutablePath.EndsWith(".exe",StringComparison.OrdinalIgnoreCase) || app.ExecutablePath.IndexOfAny(['*','?','"']) >= 0) throw new InvalidDataException("Invalid executable path");
         if(!File.Exists(app.ExecutablePath)) throw new FileNotFoundException("Configured executable is unavailable",app.ExecutablePath);
