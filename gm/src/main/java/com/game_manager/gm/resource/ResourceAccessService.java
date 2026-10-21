@@ -59,7 +59,12 @@ public class ResourceAccessService {
     /** Lock grants until the mutation commits, serializing it with assignment revocation. */
     public void requireManageForUpdate(AuthenticatedUser actor, Collection<UUID> resourceIds, Permission permission) {
         if (allResources(actor)) return;
-        if (actor.role() != Role.EMPLOYEE || resourceIds.isEmpty() || resourceIds.contains(null)) denied(actor, permission);
+        if (actor.role() != Role.EMPLOYEE
+				|| resourceIds == null
+				|| resourceIds.isEmpty()
+				|| resourceIds.stream().anyMatch(Objects::isNull)) {
+			denied(actor, permission);
+		}
         Set<UUID> expected = new TreeSet<>(resourceIds);
         List<Object> parameters = new ArrayList<>();
         parameters.add(actor.id().toString());

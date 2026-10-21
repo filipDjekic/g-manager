@@ -23,17 +23,20 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
     public async Task Recover(CancellationToken ct)
     {
         if(Identity is null) return;
+        var cryptographicPhase=CryptographicFailurePhase.Recovery;
         try
         {
             recovery = store.LoadSnapshot<ClientRecoveryState>();
             if(recovery is not null)
             {
                 // Never trust the unsigned projection in a persisted snapshot.
+                cryptographicPhase=CryptographicFailurePhase.SessionLeaseVerification;
                 var verified = leases.Verify(recovery.Envelope,Identity.StationId);
                 recovery = recovery with { Lease=verified,LocallyLocked=true };
                 trusted = new(recovery.TrustedUtcFloor);
             }
             var cachedPolicy = store.LoadPolicy<SignedStationPolicy>();
+            cryptographicPhase=CryptographicFailurePhase.ConfigurationSignature;
             if(cachedPolicy is not null) await policy.ApplyAsync(cachedPolicy,Identity.StationId,ct);
             LockLocal("Service restart");
             Tick();
@@ -41,6 +44,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
         }
         catch(Exception ex) when(ex is JsonException or CryptographicException or IOException or InvalidOperationException)
         {
+            if(ex is CryptographicException cryptographicFailure)events.WriteDevelopmentCryptographicFailure("recovery",cryptographicPhase,cryptographicFailure);
             ErrorCode="RECOVERY_FAILED";
             LockLocal("Recovery failed");
             events.Write("RECOVERY_REJECTED","LOCKED");
@@ -89,17 +93,26 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
     {
         if(Identity is null) return;
         await gate.WaitAsync(ct);
+        var cryptographicPhase=CryptographicFailurePhase.Authentication;
         try
         {
             Tick();
             await EnsureToken(ct);
             if(!maintenance)
             {
+                cryptographicPhase=CryptographicFailurePhase.ConfigurationSignature;
                 await policy.ApplyAsync(await protocol.ConfigurationAsync(token!,ct),Identity.StationId,ct);
+                cryptographicPhase=CryptographicFailurePhase.SessionLeaseVerification;
                 var envelope=await protocol.LeaseAsync(token!,ct);
                 var lease=leases.Verify(envelope,Identity.StationId);
                 trusted.Observe(lease.IssuedAt);
-                if(lease.ConfigurationVersion!=policy.CurrentVersion) throw new CryptographicException("Lease/configuration version mismatch");
+                cryptographicPhase=CryptographicFailurePhase.ConfigurationVersion;
+                if(lease.ConfigurationVersion!=policy.CurrentVersion) {
+                    var exception=new CryptographicException("Lease/configuration version mismatch");
+                    if(environment.Development){exception.Data[OperationalEventWriter.CurrentVersionKey]=policy.CurrentVersion;exception.Data[OperationalEventWriter.ReceivedVersionKey]=lease.ConfigurationVersion;}
+                    throw exception;
+                }
+                cryptographicPhase=CryptographicFailurePhase.LocalAction;
                 recovery=new(envelope,lease,recovery?.AppliedSequence??0,trusted.Now(),recovery?.PendingLockSequence,recovery?.PendingLockSessionId,recovery?.LocallyLocked??true,recovery?.BlockedSessionId);
                 await ReconcileCommands(ct);
                 ApplyLease(lease);
@@ -111,7 +124,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
         }
         catch(HttpRequestException ex) { if(ex.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden) { token=null; LockLocal("Machine authorization rejected"); } ErrorCode="BACKEND_UNAVAILABLE"; Tick(); SaveRecovery(); }
         catch(OperationCanceledException) when(!ct.IsCancellationRequested) { ErrorCode="BACKEND_TIMEOUT"; Tick(); SaveRecovery(); }
-        catch(CryptographicException) { ErrorCode="SIGNATURE_REJECTED"; LockLocal("Invalid signed lease/policy"); SaveRecovery(); }
+        catch(CryptographicException ex) { events.WriteDevelopmentCryptographicFailure("refresh",cryptographicPhase,ex); ErrorCode="SIGNATURE_REJECTED"; LockLocal("Invalid signed lease/policy"); SaveRecovery(); }
         catch(Exception ex) when(ex is IOException or InvalidOperationException or JsonException) { ErrorCode="POLICY_FAILED"; LockLocal("Policy failed"); }
         finally {
             initialized=true;
@@ -146,11 +159,13 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
         }
         if(Identity is null) return new(false,"Stanica nije registrovana.",State);
         await gate.WaitAsync(ct);
+        var cryptographicPhase=CryptographicFailurePhase.Authentication;
         try
         {
             Tick();
             if(maintenance || trusted.Now()<preparingUntil) return new(false,"Stanica je u režimu održavanja.",State);
             await EnsureToken(ct);
+            cryptographicPhase=CryptographicFailurePhase.LocalAction;
             if(request.Type=="login" && request.Email is not null && request.Password is not null && recovery is not null && !commandGap && recovery.AppliedSequence>=recovery.Lease.CommandCursor && recovery.BlockedSessionId!=recovery.Lease.SessionId && !LeaseDeadlinePolicy.MustLock(recovery.Lease,trusted.Now()))
             {
                 var result=await protocol.LoginAsync(token!,request.Email,request.Password,ct);
@@ -181,7 +196,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
         catch(HttpRequestException) { Tick(); return new(false,"Server nije dostupan ili je odbio zahtev.",State); }
         catch(OperationCanceledException) when(!ct.IsCancellationRequested) { Tick(); return new(false,"Server nije odgovorio na vreme.",State); }
         catch(Exception ex) when(ex is IOException or CryptographicException or InvalidOperationException or UnauthorizedAccessException)
-        { LockLocal("Action rejected"); return new(false,"Akcija nije bezbedno izvršena. Pozovite administratora.",State); }
+        { if(ex is CryptographicException cryptographicFailure)events.WriteDevelopmentCryptographicFailure("local-action",cryptographicPhase,cryptographicFailure); LockLocal("Action rejected"); return new(false,"Akcija nije bezbedno izvršena. Pozovite administratora.",State); }
         finally { gate.Release(); }
     }
     async Task ReconcileCommands(CancellationToken ct)
