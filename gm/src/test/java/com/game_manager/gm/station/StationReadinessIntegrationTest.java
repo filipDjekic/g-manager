@@ -12,11 +12,13 @@ import com.game_manager.gm.resource.*;
 import com.game_manager.gm.user.*;
 import java.math.BigDecimal;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.*;
@@ -29,7 +31,10 @@ class StationReadinessIntegrationTest {
     @Autowired MockMvc mvc; @Autowired UserRepository users; @Autowired PasswordEncoder encoder;
     @Autowired CatalogRepository catalog; @Autowired LocationRepository locations; @Autowired AreaRepository areas;
     @Autowired PhysicalResourceRepository resources; @Autowired ResourceManagementService resourceService;
+    @Autowired JdbcTemplate jdbc;
     private final ObjectMapper json = new ObjectMapper();
+
+    @BeforeEach void cleanDatabase() { testsupport.DatabaseCleaner.clean(jdbc); }
 
     @Test
     void adminConfiguresPolicyAndStationWhileEmployeeIsReadOnly() throws Exception {

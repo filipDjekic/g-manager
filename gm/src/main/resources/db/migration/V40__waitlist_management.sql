@@ -1,13 +1,12 @@
-ALTER TABLE waitlist_entries
-    MODIFY active_key VARCHAR(280) NULL,
-    ADD COLUMN area_id CHAR(36) NULL,
-    ADD COLUMN queue_entered_at TIMESTAMP(6) NULL,
-    ADD COLUMN internal_note VARCHAR(500) NULL,
-    ADD COLUMN created_by_id CHAR(36) NULL,
-    ADD COLUMN consent_at TIMESTAMP(6) NULL,
-    ADD COLUMN status_changed_at TIMESTAMP(6) NULL,
-    ADD CONSTRAINT fk_waitlist_area FOREIGN KEY (area_id) REFERENCES areas(id),
-    ADD CONSTRAINT fk_waitlist_creator FOREIGN KEY (created_by_id) REFERENCES users(id);
+ALTER TABLE waitlist_entries MODIFY active_key VARCHAR(280) NULL;
+ALTER TABLE waitlist_entries ADD COLUMN area_id CHAR(36) NULL;
+ALTER TABLE waitlist_entries ADD COLUMN queue_entered_at TIMESTAMP(6) NULL;
+ALTER TABLE waitlist_entries ADD COLUMN internal_note VARCHAR(500) NULL;
+ALTER TABLE waitlist_entries ADD COLUMN created_by_id CHAR(36) NULL;
+ALTER TABLE waitlist_entries ADD COLUMN consent_at TIMESTAMP(6) NULL;
+ALTER TABLE waitlist_entries ADD COLUMN status_changed_at TIMESTAMP(6) NULL;
+ALTER TABLE waitlist_entries ADD CONSTRAINT fk_waitlist_area FOREIGN KEY (area_id) REFERENCES areas(id);
+ALTER TABLE waitlist_entries ADD CONSTRAINT fk_waitlist_creator FOREIGN KEY (created_by_id) REFERENCES users(id);
 UPDATE waitlist_entries SET queue_entered_at=created_at, status_changed_at=updated_at;
 ALTER TABLE waitlist_entries MODIFY queue_entered_at TIMESTAMP(6) NOT NULL;
 CREATE INDEX idx_waitlist_fifo ON waitlist_entries(status,queue_entered_at,id);

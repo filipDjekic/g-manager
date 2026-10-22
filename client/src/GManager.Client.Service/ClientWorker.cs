@@ -10,6 +10,7 @@ namespace GManager.Client.Service;
 
 public sealed class ClientWorker(ClientRuntime runtime, ClientEnvironment environment, ILogger<ClientWorker> logger) : BackgroundService
 {
+    const int ErrorPipeLocal=229;
     [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern bool GetNamedPipeClientComputerName(SafePipeHandle pipe,StringBuilder name,uint length);
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
@@ -38,7 +39,11 @@ public sealed class ClientWorker(ClientRuntime runtime, ClientEnvironment enviro
                 await using var pipe=LocalPipeAcl.Create(environment,admin);
                 await pipe.WaitForConnectionAsync(ct);
                 var computer=new StringBuilder(256);
-                if(!GetNamedPipeClientComputerName(pipe.SafePipeHandle,computer,(uint)computer.Capacity) || !computer.ToString().TrimStart('\\').Equals(Environment.MachineName,StringComparison.OrdinalIgnoreCase)) continue;
+                if(GetNamedPipeClientComputerName(pipe.SafePipeHandle,computer,(uint)computer.Capacity))
+                {
+                    if(!computer.ToString().TrimStart('\\').Equals(Environment.MachineName,StringComparison.OrdinalIgnoreCase)) continue;
+                }
+                else if(Marshal.GetLastPInvokeError()!=ErrorPipeLocal) continue;
                 using var timeout=CancellationTokenSource.CreateLinkedTokenSource(ct); timeout.CancelAfter(TimeSpan.FromSeconds(15));
                 using var reader=new StreamReader(pipe,new UTF8Encoding(false),false,4096,true);
                 using var writer=new StreamWriter(pipe,new UTF8Encoding(false),4096,true) { AutoFlush=true };

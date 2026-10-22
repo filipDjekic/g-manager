@@ -7,7 +7,7 @@ import './index.css'
 import { installGlobalErrorReporting } from './observability/errorReporter'
 import { installWebVitalsReporting } from './observability/performanceReporter'
 import { UiPreferencesProvider } from './preferences/UiPreferences'
-import { ToastProvider } from './components/ui'
+import { ToastProvider } from './components/ui/ToastProvider'
 import { registerPwa } from './pwa/pwa'
 
 installGlobalErrorReporting()

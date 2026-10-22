@@ -30,8 +30,9 @@ class ReservationTransitionPolicyTest {
                 NOW.plusSeconds(7200), NOW.plusSeconds(9000));
         assertThat(policy.allowedActions(actor(Role.CUSTOMER, customerId), pending))
                 .containsExactly(ReservationStatus.CANCELLED);
-        assertThat(policy.allowedActions(actor(Role.EMPLOYEE, employeeId), pending))
-                .containsExactly(ReservationStatus.CONFIRMED, ReservationStatus.REJECTED);
+        assertThat(policy.allowedActions(actor(Role.EMPLOYEE, employeeId), pending, false, true))
+                .containsExactly(ReservationStatus.CONFIRMED, ReservationStatus.REJECTED,
+                        ReservationStatus.CANCELLED);
         assertThat(policy.allowedActions(actor(Role.ADMIN, UUID.randomUUID()), pending))
                 .containsExactly(ReservationStatus.CONFIRMED, ReservationStatus.REJECTED,
                         ReservationStatus.CANCELLED);
@@ -40,14 +41,15 @@ class ReservationTransitionPolicyTest {
                 NOW.plusSeconds(7200), NOW.plusSeconds(9000));
         assertThat(policy.allowedActions(actor(Role.CUSTOMER, customerId), confirmed))
                 .containsExactly(ReservationStatus.CANCELLED);
-        assertThat(policy.allowedActions(actor(Role.EMPLOYEE, employeeId), confirmed)).isEmpty();
+        assertThat(policy.allowedActions(actor(Role.EMPLOYEE, employeeId), confirmed, false, true))
+                .containsExactly(ReservationStatus.CANCELLED);
         assertThat(policy.allowedActions(actor(Role.ADMIN, UUID.randomUUID()), confirmed))
                 .containsExactly(ReservationStatus.CANCELLED);
 
         Reservation elapsed = reservation(ReservationStatus.CONFIRMED,
                 NOW.minusSeconds(7200), NOW.minusSeconds(3600));
-        assertThat(policy.allowedActions(actor(Role.EMPLOYEE, employeeId), elapsed))
-                .containsExactly(ReservationStatus.COMPLETED);
+        assertThat(policy.allowedActions(actor(Role.EMPLOYEE, employeeId), elapsed, false, true))
+                .containsExactly(ReservationStatus.COMPLETED, ReservationStatus.CANCELLED);
         assertThat(policy.allowedActions(actor(Role.ADMIN, UUID.randomUUID()), elapsed))
                 .containsExactly(ReservationStatus.COMPLETED, ReservationStatus.CANCELLED);
 
@@ -63,7 +65,8 @@ class ReservationTransitionPolicyTest {
         Reservation pending = reservation(ReservationStatus.PENDING,
                 NOW.plusSeconds(7200), NOW.plusSeconds(9000));
         assertFailure(HttpStatus.FORBIDDEN, () -> policy.requireTransition(
-                actor(Role.EMPLOYEE, UUID.randomUUID()), pending, ReservationStatus.CONFIRMED, null));
+                actor(Role.EMPLOYEE, UUID.randomUUID()), pending, ReservationStatus.CONFIRMED,
+                null, false, false));
         assertFailure(HttpStatus.CONFLICT, () -> policy.requireTransition(
                 actor(Role.ADMIN, UUID.randomUUID()), pending, ReservationStatus.COMPLETED, null));
         assertFailure(HttpStatus.UNPROCESSABLE_ENTITY, () -> policy.requireTransition(
@@ -74,7 +77,8 @@ class ReservationTransitionPolicyTest {
         assertFailure(HttpStatus.CONFLICT, () -> policy.requireTransition(
                 actor(Role.CUSTOMER, customerId), near, ReservationStatus.CANCELLED, "Plan changed"));
         assertFailure(HttpStatus.CONFLICT, () -> policy.requireTransition(
-                actor(Role.EMPLOYEE, employeeId), near, ReservationStatus.COMPLETED, null));
+                actor(Role.EMPLOYEE, employeeId), near, ReservationStatus.COMPLETED,
+                null, false, true));
     }
 
     private ReservationTransitionPolicy policy() {

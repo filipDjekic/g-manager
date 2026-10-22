@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
-FROM node:22.13.0-alpine3.21 AS build
+FROM node:22.23.3-alpine3.23 AS build
 WORKDIR /workspace
-ARG NPM_VERSION=11.14.1
+ARG NPM_VERSION=11.19.1
 RUN npm install --global "npm@${NPM_VERSION}"
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci
@@ -10,7 +10,7 @@ ARG APP_VERSION=dev
 ENV VITE_RELEASE=${APP_VERSION} VITE_API_URL=/api/v1
 RUN npm run build
 
-FROM nginxinc/nginx-unprivileged:1.27.4-alpine3.21
+FROM nginxinc/nginx-unprivileged:alpine3.24
 ARG APP_VERSION=dev
 LABEL org.opencontainers.image.title="G-Manager frontend" \
       org.opencontainers.image.version="${APP_VERSION}"

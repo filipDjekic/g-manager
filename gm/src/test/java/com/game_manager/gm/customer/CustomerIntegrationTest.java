@@ -83,7 +83,7 @@ class CustomerIntegrationTest {
     }
 
     @Test
-    void customerAndEmployeeCannotReadCustomer360AndEmptyCustomerHasZeroKpis() throws Exception {
+    void customerCannotReadCustomer360AndStaffSeeEmptyCustomerWithZeroKpis() throws Exception {
         User owner = user(Role.OWNER, "Owner empty");
         User empty = user(Role.CUSTOMER, "Stage8 Empty");
         User employee = user(Role.EMPLOYEE, "Employee denied");
@@ -91,7 +91,8 @@ class CustomerIntegrationTest {
                 .andExpect(status().isForbidden());
         mockMvc.perform(get("/api/v1/customers/{id}", empty.getId())
                         .header("Authorization", bearer(login(employee))))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.customer.id").value(empty.getId().toString()));
         mockMvc.perform(get("/api/v1/customers/{id}", empty.getId())
                         .header("Authorization", bearer(login(owner))))
                 .andExpect(status().isOk())

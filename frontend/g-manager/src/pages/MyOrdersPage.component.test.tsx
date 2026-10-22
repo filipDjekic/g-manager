@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse, delay } from 'msw'
 import { MemoryRouter } from 'react-router-dom'
@@ -21,7 +22,8 @@ const product = { id: 'product-1', name: 'Šampon', description: null, type: 'PR
   updatedAt: '2026-01-01T00:00:00Z', version: 0, deletedAt: null, deletedBy: null, deletionReason: null }
 
 function renderPage() {
-  return render(<MemoryRouter><MyOrdersPage /></MemoryRouter>)
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(<QueryClientProvider client={client}><MemoryRouter><MyOrdersPage /></MemoryRouter></QueryClientProvider>)
 }
 
 function catalog(items = [product]) {

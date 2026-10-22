@@ -22,6 +22,7 @@ export default defineConfig([
       'no-restricted-imports': ['error', {
         paths: [{
           name: 'axios',
+          importNames: ['default'],
           message: 'Raw Axios access belongs in src/api. Import a feature API client instead.',
         }],
       }],
