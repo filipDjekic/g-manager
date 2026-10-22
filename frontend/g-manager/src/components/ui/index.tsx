@@ -1,11 +1,11 @@
 import {
-  cloneElement, forwardRef, isValidElement, useEffect, useId, useRef, useState,
+  cloneElement, forwardRef, isValidElement, useEffect, useId, useRef,
   type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode,
   type SelectHTMLAttributes, type TextareaHTMLAttributes,
 } from 'react'
 import { createPortal } from 'react-dom'
 import './ui.css'
-import { ToastContext, type ToastTone } from './toastContext'
+export { ToastProvider } from './ToastProvider'
 
 export const Button = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'primary' | 'secondary' | 'danger'; loading?: boolean
@@ -217,22 +217,6 @@ export function Drawer({ open, title, children, onClose, returnFocusRef, size = 
 export type StatusTone = 'neutral' | 'info' | 'accent' | 'success' | 'warning' | 'danger'
 export function Badge({ children, tone = 'neutral' }: { children: ReactNode; tone?: StatusTone }) {
   return <span className={`ui-badge ui-badge--${tone}`}>{children}</span>
-}
-
-interface Toast { id: number; message: string; tone: ToastTone }
-
-export function ToastProvider({ children }: { children: ReactNode }) {
-  const [toasts, setToasts] = useState<Toast[]>([])
-  const nextId = useRef(0)
-  const notify = (message: string, tone: ToastTone = 'info') => {
-    const id = ++nextId.current
-    setToasts((current) => [...current, { id, message: message.slice(0, 300), tone }])
-    window.setTimeout(() => setToasts((current) => current.filter((toast) => toast.id !== id)), 5000)
-  }
-  return <ToastContext.Provider value={notify}>{children}<div className="ui-toasts" aria-live="polite">
-    {toasts.map((toast) => <div key={toast.id} className={`ui-toast ui-toast--${toast.tone}`}>{toast.message}
-      <button aria-label="Zatvori obaveštenje" onClick={() => setToasts((current) => current.filter(({ id }) => id !== toast.id))}>×</button></div>)}
-  </div></ToastContext.Provider>
 }
 
 export function Skeleton({ lines = 3, label = 'Učitavanje' }: { lines?: number; label?: string }) {

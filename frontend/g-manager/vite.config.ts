@@ -4,6 +4,15 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [{ name: 'd3', test: /node_modules[\\/]d3-/ }],
+        },
+      },
+    },
+  },
   test: {
     include: ['src/**/*.test.{ts,tsx}'],
     environment: 'jsdom',

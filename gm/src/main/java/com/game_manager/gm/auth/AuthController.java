@@ -8,6 +8,7 @@ import com.game_manager.gm.auth.dto.SecurityEventResponse;
 import com.game_manager.gm.common.error.ApplicationException;
 import com.game_manager.gm.common.config.GManagerProperties;
 import com.game_manager.gm.customer.CustomerAccountService;
+import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -61,6 +62,12 @@ public class AuthController {
         rateLimitService.checkActivation(clientIp(servletRequest));
         customerAccountService.activate(request);
         return ResponseEntity.noContent().build();
+    }
+
+    @Hidden
+    @PostMapping("/register")
+    ResponseEntity<Void> rejectPublicRegistration() {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
     }
 
     @PostMapping("/login")

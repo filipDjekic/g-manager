@@ -5,6 +5,10 @@ on:
     tags: ['v*']
   workflow_dispatch:
     inputs:
+      version:
+        description: Numeric client release version (for example 1.2.3)
+        required: true
+        type: string
       environment:
         description: Protected deployment environment
         required: true
@@ -21,12 +25,35 @@ permissions:
   packages: write
 
 jobs:
+  prepare:
+    name: Validate release version
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - id: version
+        name: Normalize and validate release version
+        env:
+          DISPATCH_VERSION: ${{ inputs.version }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="$DISPATCH_VERSION"
+          fi
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || { echo '::error::Release version must be numeric (major.minor.patch[.revision]).'; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
   gaming-client:
     name: Signed Windows Gaming Client
+    needs: prepare
     runs-on: windows-2025
+    outputs:
+      sha256: ${{ steps.package.outputs.sha256 }}
+      signing-subject: ${{ steps.package.outputs.signing-subject }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with: { dotnet-version: '10.0.x' }
       - name: Import ephemeral code-signing certificate
         shell: pwsh
@@ -34,6 +61,7 @@ jobs:
           SIGNING_PFX_BASE64: ${{ secrets.GAMING_CLIENT_SIGNING_PFX_BASE64 }}
           SIGNING_PFX_PASSWORD: ${{ secrets.GAMING_CLIENT_SIGNING_PFX_PASSWORD }}
         run: |
+          if (!$env:SIGNING_PFX_BASE64 -or !$env:SIGNING_PFX_PASSWORD) { throw 'GAMING_CLIENT_SIGNING_PFX_BASE64 and GAMING_CLIENT_SIGNING_PFX_PASSWORD are required.' }
           $bytes=[Convert]::FromBase64String($env:SIGNING_PFX_BASE64)
           $certificate=New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($bytes,$env:SIGNING_PFX_PASSWORD,'PersistKeySet')
           $store=New-Object System.Security.Cryptography.X509Certificates.X509Store('My','CurrentUser');$store.Open('ReadWrite');$store.Add($certificate);$store.Close()
@@ -41,45 +69,61 @@ jobs:
       - name: Publish, Authenticode sign and package
         working-directory: client/packaging
         shell: pwsh
-        run: ./publish.ps1 -CertificateThumbprint $env:SIGNING_THUMBPRINT -Version '${{ github.ref_name }}'
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: ./publish.ps1 -CertificateThumbprint $env:SIGNING_THUMBPRINT -Version $env:RELEASE_VERSION
+      - id: package
+        name: Record signed package identity
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          $manifest = Get-Content client/artifacts/GManager.Client.manifest.json -Raw | ConvertFrom-Json
+          if ($manifest.version -ne $env:RELEASE_VERSION) { throw 'Signed package version does not match release version.' }
+          "sha256=$($manifest.sha256)" >> $env:GITHUB_OUTPUT
+          "signing-subject=$($manifest.signingSubject)" >> $env:GITHUB_OUTPUT
       - name: Upload signed client candidate
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with: { name: gmanager-client-signed, path: 'client/artifacts/GManager.Client.*', if-no-files-found: error }
 
   images:
     name: Build, SBOM and image policy
+    needs: prepare
     runs-on: ubuntu-24.04
     outputs:
       backend: ${{ steps.images.outputs.backend }}
       frontend: ${{ steps.images.outputs.frontend }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - name: Resolve lowercase GHCR namespace
+        run: echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
       - name: Authenticate to GHCR
         run: echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
         env: { GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
       - name: Build and publish immutable images with provenance and SBOM
-        env:
-          REGISTRY: ghcr.io/${{ github.repository_owner }}
         run: |
-          docker buildx build gm --file gm/Dockerfile --build-arg APP_VERSION="$GITHUB_SHA" --tag "$REGISTRY/gmanager-backend:$GITHUB_SHA" --provenance=mode=max --sbom=true --push
-          docker buildx build frontend/g-manager --file frontend/g-manager/Dockerfile --build-arg APP_VERSION="$GITHUB_SHA" --tag "$REGISTRY/gmanager-frontend:$GITHUB_SHA" --provenance=mode=max --sbom=true --push
+          docker buildx build gm --file gm/Dockerfile --build-arg APP_VERSION="$GITHUB_SHA" --tag "$REGISTRY/gmanager-backend:$GITHUB_SHA" --provenance=mode=max --sbom=true --metadata-file "$RUNNER_TEMP/backend-image.json" --push
+          docker buildx build frontend/g-manager --file frontend/g-manager/Dockerfile --build-arg APP_VERSION="$GITHUB_SHA" --tag "$REGISTRY/gmanager-frontend:$GITHUB_SHA" --provenance=mode=max --sbom=true --metadata-file "$RUNNER_TEMP/frontend-image.json" --push
       - id: images
         name: Resolve registry digests
-        env:
-          REGISTRY: ghcr.io/${{ github.repository_owner }}
         run: |
-          backend_digest="sha256:$(docker buildx imagetools inspect "$REGISTRY/gmanager-backend:$GITHUB_SHA" --raw | sha256sum | cut -d' ' -f1)"
-          frontend_digest="sha256:$(docker buildx imagetools inspect "$REGISTRY/gmanager-frontend:$GITHUB_SHA" --raw | sha256sum | cut -d' ' -f1)"
+          backend_digest=$(jq -er '."containerimage.digest"' "$RUNNER_TEMP/backend-image.json")
+          frontend_digest=$(jq -er '."containerimage.digest"' "$RUNNER_TEMP/frontend-image.json")
+          [[ "$backend_digest" == sha256:* && "$frontend_digest" == sha256:* ]] || { echo '::error::Buildx did not return immutable image digests.'; exit 1; }
           echo "backend=$REGISTRY/gmanager-backend@$backend_digest" >> "$GITHUB_OUTPUT"
           echo "frontend=$REGISTRY/gmanager-frontend@$frontend_digest" >> "$GITHUB_OUTPUT"
       - name: Reject unapproved high or critical image vulnerabilities
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          docker run --rm aquasec/trivy:0.59.1 image --ignore-unfixed --severity HIGH,CRITICAL --exit-code 1 '${{ steps.images.outputs.backend }}'
-          docker run --rm aquasec/trivy:0.59.1 image --ignore-unfixed --severity HIGH,CRITICAL --exit-code 1 '${{ steps.images.outputs.frontend }}'
+          docker run --rm -e TRIVY_USERNAME -e TRIVY_PASSWORD aquasec/trivy:0.59.1 image --severity HIGH,CRITICAL --exit-code 1 '${{ steps.images.outputs.backend }}'
+          docker run --rm -e TRIVY_USERNAME -e TRIVY_PASSWORD aquasec/trivy:0.59.1 image --severity HIGH,CRITICAL --exit-code 1 '${{ steps.images.outputs.frontend }}'
 
   deploy:
     name: Deploy and prove rollback
-    needs: images
+    needs: [prepare, gaming-client, images]
     runs-on: [self-hosted, gmanager-deploy]
     environment: ${{ inputs.environment || 'production' }}
     timeout-minutes: 45
@@ -98,13 +142,21 @@ jobs:
       AI_ENDPOINT: ${{ vars.AI_ENDPOINT }}
       AI_MODEL: ${{ vars.AI_MODEL }}
       STATION_POLICY_SIGNING_KEY_ID: ${{ vars.STATION_POLICY_SIGNING_KEY_ID }}
-      GAMING_CLIENT_VERSION: ${{ vars.GAMING_CLIENT_VERSION }}
+      GAMING_CLIENT_VERSION: ${{ needs.prepare.outputs.version }}
       GAMING_CLIENT_MINIMUM_VERSION: ${{ vars.GAMING_CLIENT_MINIMUM_VERSION }}
       GAMING_CLIENT_DOWNLOAD_URL: ${{ vars.GAMING_CLIENT_DOWNLOAD_URL }}
-      GAMING_CLIENT_SHA256: ${{ vars.GAMING_CLIENT_SHA256 }}
-      GAMING_CLIENT_PACKAGE_SIGNING_SUBJECT: ${{ vars.GAMING_CLIENT_PACKAGE_SIGNING_SUBJECT }}
+      GAMING_CLIENT_SHA256: ${{ needs.gaming-client.outputs.sha256 }}
+      GAMING_CLIENT_PACKAGE_SIGNING_SUBJECT: ${{ needs.gaming-client.outputs.signing-subject }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Validate deployed client package and deployment settings
+        run: |
+          for name in CANONICAL_ORIGIN DOCUMENT_S3_BUCKET STATION_POLICY_SIGNING_KEY_ID GAMING_CLIENT_MINIMUM_VERSION GAMING_CLIENT_DOWNLOAD_URL GAMING_CLIENT_SHA256 GAMING_CLIENT_PACKAGE_SIGNING_SUBJECT MIGRATION_DB_PASSWORD; do
+            [[ -n "${!name:-}" ]] || { echo "::error::$name is required in the selected environment."; exit 1; }
+          done
+          [[ "$GAMING_CLIENT_DOWNLOAD_URL" == https://* ]] || { echo '::error::GAMING_CLIENT_DOWNLOAD_URL must use HTTPS.'; exit 1; }
+          curl --fail --location --silent --show-error "$GAMING_CLIENT_DOWNLOAD_URL" -o "$RUNNER_TEMP/GManager.Client.zip"
+          echo "$GAMING_CLIENT_SHA256  $RUNNER_TEMP/GManager.Client.zip" | sha256sum --check
       - name: Materialize runner-only secrets
         working-directory: ops/deploy
         env:

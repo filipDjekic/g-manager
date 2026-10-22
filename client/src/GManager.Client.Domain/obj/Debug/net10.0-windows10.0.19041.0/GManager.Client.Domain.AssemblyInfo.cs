@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("GManager.Client.Domain")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+03057d3bbc0c623a6884c3da5dbadae47b1e0b9b")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+201c68e15e355e011a37315252ac412ef39d1b08")]
 [assembly: System.Reflection.AssemblyProductAttribute("GManager.Client.Domain")]
 [assembly: System.Reflection.AssemblyTitleAttribute("GManager.Client.Domain")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

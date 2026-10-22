@@ -42,7 +42,7 @@ class GamingSessionIntegrationTest {
 
     @Test void customerHistoryIsPrivateAndStaffHistoryRespectsAssignedLocations() throws Exception {
         User employee=user(Role.EMPLOYEE), unrelated=user(Role.EMPLOYEE), customer=user(Role.CUSTOMER), other=user(Role.CUSTOMER);
-        Station station=station(); assign(employee,station.locationId()); String token=login(employee);
+        Station station=station(); assign(employee,station.resource().getId()); String token=login(employee);
         start(token,startBody(customer,station.resource(),60),new CountDownLatch(0),new CountDownLatch(0));
         mvc.perform(get("/api/v1/gaming-sessions/me").header("Authorization",bearer(login(customer))))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
@@ -58,7 +58,7 @@ class GamingSessionIntegrationTest {
     }
 
     @Test void commandsAreIdempotentAndExtensionKeepsAggregateIdentity() throws Exception {
-        User employee=user(Role.EMPLOYEE), customer=user(Role.CUSTOMER); Station station=station(); assign(employee,station.locationId());
+        User employee=user(Role.EMPLOYEE), customer=user(Role.CUSTOMER); Station station=station(); assign(employee,station.resource().getId());
         String token=login(employee), key=UUID.randomUUID().toString(), body=startBody(customer,station.resource(),60);
         MvcResult first=mvc.perform(post("/api/v1/gaming-sessions").header("Authorization",bearer(token))
                 .header("Idempotency-Key",key).contentType(MediaType.APPLICATION_JSON).content(body))
@@ -89,7 +89,7 @@ class GamingSessionIntegrationTest {
 
     @Test void exactlyOneConcurrentStartWinsForSameStationAndForSameCustomer() throws Exception {
         User employee=user(Role.EMPLOYEE), first=user(Role.CUSTOMER), second=user(Role.CUSTOMER);
-        Station one=station(),two=station();assign(employee,one.locationId());assign(employee,two.locationId());String token=login(employee);
+        Station one=station(),two=station();assign(employee,one.resource().getId());assign(employee,two.resource().getId());String token=login(employee);
         assertThat(race(token,startBody(first,one.resource(),60),startBody(second,one.resource(),60)))
                 .containsExactlyInAnyOrder(201,409);
         sessions.findAll().forEach(value->{value.setStatus(GamingSessionStatus.TERMINATED);value.setEndedAt(Instant.now());value.setTerminationReason("test cleanup");sessions.save(value);});sessions.flush();
@@ -113,7 +113,7 @@ class GamingSessionIntegrationTest {
         PhysicalResource resource=new PhysicalResource();resource.setAreaId(area.getId());resource.setServiceId(service.getId());resource.setCode("PC-"+shortId());resource.setName("Gaming PC");resource.setType(ResourceType.GAMING_PC);resource.setActive(true);resource.setBookable(true);resource=resources.saveAndFlush(resource);
         ApplicationProfile profile=new ApplicationProfile();profile.setCode("P-"+shortId());profile.setName("Profile");profile.setActive(true);profile=profiles.saveAndFlush(profile);
         GamingStationProfile station=new GamingStationProfile();station.setResourceId(resource.getId());station.setApplicationProfileId(profile.getId());station.setOperationalStatus(StationOperationalStatus.AVAILABLE);stations.saveAndFlush(station);return new Station(resource,location.getId());}
-    private void assign(User user,UUID location){Instant now=Instant.now();jdbc.update("INSERT INTO user_location_assignments (id,user_id,location_id,active,created_at,updated_at,version) VALUES (?,?,?,?,?,?,?)",UUID.randomUUID().toString(),user.getId().toString(),location.toString(),true,Timestamp.from(now),Timestamp.from(now),0);}
+    private void assign(User user,UUID resource){Instant now=Instant.now();jdbc.update("INSERT INTO user_resource_assignments (id,user_id,resource_id,active,created_at,updated_at,version) VALUES (?,?,?,?,?,?,?)",UUID.randomUUID().toString(),user.getId().toString(),resource.toString(),true,Timestamp.from(now),Timestamp.from(now),0);}
     private User user(Role role){User value=new User();value.setName(role.name());value.setEmail(role+"-gaming-"+UUID.randomUUID()+"@example.test");value.setPasswordHash(encoder.encode("StrongPass1!"));value.setRole(role);value.setActive(true);return users.saveAndFlush(value);}
     private String login(User user)throws Exception{return node(mvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON).content("{\"email\":\"%s\",\"password\":\"StrongPass1!\"}".formatted(user.getEmail()))).andExpect(status().isOk()).andReturn()).get("token").asText();}
     private JsonNode node(MvcResult result){return json.readTree(result.getResponse().getContentAsByteArray());}

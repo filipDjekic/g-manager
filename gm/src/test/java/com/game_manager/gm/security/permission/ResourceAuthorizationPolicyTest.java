@@ -64,12 +64,14 @@ class ResourceAuthorizationPolicyTest {
                 actor(customerId, Role.CUSTOMER), reservation, ReservationStatus.CANCELLED, "Changed plans"))
                 .doesNotThrowAnyException();
         assertThatCode(() -> reservations.requireTransition(
-                actor(employeeId, Role.EMPLOYEE), reservation, ReservationStatus.CONFIRMED, null))
+                actor(employeeId, Role.EMPLOYEE), reservation, ReservationStatus.CONFIRMED,
+                null, false, true))
                 .doesNotThrowAnyException();
         assertForbidden(() -> reservations.requireTransition(
                 actor(UUID.randomUUID(), Role.CUSTOMER), reservation, ReservationStatus.CANCELLED, "Changed plans"));
         assertForbidden(() -> reservations.requireTransition(
-                actor(UUID.randomUUID(), Role.EMPLOYEE), reservation, ReservationStatus.CONFIRMED, null));
+                actor(UUID.randomUUID(), Role.EMPLOYEE), reservation, ReservationStatus.CONFIRMED,
+                null, false, false));
     }
 
     @Test

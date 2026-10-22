@@ -4,7 +4,6 @@ import { initializeSession } from './api/client'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { CapabilityGuard } from './auth/CapabilityGuard'
 import { RouteAccessibility } from './accessibility/RouteAccessibility'
-import { AppShell } from './layout/AppShell'
 import './App.css'
 import './styles/product.css'
 import { useFeatureStore } from './feature/featureStore'
@@ -16,6 +15,7 @@ const lazyPage = <T extends Record<K, ComponentType>, K extends keyof T>(
   loader: () => Promise<T>, name: K,
 ) => lazy(() => loader().then((module) => ({ default: module[name] })))
 
+const AppShell = lazyPage(() => import('./layout/AppShell'), 'AppShell')
 const LoginPage = lazyPage(() => import('./pages/LoginPage'), 'LoginPage')
 const ActivatePage = lazyPage(() => import('./pages/ActivatePage'), 'ActivatePage')
 const SessionPage = lazyPage(() => import('./pages/SessionPage'), 'SessionPage')

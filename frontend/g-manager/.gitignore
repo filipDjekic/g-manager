@@ -26,3 +26,6 @@ bom.json
 *.njsproj
 *.sln
 *.sw?
+
+# Checksum
+.npm-cache
