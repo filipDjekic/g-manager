@@ -4,3 +4,13 @@
 ops/deploy/secrets/
 ops/backup/output/
 /client/artifacts/GManager.Client.zip
+
+# Local verification output from the system audit.
+**/audit-*.log
+frontend/g-manager/audit-*.json
+frontend/g-manager/artifacts/audit/
+client/artifacts/audit/
+/client/**/bin/
+/client/**/obj/
+/test-results/
+/playwright-report/
