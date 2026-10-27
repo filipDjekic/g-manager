@@ -1,4 +1,4 @@
-﻿import { useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type RefObject } from 'react'
 import { availabilityApi } from '../../api/availabilityApi'
 import { resourceApi } from '../../api/resourceApi'
@@ -9,13 +9,15 @@ import { Badge, Button, EmptyState, ErrorState, Input, Modal, Select, Skeleton, 
 import { useToast } from '../../components/ui/toastContext'
 import { businessInstantToLocal, businessLocalToInstant, formatBusinessDateTime, formatBusinessIntervalEnd, formatBusinessTime, todayInBusinessZone } from '../dateTime'
 import { RecurrencePreviewPanel, RecurrenceResultPanel } from '../RecurrencePreviewPanel'
-import { ReservationTimePicker, validTime } from '../ReservationTimePicker'
+import { ReservationTimePicker } from '../ReservationTimePicker'
+import { validTime } from '../ReservationTimePicker.model'
 import { bookingConflictReason } from '../bookingConflictReason'
 import type { CatalogItem } from '../../types/catalog.types'
 import type { UserResponse } from '../../types/user.types'
 import type { AvailabilitySlot } from '../../types/availability.types'
 import type { CreateReservationInput, RecurrenceConflictPolicy, RecurrenceCreateResult, RecurrenceFrequency, RecurrenceInput, ReservationCreationRequest } from '../../types/reservation.types'
-import { CalendarClock, customerDuration, customerReservationError } from './customerPresentation'
+import { CalendarClock } from './customerPresentation'
+import { customerDuration, customerReservationError } from './customerPresentation.model'
 
 export interface BookingPrefill { serviceId?: string; resourceId?: string; locationId?: string; areaId?: string; employeeId?: string }
 export function CustomerBookingDialog({ prefill, services, employees, loading, dataError, returnFocusRef, onReload, onScopeChanged, onCreated, onWaitlisted, onClose }: {
@@ -33,8 +35,8 @@ export function CustomerBookingDialog({ prefill, services, employees, loading, d
   const [recurrenceInterval, setRecurrenceInterval] = useState(1), [occurrences, setOccurrences] = useState(4)
   const [conflictPolicy, setConflictPolicy] = useState<RecurrenceConflictPolicy>('ALL_OR_NOTHING'), [recurrenceResult, setRecurrenceResult] = useState<RecurrenceCreateResult | null>(null)
   const [error, setError] = useState(''), [submitting, setSubmitting] = useState(false), [joining, setJoining] = useState(false)
-  const keys = useRef(new IdempotencyKeyManager()), pending = useRef<ReservationCreationRequest | null>(null), inFlight = useRef(false)
-  const frozen = Boolean(keys.current.pendingKey()), blocked = submitting || frozen || joining
+  const [keys] = useState(() => new IdempotencyKeyManager()), pending = useRef<ReservationCreationRequest | null>(null), inFlight = useRef(false)
+  const frozen = Boolean(keys.pendingKey()), blocked = submitting || frozen || joining
   const service = services.find(value => value.id === serviceId)
   const employeeValid = employeeChoice === 'ANY' || employees.some(value => value.id === employeeChoice)
   const resourceOptions = useQuery({ queryKey: ['booking-resources', 'customer-rules', serviceId], queryFn: () => resourceApi.bookingOptions({ serviceId }), enabled: Boolean(serviceId), retry: false })
@@ -76,6 +78,8 @@ export function CustomerBookingDialog({ prefill, services, employees, loading, d
   useEffect(() => {
     if (!manualStart || timeError || availability.isFetching || availability.isError || blocked) return
     const match = slots.find(value => Date.parse(value.startTime) === Date.parse(manualStart))
+    // Rebind a manually entered interval to the latest server availability before enabling submission.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedSlot(match ?? null); setSelectedStart(match?.startTime ?? '')
   }, [manualStart, timeError, slots, availability.isFetching, availability.isError, blocked])
   // Polling rebinds the selection; a cached free slot cannot authorize creation.
@@ -126,13 +130,13 @@ export function CustomerBookingDialog({ prefill, services, employees, loading, d
       const request: ReservationCreationRequest = pending.current ?? (recurring ? { kind: 'RECURRING', input: { ...base, employeeId: employeeChoice, frequency, interval: recurrenceInterval, occurrences, conflictPolicy } } : { kind: 'SINGLE', input: base })
       pending.current = request
       let createdId: string | undefined
-      if (request.kind === 'RECURRING') { const created = await reservationApi.createRecurrence(request.input, keys.current.begin()); setRecurrenceResult(created); createdId = created.created[0]?.id }
-      else createdId = (await reservationApi.create(request.input, keys.current.begin())).id
-      keys.current.succeeded(); pending.current = null
+      if (request.kind === 'RECURRING') { const created = await reservationApi.createRecurrence(request.input, keys.begin()); setRecurrenceResult(created); createdId = created.created[0]?.id }
+      else createdId = (await reservationApi.create(request.input, keys.begin())).id
+      keys.succeeded(); pending.current = null
       toast(request.kind === 'RECURRING' ? 'Serija rezervacija je obrađena.' : 'Termin je rezervisan i čeka potvrdu.', 'success')
       await onCreated(request.kind === 'SINGLE' ? createdId : undefined)
     } catch (cause) {
-      keys.current.failed(cause); if (!keys.current.pendingKey()) pending.current = null
+      keys.failed(cause); if (!keys.pendingKey()) pending.current = null
       if (isConflictResponse(cause)) {
         if (!recurring) resetSelection()
         setError(recurring ? 'Dostupnost serije se promenila. Osvežite i proverite konflikte pre novog pokušaja.' : 'Termin je u međuvremenu zauzet. Izaberite ga ponovo ili se prijavite na listu čekanja.')
@@ -163,28 +167,28 @@ export function CustomerBookingDialog({ prefill, services, employees, loading, d
       {loading ? <Skeleton lines={4} label="Učitavanje usluga i zaposlenih" /> : dataError ? <ErrorState message={customerReservationError(dataError, 'Podaci za zakazivanje nisu dostupni.')} action={<Button type="button" onClick={onReload}>Pokušaj ponovo</Button>} /> : null}
       <fieldset disabled={blocked || loading || Boolean(dataError)} className="gm-my-booking-fields">
         <section className="gm-my-booking-step"><h3><span>1</span>Usluga i prostor</h3><div className="gm-my-booking-grid">
-          <label className="gm-my-full">Usluga<Select required value={serviceId} onChange={event => { const next = event.target.value; setServiceId(next); setResourceId(''); setLocationId(''); setAreaId(''); setEmployeeChoice('UNSELECTED'); setDate(''); setRecurring(false); resetSelection(true); onScopeChanged({ serviceId: next }) }}>
+          <label className="gm-my-full">Usluga<Select aria-label={"Usluga"} required value={serviceId} onChange={event => { const next = event.target.value; setServiceId(next); setResourceId(''); setLocationId(''); setAreaId(''); setEmployeeChoice('UNSELECTED'); setDate(''); setRecurring(false); resetSelection(true); onScopeChanged({ serviceId: next }) }}>
             <option value="">Izaberite uslugu</option>{serviceId && !service && <option value={serviceId} disabled>Izabrana usluga nije dostupna za rezervisanje</option>}
             {services.map(value => <option key={value.id} value={value.id}>{value.name} · {value.durationMinutes} min</option>)}</Select></label>
           {serviceId && resourceOptions.isLoading && <div className="gm-my-full"><Skeleton lines={2} label="Učitavanje resursa" /></div>}
           {resourceOptions.isError && <div className="gm-my-full"><ErrorState message={customerReservationError(resourceOptions.error, 'Resurse nije moguće učitati.')} action={<Button type="button" onClick={() => resourceOptions.refetch()}>Pokušaj ponovo</Button>} /></div>}
-          {serviceId && physicalStep && <><label>Lokal<Select required={resourceRequired} value={scopedLocationId} onChange={event => { const next = event.target.value; setLocationId(next); setAreaId(''); setResourceId(''); resetSelection(); onScopeChanged({ serviceId, locationId: next }) }}>
+          {serviceId && physicalStep && <><label>Lokal<Select aria-label={"Lokal"} required={resourceRequired} value={scopedLocationId} onChange={event => { const next = event.target.value; setLocationId(next); setAreaId(''); setResourceId(''); resetSelection(); onScopeChanged({ serviceId, locationId: next }) }}>
             <option value="">Izaberite lokal</option>{locations.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</Select></label>
-            <label>Zona<Select required={resourceRequired} value={scopedAreaId} disabled={!scopedLocationId || blocked} onChange={event => { const next = event.target.value; setAreaId(next); setResourceId(''); resetSelection(); onScopeChanged({ serviceId, locationId: scopedLocationId, areaId: next }) }}>
+            <label>Zona<Select aria-label={"Zona"} required={resourceRequired} value={scopedAreaId} disabled={!scopedLocationId || blocked} onChange={event => { const next = event.target.value; setAreaId(next); setResourceId(''); resetSelection(); onScopeChanged({ serviceId, locationId: scopedLocationId, areaId: next }) }}>
               <option value="">Izaberite zonu</option>{areas.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</Select></label>
-            <label className="gm-my-full">Računar / resurs<Select value={resourceId} disabled={!scopeReady || blocked} onChange={event => { setResourceId(event.target.value); resetSelection(); onScopeChanged({ serviceId, locationId: scopedLocationId, areaId: scopedAreaId, resourceId: event.target.value }) }}>
+            <label className="gm-my-full">Računar / resurs<Select aria-label={"Računar / resurs"} value={resourceId} disabled={!scopeReady || blocked} onChange={event => { setResourceId(event.target.value); resetSelection(); onScopeChanged({ serviceId, locationId: scopedLocationId, areaId: scopedAreaId, resourceId: event.target.value }) }}>
               <option value="">Automatski izaberi slobodan kompatibilni resurs</option>{resourceId && !selectedResource && <option value={resourceId} disabled>Izabrani resurs više nije dostupan</option>}
               {resources.filter(value => value.locationId === scopedLocationId && value.areaId === scopedAreaId).map(value => <option key={value.id} value={value.id}>{value.code} · {value.name}</option>)}</Select></label>
             {!resourceOptions.isLoading && !resourceOptions.isError && !resources.length && <p className="gm-my-reservation-warning gm-my-full">Za ovu uslugu trenutno nema kompatibilnih resursa.</p>}</>}
         </div></section>
         {serviceId && <section className="gm-my-booking-step"><h3><span>2</span>Datum i vreme</h3><div className="gm-my-booking-grid">
-          <label>Zaposleni<Select required value={employeeChoice} onChange={event => { setEmployeeChoice(event.target.value); setDate(''); setRecurring(false); resetSelection(true) }}><option value="UNSELECTED">Izaberite opciju</option><option value="ANY">Bilo koji slobodan zaposleni</option>
+          <label>Zaposleni<Select aria-label={"Zaposleni"} required value={employeeChoice} onChange={event => { setEmployeeChoice(event.target.value); setDate(''); setRecurring(false); resetSelection(true) }}><option value="UNSELECTED">Izaberite opciju</option><option value="ANY">Bilo koji slobodan zaposleni</option>
             {employeeChoice !== 'ANY' && employeeChoice !== 'UNSELECTED' && !employees.some(value => value.id === employeeChoice) && <option value={employeeChoice} disabled>Izabrani zaposleni nije dostupan</option>}
             {employees.map(value => <option key={value.id} value={value.id}>{value.name}</option>)}</Select></label>
-          <label>Datum<Input type="date" min={todayInBusinessZone()} required value={date} disabled={employeeChoice === 'UNSELECTED' || blocked} onChange={event => { setDate(event.target.value); resetSelection(true); setEndDate(event.target.value) }} /></label>
+          <label>Datum<Input aria-label={"Datum"} type="date" min={todayInBusinessZone()} required value={date} disabled={employeeChoice === 'UNSELECTED' || blocked} onChange={event => { setDate(event.target.value); resetSelection(true); setEndDate(event.target.value) }} /></label>
           {date && rules?.variableDuration && <><ReservationTimePicker label="Od" value={fromTime} disabled={blocked} onChange={value => { setFromTime(value); resetSelection() }} />
             <ReservationTimePicker label="Do" value={toTime} disabled={blocked} onChange={value => { setToTime(value); resetSelection() }} />
-            <label>Datum završetka<Input type="date" min={date} required value={endDate || date} disabled={blocked} onChange={event => { setEndDate(event.target.value); resetSelection() }} /></label>
+            <label>Datum završetka<Input aria-label={"Datum završetka"} type="date" min={date} required value={endDate || date} disabled={blocked} onChange={event => { setEndDate(event.target.value); resetSelection() }} /></label>
             <div className="gm-my-booking-duration"><span>Trajanje</span><strong>{!timeError ? customerDuration(duration) : '—'}</strong><small>{minimum}–{rules.maximumDurationMinutes} min</small></div>
             <p className="gm-my-booking-note gm-my-full">Izaberite ponuđeni početak ili unesite Od–Do. Proverava se ceo interval. Ručno uneto vreme mora biti dostupno u serverskom pregledu termina.</p>
             {timeError && <p className="error-banner gm-my-full" role="alert">{timeError}</p>}</>}
@@ -203,13 +207,13 @@ export function CustomerBookingDialog({ prefill, services, employees, loading, d
           </label>)}</div>}
           {!availability.isError && slots.some(value => value.status === 'UNAVAILABLE') && <details className="gm-my-unavailable"><summary>Nedostupni termini ({slots.filter(value => value.status === 'UNAVAILABLE').length})</summary><ul>{slots.filter(value => value.status === 'UNAVAILABLE').map(slot => <li key={slot.startTime}>{formatBusinessTime(slot.startTime)} · {bookingConflictReason(slot.reason)}</li>)}</ul></details>}
         </section>}
-        {chosenSlot && (!occupied || recurring) && chosenSlot.status !== 'UNAVAILABLE' && <label>Napomena (opciono)<Textarea maxLength={500} value={note} onChange={event => setNote(event.target.value)} /></label>}
+        {chosenSlot && (!occupied || recurring) && chosenSlot.status !== 'UNAVAILABLE' && <label>Napomena (opciono)<Textarea aria-label={"Napomena (opciono)"} maxLength={500} value={note} onChange={event => setNote(event.target.value)} /></label>}
         {chosenSlot && chosenSlot.status !== 'UNAVAILABLE' && employeeChoice !== 'ANY' && <details className="gm-my-booking-recurrence" open={recurring} onToggle={event => { if (!blocked) setRecurring(event.currentTarget.open) }}><summary onClick={event => { if (blocked) event.preventDefault() }}>Ponavljajući termin</summary>
           {recurring && <>
-          <div className="gm-my-booking-grid"><label>Učestalost<Select value={frequency} onChange={event => setFrequency(event.target.value as RecurrenceFrequency)}><option value="WEEKLY">Nedeljno</option><option value="MONTHLY">Mesečno</option></Select></label>
-            <label>Interval<Input type="number" required min={1} max={4} value={recurrenceInterval} onChange={event => setRecurrenceInterval(Number(event.target.value))} /></label>
-            <label>Broj termina<Input type="number" required min={2} max={20} value={occurrences} onChange={event => setOccurrences(Number(event.target.value))} /></label>
-            <label>Politika konflikata<Select value={conflictPolicy} onChange={event => setConflictPolicy(event.target.value as RecurrenceConflictPolicy)}><option value="ALL_OR_NOTHING">Sve ili nijedan termin</option><option value="SKIP_CONFLICTS">Preskoči konflikte</option></Select></label></div>
+          <div className="gm-my-booking-grid"><label>Učestalost<Select aria-label={"Učestalost"} value={frequency} onChange={event => setFrequency(event.target.value as RecurrenceFrequency)}><option value="WEEKLY">Nedeljno</option><option value="MONTHLY">Mesečno</option></Select></label>
+            <label>Interval<Input aria-label={"Interval"} type="number" required min={1} max={4} value={recurrenceInterval} onChange={event => setRecurrenceInterval(Number(event.target.value))} /></label>
+            <label>Broj termina<Input aria-label={"Broj termina"} type="number" required min={2} max={20} value={occurrences} onChange={event => setOccurrences(Number(event.target.value))} /></label>
+            <label>Politika konflikata<Select aria-label={"Politika konflikata"} value={conflictPolicy} onChange={event => setConflictPolicy(event.target.value as RecurrenceConflictPolicy)}><option value="ALL_OR_NOTHING">Sve ili nijedan termin</option><option value="SKIP_CONFLICTS">Preskoči konflikte</option></Select></label></div>
           {physicalStep && <p className="gm-my-booking-note">Za svaki termin serije posebno se proverava resurs u izabranom prostoru.</p>}
           <Button type="button" variant="secondary" loading={preview.isFetching} onClick={() => preview.refetch()}>Pregledaj ponavljanje</Button>
           {preview.isLoading && <Skeleton lines={3} label="Provera ponavljajućih termina" />}{preview.isError && <ErrorState message={customerReservationError(preview.error, 'Ponavljanje nije moguće pregledati.')} action={<Button type="button" onClick={() => preview.refetch()}>Pokušaj ponovo</Button>} />}

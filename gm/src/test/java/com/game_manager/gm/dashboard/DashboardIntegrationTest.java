@@ -111,8 +111,7 @@ class DashboardIntegrationTest {
         assertThat(result.get("timezone").asText()).isEqualTo("Europe/Belgrade");
         assertThat(result.get("appointments").size()).isEqualTo(baseline.get("appointments").size() + 2);
         assertThat(result.get("appointments").toString()).contains(pending.getId().toString())
-                .contains("Klijent").contains("CONFIRMED")
-                .doesNotContain(customer.getName());
+                .contains(customer.getName()).contains("CONFIRMED");
         assertThat(result.get("appointments").toString()).doesNotContain(otherEmployee.getId().toString());
         assertThat(result.get("appointments").toString()).contains("allowedActions");
         assertThat(result.get("unclaimedOrders").size()).isEqualTo(baseline.get("unclaimedOrders").size() + 1);

@@ -1,7 +1,7 @@
 package com.game_manager.gm.station;
 
 import com.game_manager.gm.common.error.ApplicationException;
-import com.game_manager.gm.machine.StationHeartbeatRepository;
+import com.game_manager.gm.common.scheduling.ClientStatePort;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.UUID;
@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class StationClientManagementService {
-    private final StationHeartbeatRepository heartbeats;
+    private final ClientStatePort heartbeats;
     private final GamingStationProfileRepository stations;
     private final Clock clock;
 
@@ -23,11 +23,11 @@ public class StationClientManagementService {
     public ClientManagementStatus status(UUID resourceId) {
         GamingStationProfile station = stations.findByResourceId(resourceId)
                 .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND, "Station not found"));
-        return heartbeats.findById(resourceId).map(value -> new ClientManagementStatus(
-                value.getClientVersion(), value.getLastSeenAt(),
-                value.getLastSeenAt().plusSeconds(station.getOfflineGraceSeconds()).isAfter(clock.instant()),
-                value.getInstallationStatus(), value.getUpdateStatus(), value.getMaintenanceActive(),
-                value.getClientErrorCode())).orElseGet(() -> new ClientManagementStatus(
+        return heartbeats.heartbeat(resourceId).map(value -> new ClientManagementStatus(
+                value.clientVersion(), value.lastSeenAt(),
+                value.lastSeenAt().plusSeconds(station.getOfflineGraceSeconds()).isAfter(clock.instant()),
+                value.installationStatus(), value.updateStatus(), value.maintenanceActive(),
+                value.clientErrorCode())).orElseGet(() -> new ClientManagementStatus(
                 station.getClientVersion(), station.getLastHeartbeatAt(), false, null, null, null, null));
     }
 

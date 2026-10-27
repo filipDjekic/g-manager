@@ -1,3 +1,4 @@
+import { useResettableState } from '../components/useResettableState'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -14,17 +15,16 @@ import { StartSessionDialog } from '../gaming/StartSessionDialog'
 import { useGamingOperations } from '../gaming/useGamingOperations'
 import { useServerNow } from '../gaming/useServerNow'
 import { enforcementLabels, needsAttention, stationLabels } from '../gaming/presentation'
-import { GamingBoardPagination, readGamingPage } from '../gaming/GamingBoardPagination'
+import { GamingBoardPagination } from '../gaming/GamingBoardPagination'
+import { readGamingPage } from '../gaming/GamingBoardPagination.model'
 import { GamingOperationsIcon, GamingSessionsTable, StationDetailsPanel, StationTile } from '../gaming/GamingStationViews'
 import { isExpiringStation, stationSeconds } from '../gaming/operationsPresentation'
 import '../gaming/gamingOperations.css'
 import { formatBusinessDateTime, formatBusinessTime } from '../reservations/dateTime'
 import type { GamingStationCard } from '../types/gamingSession.types'
 
-const defaults = { search: '', locationId: '', status: '', attention: '', expiring: '', ready: '', sessions: '', offline: '', sort: 'attention', stationId: '', stationPage: '1', sessionPage: '1' }
+const defaults = { search: '', locationId: '', status: '', attention: '', expiring: '', ready: '', sessions: '', offline: '', sort: 'attention', stationId: '', stationPage: '1', sessionPage: '1', stationSize: '10', sessionSize: '10' }
 const allowed = Object.keys(defaults) as (keyof typeof defaults)[]
-const stationPageSize = 8
-const sessionPageSize = 10
 
 export function GamingSessionsPage() {
   const actor = useAuthStore((state) => state.user)
@@ -32,9 +32,12 @@ export function GamingSessionsPage() {
   const canStart = hasCapability(actor, 'GAMING_SESSION_START')
   const client = useQueryClient(), { board, connection, visible } = useGamingOperations(canRead)
   const url = useListUrlState(defaults, allowed), now = useServerNow(board.data?.serverTime)
+  const setUrl = url.set
+  const stationPageSize = [10, 20, 50, 100].includes(Number(url.state.stationSize)) ? Number(url.state.stationSize) : 10
+  const sessionPageSize = [10, 20, 50, 100].includes(Number(url.state.sessionSize)) ? Number(url.state.sessionSize) : 10
   const [startStation, setStartStation] = useState<GamingStationCard | null>(null)
   const [newSessionOpen, setNewSessionOpen] = useState(false)
-  const [selectedResourceId, setSelectedResourceId] = useState(url.state.stationId)
+  const [requestedResourceId, setSelectedResourceId] = useResettableState(() => url.state.stationId, url.state.stationId)
   const [customStation, setCustomStation] = useState<GamingStationCard | null>(null), [minutes, setMinutes] = useState(30)
   const [endStation, setEndStation] = useState<GamingStationCard | null>(null)
   const [historyStation, setHistoryStation] = useState<GamingStationCard | null>(null)
@@ -105,27 +108,22 @@ export function GamingSessionsPage() {
   const sessionPage = Math.min(readGamingPage(url.state.sessionPage), Math.max(0, Math.ceil(sessions.length / sessionPageSize) - 1))
   const pageStations = filtered.slice(stationPage * stationPageSize, (stationPage + 1) * stationPageSize)
   const pageSessions = sessions.slice(sessionPage * sessionPageSize, (sessionPage + 1) * sessionPageSize)
+  const selectedResourceId = requestedResourceId || (filtered.find(station => station.sessionId) ?? filtered[0])?.resourceId || ''
   const selectedStation = stations.find((station) => station.resourceId === selectedResourceId)
-  const selectStation = useCallback((station: GamingStationCard) => setSelectedResourceId(station.resourceId), [])
+  const selectStation = useCallback((station: GamingStationCard) => setSelectedResourceId(station.resourceId), [setSelectedResourceId])
   const handlers = useMemo(() => ({ onStart: openStart, onExtend: extend, onEnd: openEnd, onCustom: openCustom,
     onHistory: setHistoryStation, onRecovery: openRecovery }), [openStart, extend, openEnd, openCustom, openRecovery])
 
-  useEffect(() => {
-    if (url.state.stationId) setSelectedResourceId(url.state.stationId)
-  }, [url.state.stationId])
-  useEffect(() => {
-    if (!selectedResourceId && filtered.length) setSelectedResourceId((filtered.find((station) => station.sessionId) ?? filtered[0]).resourceId)
-  }, [selectedResourceId, filtered])
   useEffect(() => {
     if (!board.data || board.error) return
     const changes: Partial<typeof defaults> = {}
     if (url.state.stationPage !== String(stationPage + 1)) changes.stationPage = String(stationPage + 1)
     if (url.state.sessionPage !== String(sessionPage + 1)) changes.sessionPage = String(sessionPage + 1)
-    if (Object.keys(changes).length) url.set(changes, true)
-  }, [board.data, board.error, stationPage, sessionPage, url.state.stationPage, url.state.sessionPage, url.set])
+    if (Object.keys(changes).length) setUrl(changes, true)
+  }, [board.data, board.error, stationPage, sessionPage, url.state.stationPage, url.state.sessionPage, setUrl])
 
   function setFilters(changes: Partial<typeof defaults>, replace = false) {
-    url.set({ ...changes, stationPage: '1', sessionPage: '1' }, replace)
+    setUrl({ ...changes, stationPage: '1', sessionPage: '1' }, replace)
   }
   function primaryFilter(filter: string) {
     setFilters({ status: filter === 'MAINTENANCE' || filter === 'RETIRED' ? filter : '',
@@ -193,19 +191,19 @@ export function GamingSessionsPage() {
             {board.data && <span>{filter.count}</span>}</button>)}
       </div>
       <div className="ops-filter-fields">
-        <label className="ops-search">Pretraga<Input type="search" value={url.state.search} placeholder="Računar, klijent ili profil"
+        <label className="ops-search">Pretraga<Input aria-label={"Pretraga"} type="search" value={url.state.search} placeholder="Računar, klijent ili profil"
           onChange={(event) => setFilters({ search: event.target.value }, true)} /></label>
-        <label>Lokacija<Select value={url.state.locationId} onChange={(event) => setFilters({ locationId: event.target.value })}>
+        <label>Lokacija<Select aria-label={"Lokacija"} value={url.state.locationId} onChange={(event) => setFilters({ locationId: event.target.value })}>
           <option value="">Sve dodeljene lokacije</option>{locations.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</Select></label>
-        <label>Status<Select value={url.state.status} onChange={(event) => setFilters({ status: event.target.value, ready: '', sessions: '', stationId: '' })}>
+        <label>Status<Select aria-label={"Status"} value={url.state.status} onChange={(event) => setFilters({ status: event.target.value, ready: '', sessions: '', stationId: '' })}>
           <option value="">Sva stanja</option>{Object.entries(stationLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></label>
-        <label>Sortiranje<Select value={url.state.sort} onChange={(event) => setFilters({ sort: event.target.value })}>
+        <label>Sortiranje<Select aria-label={"Sortiranje"} value={url.state.sort} onChange={(event) => setFilters({ sort: event.target.value })}>
           <option value="attention">Prvo za proveru</option><option value="name">Naziv računara</option><option value="expiry">Najbliži kraj sesije</option></Select></label>
       </div>
       <div className="ops-filter-options">
-        <label className="inline-toggle"><input type="checkbox" checked={url.state.attention === 'true'} onChange={(event) => setFilters({ attention: event.target.checked ? 'true' : '' })} />Zahteva pažnju</label>
-        <label className="inline-toggle"><input type="checkbox" checked={url.state.expiring === 'true'} onChange={(event) => setFilters({ expiring: event.target.checked ? 'true' : '' })} />Ističe u narednih 10 min</label>
-        <label className="inline-toggle"><input type="checkbox" checked={url.state.offline === 'true'} onChange={(event) => setFilters({ offline: event.target.checked ? 'true' : '' })} />Bez veze</label>
+        <label className="inline-toggle"><input aria-label={"Zahteva pažnju"} type="checkbox" checked={url.state.attention === 'true'} onChange={(event) => setFilters({ attention: event.target.checked ? 'true' : '' })} />Zahteva pažnju</label>
+        <label className="inline-toggle"><input aria-label={"Ističe u narednih 10 min"} type="checkbox" checked={url.state.expiring === 'true'} onChange={(event) => setFilters({ expiring: event.target.checked ? 'true' : '' })} />Ističe u narednih 10 min</label>
+        <label className="inline-toggle"><input aria-label={"Bez veze"} type="checkbox" checked={url.state.offline === 'true'} onChange={(event) => setFilters({ offline: event.target.checked ? 'true' : '' })} />Bez veze</label>
         <Button type="button" variant="secondary" onClick={() => url.apply({})}>Poništi filtere</Button>
       </div>
       {url.state.stationId && <div className="ops-focused-filter">Filter izabrane stanice je aktivan.
@@ -213,7 +211,7 @@ export function GamingSessionsPage() {
     </section>
     <div className="ops-workspace">
       <section className="ops-stations" aria-labelledby="ops-stations-title">
-        <div className="ops-section-heading"><h2 id="ops-stations-title">Računari</h2>{board.data && <span>{filtered.length} od {stations.length} stanica · 8 po stranici</span>}</div>
+        <div className="ops-section-heading"><h2 id="ops-stations-title">Računari</h2>{board.data && <span>{filtered.length} od {stations.length} stanica · {stationPageSize} po stranici</span>}</div>
         {board.isLoading ? <div className="ops-station-grid">{Array.from({ length: 8 }, (_, index) => <div className="ui-card" key={index}><Skeleton lines={6} label="Učitavanje računara" /></div>)}</div> :
           !board.data && board.error ? <ErrorState message={apiErrorMessage(board.error, 'Gaming tabla nije dostupna.')} action={<Button onClick={() => void board.refetch()}>Pokušaj ponovo</Button>} /> :
           !stations.length ? <EmptyState title="Nema dostupnih stanica" description="Proverite konfiguraciju stanica i dodelu lokacija zaposlenom."
@@ -222,25 +220,27 @@ export function GamingSessionsPage() {
           <div className="ops-station-grid">{pageStations.map((station) => <StationTile key={station.resourceId} station={station}
             seconds={stationSeconds(station, now)} selected={station.resourceId === selectedResourceId} disabled={disabled} handlers={handlers} onSelect={selectStation} />)}</div>}
         {board.data && <GamingBoardPagination page={stationPage} pageSize={stationPageSize} total={filtered.length} label="Stranice računara"
-          onChange={(page) => url.set({ stationPage: String(page + 1) })} />}
+          loading={board.isFetching} onSizeChange={size => setUrl({ stationSize: String(size), stationPage: '1' })}
+          onChange={(page) => setUrl({ stationPage: String(page + 1) })} />}
       </section>
       {board.isLoading ? <div className="ui-card"><Skeleton lines={8} label="Učitavanje kontrolnog panela" /></div> :
         <StationDetailsPanel station={selectedStation} now={now} disabled={disabled} handlers={handlers} unavailable={!!selectedResourceId && !selectedStation}
           outsidePage={!!selectedStation && !pageStations.some((station) => station.resourceId === selectedResourceId)} />}
     </div>
     <section className="ui-card ops-sessions-panel" aria-labelledby="ops-sessions-title">
-      <div className="ops-section-heading"><div><h2 id="ops-sessions-title">Aktivne sesije</h2><p>Trenutne sesije na dostupnim stanicama · primenjeni filteri · 10 po stranici</p></div>
+      <div className="ops-section-heading"><div><h2 id="ops-sessions-title">Aktivne sesije</h2><p>Trenutne sesije na dostupnim stanicama · primenjeni filteri · {sessionPageSize} po stranici</p></div>
         {board.data && <Badge tone="info">{sessions.length} sesija</Badge>}</div>
       {board.isLoading ? <Skeleton lines={5} label="Učitavanje aktivnih sesija" /> : !board.data && board.error ?
         <ErrorState message="Sesije trenutno nisu dostupne." action={<Button onClick={() => void board.refetch()}>Pokušaj ponovo</Button>} /> :
         !sessions.length ? <EmptyState title="Nema aktivnih sesija za ovaj prikaz" description={activeCount ? 'Promenite filtere da biste prikazali ostale sesije.' : 'Sesije će se pojaviti nakon pokretanja na dostupnim računarima.'} /> :
         <GamingSessionsTable stations={pageSessions} selectedId={selectedResourceId} now={now} disabled={disabled} handlers={handlers} onSelect={selectStation} />}
       {board.data && <GamingBoardPagination page={sessionPage} pageSize={sessionPageSize} total={sessions.length} label="Stranice aktivnih sesija"
-        onChange={(page) => url.set({ sessionPage: String(page + 1) })} />}
+        loading={board.isFetching} onSizeChange={size => setUrl({ sessionSize: String(size), sessionPage: '1' })}
+        onChange={(page) => setUrl({ sessionPage: String(page + 1) })} />}
     </section>
     {newSessionOpen && <StartSessionDialog station={startStation ?? undefined} onClose={() => { setNewSessionOpen(false); setStartStation(null) }} />}
     <Modal open={!!customStation} title="Prilagođeno produženje" closeDisabled={busy} onClose={() => { if (!busy) setCustomStation(null) }}><form className="form-grid" onSubmit={(event) => { event.preventDefault(); if (customStation&&!hasPending) void extend(customStation, minutes) }}>
-      {feedback}<label>Broj minuta<input required type="number" min={1} max={120} disabled={busy||hasPending} value={minutes} onChange={(event) => setMinutes(Number(event.target.value))} /></label><Button type="submit" loading={busy} disabled={hasPending}>Produži sesiju</Button></form></Modal>
+      {feedback}<label>Broj minuta<input aria-label={"Broj minuta"} required type="number" min={1} max={120} disabled={busy||hasPending} value={minutes} onChange={(event) => setMinutes(Number(event.target.value))} /></label><Button type="submit" loading={busy} disabled={hasPending}>Produži sesiju</Button></form></Modal>
     <ConfirmDialog open={!!endStation} title={`Završi sesiju · ${endStation?.resourceName ?? ''}`} variant="danger"
       description={<><p>Sesija će biti završena i stanica će dobiti komandu za zaključavanje.</p>{feedback}</>}
       reasonLabel="Razlog završetka" reasonRequired loading={busy} disabled={hasPending} autoClose={false}

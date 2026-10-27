@@ -1,4 +1,4 @@
-﻿import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { stationApi } from '../api/stationApi'
 import { Button, EmptyState, ErrorState, Modal, Skeleton } from '../components/ui'
@@ -6,7 +6,8 @@ import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useToast } from '../components/ui/toastContext'
 import { formatBusinessDateTime } from '../reservations/dateTime'
 import type { EnrollmentToken, StationOverview } from '../types/station.types'
-import { connectionStatus, StationIcon, stationError } from './stationPresentation'
+import { StationIcon } from './stationPresentation'
+import { connectionStatus, stationError } from './stationPresentation.model'
 
 export function StationIdentityDialog({ station, onClose }: { station: StationOverview; onClose: () => void }) {
   const client = useQueryClient(), toast = useToast(), inFlight = useRef(false)

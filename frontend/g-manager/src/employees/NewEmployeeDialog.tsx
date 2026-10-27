@@ -6,7 +6,8 @@ import { Badge, Button, FormField, Input, Modal } from '../components/ui'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { focusFirstInvalid, useDirtyGuard } from '../forms/useDirtyGuard'
 import type { UserResponse } from '../types/user.types'
-import { EmployeeIcon, employeeError } from './employeePresentation'
+import { EmployeeIcon } from './employeePresentation'
+import { employeeError } from './employeePresentation.model'
 
 export function NewEmployeeDialog({ actorId, onClose, onCreated, returnFocusRef }: {
   actorId: string; onClose: () => void; onCreated: (employee: UserResponse) => void

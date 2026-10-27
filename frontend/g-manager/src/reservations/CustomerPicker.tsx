@@ -20,10 +20,6 @@ export function CustomerPicker({ value, onChange, required = false, disabled = f
     enabled: !!value, refetchInterval: 15000})
   const customers = useQuery({queryKey: ['customers', 'reservation-picker', debounced, page],
     queryFn: () => customerApi.list({search: debounced || undefined, page, size: 10}), enabled: open})
-  useEffect(() => {
-    if (customers.data && !customers.isFetching && page >= Math.max(1, customers.data.totalPages))
-      setPage(Math.max(0, customers.data.totalPages - 1))
-  }, [customers.data, customers.isFetching, page])
   const searching = normalized !== debounced
   const name = chosen?.id === value ? chosen.name : selected.data?.customer.name
   const choose = (id: string, label?: string) => {
@@ -44,7 +40,7 @@ export function CustomerPicker({ value, onChange, required = false, disabled = f
         </small><Pagination page={page} totalPages={customers.data.totalPages} loading={customers.isFetching || searching} onPageChange={setPage} /></div>}
       </>}>
       <label className="reservation-customer-search">Pretraži po imenu, prezimenu ili mejlu
-        <input ref={searchRef} type="search" value={search} maxLength={120} placeholder="Ime, prezime ili email" onChange={event => setSearch(event.target.value)} />
+        <input aria-label={"Pretraži po imenu, prezimenu ili mejlu"} ref={searchRef} type="search" value={search} maxLength={120} placeholder="Ime, prezime ili email" onChange={event => setSearch(event.target.value)} />
       </label>
       {!required && <Button type="button" variant="secondary" onClick={() => choose('')}>Svi klijenti</Button>}
       {searching && <p role="status">Pretraga klijenata…</p>}

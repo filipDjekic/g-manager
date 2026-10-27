@@ -6,7 +6,8 @@ import { hasCapability } from '../auth/capabilities'
 import { Badge, Button, EmptyState, ErrorState, Modal, Select, Skeleton } from '../components/ui'
 import { useToast } from '../components/ui/toastContext'
 import type { UserResponse } from '../types/user.types'
-import { EmployeeIcon, employeeError } from './employeePresentation'
+import { EmployeeIcon } from './employeePresentation'
+import { employeeError } from './employeePresentation.model'
 
 export function EmployeeLocationDialog({ employee, actorId, onClose }: { employee: UserResponse; actorId: string; onClose: () => void }) {
   const client = useQueryClient(), toast = useToast(), id = useId()
@@ -44,7 +45,7 @@ export function EmployeeLocationDialog({ employee, actorId, onClose }: { employe
     {locations.isLoading ? <Skeleton lines={3} /> : locations.isError ? <ErrorState message={employeeError(locations.error, 'Lokacije nije moguće učitati.')}
       action={<Button type="button" onClick={() => void locations.refetch()}>Pokušaj ponovo</Button>} /> : !locations.data?.some(value => value.active)
         ? <EmptyState title="Nema aktivnih lokacija" description="Lokacije možete urediti na Mapi resursa." />
-        : <label className="gm-employee-location-select" htmlFor={`${id}-location`}>Lokacija<Select ref={select} id={`${id}-location`} value={locationId} disabled={busy}
+        : <label className="gm-employee-location-select" htmlFor={`${id}-location`}>Lokacija<Select aria-label={"Lokacija"} ref={select} id={`${id}-location`} value={locationId} disabled={busy}
           onChange={event => { setLocationId(event.target.value); setError('') }}><option value="">Izaberite lokaciju</option>
           {locations.data.filter(value => value.active).map(value => <option key={value.id} value={value.id}>{value.name}</option>)}</Select></label>}
     {locationId && (access.isLoading ? <Skeleton lines={1} /> : access.isError ? <ErrorState message={employeeError(access.error, 'Postojeću dodelu nije moguće učitati.')}

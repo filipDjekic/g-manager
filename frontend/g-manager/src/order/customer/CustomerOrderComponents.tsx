@@ -5,7 +5,7 @@ import { CatalogImage } from '../../catalog/CatalogImage'
 import { formatBusinessDateTime } from '../../reservations/dateTime'
 import type { CatalogItem } from '../../types/catalog.types'
 import type { CustomerOrderDetail, Order, OrderStatus } from '../../types/order.types'
-import { itemCountLabel, orderMoney, orderQuantity, shortOrderId } from '../orderPresentation'
+import { itemCountLabel, orderMoney, orderQuantity, shortOrderId } from '../orderPresentation.model'
 import type { useCustomerCart } from './useCustomerCart'
 
 export function ShoppingBagIcon() {

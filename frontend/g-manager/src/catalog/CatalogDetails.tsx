@@ -9,7 +9,8 @@ import { resourceTypeLabels } from '../resources/floorPlanGeometry'
 import type { CatalogItem } from '../types/catalog.types'
 import { CatalogImage } from './CatalogImage'
 import { CatalogOrderLink, type CatalogAction, type CatalogPermissions } from './CatalogCard'
-import { CatalogIcon, catalogDate, catalogDuration, catalogMoney, catalogTypeLabel } from './CatalogPresentation'
+import { CatalogIcon } from './CatalogPresentation'
+import { catalogDate, catalogDuration, catalogMoney, catalogTypeLabel } from './CatalogPresentation.model'
 
 function resourceRestriction(reason?: string | null) {
   if (reason === 'Service is inactive') return 'Usluga je neaktivna.'

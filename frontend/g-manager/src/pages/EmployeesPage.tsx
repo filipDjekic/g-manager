@@ -1,3 +1,4 @@
+import { useResettableState } from '../components/useResettableState'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { userApi } from '../api/userApi'
@@ -10,7 +11,8 @@ import { useToast } from '../components/ui/toastContext'
 import { EmployeeLocationDialog } from '../employees/EmployeeLocationDialog'
 import { EmployeeProfile } from '../employees/EmployeeProfile'
 import { NewEmployeeDialog } from '../employees/NewEmployeeDialog'
-import { EmployeeIcon, EmployeeKpi, EmployeePagination, EmployeesTable, employeeError, type EmployeeAction } from '../employees/employeePresentation'
+import { EmployeeIcon, EmployeeKpi, EmployeePagination, EmployeesTable } from '../employees/employeePresentation'
+import { employeeError, type EmployeeAction } from '../employees/employeePresentation.model'
 import { useListUrlState } from '../lists/useListUrlState'
 import type { AuthUser, Permission } from '../types/auth.types'
 import type { BulkOperationResponse } from '../types/bulk.types'
@@ -30,6 +32,7 @@ export function EmployeesPage() {
 
 function EmployeeWorkspace({ actor }: { actor: AuthUser }) {
   const client = useQueryClient(), toast = useToast(), url = useListUrlState(defaults, allowed)
+  const setUrl = url.set
   const { confirm, confirmationDialog } = useConfirmDialog()
   const canCreate = hasCapability(actor, 'USER_CREATE'), canDeactivate = hasCapability(actor, 'USER_DEACTIVATE')
   const canDelete = hasCapability(actor, 'USER_DELETE'), canAssign = hasCapability(actor, 'RESOURCE_MANAGE')
@@ -37,11 +40,11 @@ function EmployeeWorkspace({ actor }: { actor: AuthUser }) {
   const canChooseLocation = canAssign && canReadResources
   const canSettings = canLeave && hasCapability(actor, 'WORKING_HOURS_READ')
   const parsedPage = Number(url.state.page), page = Number.isSafeInteger(parsedPage) && parsedPage >= 0 ? parsedPage : 0
-  const size = [10, 20, 50].includes(Number(url.state.size)) ? Number(url.state.size) : 10
+  const size = [10, 20, 50, 100].includes(Number(url.state.size)) ? Number(url.state.size) : 10
   const sort = ['name', 'email', 'createdAt', 'active', 'role'].includes(url.state.sort) ? url.state.sort : 'createdAt'
   const direction = url.state.direction === 'ASC' ? 'ASC' : 'DESC'
   const active = ['true', 'false'].includes(url.state.active) ? url.state.active === 'true' : undefined
-  const [search, setSearch] = useState(url.state.search), [selected, setSelected] = useState<Set<string>>(new Set())
+  const [search, setSearch] = useResettableState(() => url.state.search, url.state.search), [selected, setSelected] = useResettableState<Set<string>>(() => new Set(), JSON.stringify(Object.entries(url.state).filter(([key]) => !['focus', 'reservationId', 'eventId', 'create'].includes(key))))
   const [createOpen, setCreateOpen] = useState(false), [assignEmployee, setAssignEmployee] = useState<UserResponse | null>(null)
   const [createdEmployee, setCreatedEmployee] = useState<UserResponse | null>(null), [busy, setBusy] = useState('')
   const [bulkResult, setBulkResult] = useState<BulkOperationResponse | null>(null), [wide, setWide] = useState(false)
@@ -61,12 +64,11 @@ function EmployeeWorkspace({ actor }: { actor: AuthUser }) {
     const observer = new ResizeObserver(entries => { if (entries[0]) measure(entries[0].contentRect.width) })
     observer.observe(element); return () => observer.disconnect()
   }, [])
-  useEffect(() => setSearch(url.state.search), [url.state.search])
-  useEffect(() => {
+useEffect(() => {
     if (search === url.state.search) return
-    const timer = window.setTimeout(() => { setSelected(new Set()); url.set({ search: search.trim(), page: '0' }, true) }, 300)
+    const timer = window.setTimeout(() => { setSelected(new Set()); setUrl({ search: search.trim(), page: '0' }, true) }, 300)
     return () => window.clearTimeout(timer)
-  }, [search, url.state.search, url.set])
+  }, [search, url.state.search, setUrl, setSelected])
   const filters = { page, size, role: 'EMPLOYEE', active, search: url.state.search.trim() || undefined, sort, direction }
   const employees = useQuery({ queryKey: ['users', 'employees', actor.id, filters], queryFn: () => userApi.list(filters), staleTime: 15000 })
   const statistics = useQuery({ queryKey: ['users', 'employee-statistics', actor.id], queryFn: userApi.employeeStatistics,
@@ -75,26 +77,28 @@ function EmployeeWorkspace({ actor }: { actor: AuthUser }) {
     queryFn: () => userApi.employee(url.state.focus), enabled: Boolean(url.state.focus), staleTime: 15000, retry: false,
     initialData: () => employees.data?.content.find(value => value.id === url.state.focus),
     initialDataUpdatedAt: () => employees.dataUpdatedAt || undefined })
-  useEffect(() => {
-    setSelected(new Set())
-  }, [page, size, active, sort, direction, url.state.search])
+  const eligibility = employees.isSuccess ? employees.data.content.filter(value => value.active && value.id !== actor.id && value.role === 'EMPLOYEE').map(value => value.id).sort().join('|') : undefined
+  const [previousEligibility, setPreviousEligibility] = useState(eligibility)
+  if (eligibility !== undefined && previousEligibility !== eligibility) {
+    setPreviousEligibility(eligibility)
+    const eligible = new Set(eligibility.split('|'))
+    setSelected(previous => new Set([...previous].filter(id => eligible.has(id))))
+  }
   useEffect(() => {
     if (!employees.isSuccess) return
-    const eligible = new Set(employees.data.content.filter(value => value.active && value.id !== actor.id && value.role === 'EMPLOYEE').map(value => value.id))
-    setSelected(previous => [...previous].some(id => !eligible.has(id)) ? new Set([...previous].filter(id => eligible.has(id))) : previous)
-    if (page >= Math.max(1, employees.data.totalPages)) url.set({ page: String(Math.max(0, employees.data.totalPages - 1)) }, true)
-  }, [employees.data, employees.isSuccess, page, actor.id, url.set])
+    if (page >= Math.max(1, employees.data.totalPages)) setUrl({ page: String(Math.max(0, employees.data.totalPages - 1)) }, true)
+  }, [employees.data, employees.isSuccess, page, actor.id, setUrl])
   function current(permission: Permission) {
     const user = useAuthStore.getState().user
     return mounted.current && user?.id === actor.id && hasCapability(user, permission)
   }
   const refresh = () => client.invalidateQueries({ queryKey: ['users'] })
   function closeProfile() {
-    url.set({ focus: '' })
+    setUrl({ focus: '' })
     window.requestAnimationFrame(() => { const target = profileOpener.current; if (target?.isConnected && target.getClientRects().length) target.focus({ preventScroll: true }); else searchInput.current?.focus({ preventScroll: true }) })
   }
   function openProfile(employee: UserResponse, opener: HTMLButtonElement | null) {
-    profileOpener.current = opener; url.set({ focus: employee.id })
+    profileOpener.current = opener; setUrl({ focus: employee.id })
     if (wide) window.requestAnimationFrame(() => profileRegion.current?.focus({ preventScroll: true }))
   }
   function deactivate(employee: UserResponse) {
@@ -160,7 +164,7 @@ function EmployeeWorkspace({ actor }: { actor: AuthUser }) {
     else if (value === 'deactivate') deactivate(employee)
     else remove(employee)
   }
-  function resetFilters() { setSearch(''); setSelected(new Set()); url.set({ search: '', active: '', sort: 'createdAt', direction: 'DESC', page: '0' }) }
+  function resetFilters() { setSearch(''); setSelected(new Set()); setUrl({ search: '', active: '', sort: 'createdAt', direction: 'DESC', page: '0' }) }
   const filtered = Boolean(url.state.search || url.state.active)
   const onLeaveAvailable = canLeave && statistics.data?.onLeave !== null && statistics.data?.onLeave !== undefined
   const profileBody = profile.isLoading ? <Skeleton lines={8} label="Učitavanje profila zaposlenog" /> : profile.isError
@@ -196,12 +200,12 @@ function EmployeeWorkspace({ actor }: { actor: AuthUser }) {
         <Badge tone="info">Zaposleni</Badge><Button type="button" variant="secondary" disabled={Boolean(busy)} onClick={() => { void employees.refetch(); void statistics.refetch() }}><EmployeeIcon kind="refresh" />Osveži</Button></header>
         <div className="gm-employee-filters"><label className="gm-employee-search"><span>Pretraga</span><div><EmployeeIcon kind="search" /><Input ref={searchInput} type="search" value={search} maxLength={200}
           placeholder="Pretraži zaposlene po imenu ili email adresi..." onChange={event => setSearch(event.target.value)} /></div></label>
-          <label><span>Status naloga</span><Select value={active === undefined ? '' : String(active)} onChange={event => { setSelected(new Set()); url.set({ active: event.target.value, page: '0' }) }}>
+          <label><span>Status naloga</span><Select value={active === undefined ? '' : String(active)} onChange={event => { setSelected(new Set()); setUrl({ active: event.target.value, page: '0' }) }}>
             <option value="">Svi statusi</option><option value="true">Aktivni</option><option value="false">Neaktivni</option></Select></label>
-          <label><span>Sortiranje</span><Select value={sort} onChange={event => url.set({ sort: event.target.value, page: '0' })}>
+          <label><span>Sortiranje</span><Select value={sort} onChange={event => setUrl({ sort: event.target.value, page: '0' })}>
             <option value="createdAt">Datum kreiranja</option><option value="name">Ime i prezime</option><option value="email">Email adresa</option><option value="active">Status naloga</option>
             {sort === 'role' && <option value="role">Uloga</option>}</Select></label>
-          <label><span>Smer</span><Select value={direction} onChange={event => url.set({ direction: event.target.value, page: '0' })}>
+          <label><span>Smer</span><Select value={direction} onChange={event => setUrl({ direction: event.target.value, page: '0' })}>
             <option value="ASC">{sort === 'createdAt' ? 'Najstariji prvo' : 'Rastuće'}</option><option value="DESC">{sort === 'createdAt' ? 'Najnoviji prvo' : 'Opadajuće'}</option></Select></label>
         </div>
         {filtered && <Button type="button" variant="secondary" className="gm-employee-reset" onClick={resetFilters}>Ukloni filtere</Button>}
@@ -222,7 +226,7 @@ function EmployeeWorkspace({ actor }: { actor: AuthUser }) {
                 const next = new Set(previous); if (next.has(id)) next.delete(id); else next.add(id); return next
               })} />}
         {employees.isSuccess && <EmployeePagination page={page} size={size} totalPages={employees.data.totalPages} totalElements={employees.data.totalElements}
-          busy={employees.isFetching || Boolean(busy)} onPage={next => { setSelected(new Set()); url.set({ page: String(next) }) }} onSize={next => url.set({ size: String(next), page: '0' })} />}
+          busy={employees.isFetching || Boolean(busy)} onPage={next => { setUrl({ page: String(next) }) }} onSize={next => setUrl({ size: String(next), page: '0' })} />}
       </section>
       {wide && url.state.focus && <aside ref={profileRegion} tabIndex={-1} className="ui-card gm-employee-profile-panel" aria-label="Profil izabranog zaposlenog">
         {(!profile.data || profile.isError) && <header className="gm-employee-profile-heading"><span>Profil zaposlenog</span>
@@ -232,7 +236,7 @@ function EmployeeWorkspace({ actor }: { actor: AuthUser }) {
     <Drawer open={!wide && Boolean(url.state.focus)} title="Profil zaposlenog" size="wide" className="gm-employee-profile-drawer"
       returnFocusRef={profileOpener} closeDisabled={Boolean(busy)} onClose={closeProfile}>{profileBody}</Drawer>
     {createOpen && canCreate && <NewEmployeeDialog actorId={actor.id} returnFocusRef={createOpener} onClose={() => setCreateOpen(false)} onCreated={employee => {
-      setCreateOpen(false); setCreatedEmployee(employee); setSelected(new Set()); url.set({ page: '0', focus: employee.id })
+      setCreateOpen(false); setCreatedEmployee(employee); setUrl({ page: '0', focus: employee.id })
       toast('Zaposleni je uspešno kreiran.', 'success'); void refresh()
       if (wide) window.requestAnimationFrame(() => profileRegion.current?.focus({ preventScroll: true }))
     }} />}

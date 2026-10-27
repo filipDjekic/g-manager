@@ -20,6 +20,9 @@ class WaitlistAccessPolicy {
         (:allResources=true OR (
           (w.resource_id IS NOT NULL AND EXISTS(SELECT 1 FROM user_resource_assignments ua
               WHERE ua.user_id=:actor AND ua.active=true AND ua.resource_id=w.resource_id))
+          OR (w.resource_id IS NULL AND w.location_id IS NULL AND w.employee_id=:actor
+            AND EXISTS(SELECT 1 FROM catalog_items ci WHERE ci.id=w.service_id AND ci.requires_resource=false)
+            AND NOT EXISTS(SELECT 1 FROM physical_resources pr WHERE pr.service_id=w.service_id))
           OR (w.resource_id IS NULL AND w.employee_id=:actor AND w.location_id IS NOT NULL
             AND EXISTS(SELECT 1 FROM user_location_assignments la
                 WHERE la.user_id=:actor AND la.active=true AND la.location_id=w.location_id)
@@ -50,7 +53,14 @@ class WaitlistAccessPolicy {
     void requireUpdate(AuthenticatedUser actor, UUID employee, UUID service, UUID location, UUID area, UUID resource) {
         if(access.allResources(actor))return;
         if(resource!=null) { access.requireManageForUpdate(actor,List.of(resource),Permission.WAITLIST_MANAGE); return; }
-        if(actor.role()!=Role.EMPLOYEE||!actor.id().equals(employee)||location==null)denied();
+        if(actor.role()!=Role.EMPLOYEE||!actor.id().equals(employee))denied();
+        if(location==null){
+            Long nonPhysical=jdbc.queryForObject("SELECT COUNT(*) FROM catalog_items ci WHERE ci.id=:service "
+                    + "AND ci.requires_resource=false AND NOT EXISTS(SELECT 1 FROM physical_resources pr WHERE pr.service_id=ci.id)",
+                    parameters(actor).addValue("service",service.toString()),Long.class);
+            if(nonPhysical!=null && nonPhysical==1)return;
+            denied();
+        }
         var grant=jdbc.queryForList("SELECT id FROM user_location_assignments WHERE user_id=:actor AND location_id=:location "
                 + "AND active=true FOR UPDATE",parameters(actor).addValue("location",location.toString()));
         if(grant.isEmpty())denied();

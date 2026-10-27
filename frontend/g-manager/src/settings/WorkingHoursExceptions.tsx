@@ -9,7 +9,8 @@ import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useToast } from '../components/ui/toastContext'
 import type { WorkingHours, WorkingHoursException } from '../types/workingHours.types'
 import { WorkingHoursExceptionDialog } from './WorkingHoursExceptionDialog'
-import { addCalendarDays, days, exceptionPresentation, restoreSettingsFocus, SettingsActionMenu, SettingsIcon, settingsDate, settingsError, useBusinessToday } from './settingsPresentation'
+import { SettingsActionMenu, SettingsIcon } from './settingsPresentation'
+import { addCalendarDays, days, exceptionPresentation, restoreSettingsFocus, settingsDate, settingsError, useBusinessToday } from './settingsPresentation.model'
 
 const weekdays = ['Pon', 'Uto', 'Sre', 'Čet', 'Pet', 'Sub', 'Ned']
 function shiftedMonth(month: string, amount: number) {
@@ -103,7 +104,7 @@ export function WorkingHoursExceptions({ query, hours, active, onChanged }: {
               tabIndex={focused === date ? 0 : -1} aria-current={date === today ? 'date' : undefined} aria-pressed={date === selected}
               aria-label={`${settingsDate(date)} · ${caption}`} title={caption} onFocus={() => setFocused(date)} onClick={event => pick(date, event.currentTarget)}
               onKeyDown={event => {
-                let next = date
+                let next: string
                 if (event.key === 'ArrowLeft') next = addCalendarDays(date, -1)
                 else if (event.key === 'ArrowRight') next = addCalendarDays(date, 1)
                 else if (event.key === 'ArrowUp') next = addCalendarDays(date, -7)

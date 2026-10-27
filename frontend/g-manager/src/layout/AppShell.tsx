@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react'
+import { useId, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { authApi } from '../api/authApi'
 import { useAuthStore } from '../auth/authStore'
@@ -72,10 +72,11 @@ export function AppShell() {
   })
   const current = user ? navigationFor(user, flags).flatMap((group) => group.items.map((item) => ({ ...item, group: group.label })))
     .find((item) => item.to === location.pathname) : undefined
-  useEffect(() => {
-    if (!current?.group) return
-    setGroups((stored) => stored.includes(current.group) ? stored.filter((label) => label !== current.group) : stored)
-  }, [current?.group])
+  const [previousGroup, setPreviousGroup] = useState(current?.group)
+  if (previousGroup !== current?.group) {
+    setPreviousGroup(current?.group)
+    if (current?.group) setGroups(stored => stored.filter(label => label !== current.group))
+  }
   function toggleSidebar() {
     setCollapsed(!collapsed)
     try { localStorage.setItem('gmanager.sidebar-collapsed', String(!collapsed)) } catch { /* optional preference */ }

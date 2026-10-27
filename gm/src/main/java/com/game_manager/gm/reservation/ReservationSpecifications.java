@@ -44,6 +44,18 @@ public final class ReservationSpecifications {
     public static Specification<Reservation> inResources(java.util.Set<UUID> ids) {
         return (root,query,builder) -> ids.isEmpty() ? builder.disjunction() : root.get("resourceId").in(ids);
     }
+    public static Specification<Reservation> ownedWithoutPhysicalResource(UUID employeeId) {
+        return (root,query,builder) -> {
+            var required = query.subquery(UUID.class);
+            var service = required.from(CatalogItem.class);
+            required.select(service.get("id")).where(builder.isTrue(service.get("requiresResource")));
+            var linked = query.subquery(UUID.class);
+            var resource = linked.from(PhysicalResource.class);
+            linked.select(resource.get("serviceId"));
+            return builder.and(builder.equal(root.get("employeeId"),employeeId),builder.isNull(root.get("resourceId")),
+                    builder.not(root.get("serviceId").in(required)),builder.not(root.get("serviceId").in(linked)));
+        };
+    }
     public static Specification<Reservation> hasStatus(ReservationStatus status) {
         return (root, query, builder) -> status == null
                 ? null : builder.equal(root.get("status"), status);
@@ -75,7 +87,7 @@ public final class ReservationSpecifications {
     }
 
     /** Search visible fields without making masked customer names or notes searchable. */
-    public static Specification<Reservation> matchesText(String text, Set<UUID> customerVisibleResources) {
+    public static Specification<Reservation> matchesText(String text, Set<UUID> customerVisibleResources, UUID employeeId) {
         if (text == null || text.isBlank()) return (root, query, builder) -> builder.conjunction();
         String term = text.trim();
         String pattern = "%" + term.toLowerCase(Locale.ROOT).replace("\\", "\\\\")
@@ -100,6 +112,8 @@ public final class ReservationSpecifications {
             Predicate customerVisible = customerVisibleResources == null ? builder.conjunction()
                     : customerVisibleResources.isEmpty() ? builder.disjunction()
                     : root.get("resourceId").in(customerVisibleResources);
+            if (employeeId != null) customerVisible = builder.or(customerVisible,
+                    ownedWithoutPhysicalResource(employeeId).toPredicate(root,query,builder));
             var matches = new ArrayList<Predicate>();
             matches.add(root.get("serviceId").in(services));
             matches.add(root.get("resourceId").in(resources));

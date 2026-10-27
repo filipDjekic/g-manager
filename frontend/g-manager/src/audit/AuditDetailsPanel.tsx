@@ -4,7 +4,8 @@ import { roleLabels } from '../components/ui/statusPresentation'
 import { useToast } from '../components/ui/toastContext'
 import { formatBusinessDateTime } from '../reservations/dateTime'
 import type { AuditEvent } from '../types/audit.types'
-import { AuditIcon, actionTone, categoryLabels } from './auditPresentation'
+import { AuditIcon } from './auditPresentation'
+import { actionTone, categoryLabels } from './auditPresentation.model'
 import { compareSnapshots, parseSnapshot, snapshotLines, changeText, type AuditChange, type Snapshot } from './auditDiff'
 
 function SnapshotView({ snapshot, side, changes }: { snapshot: Snapshot; side: 'before' | 'after'; changes: AuditChange[] }) {

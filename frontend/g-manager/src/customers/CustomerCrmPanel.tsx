@@ -5,7 +5,7 @@ import { customerApi } from '../api/customerApi'
 import { Button, EmptyState, ErrorState, Input, Skeleton, Textarea } from '../components/ui'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import type { CustomerCrmNote } from '../types/customer.types'
-import { customerDate } from './CustomerTable'
+import { customerDate } from './CustomerTable.model'
 
 export function CustomerCrmPanel({ customerId }: { customerId: string }) {
   const { confirm, confirmationDialog } = useConfirmDialog()
@@ -55,10 +55,10 @@ export function CustomerCrmPanel({ customerId }: { customerId: string }) {
     {confirmationDialog}
     <div className="customers-section-heading"><h3>CRM beleške i tagovi</h3><p>Interna evidencija o klijentu.</p></div>
     {error && <p className="error-banner" role="alert">{error}</p>}
-    <label>Pretraži beleške i tagove<Input type="search" value={search} placeholder="Pretraži CRM…"
+    <label>Pretraži beleške i tagove<Input aria-label={"Pretraži beleške i tagove"} type="search" value={search} placeholder="Pretraži CRM…"
       onChange={event => setSearch(event.target.value)} /></label>
     <form className="customers-tag-form" onSubmit={event => void save(event, 'TAG')}>
-      <label>Novi tag<Input maxLength={60} value={tag} disabled={busy} onChange={event => setTag(event.target.value)} /></label>
+      <label>Novi tag<Input aria-label={"Novi tag"} maxLength={60} value={tag} disabled={busy} onChange={event => setTag(event.target.value)} /></label>
       <Button type="submit" variant="secondary" disabled={!tag.trim()} loading={busy}>Dodaj tag</Button>
     </form>
     {crm.isLoading ? <Skeleton lines={3} label="Učitavanje CRM podataka" /> : crm.error ?
@@ -70,7 +70,7 @@ export function CustomerCrmPanel({ customerId }: { customerId: string }) {
           {!crm.data?.tags.length && <small>{debounced ? 'Nema tagova za ovu pretragu.' : 'Nema dodatih tagova.'}</small>}
         </div>
         <form className="customers-note-form" onSubmit={event => void save(event, 'NOTE')}>
-          <label>Nova beleška<Textarea maxLength={1000} rows={3} value={note} disabled={busy}
+          <label>Nova beleška<Textarea aria-label={"Nova beleška"} maxLength={1000} rows={3} value={note} disabled={busy}
             onChange={event => setNote(event.target.value)} /></label>
           <Button type="submit" disabled={!note.trim()} loading={busy}>Sačuvaj belešku</Button>
         </form>

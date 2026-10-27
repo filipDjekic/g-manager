@@ -25,8 +25,8 @@ class GamingOperationsBoardServiceTest {
         when(locations.assignedResources(actor)).thenReturn(Set.of(assigned.resourceId()));
         when(sessions.findLatestCandidates(List.of(assigned.resourceId()))).thenReturn(List.of());
         when(commands.findByStationIdInOrderByStationIdAscSequenceDesc(List.of(assigned.resourceId()))).thenReturn(List.of());
-        var enforcementStates=mock(com.game_manager.gm.machine.StationClientEnforcementRepository.class);when(enforcementStates.findByStationIdIn(any())).thenReturn(List.of());
-        GamingOperationsBoardService service=new GamingOperationsBoardService(readiness,sessions,commands,users,locations,current,Clock.fixed(NOW,ZoneOffset.UTC),enforcementStates,mock(StationCommandWriter.class),mock(com.game_manager.gm.machine.StationEnforcementProjectionService.class),mock(com.game_manager.gm.machine.StationReconciliationAuditRepository.class));
+        var enforcement=mock(com.game_manager.gm.common.scheduling.ClientStatePort.class);when(enforcement.states(any())).thenReturn(Map.of());
+        GamingOperationsBoardService service=new GamingOperationsBoardService(readiness,sessions,commands,users,locations,current,Clock.fixed(NOW,ZoneOffset.UTC),mock(StationCommandWriter.class),enforcement);
 
         var response=service.board(null);
 
@@ -46,8 +46,8 @@ class GamingOperationsBoardServiceTest {
         when(current.requireCurrentUser()).thenReturn(actor);when(readiness.overview()).thenReturn(List.of(station));when(locations.assignedResources(actor)).thenReturn(Set.of(station.resourceId()));
         when(sessions.findLatestCandidates(List.of(station.resourceId()))).thenReturn(List.of(session));when(commands.findByStationIdInOrderByStationIdAscSequenceDesc(any())).thenReturn(List.of());
         when(users.findAllById(List.of(customer.getId()))).thenReturn(List.of(customer));
-        var enforcementStates=mock(com.game_manager.gm.machine.StationClientEnforcementRepository.class);when(enforcementStates.findByStationIdIn(any())).thenReturn(List.of());
-        GamingOperationsBoardService service=new GamingOperationsBoardService(readiness,sessions,commands,users,locations,current,Clock.fixed(NOW,ZoneOffset.UTC),enforcementStates,mock(StationCommandWriter.class),mock(com.game_manager.gm.machine.StationEnforcementProjectionService.class),mock(com.game_manager.gm.machine.StationReconciliationAuditRepository.class));
+        var enforcement=mock(com.game_manager.gm.common.scheduling.ClientStatePort.class);when(enforcement.states(any())).thenReturn(Map.of());
+        GamingOperationsBoardService service=new GamingOperationsBoardService(readiness,sessions,commands,users,locations,current,Clock.fixed(NOW,ZoneOffset.UTC),mock(StationCommandWriter.class),enforcement);
 
         var card=service.board(null).stations().getFirst();
 

@@ -1,8 +1,5 @@
-import type { ReservationStatus } from '../types/reservation.types'
 
-export const reservationActionLabels: Partial<Record<ReservationStatus, string>> = {
-  CONFIRMED: 'Potvrdi', REJECTED: 'Odbij', CANCELLED: 'Otkaži', COMPLETED: 'Završi',
-}
+
 
 export function ReservationIcon({ kind = 'calendar' }: { kind?: 'calendar' | 'clock' | 'users' | 'cancel' | 'search' | 'filter' }) {
   const paths = {

@@ -57,6 +57,7 @@ public sealed class ClientWorker(ClientRuntime runtime, ClientEnvironment enviro
                 using(var self=WindowsIdentity.GetCurrent()) playerCaller=caller==(environment.Development?self.User!.Value:environment.PlayerSid);
                 if(!admin) authorized=request.Type=="status" || authorized || playerCaller;
                 var response=authorized ? await runtime.Handle(request,admin,timeout.Token) : new LocalResponse(false,"Potrebna je administratorska autorizacija kroz UAC.",runtime.State);
+                response=response with { State=response.State with { ServerConnected=runtime.ServerConnected } };
                 if(request.Type=="status" && !playerCaller && !admin) response=response with { State=response.State with { CustomerName=null,SessionId=null,Heading=response.State.Mode==ClientMode.Active?"Aktivna gaming sesija":response.State.Heading } };
                 await writer.WriteLineAsync(JsonSerializer.Serialize(response).AsMemory(),timeout.Token);
             }

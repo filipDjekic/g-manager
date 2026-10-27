@@ -176,7 +176,7 @@ OWNER bootstrap neispravno podešen.
 
 ## Auth API
 
-- `POST /api/v1/auth/register` — kreira isključivo CUSTOMER nalog, vraća `201`.
+- `POST /api/v1/auth/register` — javna registracija je isključena i vraća `403`. Ovlašćeno osoblje kreira CUSTOMER nalog, a kupac postavlja lozinku jednokratnim aktivacionim linkom preko `POST /api/v1/auth/activate`.
 - `POST /api/v1/auth/login` — vraća access token i korisnika; postavlja refresh cookie.
 - `POST /api/v1/auth/refresh` — rotira refresh token i vraća novu access sesiju.
 - `POST /api/v1/auth/logout` — opoziva refresh token i briše cookie, vraća `204`.

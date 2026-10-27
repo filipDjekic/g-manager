@@ -1,3 +1,4 @@
+import { useResettableState } from '../components/useResettableState'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { userApi } from '../api/userApi'
@@ -13,7 +14,8 @@ import type { AuthUser, Permission, Role } from '../types/auth.types'
 import type { BulkOperationResponse } from '../types/bulk.types'
 import type { UserResponse } from '../types/user.types'
 import { NewUserDialog } from '../users/NewUserDialog'
-import { allowedUserActions, UserDetails, UserIcon, UserKpi, UserPagination, UsersTable, userError, type UserAction } from '../users/userPresentation'
+import { UserDetails, UserIcon, UserKpi, UserPagination, UsersTable } from '../users/userPresentation'
+import { allowedUserActions, userError, type UserAction } from '../users/userPresentation.model'
 import { EmployeesPage } from './EmployeesPage'
 import '../users/users.css'
 
@@ -35,12 +37,13 @@ export function UserManagementPage({ employeesOnly = false }: Props) {
 
 function UserWorkspace({ actor }: { actor: AuthUser }) {
   const client = useQueryClient(), toast = useToast(), url = useListUrlState(defaults, allowed)
+  const setUrl = url.set
   const { confirm, confirmationDialog } = useConfirmDialog()
   const canCreate = hasCapability(actor, 'USER_CREATE') && ['OWNER', 'ADMIN'].includes(actor.role)
   const canRestore = hasCapability(actor, 'USER_RESTORE'), canDeactivate = hasCapability(actor, 'USER_DEACTIVATE')
   const deleted = url.state.deleted === 'true' && canRestore
   const pageValue = Number(url.state.page), page = Number.isSafeInteger(pageValue) && pageValue >= 0 ? pageValue : 0
-  const size = [10, 20, 50].includes(Number(url.state.size)) ? Number(url.state.size) : 10
+  const size = [10, 20, 50, 100].includes(Number(url.state.size)) ? Number(url.state.size) : 10
   const active = ['true', 'false'].includes(url.state.active) ? url.state.active === 'true' : undefined
   const role = roles.find(value => value === url.state.role)
   const fields = url.state.sort.split(',').map(value => value.trim())
@@ -48,7 +51,7 @@ function UserWorkspace({ actor }: { actor: AuthUser }) {
   const sort = fields.length <= 3 && fields.length > 0 && new Set(fields).size === fields.length && fields.every(value => sortFields.includes(value)) ? fields.join(',') : 'createdAt'
   const directions = url.state.direction.split(',').map(value => value.trim().toUpperCase())
   const direction = (directions.length === 1 || directions.length === sort.split(',').length) && directions.every(value => ['ASC', 'DESC'].includes(value)) ? directions.join(',') : 'DESC'
-  const [search, setSearch] = useState(url.state.search), [selected, setSelected] = useState<Set<string>>(new Set())
+  const [search, setSearch] = useResettableState(() => url.state.search, url.state.search), [selected, setSelected] = useResettableState<Set<string>>(() => new Set(), JSON.stringify(Object.entries(url.state).filter(([key]) => !['focus', 'reservationId', 'eventId', 'create'].includes(key))))
   const [createOpen, setCreateOpen] = useState(false), [wide, setWide] = useState(false), [busy, setBusy] = useState('')
   const [bulkResult, setBulkResult] = useState<BulkOperationResponse | null>(null)
   const root = useRef<HTMLElement>(null), detailsRegion = useRef<HTMLElement>(null), searchInput = useRef<HTMLInputElement>(null)
@@ -64,12 +67,11 @@ function UserWorkspace({ actor }: { actor: AuthUser }) {
     const observer = new ResizeObserver(entries => { if (entries[0]) measure(entries[0].contentRect.width) })
     observer.observe(element); return () => observer.disconnect()
   }, [])
-  useEffect(() => setSearch(url.state.search), [url.state.search])
-  useEffect(() => {
+useEffect(() => {
     if (search === url.state.search) return
-    const timer = window.setTimeout(() => { setSelected(new Set()); url.set({ search: search.trim(), page: '0' }, true) }, 300)
+    const timer = window.setTimeout(() => { setSelected(new Set()); setUrl({ search: search.trim(), page: '0' }, true) }, 300)
     return () => window.clearTimeout(timer)
-  }, [search, url.state.search, url.set])
+  }, [search, url.state.search, setUrl, setSelected])
   const filters = { role, active, search: url.state.search.trim() || undefined, sort, direction }
   const users = useQuery({ queryKey: ['users', 'management', actor.id, actor.role, deleted, page, size, filters],
     queryFn: () => deleted ? userApi.deleted(page, size, filters) : userApi.list({ page, size, ...filters }), staleTime: 15000 })
@@ -78,20 +80,24 @@ function UserWorkspace({ actor }: { actor: AuthUser }) {
   const detail = useQuery({ queryKey: ['users', 'detail', actor.id, actor.role, url.state.focus, deleted],
     queryFn: () => userApi.detail(url.state.focus, deleted), enabled: Boolean(url.state.focus), staleTime: 15000, retry: false,
     initialData: () => users.data?.content.find(user => user.id === url.state.focus), initialDataUpdatedAt: () => users.dataUpdatedAt || undefined })
-  useEffect(() => { setSelected(new Set()) }, [page, size, role, active, sort, direction, deleted, url.state.search])
+  const eligibility = users.isSuccess ? users.data.content.filter(user => allowedUserActions(actor, user).deactivate).map(user => user.id).sort().join('|') : undefined
+  const [previousEligibility, setPreviousEligibility] = useState(eligibility)
+  if (eligibility !== undefined && previousEligibility !== eligibility) {
+    setPreviousEligibility(eligibility)
+    const eligible = new Set(eligibility.split('|'))
+    setSelected(previous => new Set([...previous].filter(id => eligible.has(id))))
+  }
   useEffect(() => {
     if (!users.isSuccess) return
-    const eligible = new Set(users.data.content.filter(user => allowedUserActions(actor, user).deactivate).map(user => user.id))
-    setSelected(previous => [...previous].some(id => !eligible.has(id)) ? new Set([...previous].filter(id => eligible.has(id))) : previous)
-    if (page >= Math.max(1, users.data.totalPages)) url.set({ page: String(Math.max(0, users.data.totalPages - 1)) }, true)
-  }, [users.data, users.isSuccess, actor, page, url.set])
+    if (page >= Math.max(1, users.data.totalPages)) setUrl({ page: String(Math.max(0, users.data.totalPages - 1)) }, true)
+  }, [users.data, users.isSuccess, actor, page, setUrl])
   function current(permission: Permission) {
     const live = useAuthStore.getState().user
     return mounted.current && live?.id === actor.id && live.role === actor.role && hasCapability(live, permission)
   }
   const refresh = () => client.invalidateQueries({ queryKey: ['users'] })
   function closeDetails() {
-    url.set({ focus: '' })
+    setUrl({ focus: '' })
     window.requestAnimationFrame(() => {
       const target = detailsOpener.current
       if (target?.isConnected && target.getClientRects().length) target.focus({ preventScroll: true }); else searchInput.current?.focus({ preventScroll: true })
@@ -100,7 +106,7 @@ function UserWorkspace({ actor }: { actor: AuthUser }) {
   function openCreate(element: HTMLButtonElement) { createOpener.current = element; setCreateOpen(true) }
   function onAction(target: UserResponse, action: UserAction, opener: HTMLButtonElement | null) {
     if (action === 'details') {
-      detailsOpener.current = opener; url.set({ focus: target.id })
+      detailsOpener.current = opener; setUrl({ focus: target.id })
       if (wide) window.requestAnimationFrame(() => detailsRegion.current?.focus({ preventScroll: true }))
       return
     }
@@ -158,7 +164,7 @@ function UserWorkspace({ actor }: { actor: AuthUser }) {
         finally { inFlight.current = false; if (mounted.current) setBusy('') }
       } })
   }
-  function resetFilters() { setSearch(''); setSelected(new Set()); url.set({ search: '', active: '', role: '', page: '0', sort: 'createdAt', direction: 'DESC' }) }
+  function resetFilters() { setSearch(''); setSelected(new Set()); setUrl({ search: '', active: '', role: '', page: '0', sort: 'createdAt', direction: 'DESC' }) }
   const filtered = Boolean(url.state.search || role || active !== undefined)
   const sortValue = `${sort}:${direction}`, standardSort = sorting.some(value => `${value.sort}:${value.direction}` === sortValue)
   const detailBody = detail.isLoading ? <Skeleton lines={8} label="Učitavanje detalja korisnika" /> : detail.isError
@@ -182,17 +188,17 @@ function UserWorkspace({ actor }: { actor: AuthUser }) {
     <div className={`gm-users-layout${wide && url.state.focus ? ' has-details' : ''}`}>
       <section className="ui-card gm-users-list" aria-labelledby="gm-users-list-title">
         <header className="gm-users-list-heading"><h2 id="gm-users-list-title">{deleted ? 'Obrisani korisnici' : 'Pregled korisnika'}</h2>
-          {canRestore && <Button type="button" variant="secondary" disabled={Boolean(busy)} onClick={() => { setSelected(new Set()); url.set({ deleted: deleted ? '' : 'true', page: '0', focus: '' }) }}>
+          {canRestore && <Button type="button" variant="secondary" disabled={Boolean(busy)} onClick={() => { setSelected(new Set()); setUrl({ deleted: deleted ? '' : 'true', page: '0', focus: '' }) }}>
             <UserIcon kind={deleted ? 'users' : 'restore'} />{deleted ? 'Postojeći korisnici' : 'Obrisani korisnici'}</Button>}
           <Button type="button" variant="secondary" disabled={Boolean(busy)} onClick={() => { void users.refetch(); void statistics.refetch(); if (url.state.focus) void detail.refetch() }}><UserIcon kind="refresh" />Osveži</Button>
         </header>
         <div className="gm-user-filters"><label className="gm-user-search"><span>Pretraga</span><div><UserIcon kind="search" /><Input ref={searchInput} type="search" maxLength={200}
           value={search} placeholder="Pretraži korisnike po imenu ili email adresi..." onChange={event => setSearch(event.target.value)} /></div></label>
-          <label><span>Uloga</span><Select value={role ?? ''} onChange={event => url.set({ role: event.target.value, page: '0' })}><option value="">Sve uloge</option>
+          <label><span>Uloga</span><Select value={role ?? ''} onChange={event => setUrl({ role: event.target.value, page: '0' })}><option value="">Sve uloge</option>
             <option value="OWNER">Vlasnik</option><option value="ADMIN">Administrator</option><option value="EMPLOYEE">Zaposleni</option><option value="CUSTOMER">Klijent</option></Select></label>
-          <label><span>Status naloga</span><Select value={active === undefined ? '' : String(active)} onChange={event => url.set({ active: event.target.value, page: '0' })}>
+          <label><span>Status naloga</span><Select value={active === undefined ? '' : String(active)} onChange={event => setUrl({ active: event.target.value, page: '0' })}>
             <option value="">Svi statusi</option><option value="true">Aktivni</option><option value="false">Neaktivni</option></Select></label>
-          <label><span>Sortiranje</span><Select value={sortValue} onChange={event => { const option = sorting.find(value => `${value.sort}:${value.direction}` === event.target.value); if (option) url.set({ sort: option.sort, direction: option.direction, page: '0' }) }}>
+          <label><span>Sortiranje</span><Select value={sortValue} onChange={event => { const option = sorting.find(value => `${value.sort}:${value.direction}` === event.target.value); if (option) setUrl({ sort: option.sort, direction: option.direction, page: '0' }) }}>
             {!standardSort && <option value={sortValue}>Sačuvano sortiranje</option>}{sorting.map(option => <option key={`${option.sort}:${option.direction}`} value={`${option.sort}:${option.direction}`}>{option.label}</option>)}</Select></label>
         </div>
         {filtered && <Button type="button" variant="secondary" className="gm-user-reset" onClick={resetFilters}>Ukloni filtere</Button>}
@@ -213,7 +219,7 @@ function UserWorkspace({ actor }: { actor: AuthUser }) {
               const next = new Set(previous); if (next.has(id)) next.delete(id); else next.add(id); return next
             })} />}
         {users.isSuccess && <UserPagination page={page} size={size} totalPages={users.data.totalPages} totalElements={users.data.totalElements} busy={users.isFetching || Boolean(busy)}
-          onPage={next => url.set({ page: String(next) })} onSize={next => url.set({ size: String(next), page: '0' })} />}
+          onPage={next => setUrl({ page: String(next) })} onSize={next => setUrl({ size: String(next), page: '0' })} />}
       </section>
       {wide && url.state.focus && <aside ref={detailsRegion} tabIndex={-1} className="ui-card gm-user-details-panel" aria-label="Detalji izabranog korisnika">
         {(!detail.data || detail.isError) && <header className="gm-user-details-heading"><span>Detalji korisnika</span><Button type="button" variant="secondary" className="gm-user-inline-close" aria-label="Zatvori detalje korisnika" onClick={closeDetails}>×</Button></header>}{detailBody}
@@ -222,7 +228,7 @@ function UserWorkspace({ actor }: { actor: AuthUser }) {
     <Drawer open={!wide && Boolean(url.state.focus)} title="Detalji korisnika" className="gm-user-details-drawer" size="wide" returnFocusRef={detailsOpener} closeDisabled={Boolean(busy)} onClose={closeDetails}>{detailBody}</Drawer>
     {createOpen && canCreate && <NewUserDialog actor={actor} returnFocusRef={createOpener} onClose={() => setCreateOpen(false)} onCreated={user => {
       setCreateOpen(false); setSearch(''); setSelected(new Set())
-      url.set({ page: '0', deleted: '', role: '', active: '', search: '', sort: 'createdAt', direction: 'DESC', focus: user.id })
+      setUrl({ page: '0', deleted: '', role: '', active: '', search: '', sort: 'createdAt', direction: 'DESC', focus: user.id })
       toast('Korisnik je uspešno kreiran.', 'success'); void refresh()
       if (wide) window.requestAnimationFrame(() => detailsRegion.current?.focus({ preventScroll: true }))
     }} />}

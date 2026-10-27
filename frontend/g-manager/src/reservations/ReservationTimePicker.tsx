@@ -1,7 +1,6 @@
+import { validTime } from './ReservationTimePicker.model'
 import { useId, useRef, useState } from 'react'
 import { Button, Modal } from '../components/ui'
-
-export const validTime = (value: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value)
 const padded = (value: number) => String(value).padStart(2, '0')
 
 export function ReservationTimePicker({label,value,onChange,disabled}: {
@@ -43,7 +42,7 @@ export function ReservationTimePicker({label,value,onChange,disabled}: {
             onClick={() => {if(mode === 'hours'){setHour(tick);setMode('minutes')}else setMinute(tick)}}>{padded(tick)}</button>
         })}
       </div>
-      <label className="reservation-clock-manual">Ručni unos (HH:mm)<input type="time" step={60} value={`${padded(hour)}:${padded(minute)}`}
+      <label className="reservation-clock-manual">Ručni unos (HH:mm)<input aria-label={"Ručni unos (HH:mm)"} type="time" step={60} value={`${padded(hour)}:${padded(minute)}`}
         onChange={event => {if(validTime(event.target.value)){const parts=event.target.value.split(':');setHour(Number(parts[0]));setMinute(Number(parts[1]))}}}/></label>
       <div className="reservation-clock-quarters" role="group" aria-label="Koraci od 15 minuta">{[0,15,30,45].map(value =>
         <Button key={value} type="button" variant="secondary" aria-pressed={minute === value} onClick={() => setMinute(value)}>{padded(value)} min</Button>)}</div>

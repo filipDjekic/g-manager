@@ -27,3 +27,10 @@ C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Shell\obj\Deb
 C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Shell\obj\Debug\net10.0-windows10.0.19041.0\ref\GManager.Client.Shell.dll
 C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Shell\obj\Debug\net10.0-windows10.0.19041.0\GManager.Client.Shell_Content.g.cs
 C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Shell\bin\Debug\net10.0-windows10.0.19041.0\runtime-capabilities.json
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Shell\obj\Debug\net10.0-windows10.0.19041.0\Resources\DashboardTheme.baml
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Shell\obj\Debug\net10.0-windows10.0.19041.0\Resources\GamingRoom.baml
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Shell\obj\Debug\net10.0-windows10.0.19041.0\Resources\ShellTheme.baml
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Shell\obj\Debug\net10.0-windows10.0.19041.0\Views\DashboardView.baml
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Shell\obj\Debug\net10.0-windows10.0.19041.0\Views\DashboardView.g.cs
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Shell\obj\Debug\net10.0-windows10.0.19041.0\GeneratedInternalTypeHelper.g.cs
+C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Shell\obj\Debug\net10.0-windows10.0.19041.0\GManager.Client.Shell_MarkupCompile.lref

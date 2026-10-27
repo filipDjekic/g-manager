@@ -109,12 +109,14 @@ public class ReservationService {
         Instant endTime = request.startTime().plus(duration, ChronoUnit.MINUTES);
         AuthenticatedUser actor=currentUserProvider.requireCurrentUser();
         Set<UUID> allowed=actor.role()==Role.EMPLOYEE ? resourceAccess.assignedResources(actor) : null;
-        if(actor.role()==Role.EMPLOYEE) resourceAccess.requireManageForUpdate(actor,
+        boolean ownNonPhysical = actor.role()==Role.EMPLOYEE && actor.id().equals(request.employeeId())
+                && request.resourceId()==null && !resourceService.requiresResource(request.serviceId());
+        if(actor.role()==Role.EMPLOYEE && !ownNonPhysical) resourceAccess.requireManageForUpdate(actor,
                 request.resourceId()==null ? allowed : java.util.Collections.singletonList(request.resourceId()),Permission.RESERVATION_CREATE);
         User employee = selectEmployee(request.employeeId(), request.startTime(), endTime);
         PhysicalResource resource = resourceService.selectForBooking(request.serviceId(), request.resourceId(),
                 request.locationId(), request.startTime(), endTime,allowed,request.areaId());
-        if (actor.role()!=Role.CUSTOMER) resourceAccess.requireManageForUpdate(actor,
+        if (actor.role()!=Role.CUSTOMER && !ownNonPhysical) resourceAccess.requireManageForUpdate(actor,
                 java.util.Collections.singletonList(resource==null ? null : resource.getId()),Permission.RESERVATION_CREATE);
         if(resource==null && request.locationId()!=null) resourceService.requireActiveLocation(request.locationId());
         workingHoursService.validateWithinWorkingHours(resource == null ? request.locationId() : resourceService.locationId(resource),
@@ -315,7 +317,7 @@ public class ReservationService {
                 .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND, "Employee not found"));
         CatalogReference service = catalogService.getReferences(Set.of(reservation.getServiceId())).get(reservation.getServiceId());
         if (service == null) throw new ApplicationException(HttpStatus.NOT_FOUND,"Catalog item not found");
-        boolean canManage=resourceAccess.canManage(actor,reservation.getResourceId());
+        boolean canManage=canManageReservation(actor,reservation,resourceService.requiresResource(reservation.getServiceId()),resourceAccess.assignedResources(actor));
         boolean readOnly=actor.role()==Role.EMPLOYEE && !canManage;
         List<ReservationStatus> actions = transitionPolicy.allowedActions(actor, reservation,
                 resourceService.requiresResource(reservation.getServiceId()),canManage);
@@ -345,11 +347,11 @@ public class ReservationService {
         Reservation reservation = reservationRepository.findById(id)
                 .orElseThrow(() -> new ApplicationException(
                         HttpStatus.NOT_FOUND, "Reservation not found"));
-        if(actor.role()!=Role.CUSTOMER) resourceAccess.requireManageForUpdate(actor,
-                java.util.Collections.singletonList(reservation.getResourceId()),Permission.RESERVATION_CHANGE_STATUS);
+        if(actor.role()!=Role.CUSTOMER) requireReservationManagement(actor,reservation,reservation.getResourceId());
         requireVersion(reservation, request.version());
         transitionPolicy.requireTransition(actor, reservation, request.status(), request.reason(),
-                resourceService.requiresResource(reservation.getServiceId()),resourceAccess.canManage(actor,reservation.getResourceId()));
+                resourceService.requiresResource(reservation.getServiceId()),canManageReservation(actor,reservation,
+                        resourceService.requiresResource(reservation.getServiceId()),resourceAccess.assignedResources(actor)));
         ReservationStatus previousStatus = reservation.getStatus();
 
         if (request.status() == ReservationStatus.CONFIRMED) {
@@ -410,7 +412,7 @@ public class ReservationService {
         Reservation value=reservationRepository.findById(id)
                 .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND,"Reservation not found"));
         UUID target=request.resourceId()==null ? value.getResourceId() : request.resourceId();
-        resourceAccess.requireManageForUpdate(actor,java.util.Arrays.asList(value.getResourceId(),target),Permission.RESERVATION_CHANGE_STATUS);
+        requireReservationManagement(actor,value,target);
         requireVersion(value,request.version());
         if(!canEdit(actor,value,true)) throw new ApplicationException(HttpStatus.CONFLICT,"Only upcoming active reservations can be edited");
         Instant start=request.startTime()==null ? value.getStartTime() : request.startTime();
@@ -453,7 +455,8 @@ public class ReservationService {
         var actor=currentUserProvider.requireCurrentUser();
         Reservation value=reservationRepository.findById(id)
                 .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND,"Reservation not found"));
-        resourceAccess.requireManage(actor,value.getResourceId(),Permission.RESERVATION_CHANGE_STATUS);
+        if (!canManageReservation(actor,value,resourceService.requiresResource(value.getServiceId()),resourceAccess.assignedResources(actor)))
+            resourceAccess.requireManage(actor,value.getResourceId(),Permission.RESERVATION_CHANGE_STATUS);
         Instant start=startTime==null ? value.getStartTime() : startTime;
         Instant end=start.plus(java.time.Duration.between(value.getStartTime(),value.getEndTime()));
         return resourceService.bookingOptions(value.getServiceId(),null,start,end,
@@ -464,6 +467,19 @@ public class ReservationService {
     private boolean canEdit(AuthenticatedUser actor,Reservation value,boolean canManage) {
         return actor.role()!=Role.CUSTOMER && canManage && value.getStartTime().isAfter(clock.instant())
                 && (value.getStatus()==ReservationStatus.PENDING || value.getStatus()==ReservationStatus.CONFIRMED);
+    }
+
+    private boolean canManageReservation(AuthenticatedUser actor,Reservation value,boolean resourceRequired,Set<UUID> assigned) {
+        return resourceAccess.canManage(actor,value.getResourceId(),assigned)
+                || actor.role()==Role.EMPLOYEE && actor.id().equals(value.getEmployeeId())
+                && value.getResourceId()==null && !resourceRequired;
+    }
+
+    private void requireReservationManagement(AuthenticatedUser actor,Reservation value,UUID target) {
+        // Preserve own appointments for services without physical resources. Station grants remain mandatory for every PC/resource.
+        if(actor.role()==Role.EMPLOYEE && target==null && value.getResourceId()==null
+                && actor.id().equals(value.getEmployeeId()) && !resourceService.requiresResource(value.getServiceId())) return;
+        resourceAccess.requireManageForUpdate(actor,java.util.Arrays.asList(value.getResourceId(),target),Permission.RESERVATION_CHANGE_STATUS);
     }
 
     private ReservationResponse response(Reservation value) {
@@ -483,7 +499,7 @@ public class ReservationService {
                 .collect(Collectors.toSet())).stream().collect(Collectors.toMap(User::getId,Function.identity()));
         Map<UUID,ReservationResponse> result=new java.util.LinkedHashMap<>();
         for(Reservation value:values){
-            boolean canManage=resourceAccess.canManage(actor,value.getResourceId(),assigned);
+            boolean canManage=canManageReservation(actor,value,requirements.get(value.getServiceId()),assigned);
             boolean readOnly=actor.role()==Role.EMPLOYEE&&!canManage;
             result.put(value.getId(),ReservationResponse.from(value,value.getResourceId()==null?null:resources.get(value.getResourceId()),value.getLocationId()==null?null:locations.get(value.getLocationId()),
                     requirements.get(value.getServiceId()),services.get(value.getServiceId()).name(),
@@ -499,7 +515,8 @@ public class ReservationService {
         Specification<Reservation> filter=ReservationSpecifications.hasResource(resourceId)
                 .and(ReservationSpecifications.hasLocation(locationId));
         if(scope==ReservationScope.MANAGEABLE && actor.role()==Role.EMPLOYEE)
-            filter=filter.and(ReservationSpecifications.inResources(resourceAccess.assignedResources(actor)));
+            filter=filter.and(ReservationSpecifications.inResources(resourceAccess.assignedResources(actor))
+                    .or(ReservationSpecifications.ownedWithoutPhysicalResource(actor.id())));
         return filter;
     }
 
@@ -529,7 +546,8 @@ public class ReservationService {
         if (search == null || search.isBlank()) return (root, query, builder) -> builder.conjunction();
         var actor = currentUserProvider.requireCurrentUser();
         return ReservationSpecifications.matchesText(search,
-                resourceAccess.allResources(actor) ? null : resourceAccess.assignedResources(actor));
+                resourceAccess.allResources(actor) ? null : resourceAccess.assignedResources(actor),
+                actor.role()==Role.EMPLOYEE ? actor.id() : null);
     }
 
     private PageResponse<ReservationResponse> listInternal(UUID customerId,UUID employeeId,ReservationStatus status,

@@ -1,21 +1,6 @@
 import { apiClient } from './client'
 import type { PageResponse } from '../types/api.types'
-import type {
-  CreateReservationInput,
-  UpdateReservationInput,
-  ReservationScope,
-  Reservation,
-  ReservationDetail,
-  ReservationStatus,
-  ReservationSummary,
-  MyReservationSummary,
-  ReservationBookingPlan,
-  CalendarContext,
-  CalendarReservation,
-  RecurrenceInput,
-  RecurrencePreview,
-  RecurrenceCreateResult,
-} from '../types/reservation.types'
+import type { CreateReservationInput, UpdateReservationInput, ReservationScope, Reservation, ReservationDetail, ReservationStatus, ReservationSummary, MyReservationSummary, ReservationBookingPlan, CalendarContext, CalendarReservation, RecurrenceInput, RecurrencePreview, RecurrenceCreateResult } from '../types/reservation.types'
 import type { BookingOptions } from '../types/resource.types'
 import type { BulkItem, BulkOperationResponse } from '../types/bulk.types'
 

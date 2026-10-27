@@ -1,5 +1,5 @@
-﻿import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { reservationApi } from '../api/reservationApi'
 import { waitlistApi } from '../api/waitlistApi'
@@ -14,7 +14,8 @@ import { ReservationDetailsDrawer } from '../reservations/ReservationDetailsDraw
 import { CustomerBookingDialog, type BookingPrefill } from '../reservations/customer/CustomerBookingDialog'
 import { CustomerReservationCard } from '../reservations/customer/CustomerReservationCard'
 import { CustomerWaitlist } from '../reservations/customer/CustomerWaitlist'
-import { CalendarClock, CustomerReservationIcon, customerReservationError, loadBookingServices } from '../reservations/customer/customerPresentation'
+import { CalendarClock, CustomerReservationIcon } from '../reservations/customer/customerPresentation'
+import { customerReservationError, loadBookingServices } from '../reservations/customer/customerPresentation.model'
 import type { Reservation, ReservationDetailAction, ReservationStatus } from '../types/reservation.types'
 import type { WaitlistEntry } from '../types/waitlist.types'
 import '../reservations/customer/customerReservations.css'
@@ -27,26 +28,28 @@ export function MyReservationsPage() {
   const canRead = user?.role === 'CUSTOMER' && hasCapability(user, 'RESERVATION_READ_OWN'), canCreate = canRead && hasCapability(user, 'RESERVATION_CREATE')
   const canChange = hasCapability(user, 'RESERVATION_CHANGE_STATUS')
   const [params, setParams] = useSearchParams()
-  const initialSelection = useRef(catalogSelection()), bookingTrigger = useRef<HTMLElement | null>(null), detailTrigger = useRef<HTMLElement | null>(null)
+  const [initialSelection] = useState(catalogSelection), bookingTrigger = useRef<HTMLElement | null>(null), detailTrigger = useRef<HTMLElement | null>(null)
   const titleRef = useRef<HTMLHeadingElement>(null), actionRef = useRef(false), expiredOffers = useRef(new Set<string>()), focusedOffer = useRef('')
-  const [booking, setBooking] = useState<BookingPrefill | null>(() => params.get('serviceId') || params.get('resourceId') || params.get('booking') === 'new' || initialSelection.current
-    ? { serviceId: params.get('serviceId') ?? initialSelection.current, resourceId: params.get('resourceId') ?? '', locationId: params.get('locationId') ?? '', areaId: params.get('areaId') ?? '' } : null)
+  const closingBooking = useRef(false)
+  const [booking, setBooking] = useState<BookingPrefill | null>(() => params.get('serviceId') || params.get('resourceId') || params.get('booking') === 'new' || initialSelection
+    ? { serviceId: params.get('serviceId') ?? initialSelection, resourceId: params.get('resourceId') ?? '', locationId: params.get('locationId') ?? '', areaId: params.get('areaId') ?? '' } : null)
   const [detailAction, setDetailAction] = useState<ReservationDetailAction | undefined>(), [waitlistPending, setWaitlistPending] = useState(''), [actionError, setActionError] = useState('')
   const rawFilter = params.get('filter') ?? params.get('status') ?? 'ALL', filter = validFilters.has(rawFilter) ? rawFilter : 'ALL'
   const listDate = /^\d{4}-\d{2}-\d{2}$/.test(params.get('date') ?? '') ? params.get('date')! : ''
   const rawPage = Number(params.get('page') ?? '1'), page = Number.isSafeInteger(rawPage) && rawPage > 0 ? rawPage - 1 : 0
+  const size = [10, 20, 50, 100].includes(Number(params.get('size'))) ? Number(params.get('size')) : 10
   const direction = params.get('sort') === 'latest' ? 'DESC' : 'ASC'
   const section = params.get('section') === 'waitlist' || params.has('waitlistOffer') && params.get('section') !== 'reservations' ? 'waitlist' : 'reservations'
   const linkedOffer = params.get('waitlistOffer'), selectedId = params.get('reservationId')
-  const list = useQuery({ queryKey: ['reservations', 'mine', user?.id, filter, listDate, page, direction],
-    queryFn: () => reservationApi.mine({ page, size: 12, status: filter === 'ALL' || filter === 'UPCOMING' ? undefined : filter as ReservationStatus,
+  const list = useQuery({ queryKey: ['reservations', 'mine', user?.id, filter, listDate, page, size, direction],
+    queryFn: () => reservationApi.mine({ page, size, status: filter === 'ALL' || filter === 'UPCOMING' ? undefined : filter as ReservationStatus,
       upcoming: filter === 'UPCOMING' || undefined, from: listDate || undefined, to: listDate || undefined, sort: 'startTime', direction }),
     enabled: canRead, refetchInterval: 15000, refetchIntervalInBackground: false })
   const summary = useQuery({ queryKey: ['reservations', 'mine-summary', user?.id], queryFn: reservationApi.mineSummary, enabled: canRead, refetchInterval: 15000, refetchIntervalInBackground: false })
   const services = useQuery({ queryKey: ['catalog', 'customer-booking-services'], queryFn: loadBookingServices, enabled: canRead && hasCapability(user, 'CATALOG_READ'), staleTime: 60000 })
   const employees = useQuery({ queryKey: ['users', 'customer-booking-employees', user?.id], queryFn: userApi.employees, enabled: canCreate && Boolean(booking), staleTime: 60000 })
   const waitlistQuery = useQuery({ queryKey: ['waitlist', 'mine', user?.id], queryFn: waitlistApi.mine, enabled: canRead, refetchInterval: 15000, refetchIntervalInBackground: false })
-  const waitlist = waitlistQuery.data ?? [], serverTime = waitlist[0]?.serverTime ?? summary.data?.serverTime, now = useServerNow(serverTime)
+  const waitlist = useMemo(() => waitlistQuery.data ?? [], [waitlistQuery.data]), serverTime = waitlist[0]?.serverTime ?? summary.data?.serverTime, now = useServerNow(serverTime)
   const activeOffers = waitlist.filter(entry => entry.status === 'OFFERED' && entry.offerStatus !== 'EXPIRED' && entry.offerExpiresAt && serverTime
     && Date.parse(entry.offerExpiresAt) > now && Date.parse(entry.desiredStart) > now).length
   const changeParams = (changes: Record<string, string | undefined>, replace = false) => setParams(current => {
@@ -56,16 +59,20 @@ export function MyReservationsPage() {
   }, { replace })
   const refresh = async () => { await Promise.all([client.invalidateQueries({ queryKey: ['reservations'] }), client.invalidateQueries({ queryKey: ['waitlist', 'mine'] })]) }
   const clearBookingParams = () => changeParams({ booking: undefined, serviceId: undefined, resourceId: undefined, locationId: undefined, areaId: undefined }, true)
-  const closeBooking = () => { setBooking(null); clearBookingParams(); if (!bookingTrigger.current?.isConnected) window.requestAnimationFrame(() => titleRef.current?.focus({ preventScroll: true })) }
+  const closeBooking = () => { closingBooking.current = true; setBooking(null); clearBookingParams(); if (!bookingTrigger.current?.isConnected) window.requestAnimationFrame(() => titleRef.current?.focus({ preventScroll: true })) }
   function openBooking(prefill: BookingPrefill = {}, trigger?: HTMLElement) {
     if (!canCreate) return
+    closingBooking.current = false
     bookingTrigger.current = trigger ?? (document.activeElement instanceof HTMLElement ? document.activeElement : titleRef.current)
     setBooking(prefill); setActionError('')
     changeParams({ booking: 'new', serviceId: prefill.serviceId, resourceId: prefill.resourceId, locationId: prefill.locationId, areaId: prefill.areaId }, true)
   }
   useEffect(() => {
     const serviceId = params.get('serviceId'), resourceId = params.get('resourceId')
-    if (canCreate && !booking && (serviceId || resourceId || params.get('booking') === 'new')) setBooking({ serviceId: serviceId ?? '', resourceId: resourceId ?? '', locationId: params.get('locationId') ?? '', areaId: params.get('areaId') ?? '' })
+    const requested = serviceId || resourceId || params.get('booking') === 'new'
+    // Router navigation can commit after local state. Do not reopen a completed/closed form from the previous URL.
+    if (!requested) closingBooking.current = false
+    if (canCreate && !booking && !closingBooking.current && requested) setBooking({ serviceId: serviceId ?? '', resourceId: resourceId ?? '', locationId: params.get('locationId') ?? '', areaId: params.get('areaId') ?? '' })
   }, [params, booking, canCreate])
   useEffect(() => {
     if (!booking?.serviceId) return
@@ -126,10 +133,10 @@ export function MyReservationsPage() {
     {actionError && <p className="error-banner" role="alert">{actionError}</p>}
     {section === 'reservations' ? <section className="gm-my-reservations-content" aria-label="Moje rezervacije">
       <div className="gm-my-reservation-filters"><div className="gm-my-status-tabs" role="group" aria-label="Status rezervacija">{statusTabs.map(([value, label]) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => changeParams({ filter: value === 'ALL' ? undefined : value, status: undefined, page: undefined })}>{label}</button>)}</div>
-        <div className="gm-my-filter-controls"><label>Izaberi datum<Input type="date" value={listDate} onChange={event => changeParams({ date: event.target.value, page: undefined })} /></label>
+        <div className="gm-my-filter-controls"><label>Izaberi datum<Input aria-label={"Izaberi datum"} type="date" value={listDate} onChange={event => changeParams({ date: event.target.value, page: undefined })} /></label>
           {listDate && <Button type="button" variant="secondary" onClick={() => changeParams({ date: undefined, page: undefined })}>Resetuj datum</Button>}
-          <label>Dodatni status<Select value={filter === 'REJECTED' || filter === 'CONFIRMED' ? filter : ''} onChange={event => changeParams({ filter: event.target.value || undefined, status: undefined, page: undefined })}><option value="">Svi / izabrani tab</option><option value="CONFIRMED">{reservationLabels.CONFIRMED}</option><option value="REJECTED">{reservationLabels.REJECTED}</option></Select></label>
-          <label>Sortiranje<Select value={direction === 'DESC' ? 'latest' : 'nearest'} onChange={event => changeParams({ sort: event.target.value === 'latest' ? 'latest' : undefined, page: undefined })}><option value="nearest">Najraniji termini</option><option value="latest">Najnoviji termini</option></Select></label>
+          <label>Dodatni status<Select aria-label={"Dodatni status"} value={filter === 'REJECTED' || filter === 'CONFIRMED' ? filter : ''} onChange={event => changeParams({ filter: event.target.value || undefined, status: undefined, page: undefined })}><option value="">Svi / izabrani tab</option><option value="CONFIRMED">{reservationLabels.CONFIRMED}</option><option value="REJECTED">{reservationLabels.REJECTED}</option></Select></label>
+          <label>Sortiranje<Select aria-label={"Sortiranje"} value={direction === 'DESC' ? 'latest' : 'nearest'} onChange={event => changeParams({ sort: event.target.value === 'latest' ? 'latest' : undefined, page: undefined })}><option value="nearest">Najraniji termini</option><option value="latest">Najnoviji termini</option></Select></label>
         </div></div>
       <div className="gm-my-list-caption"><span>{list.data ? `${list.data.totalElements} rezervacija` : 'Učitavanje rezervacija…'}</span><Button type="button" variant="secondary" loading={list.isFetching} onClick={() => void refresh()}><CustomerReservationIcon kind="refresh" />Osveži</Button></div>
       {list.isError && <ErrorState message={customerReservationError(list.error, 'Rezervacije nije moguće učitati.')} action={<Button type="button" onClick={() => list.refetch()}>Pokušaj ponovo</Button>} />}
@@ -141,15 +148,15 @@ export function MyReservationsPage() {
           : <div className="gm-my-reservation-grid">{reservations.map(value => <CustomerReservationCard key={value.id} value={value} service={services.data?.find(item => item.id === value.serviceId)} disabled={list.isError || Boolean(waitlistPending)} canCreate={canCreate} canChange={canChange}
             onDetails={openDetails} onRebook={(reservation, trigger) => openBooking({ serviceId: reservation.serviceId, resourceId: reservation.resourceId ?? undefined, locationId: reservation.locationId ?? undefined,
               employeeId: reservation.employeeId }, trigger)} />)}</div>}
-      {list.data && <Pagination page={page} totalPages={list.data.totalPages} totalElements={list.data.totalElements} pageSize={12} numbered loading={list.isFetching} onPageChange={next => changeParams({ page: next ? String(next + 1) : undefined })} />}
+      {list.data && <Pagination page={page} totalPages={list.data.totalPages} totalElements={list.data.totalElements} pageSize={size} onPageSizeChange={size => changeParams({ size: String(size), page: undefined })} numbered loading={list.isFetching} onPageChange={next => changeParams({ page: next ? String(next + 1) : undefined })} />}
     </section> : <CustomerWaitlist entries={waitlist} now={now} synchronized={Boolean(serverTime)} loading={waitlistQuery.isLoading} fetching={waitlistQuery.isFetching} error={waitlistQuery.error}
       pending={waitlistPending} linkedOffer={linkedOffer} onRefresh={() => void waitlistQuery.refetch()} onAccept={value => void acceptOffer(value)} onCancel={value => void cancelWaitlist(value)} onBook={canCreate ? () => openBooking() : undefined} />}
     <ReservationDetailsDrawer reservationId={booking && canCreate ? null : selectedId} onChanged={refresh} initialAction={detailAction} appearance="customer" returnFocusRef={detailTrigger} onClose={closeDetails} />
     {booking && canCreate && <CustomerBookingDialog prefill={booking} services={services.data ?? []} employees={employees.data ?? []} loading={services.isLoading || employees.isLoading} dataError={services.error ?? employees.error}
       returnFocusRef={bookingTrigger} onReload={() => { void services.refetch(); void employees.refetch() }} onScopeChanged={value => changeParams({ serviceId: value.serviceId, resourceId: value.resourceId, locationId: value.locationId, areaId: value.areaId }, true)} onClose={closeBooking}
-      onCreated={async id => { changeParams({ filter: undefined, status: undefined, page: undefined, date: undefined, section: 'reservations', ...(id ? { reservationId: id, booking: undefined, serviceId: undefined, resourceId: undefined, locationId: undefined, areaId: undefined } : {}) }, true);
+      onCreated={async id => { if (id) closingBooking.current = true; changeParams({ filter: undefined, status: undefined, page: undefined, date: undefined, section: 'reservations', ...(id ? { reservationId: id, booking: undefined, serviceId: undefined, resourceId: undefined, locationId: undefined, areaId: undefined } : {}) }, true);
         if (id) { setBooking(null); setDetailAction(undefined); detailTrigger.current = titleRef.current }
-        await refresh() }} onWaitlisted={async () => { setBooking(null); changeParams({ section: 'waitlist', booking: undefined, serviceId: undefined, resourceId: undefined, locationId: undefined, areaId: undefined }, true);
+        await refresh() }} onWaitlisted={async () => { closingBooking.current = true; setBooking(null); changeParams({ section: 'waitlist', booking: undefined, serviceId: undefined, resourceId: undefined, locationId: undefined, areaId: undefined }, true);
           window.requestAnimationFrame(() => { if (!bookingTrigger.current?.isConnected) titleRef.current?.focus({ preventScroll: true }) }); await waitlistQuery.refetch() }} />}
   </main>
 }

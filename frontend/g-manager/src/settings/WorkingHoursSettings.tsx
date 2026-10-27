@@ -8,7 +8,8 @@ import { useToast } from '../components/ui/toastContext'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useDirtyGuard } from '../forms/useDirtyGuard'
 import type { DayOfWeek, WorkingHours } from '../types/workingHours.types'
-import { days, dayLabels, SettingsIcon, SettingsSwitch, settingsError, validTime } from './settingsPresentation'
+import { SettingsIcon, SettingsSwitch } from './settingsPresentation'
+import { days, dayLabels, settingsError, validTime } from './settingsPresentation.model'
 
 type DayDraft = { openTime: string; closeTime: string; active: boolean; version?: number }
 const normalizedTime = (value: string) => value.length === 5 ? value + ':00' : value

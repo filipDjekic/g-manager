@@ -1,4 +1,4 @@
-package com.game_manager.gm.reservation;
+package com.game_manager.gm.resource;
 
 import com.game_manager.gm.catalog.CatalogItem;
 import com.game_manager.gm.common.config.GamingSessionProperties;

@@ -7,7 +7,8 @@ import { useDirtyGuard } from '../forms/useDirtyGuard'
 import { businessLocalToInstant } from '../reservations/dateTime'
 import type { TimeOff } from '../types/timeOff.types'
 import type { UserResponse } from '../types/user.types'
-import { elapsedTime, SettingsIcon, settingsError } from './settingsPresentation'
+import { SettingsIcon } from './settingsPresentation'
+import { elapsedTime, settingsError } from './settingsPresentation.model'
 
 export function TimeOffDialog({ employees, returnFocusRef, onClose, onSaved }: {
   employees: UseQueryResult<UserResponse[]>; returnFocusRef: RefObject<HTMLElement | null>; onClose: () => void; onSaved: (item: TimeOff) => void

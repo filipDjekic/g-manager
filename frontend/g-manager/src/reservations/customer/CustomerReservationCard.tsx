@@ -4,7 +4,8 @@ import { reservationLabels, reservationTones } from '../../components/ui/statusP
 import { formatBusinessIntervalEnd, formatBusinessTime } from '../dateTime'
 import type { CatalogItem } from '../../types/catalog.types'
 import type { Reservation, ReservationDetailAction } from '../../types/reservation.types'
-import { CustomerReservationIcon, customerDate, customerDuration, ReservationServiceMedia, useReservationArea } from './customerPresentation'
+import { CustomerReservationIcon, ReservationServiceMedia } from './customerPresentation'
+import { customerDate, customerDuration, useReservationArea } from './customerPresentation.model'
 
 export function CustomerReservationCard({ value, service, disabled, canCreate, canChange, onDetails, onRebook }: {
   value: Reservation; service?: CatalogItem; disabled: boolean; canCreate: boolean; canChange: boolean

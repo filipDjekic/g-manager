@@ -60,7 +60,7 @@ public class AuthController {
     ResponseEntity<Void> activate(@Valid @RequestBody ActivateCustomerRequest request,
             HttpServletRequest servletRequest) {
         rateLimitService.checkActivation(clientIp(servletRequest));
-        customerAccountService.activate(request);
+        customerAccountService.activate(request.activationSecret(), request.password());
         return ResponseEntity.noContent().build();
     }
 

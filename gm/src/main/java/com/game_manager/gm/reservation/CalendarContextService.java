@@ -2,15 +2,10 @@ package com.game_manager.gm.reservation;
 
 import com.game_manager.gm.common.security.CurrentUserProvider;
 import com.game_manager.gm.common.security.Role;
-import com.game_manager.gm.gamingsession.GamingSessionRepository;
-import com.game_manager.gm.gamingsession.GamingSessionStatus;
 import com.game_manager.gm.reservation.dto.CalendarContextResponse;
 import com.game_manager.gm.reservation.dto.CalendarContextResponse.*;
 import com.game_manager.gm.resource.*;
 import com.game_manager.gm.station.GamingStationProfileRepository;
-import com.game_manager.gm.machine.StationClientEnforcementRepository;
-import com.game_manager.gm.machine.StationClientEnforcement;
-import com.game_manager.gm.machine.StationEnforcementStatus;
 import com.game_manager.gm.timeoff.TimeOffAvailabilityPolicy;
 import com.game_manager.gm.workinghours.WorkingHoursService;
 import java.time.*;
@@ -32,9 +27,9 @@ public class CalendarContextService {
     private final CurrentUserProvider currentUser;
     private final ReservationAvailabilityPolicy availability;
     private final TimeOffAvailabilityPolicy timeOff;
-    private final GamingSessionRepository sessions;
+    private final com.game_manager.gm.common.scheduling.GamingRuntimePort sessions;
     private final GamingStationProfileRepository stationProfiles;
-    private final StationClientEnforcementRepository enforcementStates;
+    private final com.game_manager.gm.common.scheduling.ClientStatePort enforcementStates;
     private final WorkingHoursService hours;
     private final Clock clock;
 
@@ -91,16 +86,12 @@ public class CalendarContextService {
                     employeeBlocks.add(new EmployeeBlock(value.start(), value.end(), "TIME_OFF")));
         }
         // ACTIVE is the session domain's current occupancy; future bookings never enter this count.
-        var activeSessions = ids.isEmpty() ? List.<com.game_manager.gm.gamingsession.GamingSession>of()
-                : sessions.findByResourceIdInAndStatus(ids, GamingSessionStatus.ACTIVE);
-        Set<UUID> activeIds = activeSessions.stream().map(value -> value.getResourceId()).collect(Collectors.toSet());
+        Set<UUID> activeIds = sessions.activeResources(ids);
         long occupied = activeIds.size();
         var profiles = ids.isEmpty() ? Map.<UUID,com.game_manager.gm.station.GamingStationProfile>of()
                 : stationProfiles.findByResourceIdIn(ids).stream().collect(Collectors.toMap(value -> value.getResourceId(), value -> value));
-        var states = ids.isEmpty() ? Map.<UUID,StationClientEnforcement>of() : enforcementStates.findByStationIdIn(ids).stream()
-                .collect(Collectors.toMap(StationClientEnforcement::getStationId, value -> value));
-        var latest = profiles.isEmpty() ? Map.<UUID,com.game_manager.gm.gamingsession.GamingSession>of()
-                : sessions.findLatestCandidates(profiles.keySet()).stream().collect(Collectors.toMap(value -> value.getResourceId(), value -> value, (first, ignored) -> first));
+        var states = enforcementStates.states(ids);
+        var latest = sessions.latest(profiles.keySet());
         Instant now = clock.instant();
         var rows = values.stream().map(value -> {
             var reference = references.get(value.getId());
@@ -111,11 +102,11 @@ public class CalendarContextService {
             // Current observations only: these do not invent historical maintenance intervals
             // or change the authoritative booking/session admission policies.
             if (restriction == null && station != null && station.isClientEnabled()) {
-                if (lastSession != null && lastSession.getStatus() != GamingSessionStatus.ACTIVE
-                        && (state == null || !lastSession.getId().equals(state.getSessionId()) || state.getEnforcementStatus() != StationEnforcementStatus.LOCKED))
+                if (lastSession != null && !"ACTIVE".equals(lastSession.status())
+                        && (state == null || !lastSession.id().equals(state.sessionId()) || !"LOCKED".equals(state.status())))
                     restriction = "STATION_LOCK_PENDING";
                 else if (state != null && !activeIds.contains(value.getId())
-                        && state.getEnforcementStatus() != StationEnforcementStatus.LOCKED && state.getEnforcementStatus() != StationEnforcementStatus.UNKNOWN)
+                        && !"LOCKED".equals(state.status()) && !"UNKNOWN".equals(state.status()))
                     restriction = "STATION_LOCK_PENDING";
                 else if (station.getLastHeartbeatAt() == null || !station.getLastHeartbeatAt().plusSeconds(station.getOfflineGraceSeconds()).isAfter(now))
                     restriction = "STATION_CLIENT_OFFLINE";

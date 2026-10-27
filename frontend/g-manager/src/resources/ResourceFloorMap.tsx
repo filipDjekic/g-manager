@@ -1,3 +1,4 @@
+import { useResettableState } from '../components/useResettableState'
 import { useEffect, useId, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { resourceApi } from '../api/resourceApi'
@@ -28,10 +29,9 @@ export function ResourceFloorMap({plan,geometry,areas,resources,areaId,editing,o
   const current=editing?draft:geometry
   const bounds=useMemo(()=>mapBounds(current,areas,resources,positions,editing?'':areaId),[current,areas,resources,positions,editing,areaId])
   const {x:fitX,y:fitY,width:fitWidth,height:fitHeight}=bounds
-  const [view,setView]=useState(bounds)
+  const [view,setView]=useResettableState(() => bounds, editing ? 'editing' : JSON.stringify([fitX,fitY,fitWidth,fitHeight]))
   const [preview,setPreview]=useState<{start:Point;end:Point}|null>(null)
   const dirty=editing&&(JSON.stringify(draft)!==JSON.stringify(geometry)||Object.keys(positions).length>0)
-  useEffect(()=>{if(!editing)setView({x:fitX,y:fitY,width:fitWidth,height:fitHeight})},[fitX,fitY,fitWidth,fitHeight,editing])
   useEffect(()=>{
     if(!dirty)return
     const prevent=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue=''}
@@ -159,7 +159,7 @@ export function ResourceFloorMap({plan,geometry,areas,resources,areaId,editing,o
       {tools.map(item=><Button key={item.id} variant="secondary" aria-pressed={tool===item.id} disabled={busy} onClick={()=>{setTool(item.id);setMessage('')}}>{item.label}</Button>)}
       {['room','wall','door'].includes(tool)&&<Button variant="secondary" disabled={busy} onClick={addAtCenter}>Dodaj u centar</Button>}
       <Button loading={busy} onClick={()=>void save()}>Sačuvaj</Button><Button variant="secondary" disabled={busy} onClick={onFinish}>Otkaži</Button>
-      {tool==='resource'&&<label>Postojeći resurs<Select disabled={busy} value={placing} onChange={event=>setPlacing(event.target.value)}><option value="">Izaberite resurs</option>{resources.filter(resource=>baseline.has(resource.id)).map(resource=><option key={resource.id} value={resource.id}>{resource.name} · {resource.areaName}</option>)}</Select></label>}
+      {tool==='resource'&&<label>Postojeći resurs<Select aria-label={"Postojeći resurs"} disabled={busy} value={placing} onChange={event=>setPlacing(event.target.value)}><option value="">Izaberite resurs</option>{resources.filter(resource=>baseline.has(resource.id)).map(resource=><option key={resource.id} value={resource.id}>{resource.name} · {resource.areaName}</option>)}</Select></label>}
     </div>}
     {error&&<p className="error-banner" role="alert">{error}</p>}{message&&<p className="resource-map-hint" role="status">{message}</p>}
     <div className={`resource-map-canvas${editing?' is-editing':''}`}>

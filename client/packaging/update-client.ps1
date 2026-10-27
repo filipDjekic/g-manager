@@ -11,9 +11,9 @@ try{
     if($status.State.Mode -eq 2 -or $status.State.Mode -eq 1){if($Automatic){return};throw 'Stanica ima aktivnu sesiju. Završite je ili lokalno aktivirajte maintenance.'}
     $backend=Assert-Https $config.Backend.BaseUrl
     $metadata=Get-HttpsJson ([uri]::new($backend,'api/v1/stations/client-package').AbsoluteUri)
-    if($metadata.status -ne 'RELEASED'){return}
+    if($metadata.status -ne 'RELEASED'){if(!$Automatic){Write-Host 'Server trenutno nema objavljeno produkciono izdanje.'};return}
     if($metadata.version -notmatch '^\d+\.\d+\.\d+(\.\d+)?$' -or $metadata.sha256 -notmatch '^[a-fA-F0-9]{64}$'){throw 'Neispravni release metapodaci.'}
-    if([version]$metadata.version -le [version]$config.Client.Version){return}
+    if([version]$metadata.version -le [version]$config.Client.Version){if(!$Automatic){Write-Host 'Instalirana je aktuelna ili novija verzija Client-a.'};return}
     if($metadata.signingSubject -cne $config.Package.SigningSubject){throw 'Izdavač paketa nije lokalno odobren.'}
     Write-Operation 'UPDATE_BEGIN' $metadata.version
     Write-AtomicJson (Join-Path $script:ClientState 'update-status.json') @{status='DOWNLOADING';timestamp=[DateTimeOffset]::UtcNow.ToString('o')}
@@ -23,6 +23,8 @@ try{
     if((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ine $metadata.sha256){throw 'SHA-256 preuzetog paketa se ne podudara.'}
     Expand-ClientPackage $archive $candidate
     $manifest=Assert-Package $candidate $config.Package.SigningSubject $config.Package.SigningThumbprint
+    $installedManifest=Get-Content -LiteralPath (Join-Path $script:ClientRoot 'release.json') -Raw|ConvertFrom-Json
+    if($manifest.runtime -ne $installedManifest.runtime){throw 'Arhitektura novog paketa ne odgovara instaliranom Client-u. Koristite odgovarajući potpisani release.'}
     if($manifest.version -ne $metadata.version){throw 'Verzija potpisanog paketa i servera se ne podudara.'}
     # Recheck after download: never interrupt a newly started customer session.
     $status=Invoke-ClientPipe 'status'

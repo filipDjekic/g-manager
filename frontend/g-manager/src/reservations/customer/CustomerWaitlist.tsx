@@ -1,7 +1,8 @@
 import { Badge, Button, EmptyState, ErrorState, Skeleton } from '../../components/ui'
 import type { WaitlistEntry } from '../../types/waitlist.types'
 import { formatBusinessDateTime, formatBusinessIntervalEnd } from '../dateTime'
-import { CustomerReservationIcon, customerReservationError } from './customerPresentation'
+import { CustomerReservationIcon } from './customerPresentation'
+import { customerReservationError } from './customerPresentation.model'
 
 export function CustomerWaitlist({ entries, now, synchronized, loading, fetching, error, pending, linkedOffer, onRefresh, onAccept, onCancel, onBook }: {
   entries: WaitlistEntry[]; now: number; synchronized: boolean; loading: boolean; fetching: boolean; error: unknown; pending: string; linkedOffer: string | null

@@ -5,7 +5,7 @@ import { reservationApi } from '../api/reservationApi'
 import { Button } from '../components/ui'
 import { queryKeys } from '../query/queryKeys'
 import type { Reservation, ReservationDetailAction } from '../types/reservation.types'
-import { reservationActionLabels } from './ReservationIcon'
+import { reservationActionLabels } from './ReservationIcon.model'
 
 export function ReservationRowActions({ reservation, disabled, onAction }: {
   reservation: Reservation; disabled: boolean

@@ -1,5 +1,6 @@
+import { useResettableState } from '../components/useResettableState'
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { apiErrorMessage } from '../api/client'
 import { resourceApi } from '../api/resourceApi'
@@ -22,11 +23,11 @@ import '../resources/resources.css'
 type EditorState={kind:ResourceEditorKind;initial?:LocationView|AreaView|ResourceView;areaId?:string}
 export function ResourcesPage() {
   const navigate=useNavigate(),actor=useAuthStore(state=>state.user),manage=hasCapability(actor,'RESOURCE_MANAGE')&&actor?.role!=='CUSTOMER'
-  const [params,setParams]=useSearchParams(),[editing,setEditing]=useState(false),[savedNotice,setSavedNotice]=useState('')
+  const [params,setParams]=useSearchParams(),[editing,setEditing]=useResettableState(()=>false,JSON.stringify([params.get('locationId'), params.get('areaId')])),[savedNotice,setSavedNotice]=useState('')
   const chosenLocation=params.get('locationId')??'',chosenArea=params.get('areaId')??''
   const [start,setStart]=useState(()=>businessInstantToLocal(new Date(Date.now()+3600000).toISOString()))
-  const [editor,setEditor]=useState<EditorState|null>(null),[showEmployees,setShowEmployees]=useState(false)
-  const [resourceEmployees,setResourceEmployees]=useState<{id:string;name:string}|null>(null)
+  const [editor,setEditor]=useResettableState<EditorState|null>(()=>null,JSON.stringify([params.get('locationId'), params.get('areaId')])),[showEmployees,setShowEmployees]=useResettableState(()=>false,JSON.stringify([params.get('locationId'), params.get('areaId')]))
+  const [resourceEmployees,setResourceEmployees]=useResettableState<{id:string;name:string}|null>(()=>null,JSON.stringify([params.get('locationId'), params.get('areaId')]))
   const locations=useQuery({queryKey:['resources','locations'],queryFn:resourceApi.locations,enabled:!editing})
   const visibleLocations=useMemo(()=>locations.data?.filter(value=>manage||value.active)??[],[locations.data,manage])
   const locationId=visibleLocations.some(value=>value.id===chosenLocation)?chosenLocation:visibleLocations[0]?.id??''
@@ -50,7 +51,6 @@ export function ResourcesPage() {
   const mapLoading=floorPlan.isLoading||availability.some(query=>query.isLoading)
   const mapReady=!!floorPlan.data&&!!geometry&&!!interval&&availability.every(query=>!!query.data)
   const canEdit=manage&&mapReady&&!areas.isLoading&&!areas.error&&!floorPlan.error&&!availabilityError&&visibleAreas.length>0&&!metadataError&&metadata.every(query=>!!query.data&&!query.isFetching)
-  useEffect(()=>{setEditing(false);setEditor(null);setShowEmployees(false);setResourceEmployees(null)},[chosenLocation,chosenArea])
 
   function setLocation(id:string) {
     setParams(current=>{const next=new URLSearchParams(current);next.set('locationId',id);next.delete('areaId');next.delete('resourceId');next.delete('resourcePage');return next})
@@ -92,9 +92,9 @@ export function ResourcesPage() {
     <header className="resource-page-header"><span className="resource-header-icon"><ResourceIcon/></span><div><h1>Mapa resursa</h1><p>Vizuelni prikaz i upravljanje rasporedom lokala, zona i resursa.</p></div></header>
     {locations.isLoading?<Skeleton lines={4} label="Učitavanje lokacija"/>:locations.error?<ErrorState message={apiErrorMessage(locations.error,'Lokacije nisu dostupne.')} action={<Button onClick={()=>void locations.refetch()}>Pokušaj ponovo</Button>}/>:!visibleLocations.length?<EmptyState title="Nema dostupnih lokacija" description="Dodajte lokaciju, zatim zone i resurse." action={manage&&<Button onClick={()=>setEditor({kind:'LOCATION'})}>Dodaj prvu lokaciju</Button>}/>:<>
       <section className="resource-context-panel" aria-label="Izbor prostora i intervala">
-        <div className="resource-context-fields"><label>Lokal<Select value={locationId} disabled={editing} onChange={event=>setLocation(event.target.value)}>{visibleLocations.map(value=><option key={value.id} value={value.id}>{value.name}{!value.active?' · neaktivan':''}</option>)}</Select></label>
-          <label>Zona<Select value={areaId||'all'} disabled={editing||areas.isLoading||!visibleAreas.length} onChange={event=>setArea(event.target.value)}><option value="all">Sve zone</option>{visibleAreas.map(value=><option key={value.id} value={value.id}>{value.name}{!value.active?' · neaktivna':''}</option>)}</Select></label>
-          <label>Početak intervala<Input type="datetime-local" required value={start} disabled={editing} onChange={event=>{setStart(event.target.value);details(null)}}/></label>
+        <div className="resource-context-fields"><label>Lokal<Select aria-label={"Lokal"} value={locationId} disabled={editing} onChange={event=>setLocation(event.target.value)}>{visibleLocations.map(value=><option key={value.id} value={value.id}>{value.name}{!value.active?' · neaktivan':''}</option>)}</Select></label>
+          <label>Zona<Select aria-label={"Zona"} value={areaId||'all'} disabled={editing||areas.isLoading||!visibleAreas.length} onChange={event=>setArea(event.target.value)}><option value="all">Sve zone</option>{visibleAreas.map(value=><option key={value.id} value={value.id}>{value.name}{!value.active?' · neaktivna':''}</option>)}</Select></label>
+          <label>Početak intervala<Input aria-label={"Početak intervala"} type="datetime-local" required value={start} disabled={editing} onChange={event=>{setStart(event.target.value);details(null)}}/></label>
         </div>
         {manage&&<div className="resource-context-actions"><Button variant="secondary" disabled={editing} onClick={()=>setShowEmployees(true)}>Zaposleni na lokaciji</Button><ResourceMenu label="Upravljanje prostorom" disabled={editing} actions={managementActions}>Upravljaj prostorom <span aria-hidden="true">⌄</span></ResourceMenu></div>}
         <p className="resource-interval-note">Dostupnost za izabrani početak i narednih 60 minuta · Europe/Belgrade.{manage&&!area&&' Za novi resurs ili izmenu zone izaberite pojedinačnu zonu.'}</p>

@@ -1,9 +1,12 @@
+import { ToastProvider } from '../components/ui'
+import { useAuthStore } from '../auth/authStore'
+import { authUser } from '../test/fixtures'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { HttpResponse, delay, http } from 'msw'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { server } from '../test/server'
 import { MyReservationsPage } from './MyReservationsPage'
 
@@ -16,7 +19,7 @@ const employee = { id: 'employee-1', name: 'Ana', email: 'ana@example.test', rol
 
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(<QueryClientProvider client={client}><MemoryRouter><MyReservationsPage /></MemoryRouter></QueryClientProvider>)
+  return render(<ToastProvider><QueryClientProvider client={client}><MemoryRouter initialEntries={['/my-reservations?booking=new']}><MyReservationsPage /></MemoryRouter></QueryClientProvider></ToastProvider>)
 }
 
 function baseHandlers() {
@@ -29,12 +32,14 @@ function baseHandlers() {
 }
 
 async function selectDate(user: ReturnType<typeof userEvent.setup>) {
-  await user.selectOptions(await screen.findByLabelText('Usluga'), 'service-1')
+  await screen.findByRole('option', { name: /Masaža/ })
+  await user.selectOptions(screen.getByLabelText('Usluga'), 'service-1')
   await user.selectOptions(screen.getByLabelText('Zaposleni'), 'ANY')
   await user.type(screen.getByLabelText('Datum'), '2028-03-16')
 }
 
 describe('MyReservationsPage slot booking', () => {
+  beforeEach(() => useAuthStore.setState({ user: authUser('CUSTOMER'), accessToken: 'token', isInitializing: false }))
   it('shows loading/error and retries availability before keyboard review', async () => {
     const user = userEvent.setup()
     let calls = 0
@@ -50,15 +55,15 @@ describe('MyReservationsPage slot booking', () => {
     renderPage()
     await selectDate(user)
 
-    expect(await screen.findByLabelText('Učitavanje dostupnih termina')).toBeVisible()
+    expect(await screen.findByLabelText('Provera dostupnosti termina')).toBeVisible()
     expect(await screen.findByText('Dostupne termine nije moguće učitati.')).toBeVisible()
     await user.click(screen.getByRole('button', { name: 'Pokušaj ponovo' }))
     const slot = await screen.findByRole('radio')
     slot.focus()
     await user.keyboard(' ')
     expect(slot).toBeChecked()
-    expect(screen.getByRole('heading', { name: 'Proverite termin' })).toBeVisible()
-    expect(screen.getByText('Bilo koji slobodan zaposleni')).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Proverite rezervaciju' })).toBeVisible()
+    expect(screen.getByText('Bilo koji slobodan zaposleni', { selector: 'dd' })).toBeVisible()
   })
 
   it('joins a concrete occupied slot while other slots remain available', async () => {
@@ -80,11 +85,12 @@ describe('MyReservationsPage slot booking', () => {
         offerExpiresAt: null, reservationId: null, version: 0 }, { status: 201 })
     }))
     renderPage()
-    await user.selectOptions(await screen.findByLabelText('Usluga'), 'service-1')
+    await screen.findByRole('option', { name: /Masaža/ })
+  await user.selectOptions(screen.getByLabelText('Usluga'), 'service-1')
     await user.selectOptions(screen.getByLabelText('Zaposleni'), 'employee-1')
     await user.type(screen.getByLabelText('Datum'), '2028-03-16')
-    const occupied = await screen.findByRole('radio', { name: /Prijavi se na listu čekanja/ })
-    expect(screen.getByRole('radio', { name: /Rezerviši termin/ })).toBeVisible()
+    const occupied = await screen.findByRole('radio', { name: /Zauzet/ })
+    expect(screen.getByRole('radio', { name: /Slobodan/ })).toBeVisible()
     await user.click(occupied)
     await user.click(screen.getByRole('button', { name: 'Prijavi se na listu čekanja' }))
     await waitFor(() => expect(joined).toBe(true))
@@ -110,15 +116,16 @@ describe('MyReservationsPage slot booking', () => {
       return HttpResponse.json({ seriesId: 'series-1', created: [{ id: 'reservation-1', startTime: '2028-03-16T09:00:00Z', endTime: '2028-03-16T10:00:00Z' }], skipped: [{ startTime: '2028-03-23T09:00:00Z', endTime: '2028-03-23T10:00:00Z', available: false, reason: 'Zauzeto' }] }, { status: 201 })
     }))
     renderPage()
-    await user.selectOptions(await screen.findByLabelText('Usluga'), 'service-1')
+    await screen.findByRole('option', { name: /Masaža/ })
+  await user.selectOptions(screen.getByLabelText('Usluga'), 'service-1')
     await user.selectOptions(screen.getByLabelText('Zaposleni'), 'employee-1')
     await user.type(screen.getByLabelText('Datum'), '2028-03-16')
     await user.click(await screen.findByRole('radio'))
-    await user.click(screen.getByLabelText('Ponavljajući termini'))
+    await user.click(screen.getByText('Ponavljajući termin', { selector: 'summary' }))
     expect(screen.getByRole('button', { name: 'Kreiraj seriju' })).toBeDisabled()
     expect(await screen.findByText(/Konflikt: Zauzeto/)).toBeVisible()
     expect(screen.getByRole('button', { name: 'Kreiraj seriju' })).toBeDisabled()
-    await user.selectOptions(screen.getByLabelText('Konflikti'), 'SKIP_CONFLICTS')
+    await user.selectOptions(screen.getByLabelText('Politika konflikata'), 'SKIP_CONFLICTS')
     await waitFor(() => expect(screen.getByRole('button', { name: 'Kreiraj seriju' })).toBeEnabled())
     await user.click(screen.getByRole('button', { name: 'Kreiraj seriju' }))
     await waitFor(() => expect(idempotencyKey).not.toBe(''))

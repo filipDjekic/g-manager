@@ -8,20 +8,14 @@ import { Button, Card, EmptyState, ErrorState } from '../components/ui'
 import { useToast } from '../components/ui/toastContext'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useDirtyGuard } from '../forms/useDirtyGuard'
-import {
-  NotificationChannels, NotificationIcon, NotificationPreferencesHeading,
-  NotificationPreferencesLoading, NotificationTypes,
-} from '../notification/NotificationPreferenceControls'
-import {
-  activePreferences, changedPreferences, mergePreferences, normalizePreference,
-  type NotificationChannel,
-} from '../notification/notificationPreferences'
+import { NotificationChannels, NotificationIcon, NotificationPreferencesHeading, NotificationPreferencesLoading, NotificationTypes } from '../notification/NotificationPreferenceControls'
+import { activePreferences, changedPreferences, mergePreferences, normalizePreference, type NotificationChannel } from '../notification/notificationPreferences'
 import type { NotificationPreference, NotificationType } from '../types/notification.types'
 import '../notification/notificationPreferences.css'
 
 export function NotificationPreferencesPage() {
   const actor = useAuthStore(state => state.user)
-  if (!actor || !hasCapability(actor, 'PROFILE_READ')) return <main className="workspace gm-notification-preferences">
+  if (!actor || !hasCapability(actor, 'PROFILE_READ')) return <main className="workspace workspace--reading gm-notification-preferences">
     <NotificationPreferencesHeading />
     <ErrorState title="Pristup nije dozvoljen" message="Nemate dozvolu za pregled podešavanja obaveštenja." />
   </main>
@@ -52,6 +46,8 @@ function PreferencesWorkspace({ actorId }: { actorId: string }) {
   useEffect(() => {
     let active = true
     const current = () => active && useAuthStore.getState().user?.id === actorId
+    // Explicit reload starts a new external request and clears the previous failure before its asynchronous response.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true); setLoadError('')
     void notificationApi.preferences().then(values => {
       if (!current()) return
@@ -165,7 +161,7 @@ function PreferencesWorkspace({ actorId }: { actorId: string }) {
     })
   }
 
-  return <main className="workspace gm-notification-preferences">
+  return <main className="workspace workspace--reading gm-notification-preferences">
     <NotificationPreferencesHeading actions={<Button type="button" className="gm-notification-save"
       loading={saving} disabled={loading || !dirty} onClick={() => void save()}>
       <NotificationIcon kind="save" />Sačuvaj promene

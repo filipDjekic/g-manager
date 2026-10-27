@@ -1,17 +1,13 @@
-import {
-  cloneElement, forwardRef, isValidElement, useEffect, useId, useRef,
-  type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode,
-  type SelectHTMLAttributes, type TextareaHTMLAttributes,
-} from 'react'
+import { cloneElement, forwardRef, isValidElement, useEffect, useId, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 import { createPortal } from 'react-dom'
 import './ui.css'
 export { ToastProvider } from './ToastProvider'
 
 export const Button = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'primary' | 'secondary' | 'danger'; loading?: boolean
-}>(function Button({ variant = 'primary', loading = false, disabled, children, className = '', ...props }, ref) {
+  variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost'; loading?: boolean; iconOnly?: boolean
+}>(function Button({ variant = 'primary', loading = false, disabled, children, className = '', iconOnly = false, type = 'button', ...props }, ref) {
   return <button ref={ref} className={`ui-button ui-button--${variant} ${className}`}
-    disabled={disabled || loading} aria-busy={loading || undefined} {...props}>
+    type={type} disabled={disabled || loading} aria-busy={loading || undefined} data-icon-only={iconOnly || undefined} {...props}>
     {loading ? <><span className="ui-spinner" aria-hidden="true" />{children}</> : children}
   </button>
 })
@@ -38,14 +34,16 @@ export function FormField({ label, htmlFor, error, hint, children }: {
   const errorId = `${htmlFor}-error`
   const descriptionIds = [hint && !error ? hintId : '', error ? errorId : ''].filter(Boolean).join(' ') || undefined
   const control = isValidElement<Record<string, unknown>>(children)
-    ? cloneElement(children, { 'aria-describedby': descriptionIds, 'aria-invalid': Boolean(error) || undefined })
+    ? cloneElement(children, { id: children.props.id ?? htmlFor,
+      'aria-describedby': [children.props['aria-describedby'], descriptionIds].filter(Boolean).join(' ') || undefined,
+      'aria-invalid': Boolean(error) || undefined })
     : children
-  return <label className="ui-field" htmlFor={htmlFor}>
-    <span>{label}</span>
+  return <div className="ui-field">
+    <label htmlFor={htmlFor}>{label}</label>
     <span className="ui-field-control">{control}</span>
     {hint && !error && <span id={hintId} className="ui-field-hint">{hint}</span>}
     <span id={errorId} className="field-error" role={error ? 'alert' : undefined}>{error}</span>
-  </label>
+  </div>
 }
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
@@ -57,33 +55,35 @@ export function TableShell({ label, children }: { label: string; children: React
 }
 
 export function Pagination({ page, totalPages = 1, onPageChange, loading = false, numbered = false,
-  totalElements = 0, pageSize = 10 }: {
+  totalElements, pageSize = 10, onPageSizeChange, pageSizes = [10, 20, 50, 100], label = 'Stranice rezultata', disabled = false }: {
   page: number; totalPages?: number; onPageChange: (page: number) => void; loading?: boolean
-  numbered?: boolean; totalElements?: number; pageSize?: number
+  numbered?: boolean; totalElements?: number; pageSize?: number; label?: string; disabled?: boolean
+  onPageSizeChange?: (size: number) => void; pageSizes?: readonly number[]
 }) {
-  const pages = Math.max(totalPages, 1)
-  if (numbered) {
-    const start = Math.max(0, Math.min(page - 2, pages - 5))
-    const visible = [...new Set([0, ...Array.from({ length: Math.min(5, pages) }, (_, index) => start + index), pages - 1])]
-      .sort((first, second) => first - second)
-    return <div className="pagination-numbered">
-      <span className="pagination-result-count" aria-live="polite">Prikazano {totalElements ? page * pageSize + 1 : 0}–{Math.min((page + 1) * pageSize, totalElements)} od {totalElements} rezervacija</span>
-      <nav className="pagination" aria-label="Stranice rezervacija">
-        <Button type="button" variant="secondary" disabled={loading || page <= 0} onClick={() => onPageChange(page - 1)}>Prethodna</Button>
-        {visible.map((number, index) => <span className="pagination-page" key={number}>
-          {index > 0 && number - visible[index - 1] > 1 && <span aria-hidden="true">…</span>}
-          <Button type="button" variant="secondary" disabled={loading} aria-label={`Stranica ${number + 1}`}
-            aria-current={page === number ? 'page' : undefined} onClick={() => onPageChange(number)}>{number + 1}</Button>
-        </span>)}
-        <Button type="button" variant="secondary" disabled={loading || page + 1 >= pages} onClick={() => onPageChange(page + 1)}>Sledeća</Button>
-      </nav>
+  const pages = Math.max(1, Number.isFinite(totalPages) ? Math.floor(totalPages) : 1)
+  const current = Math.max(0, Math.min(Number.isSafeInteger(page) ? page : 0, pages - 1))
+  const busy = loading || disabled
+  useEffect(() => {
+    if (!busy && current !== page) onPageChange(current)
+  }, [busy, current, page, onPageChange])
+  const start = Math.max(0, Math.min(current - 1, pages - 3))
+  const visible = [...new Set([0, ...Array.from({ length: Math.min(3, pages) }, (_, index) => start + index), pages - 1])].sort((a, b) => a - b)
+  return <div className="ui-pagination" aria-busy={loading || undefined}>
+    <div className="ui-pagination-summary"><span aria-live="polite">{totalElements !== undefined && <>Prikazano {totalElements ? Math.min(current * pageSize + 1, totalElements) : 0}–{Math.min((current + 1) * pageSize, totalElements)} od {totalElements} rezultata · </>}Stranica {current + 1} od {pages}</span>
+      {onPageSizeChange && <label>Po stranici<Select aria-label={"Po stranici"} value={pageSize} disabled={busy} onChange={event => onPageSizeChange(Number(event.target.value))}>
+        {[...new Set([...pageSizes, pageSize])].sort((a, b) => a - b).map(size => <option key={size} value={size}>{size}</option>)}
+      </Select></label>}
     </div>
-  }
-  return <nav className="pagination" aria-label="Stranice rezultata">
-    <Button type="button" variant="secondary" disabled={loading || page <= 0} onClick={() => onPageChange(page - 1)}>Prethodna</Button>
-    <span aria-live="polite">Strana {page + 1} od {pages}</span>
-    <Button type="button" variant="secondary" disabled={loading || page + 1 >= pages} onClick={() => onPageChange(page + 1)}>Sledeća</Button>
-  </nav>
+    <nav className="ui-pagination-controls" aria-label={label}>
+      <Button variant="secondary" disabled={busy || current === 0} onClick={() => onPageChange(current - 1)}>Prethodna</Button>
+      {numbered && visible.map((number, index) => <span className="ui-pagination-page" key={number}>
+        {index > 0 && number - visible[index - 1] > 1 && <span aria-hidden="true">…</span>}
+        <Button variant="secondary" disabled={busy} aria-current={current === number ? 'page' : undefined}
+          aria-label={`Stranica ${number + 1}`} onClick={() => onPageChange(number)}>{number + 1}</Button>
+      </span>)}
+      <Button variant="secondary" disabled={busy || current + 1 >= pages} onClick={() => onPageChange(current + 1)}>Sledeća</Button>
+    </nav>
+  </div>
 }
 
 const dialogStack: HTMLElement[] = []
@@ -135,6 +135,8 @@ function DialogSurface({ title, children, onClose, className = '', initialFocusR
       'a[href], button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
     )).filter((element) => element.tabIndex >= 0 && !element.matches(':disabled') && !element.closest('[hidden], [inert]') && element.getClientRects().length > 0
       && getComputedStyle(element).visibility !== 'hidden')
+      .sort((first, second) => (first.tabIndex || Infinity) - (second.tabIndex || Infinity)
+        || (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
     const requestedFocus = initialFocusRef?.current ?? closeRef.current
     const initialFocus = requestedFocus && !requestedFocus.matches(':disabled') && !requestedFocus.closest('[inert]')
       ? requestedFocus : focusable()[0] ?? surface

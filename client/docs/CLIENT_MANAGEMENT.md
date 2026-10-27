@@ -1,4 +1,4 @@
-﻿# Upravljanje G-Manager Windows Client-om
+# Upravljanje G-Manager Windows Client-om
 
 Komande ispod pokreću se iz CMD-a. Zamenite vrednosti servera, javnog policy ključa, key ID-a, subject-a i thumbprint-a stvarnim deployment vrednostima. Privatni Ed25519 ključ ostaje isključivo na backendu.
 
@@ -103,3 +103,24 @@ Legacy instalacije starih skripti, koje su već globalno menjale Chrome/NTFS/App
 Backend/frontend deployment zahteva novu migraciju `V41__client_management_telemetry.sql`. Stations prikazuje poslednje prijavljeno stanje i označava offline podatke. Pravo `STATION_READ` proverava backend; lokalno održavanje nema udaljeni flag za isključivanje zaštite.
 
 Offline repair proverava instalirani potpisani file manifest i, ako su fajlovi oštećeni, koristi samo kompletnu pouzdanu kopiju iz prethodne instalacije ili zaštićenog update cache-a. Ako takva kopija ne postoji, potreban je novi potpisani Setup paket; nijedan zamenski paket se ne konstruiše. Rotacija pinovanog signing sertifikata/lokalnog CA radi se deinstalacijom bez `-PurgeData`, pa instalacijom novog pouzdanog izdanja uz očuvan identitet.
+
+
+## Setup i zaseban administratorski panel (audit izdanje)
+
+Pri sledećem potpisanom publish-u ZIP uključuje `GManager-Setup.cmd` i `GManager-Management.ps1`. Iz zasebne Windows administratorske sesije pokrenite `GManager-Setup.cmd` kroz **Run as administrator**. Setup redom prikazuje System Check, Server Configuration, Installation, Station Enrollment, Verification i Finish. Interaktivno prikuplja odobreni code-signing subject/thumbprint, postojeći standardni nalog igrača, javni Ed25519 policy ključ/key ID i HTTPS backend adresu; enrollment token se i dalje unosi skriveno i prenosi kroz stdin. Parametarski Setup ostaje podržan za postojeće deployment procedure. AllSigned, CMS/file manifest, pin izdavača i eksplicitna CA potvrda ostaju obavezni.
+
+Posle instalacije, iz povišene administratorske sesije:
+
+```cmd
+"%ProgramFiles%\GManager Client\gmanagerctl.cmd" manage
+```
+
+Panel prikazuje verziju, Windows servis, poslednju potvrđenu backend vezu, postojanje enrollment identiteta, maintenance lease i update status. Dostupne su akcije Update, Restart, Exit, Enable/Disable Maintenance, Diagnostics i Uninstall. Panel odbija nalog igrača i ne koristi web OWNER/ADMIN ulogu kao Windows ovlašćenje. Sve promene izvršavaju postojeće lokalne CLI/pipe provere; korisnik ne može uneti proizvoljnu komandu ili zamenski update paket. Prozor ostaje otvoren dok traje operacija i prikazuje razumljiv rezultat.
+
+`Exit Client` / `gmanagerctl.cmd exit` aktivira ograničeni maintenance lease, odjavljuje nalog igrača i zatvara Shell. Service ostaje aktivan u normalnom toku; expiry/recovery zadaci vraćaju zaštitu. Aktivnu gaming sesiju prethodno završite u autorizovanom web interfejsu. Prekinuta sesija ostaje blokirana za lokalni nastavak do usaglašavanja sa backendom.
+
+Uninstall u panelu traži potvrdu i podrazumevano čuva identitet i konfiguraciju. Trajno brisanje zahteva poseban izbor, unos `OBRISI` i dodatni confirmation dialog. CLI `-PurgeData` zadržava interaktivnu potvrdu; panel prosleđuje `-PurgeConfirmation OBRISI` tek nakon lokalne eksplicitne potvrde. To nije kredencijal i ne zamenjuje obaveznu Windows administratorsku proveru.
+
+Updater dodatno odbija promenu arhitekture u odnosu na instalirani potpisani manifest. Rollback prve instalacije vraća sopstvena Windows pravila pre uklanjanja recovery zadataka; neuspešan povratak zato ostaje ponovljiv.
+
+Izvorne izmene ne ažuriraju raniji ZIP. Novo izdanje i dalje mora napraviti release administrator sa odobrenim code-signing sertifikatom preko `publish.ps1`. Instalaciju, AppLocker, restart stanice, update/rollback i deinstalaciju proveriti na namenskoj test stanici; razvojni računar nije korišćen za primenu tih Windows promena.

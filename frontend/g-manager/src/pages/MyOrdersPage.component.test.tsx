@@ -27,8 +27,9 @@ function renderPage() {
 }
 
 function catalog(items = [product]) {
-  return http.get('/api/v1/catalog', () => HttpResponse.json({ ...emptyPage, size: 100, content: items,
-    totalElements: items.length, totalPages: items.length ? 1 : 0 }))
+  return [http.get('/api/v1/catalog', () => HttpResponse.json({ ...emptyPage, size: 100, content: items,
+    totalElements: items.length, totalPages: items.length ? 1 : 0 })),
+    http.get('/api/v1/catalog/:id', ({ params }) => { const found = items.find(item => item.id === params.id); return found ? HttpResponse.json(found) : HttpResponse.json({ message: 'Unavailable' }, { status: 404 }) })]
 }
 
 describe('MyOrdersPage persistent checkout', () => {
@@ -41,7 +42,7 @@ describe('MyOrdersPage persistent checkout', () => {
 
   it('restores the cart, uses current catalog price and submits only once with server-confirmed total', async () => {
     let creates = 0
-    server.use(catalog(), http.get('/api/v1/orders/me', () => HttpResponse.json(emptyPage)),
+    server.use(...catalog(), http.get('/api/v1/orders/me', () => HttpResponse.json(emptyPage)),
       http.post('/api/v1/orders', async ({ request }) => {
         creates += 1
         expect(await request.json()).toEqual({ items: [{ productId: 'product-1', quantity: 2 }] })
@@ -53,10 +54,11 @@ describe('MyOrdersPage persistent checkout', () => {
     renderPage()
 
     expect(await screen.findByLabelText('Količina za Šampon')).toHaveValue(2)
-    expect(screen.getAllByText('300.00 RSD')).toHaveLength(2)
-    const submit = screen.getByRole('button', { name: 'Pošalji narudžbinu' })
+    expect(screen.getAllByText(/300,00\s*RSD/).length).toBeGreaterThanOrEqual(2)
+    await userEvent.click(screen.getByRole('button', { name: 'Pošalji narudžbinu' }))
+    const submit = screen.getByRole('button', { name: 'Potvrdi slanje' })
     await Promise.all([userEvent.click(submit), userEvent.click(submit)])
-    expect(await screen.findByText(/Server je potvrdio ukupno 300.00 RSD/)).toBeVisible()
+    expect(await screen.findByText(/Potvrđeno ukupno: 300,00/)).toBeVisible()
     expect(creates).toBe(1)
     await waitFor(() => expect(deleteDraft).toHaveBeenCalled())
   })
@@ -65,7 +67,7 @@ describe('MyOrdersPage persistent checkout', () => {
     vi.mocked(loadDraft).mockResolvedValue({ inactive: 1, 'product-1': 1 })
     let creates = 0
     const keys: string[] = []
-    server.use(catalog(), http.get('/api/v1/orders/me', () => HttpResponse.json(emptyPage)),
+    server.use(...catalog(), http.get('/api/v1/orders/me', () => HttpResponse.json(emptyPage)),
       http.post('/api/v1/orders', async ({ request }) => {
         creates += 1
         keys.push(request.headers.get('Idempotency-Key') ?? '')
@@ -76,12 +78,13 @@ describe('MyOrdersPage persistent checkout', () => {
       }))
     renderPage()
 
-    expect(await screen.findByText('Nedostupni proizvodi su uklonjeni iz korpe.')).toBeVisible()
+    expect(await screen.findByText('Proizvodi za koje je potvrđeno da nisu dostupni uklonjeni su iz korpe.')).toBeVisible()
     await userEvent.click(screen.getByRole('button', { name: 'Pošalji narudžbinu' }))
-    expect(await screen.findByText(/Podaci su promenjeni/)).toBeVisible()
-    expect(screen.getByText('Šampon × 1')).toBeVisible()
-    await userEvent.click(screen.getByRole('button', { name: 'Pošalji narudžbinu' }))
-    expect(await screen.findByText(/Server je potvrdio ukupno 150.00 RSD/)).toBeVisible()
+    await userEvent.click(screen.getByRole('button', { name: 'Potvrdi slanje' }))
+    expect((await screen.findAllByText(/Zatvorite potvrdu/))[0]).toBeVisible()
+    expect(screen.getByLabelText('Količina za Šampon')).toHaveValue(1)
+    await userEvent.click(screen.getByRole('button', { name: 'Potvrdi slanje' }))
+    expect(await screen.findByText(/Potvrđeno ukupno: 150,00/)).toBeVisible()
     expect(keys[0]).not.toBe(keys[1])
   })
 })

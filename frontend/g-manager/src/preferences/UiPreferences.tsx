@@ -1,7 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import {
-  UiPreferencesContext, type Density, type Preferences, type Theme,
-} from './uiPreferencesContext'
+import { UiPreferencesContext, type Density, type Preferences, type Theme } from './uiPreferencesContext'
 
 const STORAGE_KEY = 'gmanager.ui-preferences.v1'
 

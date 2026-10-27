@@ -10,9 +10,11 @@ import { queryKeys } from '../query/queryKeys'
 import { ReservationEditForm } from './ReservationEditForm'
 import { formatBusinessDateTime as formatDateTime, formatBusinessIntervalEnd, formatBusinessTime } from './dateTime'
 import type { ReservationDetailAction, ReservationStatus } from '../types/reservation.types'
-import { ReservationIcon, reservationActionLabels as actionLabels } from './ReservationIcon'
+import { ReservationIcon } from './ReservationIcon'
+import { reservationActionLabels as actionLabels } from './ReservationIcon.model'
 import './reservations.css'
-import { CalendarClock, customerDate, customerReservationError, ReservationServiceMedia, useReservationArea } from './customer/customerPresentation'
+import { CalendarClock, ReservationServiceMedia } from './customer/customerPresentation'
+import { customerDate, customerReservationError, useReservationArea } from './customer/customerPresentation.model'
 
 type ReservationDetailsProps = {
   reservationId: string | null
@@ -70,6 +72,8 @@ function ReservationDetailsContent({ reservationId, onClose, onChanged, initialA
   useEffect(() => {
     if (!requestedAction || !value || detail.isFetching) return
     if (!value.readOnly) {
+      // A deep-linked action can be applied only after the authorized reservation detail has arrived.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (requestedAction === 'EDIT' && value.canEdit) setEditId(value.id)
       else if (requestedAction === 'ASSIGN_RESOURCE' && value.canAssignResource) {
         assignment.current?.scrollIntoView({ block: 'nearest' }); assignment.current?.focus({ preventScroll: true })
@@ -133,7 +137,7 @@ function ReservationDetailsContent({ reservationId, onClose, onChanged, initialA
             {resourceOptions.isLoading && <Skeleton lines={2} label="Učitavanje slobodnih resursa" />}
             {resourceOptions.error && <ErrorState message={errorMessage(resourceOptions.error, 'Slobodne resurse nije moguće učitati.')}
               action={<Button onClick={() => resourceOptions.refetch()}>Pokušaj ponovo</Button>} />}
-            <label>Slobodan računar / resurs<select value={resourceId} onChange={(event) =>
+            <label>Slobodan računar / resurs<select aria-label={"Slobodan računar / resurs"} value={resourceId} onChange={(event) =>
               setResourceChoice({ reservationId: value.id, resourceId: event.target.value })}>
               <option value="">Izaberite konkretan resurs</option>
               {resourceOptions.data?.resources.map((resource) => <option key={resource.id} value={resource.id} disabled={!resource.available}>

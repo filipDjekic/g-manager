@@ -4,7 +4,8 @@ import { userApi } from '../api/userApi'
 import { Button, Input } from '../components/ui'
 import { useToast } from '../components/ui/toastContext'
 import { focusFirstInvalid } from '../forms/useDirtyGuard'
-import { ProfileIcon, passwordErrors, passwordStrength, profileError } from './profilePresentation'
+import { ProfileIcon } from './profilePresentation'
+import { passwordErrors, passwordStrength, profileError } from './profilePresentation.model'
 
 function PasswordField({ id, label, visibilityLabel, value, onChange, onBlur, show, toggle, disabled, error, hint, fresh = false, strengthId }: {
   id: string; label: string; visibilityLabel: string; value: string; onChange: (value: string) => void; onBlur: () => void

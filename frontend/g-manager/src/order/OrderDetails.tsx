@@ -6,7 +6,7 @@ import type { AuthUser } from '../types/auth.types'
 import type { ManagedOrder, OrderStatus } from '../types/order.types'
 import { hasCapability } from '../auth/capabilities'
 import { OrderProductImage } from './OrderProductImage'
-import { canChangeOrder, customerLabel, handlerLabel, initials, itemCountLabel, orderActionLabels, orderErrorMessage, orderMoney, orderQuantity, shortOrderId } from './orderPresentation'
+import { canChangeOrder, customerLabel, handlerLabel, initials, itemCountLabel, orderActionLabels, orderErrorMessage, orderMoney, orderQuantity, shortOrderId } from './orderPresentation.model'
 
 export function OrderDetails({ order, user, loading, error, busy, returnFocusRef, onClose, onRefresh, onStatus }: {
   order?: ManagedOrder; user: AuthUser | null; loading: boolean; error: unknown; busy: boolean

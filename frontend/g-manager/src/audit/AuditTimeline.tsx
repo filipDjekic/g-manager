@@ -1,7 +1,8 @@
 import { roleLabels } from '../components/ui/statusPresentation'
 import { dateInBusinessZone, formatBusinessDateTime, formatBusinessTime } from '../reservations/dateTime'
 import type { AuditEvent } from '../types/audit.types'
-import { AuditIcon, actionTone, categoryLabels, dayHeading, shortId } from './auditPresentation'
+import { AuditIcon } from './auditPresentation'
+import { actionTone, categoryLabels, dayHeading, shortId } from './auditPresentation.model'
 
 export function AuditTimeline({ events, selected, today, onSelect }: {
   events: AuditEvent[]; selected: string; today: string; onSelect: (event: AuditEvent, opener: HTMLButtonElement) => void

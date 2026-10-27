@@ -7,7 +7,7 @@ import type { AuthUser } from '../types/auth.types'
 import type { ManagedOrder } from '../types/order.types'
 import { OrderActionsMenu, type OrderAction } from './OrderActionsMenu'
 import { OrderProductImage } from './OrderProductImage'
-import { canChangeOrder, customerLabel, initials, itemCountLabel, orderMoney, orderQuantity, shortOrderId } from './orderPresentation'
+import { canChangeOrder, customerLabel, initials, itemCountLabel, orderMoney, orderQuantity, shortOrderId } from './orderPresentation.model'
 
 function OrderRow({ order, user, selected, active, busy, onSelect, onAction }: {
   order: ManagedOrder; user: AuthUser | null; selected: boolean; active: boolean; busy: boolean

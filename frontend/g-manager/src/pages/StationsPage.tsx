@@ -1,4 +1,5 @@
-﻿import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useResettableState } from '../components/useResettableState'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { stationApi } from '../api/stationApi'
@@ -7,7 +8,8 @@ import { useAuthStore } from '../auth/authStore'
 import { Badge, Button, EmptyState, ErrorState, Input, Select, Skeleton } from '../components/ui'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useToast } from '../components/ui/toastContext'
-import { GamingBoardPagination, readGamingPage } from '../gaming/GamingBoardPagination'
+import { GamingBoardPagination } from '../gaming/GamingBoardPagination'
+import { readGamingPage } from '../gaming/GamingBoardPagination.model'
 import { permitsStationAction } from '../gaming/operationsPresentation'
 import { stationLabels } from '../gaming/presentation'
 import { useGamingOperations } from '../gaming/useGamingOperations'
@@ -19,15 +21,17 @@ import { StationAdministration, StationClientPackage } from '../stations/Station
 import { ApplicationDialog, ApplicationProfileDialog, StationConfigurationDialog } from '../stations/StationConfigurationDialogs'
 import { StationDetails } from '../stations/StationDetails'
 import { StationIdentityDialog } from '../stations/StationIdentityDialog'
-import { StationCard, StationsTable, type StationViewHandlers } from '../stations/StationViews'
-import { connectionStatus, problematicStation, StationIcon, stationError, stationStatus, type StationTab, type StationView } from '../stations/stationPresentation'
+import { StationCard, StationsTable } from '../stations/StationViews'
+import { type StationViewHandlers } from '../stations/StationViews.model'
+import { StationIcon } from '../stations/stationPresentation'
+import { connectionStatus, problematicStation, stationError, stationStatus, type StationTab, type StationView } from '../stations/stationPresentation.model'
 import type { ApplicationDefinition, ApplicationProfile, StationOverview } from '../types/station.types'
 import '../stations/stations.css'
 
-const defaults = { search: '', status: '', locationId: '', areaId: '', profileId: '', connection: '', view: 'cards', page: '1', size: '9', stationId: '' }
+const defaults = { search: '', status: '', locationId: '', areaId: '', profileId: '', connection: '', view: 'cards', page: '1', size: '10', stationId: '' }
 const urlKeys = Object.keys(defaults) as Array<keyof typeof defaults>
 const connections = { CONNECTED: 'Povezan', OFFLINE: 'Bez veze', WAITING: 'Čeka prvi kontakt', MANUAL: 'Ručni režim', UNKNOWN: 'Veza nije potvrđena' }
-const pageSizes = [9, 18, 36]
+const pageSizes = [10, 20, 50, 100]
 
 export function StationsPage() {
   const user = useAuthStore(state => state.user), client = useQueryClient(), toast = useToast()
@@ -44,7 +48,7 @@ export function StationsPage() {
   // The existing board owns SSE and polling. Its fresh snapshots also refresh station configuration/heartbeat metadata.
   useEffect(() => { if (canOperate && board.dataUpdatedAt) void client.invalidateQueries({ queryKey: ['stations', 'overview'] }) }, [canOperate, board.dataUpdatedAt, client])
   const url = useListUrlState(defaults, urlKeys), state = url.state
-  const [search, setSearch] = useState(state.search), [moreFilters, setMoreFilters] = useState(Boolean(state.profileId || state.connection))
+  const [search, setSearch] = useResettableState(() => state.search, state.search), [moreFilters, setMoreFilters] = useState(Boolean(state.profileId || state.connection))
   const [stationEdit, setStationEdit] = useState<StationOverview | null>(null), [machineStation, setMachineStation] = useState<StationOverview | null>(null)
   const [resourceEmployees, setResourceEmployees] = useState<StationOverview | null>(null)
   const [definitionEdit, setDefinitionEdit] = useState<ApplicationDefinition | null | undefined>(undefined)
@@ -52,8 +56,7 @@ export function StationsPage() {
   const [detailTab, setDetailTab] = useState<StationTab>('OVERVIEW'), [deleting, setDeleting] = useState(false)
   const titleRef = useRef<HTMLHeadingElement>(null), detailOpener = useRef<HTMLElement | null>(null), deleteInFlight = useRef(false)
   const { confirm, confirmationDialog } = useConfirmDialog()
-  useEffect(() => { setSearch(state.search) }, [state.search])
-  const setUrl = url.set
+const setUrl = url.set
   useEffect(() => {
     if (search === state.search) return
     const timer = window.setTimeout(() => setUrl({ search, page: '1' }, true), 300)
@@ -86,7 +89,7 @@ export function StationsPage() {
       && (!state.areaId || value.areaId === state.areaId) && (!state.profileId || (state.profileId === 'none' ? !value.applicationProfileId : value.applicationProfileId === state.profileId))
       && (!state.connection || connectionStatus(value).key === state.connection))
   }, [allStations, state, user])
-  const pageSize = pageSizes.includes(Number(state.size)) ? Number(state.size) : 9
+  const pageSize = [...pageSizes, 9, 18, 36].includes(Number(state.size)) ? Number(state.size) : 10
   const page = Math.min(readGamingPage(state.page), Math.max(0, Math.ceil(filtered.length / pageSize) - 1))
   useEffect(() => { if (stations.data && state.page !== String(page + 1)) setUrl({ page: String(page + 1) }, true) }, [stations.data, state.page, page, setUrl])
   const current = filtered.slice(page * pageSize, (page + 1) * pageSize), selected = allStations.find(value => value.resourceId === state.stationId)
@@ -156,17 +159,17 @@ export function StationsPage() {
       : 'Operativni pokazatelji zahtevaju dozvolu i dostupan pregled Gaming operative.'} Problematične uključuju i isteklu sesiju, nepotvrđeno zaključavanje, komandu bez potvrde i nedovršenu konfiguraciju.</p>
     <section className="gm-stations-section gm-stations-filters" aria-label="Pretraga i filteri stanica">
       <div className="gm-stations-filter-main"><label className="gm-stations-search"><span>Pretraga stanica</span><div><StationIcon kind="search" /><Input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Pretraži po nazivu, kodu ili klijentu..." /></div></label>
-        <label>Status<Select value={state.status} onChange={event => filter({ status: event.target.value })}><option value="">Svi statusi</option>{Object.entries(stationLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></label>
-        <label>Lokal<Select value={state.locationId} onChange={event => filter({ locationId: event.target.value, areaId: '' })}><option value="">Svi lokali</option>{locations.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+        <label>Status<Select aria-label={"Status"} value={state.status} onChange={event => filter({ status: event.target.value })}><option value="">Svi statusi</option>{Object.entries(stationLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></label>
+        <label>Lokal<Select aria-label={"Lokal"} value={state.locationId} onChange={event => filter({ locationId: event.target.value, areaId: '' })}><option value="">Svi lokali</option>{locations.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
           {state.locationId && !locations.some(([id]) => id === state.locationId) && <option value={state.locationId}>Izabrani lokal nije dostupan</option>}</Select></label>
-        <label>Zona<Select value={state.areaId} onChange={event => filter({ areaId: event.target.value })}><option value="">Sve zone</option>{areas.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</Select></label>
+        <label>Zona<Select aria-label={"Zona"} value={state.areaId} onChange={event => filter({ areaId: event.target.value })}><option value="">Sve zone</option>{areas.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</Select></label>
       </div>
       <div className="gm-stations-filter-actions"><Button type="button" variant="secondary" aria-expanded={moreFilters} aria-controls="station-extra-filters" onClick={() => setMoreFilters(value => !value)}><StationIcon kind="filter" />Više filtera{(state.profileId || state.connection) && <span aria-label="Aktivni dodatni filteri"> •</span>}</Button>
         {hasFilters && <Button type="button" variant="secondary" onClick={clearFilters}>Očisti filtere</Button>}</div>
-      {moreFilters && <div className="gm-stations-filter-extra" id="station-extra-filters"><label>Profil aplikacija<Select value={state.profileId} onChange={event => filter({ profileId: event.target.value })}><option value="">Svi profili</option><option value="none">Bez profila</option>
+      {moreFilters && <div className="gm-stations-filter-extra" id="station-extra-filters"><label>Profil aplikacija<Select aria-label={"Profil aplikacija"} value={state.profileId} onChange={event => filter({ profileId: event.target.value })}><option value="">Svi profili</option><option value="none">Bez profila</option>
         {(profiles.data ?? []).map(value => <option key={value.id} value={value.id}>{value.name}{!value.active && ' · neaktivan'}</option>)}
         {state.profileId && state.profileId !== 'none' && !profiles.data?.some(value => value.id === state.profileId) && <option value={state.profileId}>Izabrani profil nije dostupan</option>}</Select></label>
-        <label>Gaming Client konekcija<Select value={state.connection} onChange={event => filter({ connection: event.target.value })}><option value="">Sva stanja veze</option>{Object.entries(connections).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></label></div>}
+        <label>Gaming Client konekcija<Select aria-label={"Gaming Client konekcija"} value={state.connection} onChange={event => filter({ connection: event.target.value })}><option value="">Sva stanja veze</option>{Object.entries(connections).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></label></div>}
     </section>
     <section className="gm-stations-results" aria-labelledby="station-results-title">
       <header className="gm-stations-results-heading"><div><h2 id="station-results-title">Pregled stanica <span>{filtered.length}</span></h2>
@@ -182,8 +185,8 @@ export function StationsPage() {
             : !filtered.length ? <EmptyState title="Nema stanica za izabrane filtere" description="Promenite pretragu ili filtere da biste proširili pregled." action={<Button type="button" variant="secondary" onClick={clearFilters}>Očisti filtere</Button>} />
               : state.view === 'table' ? <StationsTable stations={current} user={user} now={now} selectedId={state.stationId} disabled={stale} handlers={handlers} />
                 : <div className="gm-stations-grid">{current.map(value => <StationCard key={value.resourceId} station={value} user={user} now={now} selected={state.stationId === value.resourceId} disabled={stale} handlers={handlers} />)}</div>}
-      {Boolean(allStations.length) && <div className="gm-stations-pagination"><div><span>Stranica {page + 1} od {Math.max(1, Math.ceil(filtered.length / pageSize))}</span><label>Po stranici<Select value={String(pageSize)} onChange={event => setUrl({ size: event.target.value, page: '1' })}>{pageSizes.map(size => <option key={size} value={size}>{size}</option>)}</Select></label></div>
-        <GamingBoardPagination page={page} pageSize={pageSize} total={filtered.length} label="Stranice gaming stanica" onChange={next => setUrl({ page: String(next + 1) })} /></div>}
+      {Boolean(allStations.length) && <GamingBoardPagination page={page} pageSize={pageSize} total={filtered.length} label="Stranice gaming stanica" loading={stale}
+        onChange={next => setUrl({ page: String(next + 1) })} onSizeChange={size => setUrl({ size: String(size), page: '1' })} />}
     </section>
     <StationClientPackage data={clientPackage.data} loading={clientPackage.isLoading} error={clientPackage.error} onRefresh={refresh} />
     <StationAdministration definitions={definitions.data ?? []} profiles={profiles.data ?? []} loadingDefinitions={definitions.isLoading} loadingProfiles={profiles.isLoading}

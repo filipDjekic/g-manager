@@ -11,7 +11,8 @@ import type { UserResponse } from '../types/user.types'
 import { ProfilePersonalCard } from '../profile/ProfilePersonalCard'
 import { ProfilePasswordCard } from '../profile/ProfilePasswordCard'
 import { ProfileAccountCard } from '../profile/ProfileAccountCard'
-import { ProfileIcon, profileError } from '../profile/profilePresentation'
+import { ProfileIcon } from '../profile/profilePresentation'
+import { profileError } from '../profile/profilePresentation.model'
 import '../profile/profile.css'
 
 function ProfileHeading() {
@@ -21,7 +22,7 @@ function ProfileHeading() {
 
 export function ProfilePage() {
   const actor = useAuthStore(state => state.user)
-  if (!actor || !hasCapability(actor, 'PROFILE_READ')) return <main className="workspace gm-profile"><ProfileHeading />
+  if (!actor || !hasCapability(actor, 'PROFILE_READ')) return <main className="workspace workspace--reading gm-profile"><ProfileHeading />
     <ErrorState title="Pristup nije dozvoljen" message="Nemate dozvolu za pregled profila." /></main>
   return <ProfileWorkspace key={actor.id} actor={actor} />
 }
@@ -42,6 +43,8 @@ function ProfileWorkspace({ actor }: { actor: AuthUser }) {
   }, [actor.id])
   useEffect(() => {
     let active = true
+    // Explicit profile reload starts a new external request; stale draft data remains until its response.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFetching(true); setError('')
     void userApi.me().then(user => { if (active) synchronize(user) })
       .catch(cause => { if (active) setError(profileError(cause, 'Profil nije moguće učitati.')) })
@@ -56,7 +59,7 @@ function ProfileWorkspace({ actor }: { actor: AuthUser }) {
       confirmLabel: 'Upravljaj sesijama', cancelLabel: 'Ostani na profilu', variant: 'warning',
       className: 'gm-profile-leave-dialog', titleIcon: <ProfileIcon kind="shield" />, onConfirm: () => { navigate('/sessions') } })
   }
-  return <main className="workspace gm-profile"><ProfileHeading />{confirmationDialog}
+  return <main className="workspace workspace--reading gm-profile"><ProfileHeading />{confirmationDialog}
     {!profile ? fetching ? <div className="gm-profile-layout gm-profile-loading" aria-busy="true">
       <section className="gm-profile-card gm-profile-personal"><Skeleton lines={2} label="Učitavanje ličnih podataka" /><div className="gm-profile-avatar-placeholder" aria-hidden="true" /><Skeleton lines={6} label="Učitavanje podataka profila" /></section>
       <div className="gm-profile-right"><section className="gm-profile-card gm-profile-password"><Skeleton lines={7} label="Učitavanje bezbednosnih opcija" /></section>

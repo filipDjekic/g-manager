@@ -1,0 +1,123 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Original, resolution-independent room illustration. No external image or font assets. -->
+    <LinearGradientBrush x:Key="MonitorGlass" StartPoint="0,1" EndPoint="1,0">
+        <GradientStop Color="#12151C"/>
+        <GradientStop Color="#2755C8FF" Offset="0.6"/>
+        <GradientStop Color="#7055C8FF" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="RoomFloor" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#1A1F29"/>
+        <GradientStop Color="#0A0C10" Offset="1"/>
+    </LinearGradientBrush>
+    <RadialGradientBrush x:Key="RoomBlueLight">
+        <GradientStop Color="#4055C8FF"/>
+        <GradientStop Color="#0055C8FF" Offset="1"/>
+    </RadialGradientBrush>
+    <RadialGradientBrush x:Key="RoomPinkLight">
+        <GradientStop Color="#38F587D1"/>
+        <GradientStop Color="#00F587D1" Offset="1"/>
+    </RadialGradientBrush>
+    <DrawingGroup x:Key="GamingStation">
+        <!-- Desk, monitor, keyboard and tower, in the same perspective as the room. -->
+        <GeometryDrawing Brush="#12151C" Geometry="M 0,164 L 234,133 284,192 24,240 Z">
+            <GeometryDrawing.Pen><Pen Brush="#60364050" Thickness="1"/></GeometryDrawing.Pen>
+        </GeometryDrawing>
+        <GeometryDrawing Geometry="M 4,168 L 25,236 281,190">
+            <GeometryDrawing.Pen><Pen Brush="#9055C8FF" Thickness="2"/></GeometryDrawing.Pen>
+        </GeometryDrawing>
+        <GeometryDrawing Brush="#0A0C10" Geometry="M 42,235 L 48,324 57,324 58,234 M 242,202 L 238,282 246,282 253,200"/>
+        <GeometryDrawing Brush="#0A0C10" Geometry="M 22,13 L 212,0 217,138 29,164 Z">
+            <GeometryDrawing.Pen><Pen Brush="#364050" Thickness="3"/></GeometryDrawing.Pen>
+        </GeometryDrawing>
+        <GeometryDrawing Brush="{StaticResource MonitorGlass}" Geometry="M 29,20 L 205,9 209,129 36,153 Z"/>
+        <GeometryDrawing Brush="#2055C8FF" Geometry="M 29,105 L 102,53 153,67 205,9 209,129 36,153 Z"/>
+        <GeometryDrawing Brush="#30F587D1" Geometry="M 80,146 L 154,77 209,61 209,129 Z"/>
+        <GeometryDrawing Geometry="M 38,142 L 110,83 150,99 201,45">
+            <GeometryDrawing.Pen><Pen Brush="#7055C8FF" Thickness="1.5"/></GeometryDrawing.Pen>
+        </GeometryDrawing>
+        <GeometryDrawing Brush="#364050" Geometry="M 113,153 L 115,174 91,184 151,177 131,171 130,150 Z"/>
+        <GeometryDrawing Brush="#1A1F29" Geometry="M 72,193 L 174,177 193,194 88,213 Z">
+            <GeometryDrawing.Pen><Pen Brush="#7055C8FF" Thickness="1"/></GeometryDrawing.Pen>
+        </GeometryDrawing>
+        <GeometryDrawing Geometry="M 86,197 L 172,183 M 90,202 L 178,188 M 95,207 L 182,193">
+            <GeometryDrawing.Pen><Pen Brush="#5055C8FF" Thickness="1"/></GeometryDrawing.Pen>
+        </GeometryDrawing>
+        <GeometryDrawing Brush="#0A0C10" Geometry="M 228,64 L 268,58 272,152 233,162 Z">
+            <GeometryDrawing.Pen><Pen Brush="#364050" Thickness="1"/></GeometryDrawing.Pen>
+        </GeometryDrawing>
+        <GeometryDrawing Geometry="M 249,81 A 10,13 0 1 1 248.9,81 M 250,117 A 10,13 0 1 1 249.9,117">
+            <GeometryDrawing.Pen><Pen Brush="#B0F587D1" Thickness="2"/></GeometryDrawing.Pen>
+        </GeometryDrawing>
+        <GeometryDrawing Geometry="M 266,65 L 270,148">
+            <GeometryDrawing.Pen><Pen Brush="#9055C8FF" Thickness="1"/></GeometryDrawing.Pen>
+        </GeometryDrawing>
+    </DrawingGroup>
+    <DrawingImage x:Key="GamingRoomScene">
+        <DrawingImage.Drawing>
+            <DrawingGroup ClipGeometry="M 0,0 L 1200,0 1200,1080 0,1080 Z">
+                <GeometryDrawing Brush="#0A0C10" Geometry="M 0,0 L 1200,0 1200,1080 0,1080 Z"/>
+                <GeometryDrawing Brush="#12151C" Geometry="M 0,50 L 940,310 1200,180 1200,720 0,980 Z"/>
+                <GeometryDrawing Brush="#0A0C10" Geometry="M 0,0 L 1200,0 1200,185 940,330 0,76 Z"/>
+                <GeometryDrawing Brush="{StaticResource RoomFloor}" Geometry="M 0,760 L 940,435 1200,552 1200,1080 0,1080 Z"/>
+                <GeometryDrawing Brush="{StaticResource RoomBlueLight}"><GeometryDrawing.Geometry><EllipseGeometry Center="645,470" RadiusX="500" RadiusY="390"/></GeometryDrawing.Geometry></GeometryDrawing>
+                <GeometryDrawing Brush="{StaticResource RoomPinkLight}"><GeometryDrawing.Geometry><EllipseGeometry Center="180,640" RadiusX="450" RadiusY="470"/></GeometryDrawing.Geometry></GeometryDrawing>
+                <GeometryDrawing Brush="{StaticResource RoomPinkLight}"><GeometryDrawing.Geometry><EllipseGeometry Center="1040,350" RadiusX="330" RadiusY="300"/></GeometryDrawing.Geometry></GeometryDrawing>
+                <!-- Architectural seams and ceiling light strips converge towards the rear wall. -->
+                <GeometryDrawing Geometry="M 0,65 L 932,327 M 0,170 L 932,343 M 120,0 L 934,323 M 520,0 L 946,315 M 1200,80 L 958,320 M 1200,225 L 967,340 M 942,332 L 942,435">
+                    <GeometryDrawing.Pen><Pen Brush="#50364050" Thickness="1.5"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Geometry="M 130,0 L 850,301 M 660,0 L 925,289 M 1200,108 L 1000,287">
+                    <GeometryDrawing.Pen><Pen Brush="#1255C8FF" Thickness="24"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Geometry="M 130,0 L 850,301 M 660,0 L 925,289 M 1200,108 L 1000,287">
+                    <GeometryDrawing.Pen><Pen Brush="#9055C8FF" Thickness="2"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Geometry="M 0,310 L 904,385 M 0,322 L 904,389">
+                    <GeometryDrawing.Pen><Pen Brush="#40F587D1" Thickness="2"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Geometry="M 0,600 L 925,426 M 94,1080 L 943,436 M 498,1080 L 950,436 M 1060,1080 L 962,436 M 0,989 L 1200,729 M 0,865 L 1200,640">
+                    <GeometryDrawing.Pen><Pen Brush="#28364050" Thickness="1"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#0A0C10" Geometry="M 888,325 L 996,318 996,449 888,448 Z">
+                    <GeometryDrawing.Pen><Pen Brush="#60364050" Thickness="2"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Geometry="M 901,338 L 981,333 981,440">
+                    <GeometryDrawing.Pen><Pen Brush="#6055C8FF" Thickness="2"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <DrawingGroup>
+                    <DrawingGroup.Transform><TransformGroup><ScaleTransform ScaleX="0.43" ScaleY="0.43"/><TranslateTransform X="747" Y="408"/></TransformGroup></DrawingGroup.Transform>
+                    <StaticResource ResourceKey="GamingStation"/>
+                </DrawingGroup>
+                <DrawingGroup>
+                    <DrawingGroup.Transform><TransformGroup><ScaleTransform ScaleX="0.65" ScaleY="0.65"/><TranslateTransform X="578" Y="443"/></TransformGroup></DrawingGroup.Transform>
+                    <StaticResource ResourceKey="GamingStation"/>
+                </DrawingGroup>
+                <DrawingGroup>
+                    <DrawingGroup.Transform><TransformGroup><ScaleTransform ScaleX="0.98" ScaleY="0.98"/><TranslateTransform X="322" Y="493"/></TransformGroup></DrawingGroup.Transform>
+                    <StaticResource ResourceKey="GamingStation"/>
+                </DrawingGroup>
+                <DrawingGroup>
+                    <DrawingGroup.Transform><TransformGroup><ScaleTransform ScaleX="1.5" ScaleY="1.5"/><TranslateTransform X="-80" Y="570"/></TransformGroup></DrawingGroup.Transform>
+                    <StaticResource ResourceKey="GamingStation"/>
+                </DrawingGroup>
+                <!-- Low, reflected light and silhouettes of gaming chairs in the foreground. -->
+                <GeometryDrawing Brush="{StaticResource RoomBlueLight}" Geometry="M 0,845 L 680,600 950,630 400,1080 0,1080 Z"/>
+                <GeometryDrawing Brush="{StaticResource RoomPinkLight}" Geometry="M 200,1080 L 810,650 1000,630 690,1080 Z"/>
+                <GeometryDrawing Brush="#0A0C10" Geometry="M 160,1080 L 150,959 122,903 135,804 Q 147,775 192,779 L 222,791 248,895 232,944 255,1080 Z">
+                    <GeometryDrawing.Pen><Pen Brush="#50364050" Thickness="2"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Geometry="M 143,814 L 150,884 169,914 M 212,808 L 232,892 218,929">
+                    <GeometryDrawing.Pen><Pen Brush="#70F587D1" Thickness="2"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#0A0C10" Geometry="M 511,867 L 500,797 487,763 496,691 Q 506,670 535,677 L 552,686 568,751 557,789 570,858 Z">
+                    <GeometryDrawing.Pen><Pen Brush="#50364050" Thickness="1.5"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Geometry="M 503,698 L 509,749 522,775 M 546,696 L 557,752">
+                    <GeometryDrawing.Pen><Pen Brush="#7055C8FF" Thickness="1.5"/></GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#0A0C10" Geometry="M 704,714 L 699,666 689,641 694,594 Q 700,580 721,585 L 731,590 744,635 736,664 745,706 Z"/>
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+</ResourceDictionary>

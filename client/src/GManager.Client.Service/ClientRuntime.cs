@@ -11,6 +11,10 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
     readonly SemaphoreSlim gate = new(1,1);
     readonly object stateSync = new();
     public ClientViewState State { get; private set; } = ClientViewState.Locked();
+    // UI telemetry only. Never used for lease validity, authorization or Windows enforcement.
+    int serverConnection;
+    public bool? ServerConnected => Volatile.Read(ref serverConnection) switch { 1 => true, -1 => false, _ => null };
+    void ObserveServerConnection(bool connected) => Volatile.Write(ref serverConnection, connected ? 1 : -1);
     public StoredIdentity? Identity { get; private set; } = store.Load();
     string? token;
     DateTimeOffset tokenExpiry, preparingUntil;
@@ -85,7 +89,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
         }
         ProtectedIdentityStore.AtomicWrite(Path.Combine(environment.StateDirectory,"health.json"),JsonSerializer.SerializeToUtf8Bytes(new {
             timestamp=DateTimeOffset.UtcNow, mode=State.Mode.ToString(), version=environment.Version, initialized,
-            development=environment.Development, errorCode=ErrorCode,
+            development=environment.Development, errorCode=ErrorCode, serverConnected=ServerConnected,
             deadline=recovery?.Lease.GraceEndsAt
         }));
     }
@@ -121,18 +125,19 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
             }
             ErrorCode=recovery?.BlockedSessionId is Guid blocked && blocked==recovery.Lease.SessionId && recovery.Lease.Directive=="ACTIVE" ? "SESSION_RECONCILIATION_REQUIRED" : null;
             await protocol.HeartbeatAsync(token!,Heartbeat(),ct);
+            ObserveServerConnection(true);
         }
-        catch(HttpRequestException ex) { if(ex.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden) { token=null; LockLocal("Machine authorization rejected"); } ErrorCode="BACKEND_UNAVAILABLE"; Tick(); SaveRecovery(); }
-        catch(OperationCanceledException) when(!ct.IsCancellationRequested) { ErrorCode="BACKEND_TIMEOUT"; Tick(); SaveRecovery(); }
+        catch(HttpRequestException ex) { ObserveServerConnection(ex.StatusCode is not null); if(ex.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden) { token=null; LockLocal("Machine authorization rejected"); } ErrorCode="BACKEND_UNAVAILABLE"; Tick(); SaveRecovery(); }
+        catch(OperationCanceledException) when(!ct.IsCancellationRequested) { ObserveServerConnection(false); ErrorCode="BACKEND_TIMEOUT"; Tick(); SaveRecovery(); }
         catch(CryptographicException ex) { events.WriteDevelopmentCryptographicFailure("refresh",cryptographicPhase,ex); ErrorCode="SIGNATURE_REJECTED"; LockLocal("Invalid signed lease/policy"); SaveRecovery(); }
         catch(Exception ex) when(ex is IOException or InvalidOperationException or JsonException) { ErrorCode="POLICY_FAILED"; LockLocal("Policy failed"); }
         finally {
             initialized=true;
             try {
                 if(ErrorCode is not null && token is not null)
-                    try { await protocol.HeartbeatAsync(token,Heartbeat(),ct); }
-                    catch(HttpRequestException) { }
-                    catch(OperationCanceledException) { }
+                    try { await protocol.HeartbeatAsync(token,Heartbeat(),ct); ObserveServerConnection(true); }
+                    catch(HttpRequestException ex) { ObserveServerConnection(ex.StatusCode is not null); }
+                    catch(OperationCanceledException) { ObserveServerConnection(false); }
                     catch(JsonException) { }
             } finally { gate.Release(); }
         }
@@ -169,6 +174,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
             if(request.Type=="login" && request.Email is not null && request.Password is not null && recovery is not null && !commandGap && recovery.AppliedSequence>=recovery.Lease.CommandCursor && recovery.BlockedSessionId!=recovery.Lease.SessionId && !LeaseDeadlinePolicy.MustLock(recovery.Lease,trusted.Now()))
             {
                 var result=await protocol.LoginAsync(token!,request.Email,request.Password,ct);
+                ObserveServerConnection(true);
                 trusted.Observe(result.ServerTime);
                 lock(stateSync)
                 {
@@ -187,14 +193,14 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
             if(request.Type=="logout" && request.SessionId==State.SessionId)
             {
                 LockLocal("Customer logout");
-                if(request.SessionId is Guid sessionId) await protocol.LogoutAsync(token!,sessionId,ct);
+                if(request.SessionId is Guid sessionId) { await protocol.LogoutAsync(token!,sessionId,ct); ObserveServerConnection(true); }
                 SaveRecovery();
                 return new(true,null,State);
             }
             return new(false,"Zahtev nije dozvoljen u trenutnom lease stanju.",State);
         }
-        catch(HttpRequestException) { Tick(); return new(false,"Server nije dostupan ili je odbio zahtev.",State); }
-        catch(OperationCanceledException) when(!ct.IsCancellationRequested) { Tick(); return new(false,"Server nije odgovorio na vreme.",State); }
+        catch(HttpRequestException ex) { ObserveServerConnection(ex.StatusCode is not null); Tick(); return new(false,"Server nije dostupan ili je odbio zahtev.",State); }
+        catch(OperationCanceledException) when(!ct.IsCancellationRequested) { ObserveServerConnection(false); Tick(); return new(false,"Server nije odgovorio na vreme.",State); }
         catch(Exception ex) when(ex is IOException or CryptographicException or InvalidOperationException or UnauthorizedAccessException)
         { if(ex is CryptographicException cryptographicFailure)events.WriteDevelopmentCryptographicFailure("local-action",cryptographicPhase,cryptographicFailure); LockLocal("Action rejected"); return new(false,"Akcija nije bezbedno izvršena. Pozovite administratora.",State); }
         finally { gate.Release(); }

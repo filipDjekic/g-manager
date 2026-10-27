@@ -1,10 +1,6 @@
-import type { ItemType } from '../types/catalog.types'
-import { formatBusinessDateTime } from '../reservations/dateTime'
 
-export const catalogMoney = new Intl.NumberFormat('sr-Latn-RS', { style: 'currency', currency: 'RSD' })
-export const catalogDate = (value: string) => formatBusinessDateTime(value, false, 'sr-Latn-RS')
-export const catalogTypeLabel = (type: ItemType) => type === 'SERVICE' ? 'Usluga' : 'Proizvod'
-export const catalogDuration = (minutes: number) => minutes % 60 === 0 ? `${minutes / 60} h` : `${minutes} min`
+import type { ItemType } from '../types/catalog.types'
+
 
 export function CatalogIcon({ type, search = false }: { type?: ItemType; search?: boolean }) {
   return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"

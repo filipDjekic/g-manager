@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, useState, type FormEvent, type RefObject } from 'react'
+import { useObjectUrl } from '../components/useObjectUrl'
+import { useId, useRef, useState, type FormEvent, type RefObject } from 'react'
 import { catalogApi } from '../api/catalogApi'
 import { apiErrorMessage } from '../api/client'
 import { Button, FormField, Input, Modal, Textarea } from '../components/ui'
@@ -18,7 +19,8 @@ export function CatalogFormDialog({ item, initialType, imageOnly = false, maxIma
     price: item?.price ?? 0, durationMinutes: item?.durationMinutes ?? undefined, requiresResource: item?.requiresResource ?? false }
   const [form, setForm] = useState(initial)
   const [persisted, setPersisted] = useState<CatalogItem | null>(imageOnly ? item ?? null : null)
-  const [image, setImage] = useState<File | null>(null), [preview, setPreview] = useState('')
+  const [image, setImage] = useState<File | null>(null)
+  const preview = useObjectUrl(image)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [error, setError] = useState(''), [imageError, setImageError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -30,11 +32,6 @@ export function CatalogFormDialog({ item, initialType, imageOnly = false, maxIma
   const dirty = Boolean(image) || !persisted && JSON.stringify(form) !== JSON.stringify(initial)
   const frozen = busy || Boolean(persisted)
   useDirtyGuard(dirty || busy)
-  useEffect(() => {
-    if (!image) { setPreview(''); return }
-    const source = URL.createObjectURL(image); setPreview(source)
-    return () => URL.revokeObjectURL(source)
-  }, [image])
   const close = () => {
     if (inFlight.current) return
     if (!dirty) { onClose(); return }
@@ -134,7 +131,7 @@ export function CatalogFormDialog({ item, initialType, imageOnly = false, maxIma
             <FormField label="Trajanje usluge (min) *" htmlFor={`${id}-duration`} error={errors.durationMinutes}>
               <Input id={`${id}-duration`} type="number" min="1" step="1" required disabled={frozen} value={form.durationMinutes ?? ''}
                 onChange={event => setForm({ ...form, durationMinutes: Number(event.target.value) || undefined })} /></FormField>
-            <label className="gm-catalog-resource-checkbox"><input type="checkbox" disabled={frozen} checked={form.requiresResource ?? false}
+            <label className="gm-catalog-resource-checkbox"><input aria-label={"Usluga zahteva fizički resurs"} type="checkbox" disabled={frozen} checked={form.requiresResource ?? false}
               onChange={event => setForm({ ...form, requiresResource: event.target.checked })} />Usluga zahteva fizički resurs</label>
           </>}
           <div className="gm-catalog-wide"><FormField label="Opis" htmlFor={`${id}-description`} error={errors.description}>

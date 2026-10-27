@@ -7,7 +7,8 @@ import { useDirtyGuard } from '../forms/useDirtyGuard'
 import { workingHoursExceptionSchema } from '../workingHours/workingHoursSchema'
 import { todayInBusinessZone } from '../reservations/dateTime'
 import type { WorkingHoursException, WorkingHoursExceptionInput } from '../types/workingHours.types'
-import { addCalendarDays, SettingsIcon, SettingsSwitch, settingsError, useBusinessToday, validCalendarDate, validTime } from './settingsPresentation'
+import { SettingsIcon, SettingsSwitch } from './settingsPresentation'
+import { addCalendarDays, settingsError, useBusinessToday, validCalendarDate, validTime } from './settingsPresentation.model'
 
 export function WorkingHoursExceptionDialog({ item, date, locationName, returnFocusRef, onClose, onSaved, onConflict }: {
   item?: WorkingHoursException; date?: string; locationName?: string; returnFocusRef: RefObject<HTMLElement | null>

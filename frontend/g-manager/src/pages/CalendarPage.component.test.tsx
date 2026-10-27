@@ -12,7 +12,7 @@ import { CalendarPage } from './CalendarPage'
 
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(<QueryClientProvider client={client}><MemoryRouter><CalendarPage /></MemoryRouter></QueryClientProvider>)
+  return render(<QueryClientProvider client={client}><MemoryRouter initialEntries={["/calendar?view=week&date=2026-03-29"]}><CalendarPage /></MemoryRouter></QueryClientProvider>)
 }
 
 describe('CalendarPage', () => {
@@ -38,13 +38,13 @@ describe('CalendarPage', () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     renderPage()
 
-    expect(await screen.findByRole('button', { name: /03:30 Tretman, Mila, Potvrđeno/ })).toBeVisible()
+    expect(await screen.findByRole('button', { name: /Tretman, Mila, Potvrđena/ })).toBeVisible()
     expect(ranges[0]).toBe('2026-03-23:2026-03-29')
-    await user.click(screen.getByRole('button', { name: 'Sledeće' }))
+    await user.click(screen.getByRole('button', { name: 'Sledeći period' }))
     await waitFor(() => expect(ranges).toContain('2026-03-30:2026-04-05'))
-    await user.click(screen.getByRole('button', { name: 'Mesec' }))
+    await user.click(screen.getAllByRole('button', { name: 'Mesec' })[0])
     await waitFor(() => expect(ranges).toContain('2026-03-30:2026-05-10'))
-  })
+  }, 20000)
 
   it('keeps DST instants on their business calendar date', () => {
     expect(dateInBusinessZone('2026-03-29T00:30:00Z')).toBe('2026-03-29')

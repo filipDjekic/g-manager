@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { gamingSessionApi, connectGamingSessionStream } from '../api/gamingSessionApi'
@@ -7,11 +7,13 @@ import { customerApi } from '../api/customerApi'
 import type { GamingOperationsBoard, GamingSessionEvent, GamingStationAction, GamingStationBoardStatus } from '../types/gamingSession.types'
 import { GamingSessionsPage } from './GamingSessionsPage'
 import { MemoryRouter } from 'react-router-dom'
+import { useAuthStore } from '../auth/authStore'
+import { authUser } from '../test/fixtures'
 
 vi.mock('../api/gamingSessionApi',()=>({gamingSessionApi:{board:vi.fn(),start:vi.fn(),extend:vi.fn(),terminate:vi.fn()},connectGamingSessionStream:vi.fn()}))
 vi.mock('../api/customerApi',()=>({customerApi:{list:vi.fn()}}))
 const statuses:GamingStationBoardStatus[]=['AVAILABLE','ACTIVE','MAINTENANCE','OFFLINE','EXPIRED','LOCK_PENDING','RETIRED']
-const labels=['Dostupna','Aktivna sesija','Održavanje','Offline','Sesija istekla','Čeka zaključavanje','Penzionisana']
+const labels=['Dostupna','Aktivna sesija','Održavanje','Bez veze','Sesija istekla','Čeka zaključavanje','Van upotrebe']
 function response():GamingOperationsBoard{return{serverTime:'2026-08-15T12:00:00Z',stations:statuses.map((status,index)=>({
   resourceId:`station-${index}`,resourceCode:`PC-${index}`,resourceName:`Stanica ${index}`,locationId:'location-1',status,
   clientEnabled:false,staleHeartbeat:false,enforcementStatus:status==='LOCK_PENDING'?'LOCK_PENDING':'LOCKED',remainingSeconds:status==='ACTIVE'?3600:0,sessionId:status==='ACTIVE'?'session-1':undefined,
@@ -22,17 +24,17 @@ function response():GamingOperationsBoard{return{serverTime:'2026-08-15T12:00:00
 function setup(){const client=new QueryClient({defaultOptions:{queries:{retry:false}}});return render(<QueryClientProvider client={client}><MemoryRouter><GamingSessionsPage/></MemoryRouter></QueryClientProvider>)}
 
 describe('Gaming operations board',()=>{
-  beforeEach(()=>{vi.clearAllMocks();vi.mocked(gamingSessionApi.board).mockResolvedValue(response());vi.mocked(customerApi.list).mockResolvedValue({content:[],page:0,size:8,totalElements:0,totalPages:0});vi.mocked(connectGamingSessionStream).mockReturnValue(()=>{})})
-  it('renders every operational station state and authoritative countdown',async()=>{setup();await screen.findByText('Stanica 6');for(const label of labels)expect(screen.getAllByText(label).some(element=>element.tagName!=='OPTION')).toBe(true);expect(screen.getByLabelText(/Preostalo vreme 1h 0m/)).toBeVisible()})
-  it('extends the same active session and immediately refreshes its projection',async()=>{vi.mocked(gamingSessionApi.extend).mockResolvedValue({} as never);setup();const user=userEvent.setup();await user.click(await screen.findByRole('button',{name:'+60 min'}));
+  beforeEach(()=>{useAuthStore.setState({user:authUser('OWNER'),accessToken:'test-token',isInitializing:false});vi.clearAllMocks();vi.mocked(gamingSessionApi.board).mockResolvedValue(response());vi.mocked(customerApi.list).mockResolvedValue({content:[],page:0,size:8,totalElements:0,totalPages:0});vi.mocked(connectGamingSessionStream).mockReturnValue(()=>{})})
+  it('renders every operational station state and authoritative countdown',async()=>{setup();await screen.findByText('Stanica 6');for(const label of labels)expect(screen.getAllByText(label).some(element=>element.tagName!=='OPTION')).toBe(true);expect(screen.getAllByLabelText(/Preostalo vreme 1h 0m/)[0]).toBeVisible()})
+  it('extends the same active session and immediately refreshes its projection',async()=>{vi.mocked(gamingSessionApi.extend).mockResolvedValue({} as never);setup();const user=userEvent.setup();await user.click(await within(await screen.findByRole('complementary', {name:'Detalji stanice'})).findByRole('button',{name:'+60 min'}));
     await waitFor(()=>expect(gamingSessionApi.extend).toHaveBeenCalledWith('session-1',60,4,expect.any(String)));await waitFor(()=>expect(gamingSessionApi.board).toHaveBeenCalledTimes(2))})
   it('retries an ambiguous extension with the original version and idempotency key after the board changes',async()=>{
     const changed=response();changed.stations[1].sessionVersion=5
     vi.mocked(gamingSessionApi.board).mockResolvedValueOnce(response()).mockResolvedValue(changed)
     vi.mocked(gamingSessionApi.extend).mockRejectedValueOnce(Object.assign(new Error('Network Error'), { isAxiosError: true, code: 'ERR_NETWORK' })).mockResolvedValue({} as never)
-    setup();const user=userEvent.setup();await user.click(await screen.findByRole('button',{name:'+60 min'}))
+    setup();const user=userEvent.setup();await user.click(await within(await screen.findByRole('complementary', {name:'Detalji stanice'})).findByRole('button',{name:'+60 min'}))
     const retry=await screen.findByRole('button',{name:'Proveri prethodnu komandu'})
-    await waitFor(()=>expect(retry).toBeEnabled());expect(screen.getByRole('button',{name:'+60 min'})).toBeDisabled()
+    await waitFor(()=>expect(retry).toBeEnabled());expect(screen.getAllByRole('button',{name:'+60 min'}).every(button=>button.hasAttribute('disabled'))).toBe(true)
     const original=vi.mocked(gamingSessionApi.extend).mock.calls[0]
     await user.click(retry);await waitFor(()=>expect(gamingSessionApi.extend).toHaveBeenCalledTimes(2))
     expect(vi.mocked(gamingSessionApi.extend).mock.calls[1]).toEqual(original)

@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ActiveProfiles("test")
+@org.springframework.context.annotation.Import(com.game_manager.gm.testsupport.H2MigrationConfiguration.class)
 class UserRepositoryTest {
 
     @Autowired

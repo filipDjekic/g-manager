@@ -1,10 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import {
-  configureErrorTransport,
-  observeRequestId,
-  reportFrontendError,
-  type FrontendErrorEvent,
-} from './errorReporter'
+import { configureErrorTransport, observeRequestId, reportFrontendError, type FrontendErrorEvent } from './errorReporter'
 
 let restoreTransport: (() => void) | undefined
 

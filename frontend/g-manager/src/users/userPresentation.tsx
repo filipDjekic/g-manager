@@ -1,39 +1,20 @@
+import { type IconKind, userDate, allowedUserActions, type UserAction, type ActionHandler } from './userPresentation.model'
+import { Pagination } from '../components/ui'
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { hasCapability } from '../auth/capabilities'
-import { Badge, Button, Select, Skeleton } from '../components/ui'
+
+import { Badge, Button, Skeleton } from '../components/ui'
 import { roleLabels } from '../components/ui/statusPresentation'
-import { EmployeeAvatar, EmployeeIcon, employeeDate, employeeError } from '../employees/employeePresentation'
+import { EmployeeAvatar, EmployeeIcon } from '../employees/employeePresentation'
+
 import type { AuthUser, Permission, Role } from '../types/auth.types'
 import type { UserResponse } from '../types/user.types'
-
-type IconKind = NonNullable<Parameters<typeof EmployeeIcon>[0]['kind']> | 'shield' | 'crown' | 'restore'
 export function UserIcon({ kind = 'users' }: { kind?: IconKind }) {
   if (kind !== 'shield' && kind !== 'crown' && kind !== 'restore') return <EmployeeIcon kind={kind} />
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
     {kind === 'shield' ? <path d="M12 3 3 7v6c0 5 9 9 9 9s9-4 9-9V7l-9-4Zm-4 9 3 3 5-6" /> : kind === 'crown'
       ? <path d="m2 8 5 4 5-8 5 8 5-4-3 12H5L2 8Zm4 15h12" /> : <><path d="M3 10V4m0 6h6M3 10a9 9 0 1 1 1 9" /><path d="M12 8v5l3 2" /></>}
   </svg>
-}
-export const userDate = employeeDate
-export function userError(cause: unknown, fallback: string) {
-  return employeeError(cause, fallback)
-    .replace('upravljanje zaposlenima', 'upravljanje korisnicima')
-    .replace('Email is already used by an active account', 'Email adresu već koristi drugi nalog. Vraćanje nije moguće.')
-    .replace('Deleted user not found', 'Obrisani nalog nije pronađen.')
-    .replace('Deleted user access is not permitted', 'Nemate dozvolu za pregled obrisanih naloga.')
-    .replace('The requested role cannot be created', 'Nemate dozvolu za kreiranje izabrane uloge.')
-}
-export function canControlUser(actor: AuthUser, target: UserResponse) {
-  return actor.id !== target.id && (actor.role === 'OWNER' ? target.role !== 'OWNER' : actor.role === 'ADMIN' && target.role === 'EMPLOYEE')
-}
-export function allowedUserActions(actor: AuthUser, target: UserResponse) {
-  const control = canControlUser(actor, target), deleted = Boolean(target.deletedAt)
-  return {
-    deactivate: control && !deleted && target.active && hasCapability(actor, 'USER_DEACTIVATE'),
-    remove: control && !deleted && hasCapability(actor, 'USER_DELETE'),
-    restore: control && deleted && hasCapability(actor, 'USER_RESTORE'),
-  }
 }
 export function UserAvatar({ user, large = false }: { user: UserResponse; large?: boolean }) {
   return <span className={`gm-user-avatar${large ? ' gm-user-avatar--large' : ''}`}><EmployeeAvatar employee={user} large={large} /></span>
@@ -52,9 +33,6 @@ export function UserKpi({ title, value, kind, tone, loading }: {
     <div><h2>{title}</h2>{loading ? <Skeleton lines={1} label={`Učitavanje: ${title}`} /> : <strong>{value === undefined ? '—' : new Intl.NumberFormat('sr-Latn-RS').format(value)}</strong>}</div>
   </section>
 }
-
-export type UserAction = 'details' | 'deactivate' | 'delete' | 'restore'
-type ActionHandler = (user: UserResponse, action: UserAction, opener: HTMLButtonElement | null) => void
 function UserRowMenu({ user, actor, busy, onAction }: { user: UserResponse; actor: AuthUser; busy: boolean; onAction: ActionHandler }) {
   const permissions = allowedUserActions(actor, user), id = useId(), trigger = useRef<HTMLButtonElement>(null), menu = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false), [position, setPosition] = useState({ left: 0, top: 0, maxHeight: 300 })
@@ -114,17 +92,11 @@ export function UsersTable({ users, actor, selected, focus, busy, onToggle, onAc
   </tr>)}</tbody></table></div>
 }
 export function UserPagination({ page, size, totalPages, totalElements, busy, onPage, onSize }: {
-  page: number; size: number; totalPages: number; totalElements: number; busy: boolean; onPage: (value: number) => void; onSize: (value: number) => void
+  page: number; size: number; totalPages: number; totalElements: number; busy: boolean
+  onPage: (value: number) => void; onSize: (value: number) => void
 }) {
-  const pages = Math.max(1, totalPages), start = Math.max(0, Math.min(page - 1, pages - 3))
-  const numbers = [...new Set([0, ...Array.from({ length: Math.min(3, pages) }, (_, index) => start + index), pages - 1])].sort((a, b) => a - b)
-  return <div className="gm-user-pagination"><div><span aria-live="polite">Prikazano {totalElements ? page * size + 1 : 0}–{Math.min((page + 1) * size, totalElements)} od {totalElements} korisnika.</span>
-    <label>Po stranici<Select value={size} disabled={busy} onChange={event => onSize(Number(event.target.value))}>{[10, 20, 50].map(value => <option key={value} value={value}>{value}</option>)}</Select></label></div>
-    <nav aria-label="Stranice korisnika"><Button type="button" variant="secondary" disabled={busy || page === 0} onClick={() => onPage(page - 1)}>Prethodna</Button>
-      {numbers.map((number, index) => <span key={number}>{index > 0 && number - numbers[index - 1] > 1 && <span aria-hidden="true">…</span>}
-        <Button type="button" variant="secondary" disabled={busy} aria-current={number === page ? 'page' : undefined} aria-label={`Stranica ${number + 1}`} onClick={() => onPage(number)}>{number + 1}</Button></span>)}
-      <Button type="button" variant="secondary" disabled={busy || page + 1 >= pages} onClick={() => onPage(page + 1)}>Sledeća</Button></nav>
-  </div>
+  return <Pagination numbered label="Stranice korisnika" page={page} pageSize={size} totalPages={totalPages}
+    totalElements={totalElements} loading={busy} onPageChange={onPage} onPageSizeChange={onSize} />
 }
 
 const permissionLabels: Record<Permission, string> = {

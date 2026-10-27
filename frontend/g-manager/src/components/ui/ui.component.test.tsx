@@ -1,12 +1,9 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { axe } from 'vitest-axe'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
-import {
-  Breadcrumbs, Button, Card, Drawer, EmptyState, ErrorState, FormField, Input,
-  Modal, PageHeader, Select, Skeleton, TableShell, ToastProvider,
-} from './index'
+import { Breadcrumbs, Button, Card, Drawer, EmptyState, ErrorState, FormField, Input, Modal, PageHeader, Select, Skeleton, TableShell, ToastProvider } from './index'
 import { useToast } from './toastContext'
 
 function ToastProbe() {
@@ -23,11 +20,18 @@ function ModalFocusProbe() {
 }
 
 describe('UI component system', () => {
+  beforeEach(() => {
+    // jsdom has no layout; supply visible rectangles for the real focus-trap visibility check.
+    vi.spyOn(HTMLElement.prototype, 'getClientRects').mockImplementation(function (this: HTMLElement) {
+      return this.closest('[hidden], [inert]') ? [] as unknown as DOMRectList : [this.getBoundingClientRect()] as unknown as DOMRectList
+    })
+  })
+  afterEach(() => vi.restoreAllMocks())
   it('supports interaction states for modal, drawer and toast', async () => {
     const user = userEvent.setup()
     const closeModal = vi.fn()
     const closeDrawer = vi.fn()
-    render(<ToastProvider>
+    const view = render(<ToastProvider>
       <Button loading>Čuvanje</Button>
       <Modal open title="Potvrda" onClose={closeModal}><p>Sadržaj</p></Modal>
       <Drawer open title="Meni" onClose={closeDrawer}><a href="/">Početna</a></Drawer>
@@ -36,8 +40,9 @@ describe('UI component system', () => {
 
     expect(screen.getByRole('button', { name: 'Čuvanje' })).toBeDisabled()
     await user.keyboard('{Escape}')
-    expect(closeModal).toHaveBeenCalled()
+    expect(closeModal).not.toHaveBeenCalled()
     expect(closeDrawer).toHaveBeenCalled()
+    view.rerender(<ToastProvider><ToastProbe /></ToastProvider>)
     await user.click(screen.getByRole('button', { name: 'Prikaži poruku' }))
     expect(screen.getByText('Sačuvano')).toBeVisible()
   })
@@ -63,7 +68,7 @@ describe('UI component system', () => {
     await user.click(opener)
     const close = screen.getByRole('button', { name: 'Zatvori' })
     expect(close).toHaveFocus()
-    await user.keyboard('{Shift>}{Tab}{/Shift}')
+    fireEvent.keyDown(close, { key: 'Tab', shiftKey: true })
     expect(screen.getByRole('button', { name: 'Sačuvaj' })).toHaveFocus()
     await user.keyboard('{Escape}')
     expect(opener).toHaveFocus()

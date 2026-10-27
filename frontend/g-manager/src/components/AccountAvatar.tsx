@@ -1,13 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
-import type { AuthUser } from '../types/auth.types'
-import './accountAvatar.css'
+import { useResettableState } from './useResettableState'
+import { type AvatarStatus, type AvatarUser, accountInitials } from './AccountAvatar.model'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
-export type AvatarStatus = 'empty' | 'loading' | 'ready' | 'error'
-type AvatarUser = Pick<AuthUser, 'id' | 'name' | 'avatarUrl'>
-export function accountInitials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean)
-  return [parts[0]?.[0], parts.length > 1 ? parts.at(-1)?.[0] : ''].join('').toLocaleUpperCase('sr-Latn-RS') || '?'
-}
+import './accountAvatar.css'
 
 export function AccountAvatar({ user, reload = 0, onStatus }: { user: AvatarUser | null | undefined; reload?: number; onStatus?: (status: AvatarStatus) => void }) {
   return <AvatarImage key={user?.id ?? 'anonymous'} user={user} reload={reload} onStatus={onStatus} />
@@ -16,13 +11,12 @@ export function AccountAvatar({ user, reload = 0, onStatus }: { user: AvatarUser
 function AvatarImage({ user, reload, onStatus }: { user: AvatarUser | null | undefined; reload: number; onStatus?: (status: AvatarStatus) => void }) {
   const url = user?.avatarUrl || '', request = `${url}:${reload}`
   const [approved, setApproved] = useState<{ url: string; source: string } | null>(null)
-  const [progress, setProgress] = useState<{ request: string; attempt: number; status: AvatarStatus }>({ request, attempt: 0, status: url ? 'loading' : 'empty' })
+  const [progress, setProgress] = useResettableState<{ request: string; attempt: number; status: AvatarStatus }>(() => ({ request, attempt: 0, status: url ? 'loading' : 'empty' }), request)
   const timer = useRef<number | undefined>(undefined), currentRequest = useRef(request)
-  currentRequest.current = request
   const attempt = progress.request === request ? progress.attempt : 0
   const status = !url ? 'empty' : approved?.url === url ? 'ready' : progress.request === request ? progress.status : 'loading'
-  useEffect(() => {
-    setProgress({ request, attempt: 0, status: url ? 'loading' : 'empty' })
+  useLayoutEffect(() => {
+    currentRequest.current = request
     return () => window.clearTimeout(timer.current)
   }, [request, url])
   useEffect(() => { onStatus?.(status) }, [status, onStatus])

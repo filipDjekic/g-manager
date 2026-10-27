@@ -1,4 +1,4 @@
-﻿import { useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '../auth/authStore'
@@ -11,11 +11,8 @@ import { apiErrorMessage } from '../api/client'
 import { Badge, Button, EmptyState, ErrorState, Skeleton } from '../components/ui'
 import { reservationLabels, reservationTones } from '../components/ui/statusPresentation'
 import { DashboardOrderCard, DashboardSection } from '../dashboard/DashboardComponents'
-import {
-  ActiveGamingVisit, CustomerActivityList, CustomerHomeIcon, CustomerHomeMetric, CustomerSessionDialog,
-  CustomerWaitlistPreview, GamingMotif, UpcomingReservations, customerActivities, homeCountdown,
-  reservationHref, sessionHref, sessionState,
-} from '../dashboard/customer/CustomerHomeComponents'
+import { ActiveGamingVisit, CustomerActivityList, CustomerHomeIcon, CustomerHomeMetric, CustomerSessionDialog, CustomerWaitlistPreview, GamingMotif, UpcomingReservations } from '../dashboard/customer/CustomerHomeComponents'
+import { customerActivities, homeCountdown, reservationHref, sessionHref, sessionState } from '../dashboard/customer/CustomerHomeComponents.model'
 import { GamingVisitList } from '../gaming/GamingVisitList'
 import { useServerNow } from '../gaming/useServerNow'
 import { NavigationIcon } from '../layout/NavigationIcon'
@@ -41,6 +38,7 @@ export function CustomerHomePage() {
     queryKey: ['gaming-visits', 'mine', user?.id], queryFn: gamingSessionApi.mine, enabled: canReserve,
     staleTime: 5000, refetchOnMount: 'always', refetchInterval: 15000, refetchIntervalInBackground: false,
   })
+  const refreshVisits = visits.refetch
   const reservations = useQuery({
     queryKey: ['reservations', 'mine', user?.id, 'home-upcoming'], enabled: canReserve,
     queryFn: () => reservationApi.mine({ page: 0, size: 3, upcoming: true, sort: 'startTime', direction: 'ASC' }),
@@ -64,6 +62,7 @@ export function CustomerHomePage() {
     queryKey: ['waitlist', 'mine', user?.id], queryFn: waitlistApi.mine, enabled: canReserve,
     staleTime: 5000, refetchOnMount: 'always', refetchInterval: 15000, refetchIntervalInBackground: false,
   })
+  const refreshQueue = queue.refetch
   const clockSources = [
     { time: visits.isError ? undefined : visits.data?.[0]?.serverTime, received: visits.dataUpdatedAt },
     { time: queue.isError ? undefined : queue.data?.[0]?.serverTime, received: queue.dataUpdatedAt },
@@ -72,10 +71,10 @@ export function CustomerHomePage() {
   const serverTime = clockSources.filter(value => value.time && Number.isFinite(Date.parse(value.time)))
     .sort((a, b) => b.received - a.received)[0]?.time
   const now = useServerNow(serverTime), synchronized = Boolean(serverTime)
-  const active = visits.isError ? [] : visits.data?.filter(value => value.status === 'ACTIVE') ?? []
+  const active = useMemo(() => visits.isError ? [] : visits.data?.filter(value => value.status === 'ACTIVE') ?? [], [visits.isError, visits.data])
   const history = visits.data?.filter(value => value.status !== 'ACTIVE') ?? []
   const upcoming = reservations.data?.content ?? [], next = upcoming[0]
-  const waiting = queue.data?.filter(value => value.status === 'WAITING' || value.status === 'OFFERED') ?? []
+  const waiting = useMemo(() => queue.data?.filter(value => value.status === 'WAITING' || value.status === 'OFFERED') ?? [], [queue.data])
   const firstActive = active[0]
   const currentSession = visits.data?.find(value => value.id === selectedSessionId)
   const activeState = firstActive ? sessionState(firstActive, now, synchronized) : undefined
@@ -92,31 +91,31 @@ export function CustomerHomePage() {
     const due = active.filter(value => Date.parse(value.endsAt) <= now && !endedSessions.current.has(`${value.id}:${value.endsAt}`))
     if (due.length) {
       due.forEach(value => endedSessions.current.add(`${value.id}:${value.endsAt}`))
-      void visits.refetch()
+      void refreshVisits()
     }
-  }, [now, synchronized, active, visits.isError, visits.refetch])
+  }, [now, synchronized, active, visits.isError, refreshVisits])
   useEffect(() => {
     if (!synchronized || queue.isError) return
     const expired = waiting.filter(entry => entry.status === 'OFFERED' && entry.offerStatus !== 'EXPIRED' && entry.offerId && entry.offerExpiresAt
       && (Date.parse(entry.offerExpiresAt) <= now || Date.parse(entry.desiredStart) <= now) && !expiredOffers.current.has(entry.offerId))
     if (expired.length) {
       expired.forEach(entry => expiredOffers.current.add(entry.offerId!))
-      void queue.refetch()
+      void refreshQueue()
     }
-  }, [now, synchronized, waiting, queue.isError, queue.refetch])
+  }, [now, synchronized, waiting, queue.isError, refreshQueue])
 
   function closeSession() {
     setParams(current => { const nextParams = new URLSearchParams(current); nextParams.delete('sessionId'); return nextParams }, { replace: true })
     window.requestAnimationFrame(() => { if (!sessionTrigger.current?.isConnected) titleRef.current?.focus({ preventScroll: true }) })
   }
   function refresh() {
-    if (canReserve) { void visits.refetch(); void reservations.refetch(); void summary.refetch(); void recentReservations.refetch(); void queue.refetch() }
+    if (canReserve) { void refreshVisits(); void reservations.refetch(); void summary.refetch(); void recentReservations.refetch(); void refreshQueue() }
     if (canOrder) void orders.refetch()
   }
   const refreshing = canReserve && (visits.isFetching || reservations.isFetching || summary.isFetching || recentReservations.isFetching || queue.isFetching) || canOrder && orders.isFetching
   const rememberSessionTrigger = (element: HTMLElement) => { sessionTrigger.current = element }
   const activityErrors = [
-    { key: 'sessions', failed: canReserve && visits.isError, message: apiErrorMessage(visits.error, 'Gaming aktivnosti nisu dostupne.'), retry: () => void visits.refetch() },
+    { key: 'sessions', failed: canReserve && visits.isError, message: apiErrorMessage(visits.error, 'Gaming aktivnosti nisu dostupne.'), retry: () => void refreshVisits() },
     { key: 'reservations', failed: canReserve && recentReservations.isError, message: apiErrorMessage(recentReservations.error, 'Aktivnosti rezervacija nisu dostupne.'), retry: () => void recentReservations.refetch() },
     { key: 'orders', failed: canOrder && orders.isError, message: apiErrorMessage(orders.error, 'Aktivnosti narudžbina nisu dostupne.'), retry: () => void orders.refetch() },
   ].filter(value => value.failed)
@@ -155,7 +154,7 @@ export function CustomerHomePage() {
         <CustomerHomeMetric label="Aktivna sesija" icon="/gaming-sessions" iconNode={<CustomerHomeIcon kind="gamepad" />}
           value={firstActive ? activeState?.label === 'Vreme isteklo' ? 'Vreme isteklo' : 'U toku' : 'Bez sesije'}
           detail={firstActive ? synchronized ? <span role="timer" aria-label="Preostalo vreme aktivne sesije">{homeCountdown((Date.parse(firstActive.endsAt) - now) / 1000)} preostalo</span> : 'Sinhronizacija vremena…' : 'Nema aktivne sesije'}
-          loading={visits.isLoading} error={visits.isError} onRetry={() => void visits.refetch()} onOpen={firstActive ? rememberSessionTrigger : undefined}
+          loading={visits.isLoading} error={visits.isError} onRetry={() => void refreshVisits()} onOpen={firstActive ? rememberSessionTrigger : undefined}
           to={firstActive ? sessionHref(firstActive.id) : canCreateReservation ? bookingHref : '/my-reservations'} linkLabel={firstActive ? 'Detalji sesije' : canCreateReservation ? 'Rezerviši termin' : 'Moji termini'} />
         <CustomerHomeMetric label="Sledeća rezervacija" icon="/my-reservations" tone="accent"
           value={next ? <time dateTime={next.startTime}>{formatBusinessDateTime(next.startTime, false, 'sr-Latn-RS')}</time> : 'Nema termina'}
@@ -176,7 +175,7 @@ export function CustomerHomePage() {
         <DashboardSection title="Aktivna gaming sesija" iconNode={<CustomerHomeIcon kind="gamepad" />} className="gm-home-session-panel"
           actions={firstActive && activeState && <Badge tone={activeState.tone}>{activeState.label}</Badge>}>
           {visits.isLoading ? <Skeleton lines={6} label="Učitavanje aktivne gaming sesije" /> : visits.isError
-            ? <ErrorState message={apiErrorMessage(visits.error, 'Sesije nisu dostupne.')} action={<Button type="button" onClick={() => void visits.refetch()}>Pokušaj ponovo</Button>} />
+            ? <ErrorState message={apiErrorMessage(visits.error, 'Sesije nisu dostupne.')} action={<Button type="button" onClick={() => void refreshVisits()}>Pokušaj ponovo</Button>} />
             : active.length ? active.map(visit => <ActiveGamingVisit key={visit.id} visit={visit} now={now} synchronized={synchronized} onOpen={rememberSessionTrigger} />)
               : <EmptyState title="Trenutno ne igrate." description="Osoblje pokreće sesiju kada dođete u igraonicu."
                 action={canCreateReservation ? <Link className="button-link" to={bookingHref}>Rezerviši termin</Link> : <Link to="/my-reservations">Moji termini</Link>} />}
@@ -204,7 +203,7 @@ export function CustomerHomePage() {
       {canReserve && <DashboardSection title="Lista čekanja" icon="/waitlist" className="gm-home-waitlist-panel"
         actions={<Link to="/my-reservations?section=waitlist">Sve prijave →</Link>}>
         {queue.isLoading ? <Skeleton lines={5} label="Učitavanje liste čekanja" /> : queue.isError
-          ? <ErrorState message={apiErrorMessage(queue.error, 'Lista čekanja nije dostupna.')} action={<Button type="button" onClick={() => void queue.refetch()}>Pokušaj ponovo</Button>} />
+          ? <ErrorState message={apiErrorMessage(queue.error, 'Lista čekanja nije dostupna.')} action={<Button type="button" onClick={() => void refreshQueue()}>Pokušaj ponovo</Button>} />
           : waiting.length ? <CustomerWaitlistPreview entries={waiting} now={now} synchronized={synchronized} canManage={canCreateReservation} />
             : <EmptyState title="Nemate aktivnih prijava na listi čekanja." description="Kada se prijavite za zauzet termin, prijave i ponude pojaviće se ovde."
               action={canCreateReservation && <Link to={bookingHref}>Nova rezervacija →</Link>} />}
@@ -230,12 +229,12 @@ export function CustomerHomePage() {
     {canReserve && <details id="gaming-history" className="ui-card dashboard-history gm-home-history">
       <summary><span><CustomerHomeIcon kind="gamepad" />Gaming istorija</span>{visits.isSuccess && <small>{history.length} sesija u pregledu</small>}</summary>
       {visits.isLoading ? <Skeleton lines={4} label="Učitavanje gaming istorije" /> : visits.isError
-        ? <ErrorState message={apiErrorMessage(visits.error, 'Gaming istorija nije dostupna.')} action={<Button type="button" onClick={() => void visits.refetch()}>Pokušaj ponovo</Button>} />
+        ? <ErrorState message={apiErrorMessage(visits.error, 'Gaming istorija nije dostupna.')} action={<Button type="button" onClick={() => void refreshVisits()}>Pokušaj ponovo</Button>} />
         : <GamingVisitList visits={history} locale="sr-Latn-RS" showDuration />}
     </details>}
 
     <CustomerSessionDialog open={Boolean(selectedSessionId)} visit={currentSession} now={now} synchronized={synchronized} loading={visits.isLoading}
       error={visits.isError ? apiErrorMessage(visits.error, 'Detalji gaming sesije nisu dostupni.') : undefined} returnFocusRef={sessionTrigger}
-      onClose={closeSession} onRefresh={() => void visits.refetch()} />
+      onClose={closeSession} onRefresh={() => void refreshVisits()} />
   </main>
 }

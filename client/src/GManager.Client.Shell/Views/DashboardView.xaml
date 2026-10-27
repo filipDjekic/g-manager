@@ -1,0 +1,268 @@
+<UserControl x:Class="GManager.Client.Shell.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{StaticResource AppBackground}" Foreground="{StaticResource PrimaryText}"
+             FontFamily="Segoe UI" SizeChanged="Dashboard_SizeChanged" PreviewKeyDown="Dashboard_PreviewKeyDown">
+    <UserControl.Resources>
+        <DataTemplate x:Key="ApplicationCard">
+            <Border x:Name="Card" Style="{StaticResource DashboardCard}" Padding="18" Margin="0,0,12,12"
+                    Height="{Binding TileHeight, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                <Grid>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <Grid>
+                        <Border Width="46" Height="46" Background="#1855C8FF" CornerRadius="13" HorizontalAlignment="Left">
+                            <Path x:Name="ApplicationIcon" Data="{StaticResource AppsGeometry}" Style="{StaticResource FieldIcon}" Width="25" Height="25" Stroke="{StaticResource Primary}"/>
+                        </Border>
+                        <ToggleButton IsChecked="{Binding IsFavorite}" Style="{StaticResource FavoriteButton}" HorizontalAlignment="Right"
+                                      Click="Favorite_Click" ToolTip="Omiljena aplikacija" AutomationProperties.Name="{Binding Name, StringFormat=Omiljena aplikacija: {0}}"
+                                      IsEnabled="{Binding ProfileReady, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                    </Grid>
+                    <StackPanel Grid.Row="1" VerticalAlignment="Center" Margin="0,12,0,12">
+                        <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" MaxHeight="44" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}"/>
+                        <TextBlock Text="{Binding Category}" FontSize="12" Foreground="{StaticResource MutedText}" Margin="0,5,0,0"/>
+                    </StackPanel>
+                    <Button Grid.Row="2" Content="Pokreni" Tag="{Binding Code}" Click="Launch_Click" Style="{StaticResource DashboardPrimaryButton}"
+                            IsEnabled="{Binding CanInteract, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            AutomationProperties.Name="{Binding Name, StringFormat=Pokreni {0}}"/>
+                </Grid>
+            </Border>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding Application.Type}" Value="GAME"><Setter TargetName="ApplicationIcon" Property="Data" Value="{StaticResource GameGeometry}"/></DataTrigger>
+                <Trigger SourceName="Card" Property="IsMouseOver" Value="True"><Setter TargetName="Card" Property="BorderBrush" Value="#9055C8FF"/></Trigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+    </UserControl.Resources>
+    <Grid ClipToBounds="True">
+        <Grid x:Name="DashboardContent">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="SidebarColumn" Width="280"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition x:Name="InformationColumn" Width="420"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions><RowDefinition Height="88"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+            <Grid Grid.Column="1" Grid.ColumnSpan="2" Grid.RowSpan="2" IsHitTestVisible="False" ClipToBounds="True">
+                <Image Source="{StaticResource GamingRoomScene}" Stretch="UniformToFill" Opacity="0.12"/>
+                <Rectangle Fill="#B00A0C10"/>
+                <Rectangle x:Name="AmbientLight">
+                    <Rectangle.Fill><RadialGradientBrush Center="0.65,0.05" GradientOrigin="0.65,0.05" RadiusX="0.8" RadiusY="0.8"><GradientStop Color="#2055C8FF"/><GradientStop Color="#0055C8FF" Offset="1"/></RadialGradientBrush></Rectangle.Fill>
+                </Rectangle>
+            </Grid>
+
+            <Border Grid.RowSpan="2" Background="#F512151C" BorderBrush="#50364050" BorderThickness="0,0,1,0">
+                <Grid x:Name="SidebarLayout" Margin="24,30,24,24">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <StackPanel Margin="0,0,0,38">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource BrandMarkGeometry}" Fill="{StaticResource BrandGradient}" Width="38" Height="43" Stretch="Uniform" Margin="0,0,12,0"/>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock x:Name="SidebarBrand" Text="G-MANAGER" FontSize="19" FontWeight="Bold" TextWrapping="NoWrap"/>
+                                <TextBlock Text="GAMING EXPERIENCE" FontSize="8" Foreground="{StaticResource MutedText}" Margin="0,5,0,0" TextWrapping="NoWrap"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <TextBlock Text="TVOJ GAMING PROSTOR" Style="{StaticResource Eyebrow}" FontSize="9" Margin="2,34,0,0"/>
+                    </StackPanel>
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                        <StackPanel>
+                            <RadioButton x:Name="AppsNavigation" GroupName="DashboardPages" Style="{StaticResource NavigationButton}" Checked="Navigate_Checked" IsChecked="True">
+                                <StackPanel Orientation="Horizontal"><Path Data="{StaticResource AppsGeometry}" Style="{StaticResource FieldIcon}" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" Margin="0,0,12,0"/><TextBlock Text="Moje aplikacije" VerticalAlignment="Center"/></StackPanel>
+                            </RadioButton>
+                            <RadioButton x:Name="InfoNavigation" GroupName="DashboardPages" Style="{StaticResource NavigationButton}" Checked="Navigate_Checked">
+                                <StackPanel Orientation="Horizontal"><Path Data="{StaticResource InfoGeometry}" Style="{StaticResource FieldIcon}" Margin="0,0,12,0"/><TextBlock Text="Informacije" VerticalAlignment="Center"/></StackPanel>
+                            </RadioButton>
+                            <RadioButton x:Name="SettingsNavigation" GroupName="DashboardPages" Style="{StaticResource NavigationButton}" Checked="Navigate_Checked">
+                                <StackPanel Orientation="Horizontal"><Path Data="{StaticResource SettingsGeometry}" Style="{StaticResource FieldIcon}" Margin="0,0,12,0"/><TextBlock Text="Podešavanja" VerticalAlignment="Center"/></StackPanel>
+                            </RadioButton>
+                            <RadioButton x:Name="HelpNavigation" GroupName="DashboardPages" Style="{StaticResource NavigationButton}" Checked="Navigate_Checked">
+                                <StackPanel Orientation="Horizontal"><Path Data="{StaticResource HelpGeometry}" Style="{StaticResource FieldIcon}" Margin="0,0,12,0"/><TextBlock Text="Pomoć" VerticalAlignment="Center"/></StackPanel>
+                            </RadioButton>
+                        </StackPanel>
+                    </ScrollViewer>
+                    <StackPanel Grid.Row="2">
+                        <Border Height="1" Background="{StaticResource SubtleBorder}" Margin="0,16,0,20"/>
+                        <Button x:Name="SidebarLogout" Click="RequestLogout_Click" IsEnabled="{Binding CanInteract}" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Left">
+                            <StackPanel Orientation="Horizontal"><Path Data="{StaticResource LogoutGeometry}" Style="{StaticResource FieldIcon}" Stroke="{StaticResource Danger}" Margin="0,0,12,0"/><TextBlock Text="Odjavi se" Foreground="{StaticResource Danger}"/></StackPanel>
+                        </Button>
+                        <TextBlock Text="G-MANAGER CLIENT" Style="{StaticResource Eyebrow}" FontSize="9" Margin="16,26,0,0"/>
+                        <TextBlock Text="{Binding ClientVersion}" Foreground="{StaticResource MutedText}" Opacity="0.6" FontSize="10" Margin="16,6,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="1" Grid.ColumnSpan="2" Background="#B512151C" BorderBrush="{StaticResource SubtleBorder}" BorderThickness="0,0,0,1" Padding="28,16">
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <Path Data="{StaticResource ComputerGeometry}" Style="{StaticResource FieldIcon}" Stroke="{StaticResource Primary}" Margin="0,0,12,0"/>
+                        <StackPanel><TextBlock Text="{Binding StationName}" FontWeight="SemiBold" MaxWidth="240" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/><TextBlock Text="Windows stanica" FontSize="10" Foreground="{StaticResource MutedText}" Margin="0,4,0,0"/></StackPanel>
+                    </StackPanel>
+                    <Border Grid.Column="1" Style="{StaticResource StatusBadge}" VerticalAlignment="Center" Margin="0,0,24,0">
+                        <StackPanel Orientation="Horizontal"><Ellipse Width="6" Height="6" Fill="{Binding ConnectionBrush}" Margin="0,0,8,0"/><TextBlock Text="{Binding ConnectionLabel}" FontSize="12" ToolTip="{Binding ConnectionDetail}"/></StackPanel>
+                    </Border>
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding LocalTime}" FontSize="18" FontWeight="SemiBold" TextAlignment="Right"/>
+                        <TextBlock Text="{Binding LocalDate}" FontSize="11" Foreground="{StaticResource MutedText}" TextAlignment="Right" Margin="0,3,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Grid x:Name="CentralContent" Grid.Column="1" Grid.Row="1" Margin="32,28,20,24" SizeChanged="CentralContent_SizeChanged">
+                <ScrollViewer x:Name="ApplicationsPage" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly" Focusable="False">
+                    <StackPanel>
+                        <TextBlock Text="TVOJA SLEDEĆA POBEDA POČINJE OVDE" Style="{StaticResource Eyebrow}" Foreground="{StaticResource Primary}" FontSize="10" Margin="0,0,0,12"/>
+                        <TextBlock Text="{Binding WelcomeText}" FontSize="{Binding WelcomeFontSize}" FontWeight="Bold"/>
+                        <TextBlock Text="Uživaj u svojoj gaming sesiji." FontSize="15" Foreground="{StaticResource MutedText}" Margin="0,9,0,24"/>
+                        <Grid Margin="0,0,12,0">
+                            <Border x:Name="TimerGlow" CornerRadius="18" Background="#1055C8FF" IsHitTestVisible="False"><Border.Effect><DropShadowEffect Color="#55C8FF" BlurRadius="30" ShadowDepth="0" Opacity="0.5"/></Border.Effect></Border>
+                            <Border Style="{StaticResource DashboardCard}" BorderBrush="{DynamicResource TimerAccent}" Padding="26,22">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal"><Path Data="{StaticResource ClockGeometry}" Style="{StaticResource FieldIcon}" Stroke="{DynamicResource TimerAccent}" Width="16" Height="16" Margin="0,0,10,0"/><TextBlock Text="PREOSTALO VREME" Style="{StaticResource Eyebrow}" FontSize="11" VerticalAlignment="Center"/></StackPanel>
+                                        <TextBlock Text="{Binding RemainingText}" FontFamily="Consolas" FontSize="{Binding TimerFontSize}" FontWeight="Bold" Foreground="{DynamicResource TimerAccent}" Margin="-3,6,0,4" AutomationProperties.Name="Preostalo vreme gaming sesije"/>
+                                        <TextBlock Text="{Binding TimerMessage}" FontSize="12" Foreground="{StaticResource MutedText}" Margin="0,0,0,16"/>
+                                        <ProgressBar Style="{StaticResource SessionProgress}" AutomationProperties.Name="Ukupno trajanje sesije nije dostupno" ToolTip="Ukupno trajanje sesije nije dostupno; procenat se ne prikazuje."/>
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Background="#1055C8FF" CornerRadius="10" Padding="12,8" VerticalAlignment="Top" Margin="12,0,0,0">
+                                        <TextBlock Text="{Binding SessionStatus}" FontSize="11" Foreground="{DynamicResource TimerAccent}"/>
+                                    </Border>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                        <TextBlock Text="Tvoje aplikacije" Style="{StaticResource SectionTitle}" Margin="0,28,0,7"/>
+                        <TextBlock Text="Pokreni dozvoljene aplikacije za ovu stanicu." FontSize="13" Foreground="{StaticResource MutedText}" Margin="0,0,0,18"/>
+                        <Grid Margin="0,0,12,20">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBox Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}" Height="48" Tag="{StaticResource SearchGeometry}" AutomationProperties.Name="Pretraži aplikacije" AutomationProperties.HelpText="Pretraži aplikacije..." IsUndoEnabled="False"/>
+                            <CheckBox Grid.Column="1" Content="Favoriti" Style="{StaticResource SettingToggle}" IsChecked="{Binding OnlyFavorites}" Margin="18,0,0,0" VerticalAlignment="Center"/>
+                        </Grid>
+                        <TextBlock Text="{Binding ApplicationCount}" Style="{StaticResource Eyebrow}" Margin="0,0,0,12" FontSize="10"/>
+                        <ItemsControl x:Name="ApplicationCards" ItemsSource="{Binding ApplicationView}" ItemTemplate="{StaticResource ApplicationCard}">
+                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="{Binding ApplicationColumns}"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                        <Border Style="{StaticResource DashboardCard}" Margin="0,0,12,0" Visibility="{Binding NoResults, Converter={StaticResource BoolVisibility}}">
+                            <StackPanel><TextBlock Text="{Binding EmptyTitle}" FontSize="18" FontWeight="SemiBold"/><TextBlock Text="{Binding EmptyMessage}" Foreground="{StaticResource MutedText}" Margin="0,8,0,0"/></StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="InformationPage" Visibility="Collapsed" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                    <StackPanel>
+                        <TextBlock Text="Informacije o sesiji" FontSize="30" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <TextBlock Text="Podaci o tvojoj stanici i trenutnoj gaming sesiji." Foreground="{StaticResource MutedText}" Margin="0,0,0,26"/>
+                        <Border Style="{StaticResource DashboardCard}">
+                            <StackPanel>
+                                <TextBlock Text="Korisnik" Style="{StaticResource DetailLabel}"/><TextBlock Text="{Binding CustomerName}" Style="{StaticResource DetailValue}"/>
+                                <TextBlock Text="Stanica / naziv Windows računara" Style="{StaticResource DetailLabel}"/><TextBlock Text="{Binding StationName}" Style="{StaticResource DetailValue}"/>
+                                <TextBlock Text="Status sesije" Style="{StaticResource DetailLabel}"/><TextBlock Text="{Binding SessionStatus}" Style="{StaticResource DetailValue}"/>
+                                <TextBlock Text="Početak sesije" Style="{StaticResource DetailLabel}"/><TextBlock Text="Servis ne dostavlja početak sesije." Style="{StaticResource DetailValue}"/>
+                                <TextBlock Text="Planirani završetak" Style="{StaticResource DetailLabel}"/><TextBlock Text="{Binding EndsText}" Style="{StaticResource DetailValue}"/>
+                                <TextBlock Text="Preostalo vreme" Style="{StaticResource DetailLabel}"/><TextBlock Text="{Binding RemainingText}" Style="{StaticResource DetailValue}" Foreground="{DynamicResource TimerAccent}"/>
+                                <TextBlock Text="Veza sa serverom — stanje iz servisa" Style="{StaticResource DetailLabel}"/><TextBlock Text="{Binding ConnectionDetail}" Style="{StaticResource DetailValue}"/>
+                                <TextBlock Text="Verzija Client aplikacije" Style="{StaticResource DetailLabel}"/><TextBlock Text="{Binding ClientVersion}" Style="{StaticResource DetailValue}" Margin="0"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="SettingsPage" Visibility="Collapsed" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                    <StackPanel>
+                        <TextBlock Text="Podešavanja" FontSize="30" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <TextBlock Text="Tvoj prikaz, tvoj stil. Promene se primenjuju odmah." Foreground="{StaticResource MutedText}" Margin="0,0,0,26"/>
+                        <Border Style="{StaticResource DashboardCard}" Margin="0,0,0,18"><StackPanel>
+                            <TextBlock Text="Izgled" Style="{StaticResource SectionTitle}" Margin="0,0,0,20"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,22">
+                                <RadioButton Content="Dark" GroupName="Appearance" Style="{StaticResource ThemeChoice}" IsChecked="{Binding Preferences.DarkTheme}"/>
+                                <RadioButton Content="Neon Dark" GroupName="Appearance" Style="{StaticResource ThemeChoice}" IsChecked="{Binding Preferences.NeonTheme}"/>
+                            </StackPanel>
+                            <TextBlock Text="Intenzitet neon efekata" Style="{StaticResource DetailLabel}"/>
+                            <Slider Style="{StaticResource NeonSlider}" Value="{Binding Preferences.NeonIntensity}" IsEnabled="{Binding Preferences.NeonTheme}" AutomationProperties.Name="Intenzitet neon efekata" Margin="0,3,0,18"/>
+                            <CheckBox Content="Animacije pri navigaciji" Style="{StaticResource SettingToggle}" IsChecked="{Binding Preferences.Animations}" Margin="0"/>
+                        </StackPanel></Border>
+                        <Border Style="{StaticResource DashboardCard}" Margin="0,0,0,18"><StackPanel>
+                            <TextBlock Text="Obaveštenja i zvuk" Style="{StaticResource SectionTitle}" Margin="0,0,0,20"/>
+                            <CheckBox Content="Upozorenje pre isteka sesije" Style="{StaticResource SettingToggle}" IsChecked="{Binding Preferences.ExpiryWarning}"/>
+                            <CheckBox Content="Zvučna obaveštenja" Style="{StaticResource SettingToggle}" IsChecked="{Binding Preferences.NotificationSound}"/>
+                            <CheckBox Content="Zvuk interfejsa" Style="{StaticResource SettingToggle}" IsChecked="{Binding Preferences.InterfaceSound}" Margin="0"/>
+                        </StackPanel></Border>
+                        <Border Style="{StaticResource DashboardCard}" Margin="0,0,0,18"><StackPanel>
+                            <TextBlock Text="Prikaz" Style="{StaticResource SectionTitle}" Margin="0,0,0,20"/>
+                            <CheckBox Content="Kompaktne kartice aplikacija" Style="{StaticResource SettingToggle}" IsChecked="{Binding Preferences.CompactApplications}"/>
+                            <CheckBox Content="Veliki countdown" Style="{StaticResource SettingToggle}" IsChecked="{Binding Preferences.LargeCountdown}" Margin="0"/>
+                        </StackPanel></Border>
+                        <TextBlock Text="{Binding PreferencesStatus}" Foreground="{StaticResource MutedText}" FontSize="12" Margin="0,0,0,16"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="HelpPage" Visibility="Collapsed" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                    <StackPanel>
+                        <TextBlock Text="Tu smo da pomognemo." FontSize="30" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <TextBlock Text="Sve što treba da znaš za bezbrižnu gaming sesiju." Foreground="{StaticResource MutedText}" Margin="0,0,0,26"/>
+                        <Border Style="{StaticResource DashboardCard}"><StackPanel>
+                            <TextBlock Text="Kako pokrenuti igru?" Style="{StaticResource SectionTitle}" FontSize="17"/><TextBlock Text="Otvori Moje aplikacije, pronađi igru pomoću pretrage i izaberi Pokreni. Dostupne su samo aplikacije odobrene za ovu stanicu. Zvezdicom ih dodaješ u favorite." Foreground="{StaticResource MutedText}" Margin="0,0,0,24"/>
+                            <TextBlock Text="Kako funkcioniše gaming sesija?" Style="{StaticResource SectionTitle}" FontSize="17"/><TextBlock Text="Osoblje aktivira sesiju, a ti se prijavljuješ svojim nalogom. Preostalo vreme i dozvoljene aplikacije određuje servis gaming centra." Foreground="{StaticResource MutedText}" Margin="0,0,0,24"/>
+                            <TextBlock Text="Šta se dešava kada vreme istekne?" Style="{StaticResource SectionTitle}" FontSize="17"/><TextBlock Text="Pristup dashboard-u prestaje. Servis zaključava stanicu i upravlja završetkom aplikacija prema pravilima centra. Sačuvaj svoj napredak pre isteka vremena." Foreground="{StaticResource MutedText}" Margin="0,0,0,24"/>
+                            <TextBlock Text="Kako produžiti vreme?" Style="{StaticResource SectionTitle}" FontSize="17"/><TextBlock Text="Obrati se osoblju na šalteru. Kada servis potvrdi produženje, countdown se automatski usklađuje sa novim završetkom sesije." Foreground="{StaticResource MutedText}" Margin="0,0,0,24"/>
+                            <TextBlock Text="Šta uraditi kada aplikacija ne radi?" Style="{StaticResource SectionTitle}" FontSize="17"/><TextBlock Text="Proveri poruku u Obaveštenjima i status veze. Pokušaj ponovo kada je veza dostupna. Ako problem ostane, zatraži pomoć osoblja." Foreground="{StaticResource MutedText}" Margin="0,0,0,24"/>
+                            <TextBlock Text="Kako se odjaviti?" Style="{StaticResource SectionTitle}" FontSize="17"/><TextBlock Text="Sačuvaj svoj rad, izaberi Odjavi se na dnu navigacije i potvrdi odjavu. Zahtev se šalje postojećem Client Service-u." Foreground="{StaticResource MutedText}" Margin="0,0,0,24"/>
+                            <TextBlock Text="Kome se obratiti za pomoć?" Style="{StaticResource SectionTitle}" FontSize="17"/><TextBlock Text="Za produženje sesije, probleme sa nalogom ili aplikacijama obrati se osoblju na šalteru gaming centra." Foreground="{StaticResource MutedText}" Margin="0,0,0,24"/>
+                            <Border Height="1" Background="{StaticResource SubtleBorder}" Margin="0,0,0,20"/>
+                            <TextBlock Text="{Binding ClientVersion, StringFormat=G-Manager Client · {0}}" FontSize="12"/>
+                            <TextBlock Text="{Binding ConnectionDetail}" FontSize="12" Foreground="{StaticResource MutedText}" Margin="0,6,0,0"/>
+                        </StackPanel></Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
+            <ScrollViewer x:Name="RightPanel" Grid.Column="2" Grid.Row="1" Margin="0,28,28,24" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                <StackPanel>
+                    <Border Style="{StaticResource DashboardCard}" Margin="0,0,0,18">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,18"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <Border Width="56" Height="56" CornerRadius="17" BorderThickness="1" BorderBrush="#7055C8FF" Background="{StaticResource NavigationHighlight}" Margin="0,0,14,0"><TextBlock Text="{Binding Initials}" FontSize="23" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource Primary}"/></Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="{Binding CustomerName}" FontSize="19" FontWeight="SemiBold"/><TextBlock Text="Korisnik" Foreground="{StaticResource MutedText}" FontSize="12" Margin="0,5,0,0"/></StackPanel>
+                            </Grid>
+                            <Border Height="1" Background="{StaticResource SubtleBorder}" Margin="0,0,0,16"/>
+                            <StackPanel Orientation="Horizontal"><Ellipse Width="6" Height="6" Fill="{DynamicResource TimerAccent}" Margin="0,0,8,0"/><TextBlock Text="{Binding SessionStatus}" FontSize="12" Foreground="{StaticResource MutedText}"/></StackPanel>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource DashboardCard}" Margin="0,0,0,18"><StackPanel>
+                        <TextBlock Text="Informacije o sesiji" Style="{StaticResource SectionTitle}" FontSize="18" Margin="0,0,0,22"/>
+                        <TextBlock Text="Početak sesije" Style="{StaticResource DetailLabel}"/><TextBlock Text="Podatak nije dostupan" Style="{StaticResource DetailValue}" FontSize="13"/>
+                        <TextBlock Text="Planirani završetak" Style="{StaticResource DetailLabel}"/><TextBlock Text="{Binding EndsText}" Style="{StaticResource DetailValue}" FontSize="13"/>
+                        <TextBlock Text="Preostalo vreme" Style="{StaticResource DetailLabel}"/><TextBlock Text="{Binding RemainingText}" FontFamily="Consolas" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource TimerAccent}"/>
+                    </StackPanel></Border>
+                    <Border Style="{StaticResource DashboardCard}"><StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,18"><Path Data="{StaticResource BellGeometry}" Style="{StaticResource FieldIcon}" Stroke="{StaticResource Secondary}" Margin="0,0,10,0"/><TextBlock Text="Obaveštenja" FontSize="18" FontWeight="SemiBold"/></StackPanel>
+                        <TextBlock Text="Uživajte u igri!" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <TextBlock Text="Za sva pitanja i pomoć obratite se osoblju na šalteru." FontSize="12" Foreground="{StaticResource MutedText}" Margin="0,0,0,16"/>
+                        <ItemsControl ItemsSource="{Binding Notifications}"><ItemsControl.ItemTemplate><DataTemplate>
+                            <Border BorderBrush="{StaticResource SubtleBorder}" BorderThickness="0,1,0,0" Padding="0,12,0,0" Margin="0,0,0,12"><StackPanel>
+                                <TextBlock x:Name="NotificationText" Text="{Binding Message}" FontSize="12" Foreground="{StaticResource MutedText}"/>
+                                <TextBlock Text="{Binding Time}" Foreground="{StaticResource MutedText}" Opacity="0.6" FontSize="10" Margin="0,6,0,0"/>
+                            </StackPanel></Border>
+                            <DataTemplate.Triggers><DataTrigger Binding="{Binding Warning}" Value="True"><Setter TargetName="NotificationText" Property="Foreground" Value="{StaticResource Danger}"/></DataTrigger></DataTemplate.Triggers>
+                        </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                    </StackPanel></Border>
+                </StackPanel>
+            </ScrollViewer>
+            <Border Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" VerticalAlignment="Bottom" Background="#F012151C" BorderBrush="#5055C8FF" BorderThickness="0,1,0,0" Padding="18,10"
+                    Visibility="{Binding HasToast, Converter={StaticResource BoolVisibility}}" IsHitTestVisible="False">
+                <TextBlock Text="{Binding Toast}" Foreground="{Binding ToastBrush}" FontSize="13" AutomationProperties.LiveSetting="Polite"/>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="LogoutOverlay" Background="#D90A0C10" Visibility="Collapsed" KeyboardNavigation.TabNavigation="Cycle" Focusable="True">
+            <Border Style="{StaticResource DashboardCard}" BorderBrush="{StaticResource PanelBorder}" Width="420" MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=UserControl}}" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="32">
+                <StackPanel>
+                    <Path Data="{StaticResource LogoutGeometry}" Style="{StaticResource FieldIcon}" Stroke="{StaticResource Secondary}" Width="30" Height="30" HorizontalAlignment="Left" Margin="0,0,0,22"/>
+                    <TextBlock Text="Da li želite da se odjavite?" FontSize="24" FontWeight="Bold"/>
+                    <TextBlock Text="Sačuvajte svoj napredak pre odjave. Stanica će biti zaključana kroz Client Service." Foreground="{StaticResource MutedText}" Margin="0,12,0,26"/>
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="14"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Button x:Name="CancelLogout" Content="Otkaži" Click="CancelLogout_Click" IsCancel="False"/>
+                        <Button Grid.Column="2" Content="Odjavi se" Style="{StaticResource DashboardPrimaryButton}" Click="ConfirmLogout_Click"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

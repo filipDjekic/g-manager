@@ -9,6 +9,7 @@ import { installWebVitalsReporting } from './observability/performanceReporter'
 import { UiPreferencesProvider } from './preferences/UiPreferences'
 import { ToastProvider } from './components/ui/ToastProvider'
 import { registerPwa } from './pwa/pwa'
+import { installSessionCacheBoundary } from './query/sessionCacheBoundary'
 
 installGlobalErrorReporting()
 installWebVitalsReporting()
@@ -22,6 +23,8 @@ const queryClient = new QueryClient({
     },
   },
 })
+const removeSessionBoundary = installSessionCacheBoundary(queryClient)
+if (import.meta.hot) import.meta.hot.dispose(removeSessionBoundary)
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

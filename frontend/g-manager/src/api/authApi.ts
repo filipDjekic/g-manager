@@ -1,11 +1,5 @@
 import { publicClient } from './client'
-import type {
-  AuthResponse,
-  ActivateCustomerRequest,
-  LoginRequest,
-  SessionInfo,
-  SecurityEventInfo,
-} from '../types/auth.types'
+import type { AuthResponse, ActivateCustomerRequest, LoginRequest, SessionInfo, SecurityEventInfo } from '../types/auth.types'
 import { apiClient } from './client'
 
 export const authApi = {

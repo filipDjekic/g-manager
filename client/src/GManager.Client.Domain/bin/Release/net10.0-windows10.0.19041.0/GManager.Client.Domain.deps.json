@@ -6,7 +6,7 @@
   "compilationOptions": {},
   "targets": {
     ".NETCoreApp,Version=v10.0": {
-      "GManager.Client.Domain/0.1.0": {
+      "GManager.Client.Domain/1.0.0": {
         "dependencies": {
           "runtimepack.Microsoft.Windows.SDK.NET.Ref": "10.0.19041.57"
         },
@@ -29,7 +29,7 @@
     }
   },
   "libraries": {
-    "GManager.Client.Domain/0.1.0": {
+    "GManager.Client.Domain/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

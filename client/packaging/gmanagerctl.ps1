@@ -1,9 +1,10 @@
 ﻿param(
-    [ValidateSet('status','maintenance','update','repair','restart','uninstall','diagnostics','watchdog')][string]$Command='status',
+    [ValidateSet('status','manage','exit','maintenance','update','repair','restart','uninstall','diagnostics','watchdog')][string]$Command='status',
     [ValidateSet('enable','disable')][string]$Action,
     [ValidateRange(1,60)][int]$Minutes=15,
     [switch]$Recovery,
-    [switch]$PurgeData
+    [switch]$PurgeData,
+    [string]$PurgeConfirmation
 )
 . (Join-Path $PSScriptRoot 'client-management.ps1')
 try {
@@ -19,8 +20,9 @@ try {
         return
     }
     Assert-Administrator
+    if($Command -eq 'manage'){& (Join-Path $PSScriptRoot 'GManager-Management.ps1');return}
     if($Command -eq 'update'){& (Join-Path $PSScriptRoot 'update-client.ps1');return}
-    if($Command -eq 'uninstall'){& (Join-Path $PSScriptRoot 'uninstall-service.ps1') -PurgeData:$PurgeData;return}
+    if($Command -eq 'uninstall'){& (Join-Path $PSScriptRoot 'uninstall-service.ps1') -PurgeData:$PurgeData -PurgeConfirmation $PurgeConfirmation;return}
     $mutex=[Threading.Mutex]::new($false,'Global\GManager.Client.Deployment')
     if(!(Enter-ClientMutex $mutex)){if($Command -eq 'watchdog'){return};throw 'Druga administratorska operacija je u toku.'}
     try{
@@ -58,7 +60,11 @@ try {
             return
         }
         Write-Operation ($Command.ToUpperInvariant()+'_BEGIN') 'LOCAL_ADMIN'
-        if($Command -eq 'maintenance'){
+        if($Command -eq 'exit'){
+            if([Security.Principal.WindowsIdentity]::GetCurrent().User.Value -eq $config.Client.PlayerSid){throw 'Exit zahteva zasebnu Windows administratorsku sesiju.'}
+            $Action='enable'
+        }
+        if($Command -in @('maintenance','exit')){
             if(!$Action){throw 'Navedite maintenance enable ili maintenance disable.'}
             if($Action -eq 'enable'){
                 try{[void](Invoke-ClientPipe 'prepare-maintenance' -Admin)}catch{if(!$Recovery){throw 'Servis nije spreman. Za nezavisni recovery upotrebite maintenance enable -Recovery.'};Stop-ClientService -Force}
@@ -71,6 +77,7 @@ try {
                 Write-AtomicJson $leasePath @{ExpiresAt=$expiry.ToString('o');Actor=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value}
                 try{Invoke-Policy 'Suspend'}catch{Write-AtomicJson $leasePath @{ExpiresAt=[DateTimeOffset]::MinValue.ToString('o')};Write-AtomicJson (Join-Path $script:ClientState 'allowed-paths.json') @();Invoke-Policy 'Apply';throw}
                 Write-Operation 'MAINTENANCE_ENABLED' $expiry.ToString('o')
+                if($Command -eq 'exit'){Stop-ClientShell;Write-Operation 'SHELL_EXIT_COMPLETE' 'SERVICE_RUNNING_MAINTENANCE'}
                 Write-Host "Održavanje je uključeno do $($expiry.LocalDateTime). Za rad koristite zaseban Windows administratorski nalog."
             }else{
                 Stop-PlayerSessions $config.Client.PlayerSid

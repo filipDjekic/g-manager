@@ -35,7 +35,7 @@ describe('CatalogPage role composition', () => {
     }))
     renderPage()
 
-    expect(await screen.findByRole('heading', { name: 'Katalog', level: 1 })).toBeVisible()
+    expect(await screen.findByRole('heading', { name: 'Usluge i proizvodi', level: 1 })).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Nova stavka' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Sačuvani prikazi')).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/Izaberi stavku/)).not.toBeInTheDocument()
@@ -52,8 +52,9 @@ describe('CatalogPage role composition', () => {
     )
     renderPage()
 
-    expect(await screen.findByRole('heading', { name: 'Upravljanje katalogom', level: 1 })).toBeVisible()
-    expect(screen.getByLabelText('Minimalna cena')).toBeVisible()
+    expect(await screen.findByRole('heading', { name: 'Usluge i proizvodi', level: 1 })).toBeVisible()
+    await userEvent.selectOptions(screen.getByLabelText('Cena'), 'range')
+    expect(screen.getByLabelText('Minimalna cena (RSD)')).toBeVisible()
     expect(await screen.findByLabelText('Izaberi stavku Šampon')).toBeVisible()
     await userEvent.click(screen.getByRole('button', { name: 'Nova stavka' }))
     expect(screen.getByRole('dialog', { name: 'Nova stavka' })).toBeVisible()

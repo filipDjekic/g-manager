@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useResettableState } from '../components/useResettableState'
+import { useEffect, useId, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { Badge, Button, ErrorState, Skeleton } from '../components/ui'
 import { useServerNow } from '../gaming/useServerNow'
@@ -6,7 +7,8 @@ import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
 import { formatBusinessTime, formatBusinessIntervalEnd } from '../reservations/dateTime'
 import type { WaitlistDetail, WaitlistOperationalEntry, WaitlistHistoryEvent } from '../types/waitlist.types'
-import { resourceLabels, WaitlistAvatar, WaitlistIcon, WaitlistStatusBadge, waitlistCalendar, waitlistDate, waitlistError } from './waitlistPresentation'
+import { WaitlistAvatar, WaitlistIcon, WaitlistStatusBadge } from './waitlistPresentation'
+import { resourceLabels, waitlistCalendar, waitlistDate, waitlistError } from './waitlistPresentation.model'
 
 const historyLabels: Record<WaitlistHistoryEvent['type'], string> = {
   ENTRY_CREATED: 'Kreirana prijava', ENTRY_UPDATED: 'Izmenjena prijava', OFFER_CREATED: 'Kreirana ponuda',
@@ -18,10 +20,9 @@ export function WaitlistDetailsPanel({ detail, loading, error, fetching, inline,
   onCancel: (entry: WaitlistOperationalEntry) => void
 }) {
   const canManage = hasCapability(useAuthStore(state => state.user), 'WAITLIST_MANAGE')
-  const [tab, setTab] = useState<'information' | 'history'>('information'), id = useId(), panel = useRef<HTMLElement>(null)
+  const [tab, setTab] = useResettableState<'information' | 'history'>(() => 'information', `${selectedId}:${inline}`), id = useId(), panel = useRef<HTMLElement>(null)
   const entry = detail?.entry, now = useServerNow(entry?.serverTime)
   useEffect(() => {
-    setTab('information')
     if (inline) panel.current?.focus({ preventScroll: true })
   }, [selectedId, inline])
   const activeOffer = entry?.status === 'OFFERED' && entry.offerStatus === 'OFFERED' && Boolean(entry.offerExpiresAt && Date.parse(entry.offerExpiresAt) > now)

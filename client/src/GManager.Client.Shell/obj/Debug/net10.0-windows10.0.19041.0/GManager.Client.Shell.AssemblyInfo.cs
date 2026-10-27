@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("GManager.Client.Shell")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ec75332d138c5552421e3859986d4d7f37f4f696")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+708ca7801f49d1ac67330820a5175f448357baa2")]
 [assembly: System.Reflection.AssemblyProductAttribute("GManager.Client.Shell")]
 [assembly: System.Reflection.AssemblyTitleAttribute("GManager.Client.Shell")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

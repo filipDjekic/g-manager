@@ -9,6 +9,7 @@ using Microsoft.Win32.SafeHandles;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Threading;
 using GManager.Client.Domain;
 
@@ -22,10 +23,14 @@ public partial class MainWindow : Window
     DateTimeOffset? trackedEnd;
     TimeSpan countdownBaseline;
     IReadOnlyList<ClientApplication> apps = [];
-    IReadOnlyList<ClientApplication> renderedApps = [];
-    bool lastActive, refreshing, acting;
+    bool refreshing, acting, sessionExpired;
+    long actionVersion;
     readonly bool development = Environment.GetCommandLineArgs().Contains("--development", StringComparer.OrdinalIgnoreCase);
     bool maintenance;
+    ClientViewState currentState = ClientViewState.Locked();
+    ClientMode? displayedMode;
+    Guid? displayedSessionId;
+    bool serviceAvailable, serviceUnavailable, loggingIn, syncingPassword;
 
     public MainWindow()
     {
@@ -34,10 +39,15 @@ public partial class MainWindow : Window
         if (development && installed is not null) throw new InvalidOperationException("Development Shell nije dozvoljen na produkcionoj stanici.");
         if (development) { WindowStyle = WindowStyle.SingleBorderWindow; WindowState = WindowState.Normal; ResizeMode = ResizeMode.CanResize; Topmost = false; Width = 900; Height = 780; Title = "G-Manager · Development"; }
         Closing += (_, e) => { if (!development && !maintenance) e.Cancel = true; };
-        timer.Tick += async (_, _) => await RefreshStatus();
+        ClientVersion.Text = "v" + (typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "1.0.0");
+        Deactivated += (_, _) => MaskPassword();
+        Dashboard.LaunchRequested += Dashboard_LaunchRequested;
+        Dashboard.LogoutRequested += Dashboard_LogoutRequested;
+        RenderView();
+        timer.Tick += async (_, _) => { UpdateSessionClock(); await RefreshStatus(); };
         timer.Start();
         Loaded += async (_, _) => await RefreshStatus();
-        Closed += (_, _) => timer.Stop();
+        Closed += (_, _) => { timer.Stop(); Dashboard.EndSession(); ClearCredentials(); };
     }
 
     async Task<LocalResponse> Send(LocalRequest request)
@@ -84,53 +94,78 @@ public partial class MainWindow : Window
     {
         if (refreshing || acting) return;
         refreshing = true;
+        long version = actionVersion;
         try
         {
             var response = await Send(new("status", Guid.NewGuid().ToString("N")));
-            apps = response.Applications ?? [];
-            if (!acting) Render(response.State);
+            if (!acting && version == actionVersion)
+            {
+                apps = response.Applications ?? [];
+                Render(response.State);
+            }
         }
-        catch { Connectivity.Text = "Lokalni servis nije dostupan. Ponovno povezivanje je u toku…"; }
+        catch { if (!acting && version == actionVersion) ServiceUnavailable(); }
         finally { refreshing = false; }
     }
 
-    async Task Act(LocalRequest request, bool render)
+    async Task Act(LocalRequest request)
     {
         if (acting) return;
         acting = true;
-        Login.IsEnabled = Logout.IsEnabled = Applications.IsEnabled = false;
+        actionVersion++;
+        loggingIn = request.Type == "login";
+        MaskPassword();
+        UpdateControls();
         Error.Text = "";
+        bool serviceResponded = false;
         try
         {
             var response = await Send(request);
+            serviceResponded = true;
+            if (request.Type == "login" && response.Success && response.State.Mode == ClientMode.Active && request.Email is not null)
+                Dashboard.PrepareAccount(request.Email);
+            apps = response.Applications ?? apps;
+            Render(response.State);
             Error.Text = response.Error ?? "";
-            if (render) Render(response.State);
+            if (!response.Success && response.Error is not null) Dashboard.Notify(response.Error, true);
             if (response.Success && response.Launches is not null)
                 foreach (var launch in response.Launches)
                     Process.Start(new ProcessStartInfo(launch.ExecutablePath, launch.Arguments ?? "") { UseShellExecute = false, WorkingDirectory = System.IO.Path.GetDirectoryName(launch.ExecutablePath)! });
         }
-        catch { Error.Text = "Akcija nije potvrđena. Proverite vezu sa G-Manager servisom ili pozovite osoblje."; }
+        catch
+        {
+            if (!serviceResponded) ServiceUnavailable();
+            Error.Text = serviceResponded
+                ? "Aplikaciju nije moguće pokrenuti. Za pomoć se obratite osoblju."
+                : "Akcija nije potvrđena. Proverite vezu sa G-Manager servisom ili pozovite osoblje.";
+            Dashboard.Notify(Error.Text, true);
+        }
         finally
         {
             acting = false;
+            loggingIn = false;
+            MaskPassword();
             Password.Clear();
-            Login.IsEnabled = Logout.IsEnabled = Applications.IsEnabled = true;
+            UpdateControls();
         }
     }
 
-    async void Login_Click(object sender, RoutedEventArgs e) =>
-        await Act(new("login", Guid.NewGuid().ToString("N"), Email.Text.Trim(), Password.Password), true);
-
-    async void Logout_Click(object sender, RoutedEventArgs e)
+    async void Login_Click(object sender, RoutedEventArgs e)
     {
-        if (sessionId is null) return;
-        await Act(new("logout", Guid.NewGuid().ToString("N"), SessionId: sessionId), true);
+        if (!Login.IsEnabled || currentState.Mode != ClientMode.Login || !serviceAvailable) return;
+        await Act(new("login", Guid.NewGuid().ToString("N"), Email.Text.Trim(), Password.Password));
     }
 
-    async void Launch_Click(object sender, RoutedEventArgs e)
+    async void Dashboard_LogoutRequested()
     {
-        if (sender is Button button && button.Tag is string code)
-            await Act(new("launch", Guid.NewGuid().ToString("N"), ApplicationCode: code), false);
+        if (sessionId is null || acting || !serviceAvailable || sessionExpired || currentState.Mode != ClientMode.Active) return;
+        await Act(new("logout", Guid.NewGuid().ToString("N"), SessionId: sessionId));
+    }
+
+    async void Dashboard_LaunchRequested(string code)
+    {
+        if (acting || !serviceAvailable || sessionExpired || sessionId is null || currentState.Mode != ClientMode.Active || !apps.Any(x => x.Code == code)) return;
+        await Act(new("launch", Guid.NewGuid().ToString("N"), ApplicationCode: code));
     }
 
     TimeSpan SafeRemaining(ClientViewState value)
@@ -144,26 +179,210 @@ public partial class MainWindow : Window
 
     void Render(ClientViewState value)
     {
+        bool changed = currentState != value || !serviceAvailable;
+        currentState = value;
+        serviceAvailable = true;
+        serviceUnavailable = false;
         maintenance = value.Mode == ClientMode.Maintenance;
         if (!development) { if (maintenance) Hide(); else if (!IsVisible) Show(); }
         sessionId = value.SessionId;
-        Heading.Text = value.Heading;
-        Connectivity.Text = value.Connectivity;
-        var remaining = SafeRemaining(value);
-        Countdown.Text = value.EndsAt is null ? "" : $"{Math.Max(0, (int)remaining.TotalHours):00}:{Math.Max(0, remaining.Minutes):00}:{Math.Max(0, remaining.Seconds):00}";
-        var active = value.Mode == ClientMode.Active;
-        Email.Visibility = Password.Visibility = Login.Visibility = active ? Visibility.Collapsed : Visibility.Visible;
-        Logout.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
-        if (active == lastActive && apps.SequenceEqual(renderedApps)) return;
-        lastActive = active;
-        renderedApps = apps.ToArray();
-        Applications.Children.Clear();
-        if (!active) return;
-        foreach (var app in apps)
+        Dashboard.NotifyMode(value.Mode);
+        if (value.Mode == ClientMode.Active)
+            Dashboard.UpdateSession(value, apps, SafeRemaining(value), serviceAvailable, acting);
+        else if (value.Mode == ClientMode.Offline) Dashboard.UpdateConnection(value, true);
+        else if (value.Mode != ClientMode.Offline && Dashboard.HasSession) Dashboard.EndSession();
+        UpdateSessionClock();
+        if (changed) RenderView();
+    }
+
+    void UpdateSessionClock()
+    {
+        Dashboard.UpdateLocalClock(DateTimeOffset.Now);
+        var remaining = SafeRemaining(currentState);
+        bool expired = currentState.Mode == ClientMode.Active && currentState.EndsAt is not null && remaining <= TimeSpan.Zero;
+        if (currentState.Mode == ClientMode.Active) Dashboard.UpdateCountdown(remaining, currentState.EndsAt is not null);
+        if (expired == sessionExpired) return;
+        sessionExpired = expired;
+        RenderView();
+    }
+
+    void ServiceUnavailable()
+    {
+        serviceAvailable = false;
+        serviceUnavailable = true;
+        Dashboard.UpdateConnection(currentState, false);
+        Dashboard.CloseLogout();
+        RenderView();
+    }
+
+    void RenderView()
+    {
+        var mode = serviceUnavailable ? ClientMode.Offline : sessionExpired || currentState.Mode == ClientMode.Active && sessionId is null
+            ? ClientMode.Locked : currentState.Mode;
+        if (displayedMode != mode || displayedSessionId != currentState.SessionId)
         {
-            var button = new Button { Content = app.Name, Tag = app.Code, MinHeight = 44, Margin = new Thickness(0, 4, 0, 4) };
-            button.Click += Launch_Click;
-            Applications.Children.Add(button);
+            ClearCredentials();
+            Error.Text = "";
+            PanelScroll.ScrollToTop();
+            displayedMode = mode;
+            displayedSessionId = currentState.SessionId;
         }
+
+        bool login = mode == ClientMode.Login;
+        bool active = mode == ClientMode.Active;
+        Dashboard.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
+        if (!active) Dashboard.CloseLogout();
+        LayoutRoot.Visibility = active ? Visibility.Collapsed : Visibility.Visible;
+        LoginForm.Visibility = login ? Visibility.Visible : Visibility.Collapsed;
+        StationNotice.Visibility = login || active ? Visibility.Collapsed : Visibility.Visible;
+        HelpText.Visibility = active ? Visibility.Collapsed : Visibility.Visible;
+
+        // A successful local pipe request alone does not establish backend connectivity.
+        bool online = serviceAvailable && mode != ClientMode.Offline && currentState.ServerConnected == true;
+        bool disconnected = mode == ClientMode.Offline || currentState.ServerConnected == false;
+        ConnectionDot.Fill = (Brush)FindResource(disconnected ? "Danger" : online ? "Connected" : "Primary");
+        Connectivity.Text = serviceUnavailable
+            ? "Lokalni servis nije dostupan. Ponovno povezivanje je u toku…"
+            : disconnected ? "Server nije dostupan"
+            : currentState.ServerConnected is null && currentState.Connectivity.Equals("Online", StringComparison.OrdinalIgnoreCase)
+                ? "Servis je dostupan. Provera veze sa serverom…"
+            : online ? "Server je povezan" : currentState.Connectivity;
+        Connectivity.Foreground = (Brush)FindResource(disconnected ? "Danger" : "MutedText");
+
+        Heading.Text = mode switch
+        {
+            ClientMode.Login => "Prijavi se",
+            ClientMode.Active => string.IsNullOrWhiteSpace(currentState.CustomerName) ? "Tvoja sesija" : $"Zdravo, {currentState.CustomerName}",
+            ClientMode.Offline => "Veza je prekinuta",
+            ClientMode.Maintenance => "Održavanje stanice",
+            _ => sessionExpired ? "Sesija je istekla" : "Stanica je zaključana"
+        };
+        PanelEyebrow.Text = mode switch
+        {
+            ClientMode.Active => "SVE JE SPREMNO ZA IGRU",
+            ClientMode.Locked => "TVOJE MESTO TE ČEKA",
+            ClientMode.Offline => "PROVERA KONEKCIJE",
+            ClientMode.Maintenance => "G-MANAGER PODRŠKA",
+            _ => "DOBRO DOŠAO U IGRU"
+        };
+        Subtitle.Text = mode switch
+        {
+            ClientMode.Login => "Pristupi svojoj gaming sesiji.",
+            ClientMode.Active => "Uživaj u svom gaming prostoru.",
+            ClientMode.Offline => "Sačekaj da se veza ponovo uspostavi.",
+            ClientMode.Maintenance => "Stanica je privremeno van upotrebe.",
+            _ => "Za početak je potrebna aktivna sesija."
+        };
+        StateIcon.Data = (Geometry)FindResource(mode switch
+        {
+            ClientMode.Offline => "OfflineGeometry",
+            ClientMode.Maintenance => "MaintenanceGeometry",
+            _ => "LockGeometry"
+        });
+        StateIcon.Stroke = (Brush)FindResource(mode == ClientMode.Offline ? "Danger" : "Primary");
+        StateTitle.Text = mode switch
+        {
+            ClientMode.Offline => "Povezivanje je u toku…",
+            ClientMode.Maintenance => "Pripremamo stanicu za igru.",
+            _ => sessionExpired ? "Vreme je isteklo." : "Tvoja sesija počinje ovde."
+        };
+        StateDescription.Text = mode switch
+        {
+            ClientMode.Offline => "Pristup stanici trenutno nije dostupan. Ako se veza uskoro ne vrati, obrati se osoblju.",
+            ClientMode.Maintenance => "Osoblje obavlja održavanje računara. Pristup će biti dostupan po završetku održavanja.",
+            _ => sessionExpired ? "Za novu gaming sesiju obrati se osoblju. Stanicom i aplikacijama i dalje upravlja Client Service."
+                : "Za aktivaciju ove stanice obrati se osoblju. Ekran za prijavu pojaviće se kada sesija bude spremna."
+        };
+        UpdateControls();
+    }
+
+    void UpdateControls()
+    {
+        bool available = serviceAvailable && !acting && !sessionExpired;
+        bool login = available && currentState.Mode == ClientMode.Login && currentState.SessionId is not null;
+        Email.IsEnabled = Password.IsEnabled = RevealedPassword.IsEnabled = RevealPassword.IsEnabled = Login.IsEnabled = login;
+        Dashboard.SetBusy(acting, serviceAvailable && !sessionExpired && sessionId is not null && currentState.Mode == ClientMode.Active);
+        LoginLabel.Text = loggingIn ? "PRIJAVA U TOKU…" : "PRIJAVI SE";
+        LoginArrow.Visibility = loggingIn ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    void Password_Changed(object sender, RoutedEventArgs e)
+    {
+        using var secret = Password.SecurePassword;
+        Password.Tag = secret.Length == 0 ? "Empty" : "Filled";
+        if (syncingPassword || RevealPassword.IsChecked != true) return;
+        syncingPassword = true;
+        try { RevealedPassword.Text = Password.Password; }
+        finally { syncingPassword = false; }
+    }
+
+    void RevealedPassword_Changed(object sender, TextChangedEventArgs e)
+    {
+        if (syncingPassword || RevealPassword.IsChecked != true) return;
+        syncingPassword = true;
+        try { Password.Password = RevealedPassword.Text; }
+        finally { syncingPassword = false; }
+    }
+
+    void RevealPassword_Click(object sender, RoutedEventArgs e)
+    {
+        if (RevealPassword.IsChecked == true)
+        {
+            RevealedPassword.Text = Password.Password;
+            RevealedPassword.Visibility = Visibility.Visible;
+            Password.Visibility = Visibility.Collapsed;
+            RevealPassword.ToolTip = "Sakrij lozinku";
+            System.Windows.Automation.AutomationProperties.SetName(RevealPassword, "Sakrij lozinku");
+            RevealedPassword.Focus();
+            RevealedPassword.CaretIndex = RevealedPassword.Text.Length;
+        }
+        else
+        {
+            MaskPassword();
+            Password.Focus();
+        }
+    }
+
+    void MaskPassword()
+    {
+        syncingPassword = true;
+        try
+        {
+            RevealPassword.IsChecked = false;
+            RevealedPassword.Clear();
+            RevealedPassword.Visibility = Visibility.Collapsed;
+            Password.Visibility = Visibility.Visible;
+            RevealPassword.ToolTip = "Prikaži lozinku";
+            System.Windows.Automation.AutomationProperties.SetName(RevealPassword, "Prikaži lozinku");
+        }
+        finally { syncingPassword = false; }
+    }
+
+    void ClearCredentials()
+    {
+        MaskPassword();
+        Password.Clear();
+        Email.Clear();
+    }
+
+    void LayoutRoot_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (SessionCard is null) return;
+        double width = LayoutRoot.ActualWidth, height = LayoutRoot.ActualHeight;
+        bool compact = width < 1500 || height < 850;
+        bool narrow = width < 1100;
+        BrandColumn.Width = new GridLength(narrow ? 1 : 3, GridUnitType.Star);
+        PanelColumn.Width = new GridLength(narrow ? 1 : 2, GridUnitType.Star);
+        BrandContent.Margin = compact ? new Thickness(40, 34, 24, 30) : new Thickness(72, 60, 48, 46);
+        PanelHost.Margin = compact ? new Thickness(16, 24, 32, 24) : new Thickness(28, 42, 64, 42);
+        SessionCard.Padding = new Thickness(compact ? 28 : 40);
+        Slogan.FontSize = narrow ? 44 : compact ? 64 : width >= 2300 ? 104 : 92;
+        Slogan.LineHeight = Slogan.FontSize * 1.09;
+        Tagline.FontSize = compact ? 16 : 19;
+        Heading.FontSize = compact ? 32 : 38;
+        Heading.LineHeight = compact ? 38 : 44;
+        FormDivider.Margin = new Thickness(0, compact ? 22 : 28, 0, compact ? 22 : 28);
+        // Constrain the card, so long names, errors and application lists scroll at high DPI.
+        PanelHost.MaxHeight = Math.Max(120, height - PanelHost.Margin.Top - PanelHost.Margin.Bottom);
     }
 }
