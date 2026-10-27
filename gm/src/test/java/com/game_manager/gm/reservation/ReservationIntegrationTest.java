@@ -56,6 +56,44 @@ class ReservationIntegrationTest {
     }
 
     @Test
+    void employeeCanBookOwnNonPhysicalServiceButCannotUseThatRuleForAnotherEmployee() throws Exception {
+        User customer=createUser(Role.CUSTOMER), employee=createUser(Role.EMPLOYEE), other=createUser(Role.EMPLOYEE);
+        CatalogItem service=createCatalog(ItemType.SERVICE,true);
+        Instant start=futureOpenTime(7,12,0); configureOpen(start);
+        String token=login(employee);
+        String body="{\"customerId\":\"%s\",\"employeeId\":\"%s\",\"serviceId\":\"%s\",\"startTime\":\"%s\"}";
+        MvcResult created=createRequest(token,body.formatted(customer.getId(),employee.getId(),service.getId(),start))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.canManage").value(true)).andReturn();
+        String id=json(created,"id");
+        mockMvc.perform(get("/api/v1/reservations/{id}/resources",id).header("Authorization",bearer(token)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.resources").isEmpty());
+        mockMvc.perform(get("/api/v1/reservations?scope=MANAGEABLE&search={name}",customer.getName())
+                .header("Authorization",bearer(token))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1));
+        mockMvc.perform(get("/api/v1/reservations?search={name}",customer.getName())
+                .header("Authorization",bearer(login(other)))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
+        createRequest(token,body.formatted(customer.getId(),other.getId(),service.getId(),start.plusSeconds(3600)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void anOwnUnassignedPhysicalBookingStillRequiresAStationGrant() throws Exception {
+        User customer=createUser(Role.CUSTOMER), employee=createUser(Role.EMPLOYEE);
+        CatalogItem service=createCatalog(ItemType.SERVICE,true);
+        service.setRequiresResource(true); service=catalogRepository.saveAndFlush(service);
+        Reservation reservation=createReservation(customer,employee,service,Instant.now().plus(2,ChronoUnit.DAYS),ReservationStatus.PENDING);
+        String token=login(employee);
+        mockMvc.perform(patch("/api/v1/reservations/{id}/status",reservation.getId())
+                .header("Authorization",bearer(token)).contentType(MediaType.APPLICATION_JSON)
+                .content(statusBody("CONFIRMED",reservation.getVersion())))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/reservations?scope=MANAGEABLE")
+                .header("Authorization",bearer(token))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
     void createIsIdempotentValidatesHeaderAndPreventsOverlap() throws Exception {
         User customer = createUser(Role.CUSTOMER);
         User secondCustomer = createUser(Role.CUSTOMER);
@@ -134,7 +172,7 @@ class ReservationIntegrationTest {
     }
 
     @Test
-    void listsAreOwnershipScopedAndEmployeeCannotChangeAnotherEmployeesReservation()
+    void customersSeeOwnReservationsAndEmployeeOverviewMasksUnmanagedCustomers()
             throws Exception {
         User customer = createUser(Role.CUSTOMER);
         User otherCustomer = createUser(Role.CUSTOMER);
@@ -155,6 +193,10 @@ class ReservationIntegrationTest {
                 .andExpect(jsonPath("$.content[0].customerId")
                         .value(customer.getId().toString()));
         mockMvc.perform(get("/api/v1/reservations?size=100")
+                        .header("Authorization", bearer(login(employee))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2));
+        mockMvc.perform(get("/api/v1/reservations?size=100&scope=MANAGEABLE")
                         .header("Authorization", bearer(login(employee))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
@@ -269,7 +311,12 @@ class ReservationIntegrationTest {
                 .andExpect(status().isNotFound());
         mockMvc.perform(get("/api/v1/reservations/{id}", reservation.getId())
                         .header("Authorization", bearer(login(otherEmployee))))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.customerName").value("Klijent"))
+                .andExpect(jsonPath("$.customerContact").doesNotExist())
+                .andExpect(jsonPath("$.note").doesNotExist())
+                .andExpect(jsonPath("$.readOnly").value(true))
+                .andExpect(jsonPath("$.allowedActions").isEmpty());
 
         mockMvc.perform(patch("/api/v1/reservations/{id}/status", reservation.getId())
                         .header("Authorization", bearer(login(employee)))
@@ -285,7 +332,7 @@ class ReservationIntegrationTest {
     }
 
     @Test
-    void calendarIsBoundedHumanReadableAndEmployeeScoped() throws Exception {
+    void calendarIsBoundedHumanReadableAndSupportsManageableEmployeeScope() throws Exception {
         User customer = createUser(Role.CUSTOMER);
         User employee = createUser(Role.EMPLOYEE);
         User otherEmployee = createUser(Role.EMPLOYEE);
@@ -298,6 +345,7 @@ class ReservationIntegrationTest {
                 date.atTime(12, 0).atZone(ZONE).toInstant(), ReservationStatus.PENDING);
 
         mockMvc.perform(get("/api/v1/reservations/calendar")
+                        .param("scope", "MANAGEABLE")
                         .param("from", date.toString()).param("to", date.toString())
                         .header("Authorization", bearer(login(employee))))
                 .andExpect(status().isOk())

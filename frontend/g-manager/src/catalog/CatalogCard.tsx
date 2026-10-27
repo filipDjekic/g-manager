@@ -4,7 +4,8 @@ import { Link } from 'react-router-dom'
 import { Badge, Button } from '../components/ui'
 import type { CatalogItem } from '../types/catalog.types'
 import { CatalogImage } from './CatalogImage'
-import { CatalogIcon, catalogDuration, catalogMoney, catalogTypeLabel } from './CatalogPresentation'
+import { CatalogIcon } from './CatalogPresentation'
+import { catalogDuration, catalogMoney, catalogTypeLabel } from './CatalogPresentation.model'
 
 export type CatalogAction = 'DETAILS' | 'EDIT' | 'IMAGE' | 'ACTIVATE' | 'DEACTIVATE' | 'DELETE' | 'RESTORE'
 export interface CatalogPermissions { manage: boolean; remove: boolean; restore: boolean; order: boolean }

@@ -1,0 +1,160 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <BooleanToVisibilityConverter x:Key="BoolVisibility"/>
+    <SolidColorBrush x:Key="DashboardSurface" Color="#EB12151C"/>
+    <SolidColorBrush x:Key="DashboardBorder" Color="#80364050"/>
+    <SolidColorBrush x:Key="TimerAccent" Color="#55C8FF"/>
+    <Geometry x:Key="AppsGeometry">M 2,2 L 10,2 10,10 2,10 Z M 14,2 L 22,2 22,10 14,10 Z M 2,14 L 10,14 10,22 2,22 Z M 14,14 L 22,14 22,22 14,22 Z</Geometry>
+    <Geometry x:Key="ClockGeometry">M 12,2 A 10,10 0 1 1 11.99,2 M 12,6 L 12,12 16,14</Geometry>
+    <Geometry x:Key="ComputerGeometry">M 2,3 L 22,3 22,17 2,17 Z M 12,17 L 12,22 M 7,22 L 17,22</Geometry>
+    <Geometry x:Key="SearchGeometry">M 16,9 A 7,7 0 1 1 2,9 A 7,7 0 1 1 16,9 M 14,14 L 22,22</Geometry>
+    <Geometry x:Key="StarGeometry">M 12,2 L 15,8 22,9 17,14 18,21 12,18 6,21 7,14 2,9 9,8 Z</Geometry>
+    <Geometry x:Key="BellGeometry">M 5,16 L 5,9 A 7,7 0 0 1 19,9 L 19,16 22,19 2,19 Z M 9,22 L 15,22</Geometry>
+    <Geometry x:Key="LogoutGeometry">M 10,3 L 3,3 3,21 10,21 M 9,12 L 22,12 M 17,7 L 22,12 17,17</Geometry>
+    <Geometry x:Key="HelpGeometry">M 12,2 A 10,10 0 1 1 11.99,2 M 9,8 C 9,4 18,6 14,11 L 12,13 12,15 M 12,18 L 12,19</Geometry>
+    <Geometry x:Key="SettingsGeometry">M 12,8 A 4,4 0 1 1 11.99,8 M 9,2 L 15,2 16,6 20,7 22,12 19,15 18,20 13,22 10,19 5,18 2,13 5,10 6,5 Z</Geometry>
+    <LinearGradientBrush x:Key="NavigationHighlight" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#3055C8FF"/>
+        <GradientStop Color="#18F587D1" Offset="1"/>
+    </LinearGradientBrush>
+    <Style x:Key="DashboardCard" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource DashboardSurface}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource DashboardBorder}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="18"/>
+        <Setter Property="Padding" Value="24"/>
+    </Style>
+    <Style x:Key="SectionTitle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="21"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Margin" Value="0,0,0,8"/>
+    </Style>
+    <Style x:Key="DetailLabel" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource MutedText}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Margin" Value="0,0,0,5"/>
+    </Style>
+    <Style x:Key="DetailValue" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="15"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Margin" Value="0,0,0,20"/>
+    </Style>
+    <Style x:Key="NavigationButton" TargetType="RadioButton">
+        <Setter Property="Foreground" Value="{StaticResource MutedText}"/>
+        <Setter Property="Padding" Value="18,16"/>
+        <Setter Property="Margin" Value="0,0,0,8"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template"><Setter.Value>
+            <ControlTemplate TargetType="RadioButton">
+                <Border x:Name="NavSurface" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="12" Padding="{TemplateBinding Padding}">
+                    <ContentPresenter VerticalAlignment="Center"/>
+                </Border>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="NavSurface" Property="Background" Value="#701A1F29"/></Trigger>
+                    <Trigger Property="IsChecked" Value="True">
+                        <Setter TargetName="NavSurface" Property="Background" Value="{StaticResource NavigationHighlight}"/>
+                        <Setter TargetName="NavSurface" Property="BorderBrush" Value="#6055C8FF"/>
+                        <Setter Property="Foreground" Value="{StaticResource PrimaryText}"/>
+                    </Trigger>
+                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="NavSurface" Property="BorderBrush" Value="{StaticResource Primary}"/></Trigger>
+                    <Trigger Property="IsPressed" Value="True"><Setter TargetName="NavSurface" Property="Opacity" Value="0.65"/></Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate>
+        </Setter.Value></Setter>
+    </Style>
+    <Style x:Key="DashboardPrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="{StaticResource Primary}"/>
+        <Setter Property="Foreground" Value="{StaticResource AppBackground}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource Primary}"/>
+        <Setter Property="Padding" Value="14,10"/>
+        <Setter Property="MinHeight" Value="40"/>
+        <Setter Property="Template"><Setter.Value>
+            <ControlTemplate TargetType="Button">
+                <Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="9" Padding="{TemplateBinding Padding}">
+                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="#88D8FF"/></Trigger>
+                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="{StaticResource PrimaryText}"/></Trigger>
+                    <Trigger Property="IsPressed" Value="True"><Setter TargetName="Surface" Property="Opacity" Value="0.7"/></Trigger>
+                    <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Surface" Property="Opacity" Value="0.4"/></Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate>
+        </Setter.Value></Setter>
+    </Style>
+    <Style x:Key="FavoriteButton" TargetType="ToggleButton">
+        <Setter Property="Width" Value="36"/><Setter Property="Height" Value="36"/>
+        <Setter Property="Cursor" Value="Hand"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template"><Setter.Value>
+            <ControlTemplate TargetType="ToggleButton">
+                <Border x:Name="Surface" CornerRadius="8" Background="Transparent" BorderBrush="Transparent" BorderThickness="1">
+                    <Path x:Name="Star" Data="{StaticResource StarGeometry}" Style="{StaticResource FieldIcon}" Width="17" Height="17"/>
+                </Border>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsChecked" Value="True"><Setter TargetName="Star" Property="Stroke" Value="{StaticResource Secondary}"/><Setter TargetName="Star" Property="Fill" Value="#60F587D1"/></Trigger>
+                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="{StaticResource RaisedSurface}"/></Trigger>
+                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="{StaticResource Primary}"/></Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate>
+        </Setter.Value></Setter>
+    </Style>
+    <Style x:Key="SettingToggle" TargetType="CheckBox">
+        <Setter Property="Foreground" Value="{StaticResource PrimaryText}"/>
+        <Setter Property="Margin" Value="0,0,0,20"/>
+        <Setter Property="Cursor" Value="Hand"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template"><Setter.Value>
+            <ControlTemplate TargetType="CheckBox">
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <ContentPresenter Margin="0,0,20,0" VerticalAlignment="Center"/>
+                    <Border x:Name="Track" Grid.Column="1" Width="42" Height="24" Background="{StaticResource RaisedSurface}" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" CornerRadius="12">
+                        <Ellipse x:Name="Thumb" Width="16" Height="16" Fill="{StaticResource MutedText}" HorizontalAlignment="Left" Margin="3"/>
+                    </Border>
+                </Grid>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsChecked" Value="True"><Setter TargetName="Track" Property="Background" Value="#4055C8FF"/><Setter TargetName="Thumb" Property="Fill" Value="{StaticResource Primary}"/><Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/></Trigger>
+                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Track" Property="BorderBrush" Value="{StaticResource Primary}"/></Trigger>
+                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Track" Property="BorderBrush" Value="{StaticResource Primary}"/></Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate>
+        </Setter.Value></Setter>
+    </Style>
+    <Style x:Key="ThemeChoice" TargetType="RadioButton" BasedOn="{StaticResource NavigationButton}">
+        <Setter Property="Padding" Value="18,10"/>
+        <Setter Property="Margin" Value="0,0,10,0"/>
+    </Style>
+    <Style x:Key="NeonSlider" TargetType="Slider">
+        <Setter Property="Minimum" Value="0"/><Setter Property="Maximum" Value="100"/>
+        <Setter Property="IsMoveToPointEnabled" Value="True"/>
+        <Setter Property="Template"><Setter.Value>
+            <ControlTemplate TargetType="Slider">
+                <Grid Height="32">
+                    <Border Height="4" Background="{StaticResource BorderColor}" CornerRadius="2" VerticalAlignment="Center"/>
+                    <Track x:Name="PART_Track" Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}"
+                           Value="{Binding Value, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                        <Track.DecreaseRepeatButton><RepeatButton Command="Slider.DecreaseLarge" Focusable="False"><RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Height="4" CornerRadius="2" Background="{StaticResource BrandGradient}"/></ControlTemplate></RepeatButton.Template></RepeatButton></Track.DecreaseRepeatButton>
+                        <Track.Thumb><Thumb Width="18" Height="18"><Thumb.Template><ControlTemplate TargetType="Thumb"><Border Background="{StaticResource Primary}" BorderBrush="{StaticResource PrimaryText}" BorderThickness="1" CornerRadius="9"/></ControlTemplate></Thumb.Template></Thumb></Track.Thumb>
+                        <Track.IncreaseRepeatButton><RepeatButton Command="Slider.IncreaseLarge" Focusable="False" Opacity="0"><RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Background="Transparent"/></ControlTemplate></RepeatButton.Template></RepeatButton></Track.IncreaseRepeatButton>
+                    </Track>
+                </Grid>
+            </ControlTemplate>
+        </Setter.Value></Setter>
+    </Style>
+    <!-- Unknown total duration: a striped availability rail, never a fabricated percentage. -->
+    <Style x:Key="SessionProgress" TargetType="ProgressBar">
+        <Setter Property="Height" Value="5"/>
+        <Setter Property="IsIndeterminate" Value="True"/>
+        <Setter Property="Template"><Setter.Value>
+            <ControlTemplate TargetType="ProgressBar">
+                <Border CornerRadius="2" ClipToBounds="True">
+                    <Border.Background>
+                        <DrawingBrush Viewport="0,0,18,5" ViewportUnits="Absolute" TileMode="Tile">
+                            <DrawingBrush.Drawing><GeometryDrawing Brush="#4055C8FF" Geometry="M 0,0 L 10,0 5,5 0,5 Z"/></DrawingBrush.Drawing>
+                        </DrawingBrush>
+                    </Border.Background>
+                </Border>
+            </ControlTemplate>
+        </Setter.Value></Setter>
+    </Style>
+</ResourceDictionary>

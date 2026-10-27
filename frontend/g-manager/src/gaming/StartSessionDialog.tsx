@@ -44,7 +44,7 @@ export function StartSessionDialog({ station, customer, onClose, onStarted }: {
     <form className="form-grid start-session-form" onSubmit={start}>
       {error && <p className="error-banner" role="alert">{error}{retryRequest && ' Ponovnim pokušajem proverava se ista komanda.'}</p>}
       {customer ? <p className="selected-customer"><strong>{customer.name}</strong><span>{customer.email}</span></p> : <>
-        <label htmlFor="gaming-customer-search">Brza pretraga klijenta<input ref={input} id="gaming-customer-search" disabled={locked} value={search}
+        <label htmlFor="gaming-customer-search">Brza pretraga klijenta<input aria-label={"Brza pretraga klijenta"} ref={input} id="gaming-customer-search" disabled={locked} value={search}
           placeholder="Ime ili email" onChange={(event) => { setSearch(event.target.value); setSelected(null) }} /></label>
         {customers.isLoading ? <Skeleton lines={2} label="Pretraga klijenata" /> : customers.error ? <ErrorState message="Pretraga klijenata nije dostupna."
           action={<Button type="button" onClick={() => customers.refetch()}>Pokušaj ponovo</Button>} /> : !customers.data?.content.length ? <EmptyState title="Nema aktivnih klijenata" description="Promenite pretragu ili kreirajte klijenta u odeljku Klijenti." /> :
@@ -54,11 +54,11 @@ export function StartSessionDialog({ station, customer, onClose, onStarted }: {
       </>}
       {!station && <>{stations.isLoading ? <Skeleton lines={2} label="Učitavanje stanica" /> : stations.error ? <ErrorState message="Stanice nisu dostupne."
         action={<Button type="button" onClick={() => stations.refetch()}>Pokušaj ponovo</Button>} /> : !options.length ? <EmptyState title="Nema slobodnih stanica" description="Gaming operativa prikazuje zauzete stanice i potrebne recovery akcije." /> :
-        <label>Slobodna stanica<select required disabled={locked} value={resourceId} onChange={(event) => setResourceId(event.target.value)}>
+        <label>Slobodna stanica<select aria-label={"Slobodna stanica"} required disabled={locked} value={resourceId} onChange={(event) => setResourceId(event.target.value)}>
           <option value="">Izaberite stanicu</option>{options.map((value) => <option key={value.resourceId} value={value.resourceId}>{value.resourceName} · {value.applicationProfileName ?? value.resourceCode}</option>)}</select></label>}</>}
       <fieldset className="duration-presets"><legend>Trajanje</legend><div className="form-actions">{[30, 60, 120, 180].map((value) =>
         <Button type="button" key={value} disabled={locked} variant={duration === value ? 'primary' : 'secondary'} aria-pressed={duration === value} onClick={() => setDuration(value)}>{value} min</Button>)}</div></fieldset>
-      <label htmlFor="gaming-duration">Trajanje u minutima<input id="gaming-duration" type="number" required min={15} max={480} disabled={locked} value={duration} onChange={(event) => setDuration(Number(event.target.value))} /></label>
+      <label htmlFor="gaming-duration">Trajanje u minutima<input aria-label={"Trajanje u minutima"} id="gaming-duration" type="number" required min={15} max={480} disabled={locked} value={duration} onChange={(event) => setDuration(Number(event.target.value))} /></label>
       <p className="search-help">{selected ? `${selected.name} · ` : ''}{station?.resourceName ?? options.find((value) => value.resourceId === resourceId)?.resourceName ?? 'Izaberite stanicu'} · {duration} min</p>
       <Button type="submit" loading={busy} disabled={!selected || !resourceId}>{retryRequest ? 'Pokušaj ponovo' : `Pokreni za ${selected?.name ?? 'izabranog klijenta'}`}</Button>
     </form>

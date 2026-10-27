@@ -30,7 +30,7 @@ export function NotificationCenter() {
   useEffect(() => { if (connection === 'connected') return; const timer = window.setInterval(() => void refresh(), 30000); return () => window.clearInterval(timer) }, [connection])
   useEffect(() => { if (!announcement) return; const timer = window.setTimeout(() => setAnnouncement(''), 1500); return () => window.clearTimeout(timer) }, [announcement])
   const groups = useMemo(() => items.reduce<Record<string, AppNotification[]>>((result, item) => {
-    const day = new Intl.DateTimeFormat('sr-RS', { dateStyle: 'long' }).format(new Date(item.createdAt)); (result[day] ??= []).push(item); return result
+    const day = new Intl.DateTimeFormat('sr-RS', { timeZone: 'Europe/Belgrade', dateStyle: 'long' }).format(new Date(item.createdAt)); (result[day] ??= []).push(item); return result
   }, {}), [items])
   async function markRead(item: AppNotification) { if (item.read) return; setItems((current) => current.map((value) => value.id === item.id ? { ...value, read: true } : value)); setUnread((count) => Math.max(0, count - 1))
     try { await notificationApi.read(item.id) } catch (cause) { setItems((current) => current.map((value) => value.id === item.id ? { ...value, read: false } : value)); setUnread((count) => count + 1); setError(apiErrorMessage(cause, 'Status čitanja nije sačuvan.')) } }
@@ -50,7 +50,7 @@ export function NotificationCenter() {
         {items.length > 0 && <div className="notification-list">{Object.entries(groups).map(([day, values]) => <Fragment key={day}><h3>{day}</h3>{values.map((item) =>
           <article className={`notification-item ${item.read ? '' : 'unread'}`} key={item.id}>{item.action ? <button type="button" aria-label={`${item.action.label}: ${item.title}`} onClick={() => void openItem(item)}>
             <span className={`priority ${item.priority.toLowerCase()}`}>{{ HIGH: 'Visok prioritet', NORMAL: 'Obaveštenje', LOW: 'Informacija' }[item.priority]}</span><strong>{item.title}</strong><p>{item.body}</p>
-            <time dateTime={item.createdAt} title={new Intl.DateTimeFormat('sr-RS', { dateStyle: 'full', timeStyle: 'medium' }).format(new Date(item.createdAt))}>{relative(item.createdAt)}</time></button> : <div><span className={`priority ${item.priority.toLowerCase()}`}>{{ HIGH: 'Visok prioritet', NORMAL: 'Obaveštenje', LOW: 'Informacija' }[item.priority]}</span><strong>{item.title}</strong><p>{item.body}</p><time dateTime={item.createdAt}>{relative(item.createdAt)}</time></div>}
+            <time dateTime={item.createdAt} title={new Intl.DateTimeFormat('sr-RS', { timeZone: 'Europe/Belgrade', dateStyle: 'full', timeStyle: 'medium' }).format(new Date(item.createdAt))}>{relative(item.createdAt)}</time></button> : <div><span className={`priority ${item.priority.toLowerCase()}`}>{{ HIGH: 'Visok prioritet', NORMAL: 'Obaveštenje', LOW: 'Informacija' }[item.priority]}</span><strong>{item.title}</strong><p>{item.body}</p><time dateTime={item.createdAt}>{relative(item.createdAt)}</time></div>}
             {!item.read && <Button type="button" variant="secondary" onClick={() => void markRead(item)}>Označi pročitano</Button>}</article>)}</Fragment>)}</div>}
         <Link to="/notification-preferences" onClick={() => setOpen(false)}>Podešavanja obaveštenja</Link>
       </div>

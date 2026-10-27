@@ -1,4 +1,5 @@
-﻿import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useResettableState } from '../components/useResettableState'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { orderApi, type OrderFilters } from '../api/orderApi'
 import { userApi } from '../api/userApi'
@@ -15,8 +16,8 @@ import { OrderDetails } from '../order/OrderDetails'
 import type { OrderAction } from '../order/OrderActionsMenu'
 import { OrdersPagination } from '../order/OrdersPagination'
 import { OrdersTable } from '../order/OrdersTable'
-import { canChangeOrder, currentPeriod, orderActionLabels, orderErrorMessage, OrderIcon,
-  orderMoney, periodDates, periodLabel, periodOptions, shortOrderId, validOrderDate } from '../order/orderPresentation'
+import { OrderIcon } from '../order/orderPresentation'
+import { canChangeOrder, currentPeriod, orderActionLabels, orderErrorMessage, orderMoney, periodDates, periodLabel, periodOptions, shortOrderId, validOrderDate } from '../order/orderPresentation.model'
 import type { BulkItem, BulkOperationResponse } from '../types/bulk.types'
 import type { ManagedOrder, OrderStatus } from '../types/order.types'
 import '../order/orders.css'
@@ -39,8 +40,9 @@ export function OrdersPage() {
   const canChange = hasCapability(user, 'ORDER_CHANGE_STATUS')
   const showHandler = (user?.role === 'ADMIN' || user?.role === 'OWNER') && hasCapability(user, 'EMPLOYEE_LIST')
   const url = useListUrlState(defaults, allowed), client = useQueryClient(), toast = useToast()
+  const setUrl = url.set
   const { confirm, confirmationDialog } = useConfirmDialog()
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [selected, setSelected] = useResettableState<Set<string>>(() => new Set(), JSON.stringify(Object.entries(url.state).filter(([key]) => !['focus', 'reservationId', 'eventId', 'create'].includes(key))))
   const [bulkResult, setBulkResult] = useState<BulkOperationResponse | null>(null)
   const [moreFilters, setMoreFilters] = useState(Boolean(url.state.handledBy) || url.state.sort !== defaults.sort || url.state.direction !== defaults.direction)
   const [customPeriod, setCustomPeriod] = useState(false)
@@ -60,7 +62,7 @@ export function OrdersPage() {
     || (url.state.search.length > 200 ? 'Pretraga može imati najviše 200 znakova.' : '')
   const filters = useMemo<OrderFilters>(() => ({
     page: /^\d+$/.test(url.state.page) ? Math.min(Number(url.state.page), 2147483647) : 0,
-    size: [10, 20, 50].includes(Number(url.state.size)) ? Number(url.state.size) : 10,
+    size: [10, 20, 50, 100].includes(Number(url.state.size)) ? Number(url.state.size) : 10,
     status: Object.hasOwn(orderLabels, url.state.status) ? url.state.status as OrderStatus : undefined,
     handledBy: url.state.handledBy || undefined, from: url.state.from || undefined, to: url.state.to || undefined,
     search: search.trim() || undefined,
@@ -77,8 +79,6 @@ export function OrdersPage() {
   const detailId = uuid.test(url.state.focus) ? url.state.focus : ''
   const detailKey = ['orders', 'detail', user?.id, detailId]
   const detail = useQuery({ queryKey: detailKey, queryFn: () => orderApi.detail(detailId), enabled: canRead && Boolean(detailId) })
-  const selectionScope = JSON.stringify([user?.id, filters, url.state.search])
-  useEffect(() => { setSelected(new Set()) }, [selectionScope])
   useEffect(() => {
     if (detailId && !detailOpener.current) detailOpener.current = refreshButton.current
     if (!detailId && previousDetail.current) {
@@ -91,8 +91,8 @@ export function OrdersPage() {
   useEffect(() => {
     if (!result.data || result.isFetching || result.isError || searchPending || filterError) return
     const last = Math.max(0, result.data.totalPages - 1)
-    if (filters.page > last) url.set({ page: String(last) }, true)
-  }, [result.data, result.isFetching, result.isError, filters.page, searchPending, filterError, url.set])
+    if (filters.page > last) setUrl({ page: String(last) }, true)
+  }, [result.data, result.isFetching, result.isError, filters.page, searchPending, filterError, setUrl])
 
   const refresh = () => client.invalidateQueries({ queryKey: ['orders'] })
   const transition = useMutation({
@@ -138,7 +138,7 @@ export function OrdersPage() {
   function setFilter(changes: Partial<typeof defaults>) {
     if (busy) return
     setSelected(new Set()); setBulkResult(null); transition.reset(); bulk.reset()
-    url.set({ ...changes, page: '0', focus: '' })
+    setUrl({ ...changes, page: '0', focus: '' })
   }
   function clearFilters() {
     setCustomPeriod(false); setMoreFilters(false)
@@ -161,7 +161,7 @@ export function OrdersPage() {
     if (action !== 'DETAILS') { statusAction(order, action); return }
     detailOpener.current = trigger
     client.setQueryData<ManagedOrder>(['orders', 'detail', user?.id, order.id], current => !current || current.version <= order.version ? order : current)
-    transition.reset(); url.set({ focus: order.id })
+    transition.reset(); setUrl({ focus: order.id })
   }
   function bulkAction(status: 'IN_PROGRESS' | 'CANCELLED') {
     if (!mayBulk(status)) return
@@ -205,10 +205,10 @@ export function OrdersPage() {
         <label className="gm-orders-search"><span>Pretraga</span><div><OrderIcon kind="search" /><Input type="search" maxLength={200}
           placeholder="Pretraži narudžbine, klijente ili proizvode..." value={url.state.search} disabled={busy}
           onChange={event => setFilter({ search: event.target.value })} /></div></label>
-        <label>Status<Select value={filters.status ?? ''} disabled={busy} onChange={event => setFilter({ status: event.target.value })}>
+        <label>Status<Select aria-label={"Status"} value={filters.status ?? ''} disabled={busy} onChange={event => setFilter({ status: event.target.value })}>
           <option value="">Svi statusi</option>{Object.entries(orderLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </Select></label>
-        <label>Period<Select value={period} disabled={busy} onChange={event => {
+        <label>Period<Select aria-label={"Period"} value={period} disabled={busy} onChange={event => {
           setCustomPeriod(event.target.value === 'CUSTOM')
           if (event.target.value !== 'CUSTOM') setFilter(periodDates(event.target.value))
         }}>{periodOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></label>
@@ -216,13 +216,13 @@ export function OrdersPage() {
           onClick={() => setMoreFilters(!moreFilters)}><OrderIcon kind="filter" />Više filtera</Button>
       </div>
       {period === 'CUSTOM' && <div className="gm-orders-period-fields">
-        <label>Od<Input type="date" value={url.state.from} disabled={busy} aria-invalid={Boolean(dateError)}
+        <label>Od<Input aria-label={"Od"} type="date" value={url.state.from} disabled={busy} aria-invalid={Boolean(dateError)}
           onChange={event => { setCustomPeriod(true); setFilter({ from: event.target.value }) }} /></label>
-        <label>Do<Input type="date" value={url.state.to} disabled={busy} aria-invalid={Boolean(dateError)}
+        <label>Do<Input aria-label={"Do"} type="date" value={url.state.to} disabled={busy} aria-invalid={Boolean(dateError)}
           onChange={event => { setCustomPeriod(true); setFilter({ to: event.target.value }) }} /></label>
       </div>}
       <div id="gm-orders-extra-filters" className="gm-orders-extra-filters" hidden={!moreFilters}>
-        {showHandler && <label>Obrađuje<Select value={url.state.handledBy} disabled={busy || employees.isLoading}
+        {showHandler && <label>Obrađuje<Select aria-label={"Obrađuje"} value={url.state.handledBy} disabled={busy || employees.isLoading}
           onChange={event => setFilter({ handledBy: event.target.value })}><option value="">Svi zaposleni</option>
           {user && !employees.data?.some(employee => employee.id === user.id) && <option value={user.id}>{user.name} (vi)</option>}
           {employees.data?.map(employee => <option key={employee.id} value={employee.id}>{employee.name}</option>)}
@@ -230,10 +230,10 @@ export function OrdersPage() {
             && <option value={url.state.handledBy}>Izabrana osoba nije dostupna</option>}
         </Select>{employees.isError && <span className="gm-orders-field-error" role="alert">Spisak zaposlenih nije dostupan.
           <button type="button" disabled={busy} onClick={() => employees.refetch()}>Pokušaj ponovo</button></span>}</label>}
-        <label>Sortiranje<Select value={filters.sort} disabled={busy} onChange={event => setFilter({ sort: event.target.value })}>
+        <label>Sortiranje<Select aria-label={"Sortiranje"} value={filters.sort} disabled={busy} onChange={event => setFilter({ sort: event.target.value })}>
           {Object.entries(sorts).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </Select></label>
-        <label>Redosled<Select value={filters.direction} disabled={busy} onChange={event => setFilter({ direction: event.target.value })}>
+        <label>Redosled<Select aria-label={"Redosled"} value={filters.direction} disabled={busy} onChange={event => setFilter({ direction: event.target.value })}>
           <option value="DESC">Opadajuće</option><option value="ASC">Rastuće</option></Select></label>
       </div>
       {filterError && <p className="gm-orders-field-error" role="alert">{filterError}</p>}
@@ -268,10 +268,10 @@ export function OrdersPage() {
           })} onSelectAll={ids => setSelected(new Set(ids))} onAction={rowAction} />}
       {result.data && !filterError && !searchPending && <OrdersPagination page={Math.min(filters.page, Math.max(0, result.data.totalPages - 1))} size={filters.size}
         totalPages={result.data.totalPages} totalElements={result.data.totalElements} busy={busy || result.isFetching}
-        onPage={page => { setSelected(new Set()); setBulkResult(null); url.set({ page: String(page), focus: '' }) }} onSize={size => setFilter({ size: String(size) })} />}
+        onPage={page => { setSelected(new Set()); setBulkResult(null); setUrl({ page: String(page), focus: '' }) }} onSize={size => setFilter({ size: String(size) })} />}
     </section>
     {detailId && <OrderDetails key={detailId} order={detail.data} user={user} loading={detail.isLoading} error={detail.error}
-      busy={busy} returnFocusRef={detailOpener} onClose={() => url.set({ focus: '' })}
+      busy={busy} returnFocusRef={detailOpener} onClose={() => setUrl({ focus: '' })}
       onRefresh={() => { transition.reset(); void detail.refetch() }} onStatus={statusAction} />}
   </main>
 }

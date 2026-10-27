@@ -71,6 +71,8 @@ export function DashboardPage() {
   } | null>(null)
 
   useEffect(() => {
+    // Starting the external dashboard request resets its loading state; response writes are asynchronous.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!management && !operational) { setLoading(false); return }
     setLoading(true); setError('')
     let active = true
@@ -319,9 +321,9 @@ export function DashboardPage() {
         </div>
       </div>
       <form className="dashboard-filter-panel" onSubmit={load}>
-        <label>Od<Input type="date" required value={from} onChange={(event) => setFrom(event.target.value)} /></label>
-        <label>Do<Input type="date" required value={to} onChange={(event) => setTo(event.target.value)} /></label>
-        <label>Zaposleni<Select value={employeeId} onChange={(event) => setEmployeeId(event.target.value)}>
+        <label>Od<Input aria-label={"Od"} type="date" required value={from} onChange={(event) => setFrom(event.target.value)} /></label>
+        <label>Do<Input aria-label={"Do"} type="date" required value={to} onChange={(event) => setTo(event.target.value)} /></label>
+        <label>Zaposleni<Select aria-label={"Zaposleni"} value={employeeId} onChange={(event) => setEmployeeId(event.target.value)}>
           <option value="">Svi zaposleni</option>{employeeOptions.map((item) =>
             <option key={item.employeeId} value={item.employeeId}>{item.employeeName}</option>)}
         </Select></label>
@@ -340,7 +342,7 @@ export function DashboardPage() {
               onChange={(event) => setPreferences((items) => items.map((value) =>
                 value.widgetKey === item.widgetKey ? { ...value, visible: event.target.checked } : value))} />{widgetLabels[item.widgetKey]}</label>
             {item.widgetKey === 'workload' && <label className="dashboard-threshold">Prag %
-              <Input type="number" min="0" max="100" value={item.threshold ?? ''}
+              <Input aria-label={"Prag %"} type="number" min="0" max="100" value={item.threshold ?? ''}
                 onChange={(event) => setPreferences((items) => items.map((value) =>
                   value.widgetKey === item.widgetKey ? { ...value, threshold: event.target.value ? Number(event.target.value) : null } : value))} />
             </label>}

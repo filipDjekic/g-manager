@@ -172,6 +172,8 @@ function Save-RecoveryTools([string]$PackageDirectory,[string]$Subject,[string]$
     $recovery=Join-Path $script:ClientState 'recovery';New-ProtectedDirectory $recovery
     foreach($name in @('client-management.ps1','gmanagerctl.ps1','update-client.ps1','uninstall-service.ps1','support-bundle.ps1')){Copy-Item -LiteralPath (Join-Path $PackageDirectory $name) -Destination $recovery -Force}
     Copy-Item -LiteralPath (Join-Path $PackageDirectory 'service\apply-policy.ps1') -Destination $recovery -Force
+    $panel=Join-Path $PackageDirectory 'GManager-Management.ps1'
+    if(Test-Path -LiteralPath $panel){Copy-Item -LiteralPath $panel -Destination $recovery -Force}
     foreach($file in Get-ChildItem -LiteralPath $recovery -Filter '*.ps1'){Assert-Signature $file.FullName $Subject $Thumbprint}
 }
 function Resolve-ClientTransaction {
@@ -186,10 +188,11 @@ function Resolve-ClientTransaction {
     Assert-NoReparse $previous;Assert-NoReparse $candidate;Assert-NoReparse $script:ClientRoot
     if(Test-Path -LiteralPath $previous){Remove-ClientTree $script:ClientRoot;Move-Item -LiteralPath $previous -Destination $script:ClientRoot}
     elseif(!$journal.hadInstallation){
+        # Restore owned policies before removing the recovery tasks. A failed policy restore must remain retryable.
+        if(Test-Path -LiteralPath (Join-Path $script:ClientState 'policy-journal.json')){Invoke-Policy 'Remove'}
         Remove-ClientTree $script:ClientRoot
         foreach($name in @('GManagerClientShell','GManagerClientUpdate','GManagerClientRecovery','GManagerClientMaintenanceExpiry')){Unregister-ScheduledTask -TaskName $name -Confirm:$false -ErrorAction SilentlyContinue}
         if(Get-Service GManagerClient -ErrorAction SilentlyContinue){Invoke-Native 'sc.exe' @('delete','GManagerClient')}
-        if(Test-Path -LiteralPath (Join-Path $script:ClientState 'policy-journal.json')){Invoke-Policy 'Remove'}
     }
     Remove-ClientTree $candidate
     if($journal.previousConfig){Write-AtomicJson (Join-Path $script:ClientState 'client.json') $journal.previousConfig}

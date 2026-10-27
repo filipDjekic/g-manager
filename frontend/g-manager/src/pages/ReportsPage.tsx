@@ -93,12 +93,12 @@ export function ReportsPage() {
   return <main className="workspace">{confirmationDialog}<PageHeader eyebrow="Asinhrona obrada" title="Izveštaji" />
     {draft.recovered && <p role="status" className="connectivity-banner">Oporavljen je šifrovani lokalni draft. Pregledajte podatke pre slanja. <Button variant="secondary" onClick={draft.acknowledge}>U redu</Button></p>}
     <Card><h2>Novi izveštaj</h2><div className="form-grid">
-      <label>Definicija<Select value={definition} onChange={(event) => setDefinition(event.target.value)}>
+      <label>Definicija<Select aria-label={"Definicija"} value={definition} onChange={(event) => setDefinition(event.target.value)}>
         {definitions.map((value) => <option key={value.key} value={value.key}>{value.label}</option>)}</Select></label>
-      <label>Format<Select value={format} onChange={(event) => setFormat(event.target.value as ReportFormat)}>
+      <label>Format<Select aria-label={"Format"} value={format} onChange={(event) => setFormat(event.target.value as ReportFormat)}>
         <option>CSV</option><option>XLSX</option><option>PDF</option></Select></label>
-      <label>Od<input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
-      <label>Do<input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
+      <label>Od<input aria-label={"Od"} type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
+      <label>Do<input aria-label={"Do"} type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
     </div><p>{definitions.find((value) => value.key === definition)?.metricDefinition} · Zona: {timezone}</p>
     <Button loading={busy} onClick={() => void generate()}>Generiši</Button>
     <Button variant="secondary" onClick={async () => { try { const value = payload(); await reportApi.createTemplate({ name: `${definition} ${from}`, definitionKey: definition, format, from: value.from, to: value.to }) } catch (cause) { setError(apiErrorMessage(cause, 'Šablon nije sačuvan.')) } }}>Sačuvaj kao šablon</Button>
@@ -116,9 +116,9 @@ export function ReportsPage() {
     {manage && <Card><h2>Rasporedi</h2>{!schedules.length ? <p>Nema rasporeda.</p> : <ul>{schedules.map((schedule) =>
       <li key={schedule.id}>{definitions.find((definition) => definition.key === schedule.definitionKey)?.label ?? schedule.definitionKey} · {schedule.timezone} · sledeće {formatBusinessDateTime(schedule.nextRunAt)} <Button variant="danger" onClick={() => confirm({ title: 'Obriši raspored izveštaja', description: 'Automatsko generisanje po ovom rasporedu biće uklonjeno.', variant: 'danger', confirmLabel: 'Obriši raspored', onConfirm: async () => { await reportApi.removeSchedule(schedule.id); await refresh() } })}>Obriši</Button></li>)}</ul>}</Card>}
     {aiEnabled && <Card><h2>AI asistencija (eksperimentalno)</h2><p>AI dobija samo definiciju, broj redova i vreme preseka izveštaja. Rezultat može biti netačan; izvorni izveštaj ostaje merodavan.</p>
-      <label><input type="checkbox" checked={aiConsent} onChange={(event) => setAiConsent(event.target.checked)} /> Saglasan/na sam sa obradom ovih ograničenih metapodataka.</label></Card>}
+      <label><input aria-label={"Saglasan/na sam sa obradom ovih ograničenih metapodataka."} type="checkbox" checked={aiConsent} onChange={(event) => setAiConsent(event.target.checked)} /> Saglasan/na sam sa obradom ovih ograničenih metapodataka.</label></Card>}
     {aiSummary && <Card><h2>{aiSummary.aiGenerated ? 'AI sažetak' : 'Sažetak bez AI-a'}</h2><p role="status">{aiSummary.summary}</p><p><strong>Ograničenja:</strong> {aiSummary.limitations}</p>
-      <h3>Izvori</h3><ul>{aiSummary.sources.map((source) => <li key={source.reportId}>Izveštaj {source.definition}, {source.rowCount} redova, presek {new Date(source.snapshotAt).toLocaleString()}</li>)}</ul>
+      <h3>Izvori</h3><ul>{aiSummary.sources.map((source) => <li key={source.reportId}>Izveštaj {source.definition}, {source.rowCount} redova, presek {formatBusinessDateTime(source.snapshotAt)}</li>)}</ul>
       <p>Pregledajte rezultat pre bilo kakve odluke.</p><Button onClick={() => void feedback('ACCEPTED')}>Prihvati</Button><Button variant="secondary" onClick={() => void feedback('CORRECTED')}>Ispravljeno</Button><Button variant="danger" onClick={() => void feedback('REJECTED')}>Odbaci</Button></Card>}
   </main>
 }

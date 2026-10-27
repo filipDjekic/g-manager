@@ -1,6 +1,6 @@
 import { useQueries, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { catalogApi } from '../../api/catalogApi'
 import { orderApi } from '../../api/orderApi'
 import { IdempotencyKeyManager } from '../../api/idempotency'
@@ -11,7 +11,7 @@ import type { PageResponse } from '../../types/api.types'
 import type { CatalogItem } from '../../types/catalog.types'
 import type { CreateOrderInput } from '../../types/order.types'
 import { buildCart, calculateEstimatedTotal, CART_DRAFT_VERSION, normalizeCartQuantities, retainAvailableProducts, type CartLine } from '../cart'
-import { orderErrorMessage } from '../orderPresentation'
+import { orderErrorMessage } from '../orderPresentation.model'
 
 export interface CustomerOrderAttempt { key: string; items: CreateOrderInput['items']; estimatedTotal: number }
 interface CartState { ready: boolean; quantities: Record<string, number>; attempt: CustomerOrderAttempt | null }
@@ -40,7 +40,7 @@ export function useCustomerCart(userId: string, canCatalog: boolean) {
   const mounted = useRef(false), latest = useRef(state)
   const createAttempt = useRef(new IdempotencyKeyManager()), submitInFlight = useRef(false)
   const prices = useRef(new Map<string, number>())
-  latest.current = state
+  useLayoutEffect(() => { latest.current = state }, [state])
   const currentActor = useCallback(() => mounted.current && useAuthStore.getState().user?.id === userId, [userId])
 
   // Serialize writes so an older cart snapshot cannot overwrite a submitted attempt or an empty cart.
@@ -84,7 +84,7 @@ export function useCustomerCart(userId: string, canCatalog: boolean) {
     void persist(state).catch(() => { if (currentActor()) setWarning('Korpu nije moguće sačuvati na ovom uređaju.') })
   }, [state, persist, currentActor])
 
-  const ids = Object.keys(state.quantities).sort()
+  const ids = useMemo(() => Object.keys(state.quantities).sort(), [state.quantities])
   const products = useQueries({ queries: ids.map(id => ({
     queryKey: ['catalog', 'customer-product', userId, id], queryFn: () => catalogApi.get(id), enabled: state.ready && canCatalog,
     staleTime: 30000, refetchInterval: 30000, refetchIntervalInBackground: false,
@@ -103,25 +103,27 @@ export function useCustomerCart(userId: string, canCatalog: boolean) {
       return undefined
     },
   })) })
-  const resolved = canCatalog ? products.flatMap(query => query.data && query.isSuccess
-    && query.data.type === 'PRODUCT' && query.data.active && !query.data.deletedAt ? [query.data] : []) : []
+  const resolved = useMemo(() => canCatalog ? products.flatMap(query => query.data && query.isSuccess
+    && query.data.type === 'PRODUCT' && query.data.active && !query.data.deletedAt ? [query.data] : []) : [], [canCatalog, products])
   const cart = useMemo(() => buildCart(resolved, state.quantities), [resolved, state.quantities])
   const unresolved = ids.filter(id => !cart.some(line => line.product.id === id))
   const estimatedTotal = unresolved.length ? null : calculateEstimatedTotal(cart)
-  const unavailable = canCatalog ? ids.filter((_, index) => {
+  const unavailable = useMemo(() => canCatalog ? ids.filter((_, index) => {
     const query = products[index], error = query.error
     return query.isSuccess && (query.data?.type !== 'PRODUCT' || !query.data?.active || Boolean(query.data?.deletedAt))
       || isAxiosError(error) && error.response?.status === 404
-  }) : []
+  }) : [], [canCatalog, ids, products])
 
   useEffect(() => {
     if (!state.ready || state.attempt || !unavailable.length) return
     const excluded = new Set(unavailable)
+    // Persist the server-confirmed removal of unavailable products through the existing serialized cart writer.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setState(previous => previous.attempt ? previous : { ...previous,
       quantities: retainAvailableProducts(previous.quantities, new Set(Object.keys(previous.quantities).filter(id => !excluded.has(id)))),
     })
     setNotice('Proizvodi za koje je potvrđeno da nisu dostupni uklonjeni su iz korpe.')
-  }, [state.ready, state.attempt, unavailable.join('|')])
+  }, [state.ready, state.attempt, unavailable])
 
   useEffect(() => {
     let changed = false
@@ -210,7 +212,7 @@ export function useCustomerCart(userId: string, canCatalog: boolean) {
         client.invalidateQueries({ queryKey: ['catalog', 'customer-product', userId] }),
         client.invalidateQueries({ queryKey: ['catalog', 'customer-products', userId] }),
       ])
-      throw new Error(message)
+      throw new Error(message, { cause })
     } finally {
       submitInFlight.current = false
       if (currentActor()) setSubmitting(false)

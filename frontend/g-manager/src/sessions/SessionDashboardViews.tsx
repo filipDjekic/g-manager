@@ -1,10 +1,8 @@
 import { useId, type RefObject } from 'react'
 import { Badge, Button, Card, EmptyState, ErrorState, Select, Skeleton } from '../components/ui'
 import type { SecurityEventInfo, SessionInfo } from '../types/auth.types'
-import {
-  deviceIcon, latestLogin, matchesSecurityFilter, securityEventPresentation, securityFilters,
-  SessionIcon, SessionTime, type SecurityFilter,
-} from './sessionPresentation'
+import { SessionIcon, SessionTime } from './sessionPresentation'
+import { deviceIcon, latestLogin, matchesSecurityFilter, securityEventPresentation, securityFilters, type SecurityFilter } from './sessionPresentation.model'
 import type { SessionResource } from './useSessionDashboard'
 
 export function SessionHeading({ fetching = false, disabled = false, onRefresh }: {

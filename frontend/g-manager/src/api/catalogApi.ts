@@ -1,12 +1,6 @@
 import { apiClient } from './client'
 import type { PageResponse } from '../types/api.types'
-import type {
-  CatalogItem,
-  CatalogItemInput,
-  CatalogItemUpdate,
-  CatalogStatistics,
-  ItemType,
-} from '../types/catalog.types'
+import type { CatalogItem, CatalogItemInput, CatalogItemUpdate, CatalogStatistics, ItemType } from '../types/catalog.types'
 import type { BulkItem, BulkOperationResponse } from '../types/bulk.types'
 
 export interface CatalogFilters {

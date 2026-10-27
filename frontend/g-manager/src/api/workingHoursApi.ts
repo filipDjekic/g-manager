@@ -1,10 +1,5 @@
 import { apiClient } from './client'
-import type {
-  DayOfWeek,
-  WorkingHours,
-  WorkingHoursException,
-  WorkingHoursExceptionInput,
-} from '../types/workingHours.types'
+import type { DayOfWeek, WorkingHours, WorkingHoursException, WorkingHoursExceptionInput } from '../types/workingHours.types'
 
 export const workingHoursApi = {
   list: () =>

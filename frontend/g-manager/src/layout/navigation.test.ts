@@ -37,7 +37,7 @@ describe('role-aware product navigation', () => {
   it('groups management links and respects feature flags and explicit permissions', () => {
     const groups = navigationFor(user('OWNER'), { ...flags, REPORTS: false })
     expect(groups.map((group) => group.label)).toEqual([
-      'Pregled', 'Poslovanje', 'Ljudi', 'Upravljanje', 'Sistem', 'Moj nalog',
+      'Glavno', 'Poslovanje', 'Resursi', 'Upravljanje', 'Sistem', 'Moj nalog',
     ])
     expect(groups.flatMap((group) => group.items.map((item) => item.to))).not.toContain('/reports')
     expect(paths('OWNER')).toContain('/calendar')

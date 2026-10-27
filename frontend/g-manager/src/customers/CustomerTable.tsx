@@ -1,24 +1,20 @@
+import { customerDate, type CustomerAction, type ActionHandler } from './CustomerTable.model'
+import { Pagination } from '../components/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { gamingSessionApi } from '../api/gamingSessionApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Badge, Button, Select, TableShell } from '../components/ui'
-import { formatBusinessDateTime } from '../reservations/dateTime'
-import type { CustomerListItem } from '../types/customer.types'
+import { Badge, Button, TableShell } from '../components/ui'
 
-export const customerDate = (value: string) => formatBusinessDateTime(value, false, 'sr-Latn-RS')
-export const customerMoney = new Intl.NumberFormat('sr-Latn-RS', { style: 'currency', currency: 'RSD' })
+import type { CustomerListItem } from '../types/customer.types'
 
 export function CustomerAvatar({ name, large = false }: { name: string; large?: boolean }) {
   const parts = name.trim().split(/\s+/).filter(Boolean)
   const initials = [parts[0]?.[0], parts.length > 1 ? parts.at(-1)?.[0] : ''].join('').toLocaleUpperCase('sr-Latn-RS')
   return <span className={`customers-avatar${large ? ' customers-avatar--large' : ''}`} aria-hidden="true">{initials || '?'}</span>
 }
-
-export type CustomerAction = 'PROFILE' | 'EDIT' | 'START' | 'DEACTIVATE'
-type ActionHandler = (customer: CustomerListItem, action: CustomerAction, opener: HTMLButtonElement | null) => void
 
 function CustomerRowActions({ customer, canEdit, canStart, canDeactivate, disabled, onAction }: {
   customer: CustomerListItem; canEdit: boolean; canStart: boolean; canDeactivate: boolean
@@ -129,22 +125,6 @@ export function CustomersPagination({ page, size, totalElements, totalPages, loa
   page: number; size: number; totalElements: number; totalPages: number; loading: boolean
   onPageChange: (page: number) => void; onSizeChange: (size: string) => void
 }) {
-  const pages = Math.max(totalPages, 1)
-  const start = Math.max(0, Math.min(page - 1, pages - 3))
-  const visible = [...new Set([0, ...Array.from({ length: Math.min(3, pages) }, (_, index) => start + index), pages - 1])]
-    .sort((first, second) => first - second)
-  return <div className="customers-pagination">
-    <div className="customers-pagination-info"><span aria-live="polite">Prikazano {totalElements && page * size < totalElements ? page * size + 1 : 0}–{Math.min((page + 1) * size, totalElements)} od {totalElements} klijenata</span>
-      <label><span className="sr-only">Klijenata po stranici</span><Select value={size} disabled={loading}
-        onChange={event => onSizeChange(event.target.value)}>{[10, 20, 50].map(value => <option key={value} value={value}>{value} po stranici</option>)}</Select></label></div>
-    <nav aria-label="Stranice klijenata">
-      <Button type="button" variant="secondary" disabled={loading || page <= 0} onClick={() => onPageChange(page - 1)}>Prethodna</Button>
-      {visible.map((number, index) => <span className="customers-page-number" key={number}>
-        {index > 0 && number - visible[index - 1] > 1 && <span aria-hidden="true">…</span>}
-        <Button type="button" variant="secondary" disabled={loading} aria-label={`Stranica ${number + 1}`}
-          aria-current={page === number ? 'page' : undefined} onClick={() => onPageChange(number)}>{number + 1}</Button>
-      </span>)}
-      <Button type="button" variant="secondary" disabled={loading || page + 1 >= pages} onClick={() => onPageChange(page + 1)}>Sledeća</Button>
-    </nav>
-  </div>
+  return <Pagination numbered label="Stranice klijenata" page={page} pageSize={size} totalPages={totalPages}
+    totalElements={totalElements} loading={loading} onPageChange={onPageChange} onPageSizeChange={size => onSizeChange(String(size))} />
 }

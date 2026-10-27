@@ -1,5 +1,6 @@
-﻿import { useQuery } from '@tanstack/react-query'
-import { useEffect, useId, useState, type RefObject } from 'react'
+import { useResettableState } from '../components/useResettableState'
+import { useQuery } from '@tanstack/react-query'
+import { useId, type RefObject } from 'react'
 import { hasCapability } from '../auth/capabilities'
 import { gamingSessionApi } from '../api/gamingSessionApi'
 import { stationApi } from '../api/stationApi'
@@ -9,8 +10,10 @@ import { stationSeconds, stationTimer } from '../gaming/operationsPresentation'
 import { formatBusinessDateTime } from '../reservations/dateTime'
 import type { AuthUser } from '../types/auth.types'
 import type { ApplicationDefinition, ApplicationProfile } from '../types/station.types'
-import { StationOperationLinks, type StationViewHandlers } from './StationViews'
-import { applicationTypeLabels, connectionStatus, operationalLabels, StationIllustration, stationError, stationStatus, stationWarnings, type StationTab, type StationView } from './stationPresentation'
+import { StationOperationLinks } from './StationViews'
+import { type StationViewHandlers } from './StationViews.model'
+import { StationIllustration } from './stationPresentation'
+import { applicationTypeLabels, connectionStatus, operationalLabels, stationError, stationStatus, stationWarnings, type StationTab, type StationView } from './stationPresentation.model'
 
 const tabs: Array<[StationTab, string]> = [['OVERVIEW', 'Pregled'], ['CONFIGURATION', 'Konfiguracija'], ['APPLICATIONS', 'Aplikacije'], ['HISTORY', 'Istorija']]
 const actionLabels: Record<string, string> = { SESSION_STARTED: 'Pokretanje sesije', SESSION_EXTENDED: 'Produženje sesije', SESSION_TERMINATED: 'Završavanje sesije', FORCE_LOCK: 'Prinudno zaključavanje', OPERATOR_RECOVERY: 'Fizička potvrda zaključavanja' }
@@ -23,12 +26,11 @@ export function StationDetails({ station, user, now, initialTab, profiles, defin
   applicationLoading: boolean; applicationError: unknown; stale: boolean; returnFocusRef: RefObject<HTMLElement | null>
   handlers: StationViewHandlers; onClose: () => void; onRefresh: () => void
 }) {
-  const [tab, setTab] = useState<StationTab>(initialTab), id = useId()
+  const [tab, setTab] = useResettableState<StationTab>(() => initialTab, `${station.resourceId}:${initialTab}`), id = useId()
   const management = useQuery({ queryKey: ['stations', station.resourceId, 'client-status'], queryFn: () => stationApi.clientStatus(station.resourceId),
     enabled: Boolean(station.stationProfileId) && hasCapability(user, 'STATION_READ'), refetchInterval: 15_000 })
   const client = management.data
   const updateLabels: Record<string, string> = { CURRENT: 'Ažuran', DOWNLOADING: 'Preuzimanje', FAILED: 'Neuspešno ažuriranje', ROLLED_BACK: 'Vraćena prethodna verzija', UNKNOWN: 'Nije poznato' }
-  useEffect(() => { setTab(initialTab) }, [initialTab, station.resourceId])
   const canHistory = hasCapability(user, 'GAMING_SESSION_READ') && Boolean(station.live)
   const history = useQuery({ queryKey: ['gaming-operations', 'history', station.resourceId], queryFn: () => gamingSessionApi.history(station.resourceId), enabled: canHistory && tab === 'HISTORY' })
   const profile = profiles.find(value => value.id === station.applicationProfileId), live = station.live

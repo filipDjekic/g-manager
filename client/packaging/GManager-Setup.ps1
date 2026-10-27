@@ -1,14 +1,22 @@
 ﻿param(
-    [Parameter(Mandatory=$true)][string]$PackageDirectory,
+    [string]$PackageDirectory=$PSScriptRoot,
     [string]$BackendUrl,
-    [Parameter(Mandatory=$true)][string]$PolicySigningPublicKey,
-    [Parameter(Mandatory=$true)][string]$PolicySigningKeyId,
-    [Parameter(Mandatory=$true)][string]$SigningSubject,
-    [Parameter(Mandatory=$true)][string]$SigningThumbprint,
-    [Parameter(Mandatory=$true)][string]$PlayerAccount,
+    [string]$PolicySigningPublicKey,
+    [string]$PolicySigningKeyId,
+    [string]$SigningSubject,
+    [string]$SigningThumbprint,
+    [string]$PlayerAccount,
     [string]$LocalCaCertificate,
     [string]$ExpectedCaSha256
 )
+trap { [Console]::Error.WriteLine('G-Manager Setup: '+$_.Exception.Message); exit 1 }
+if(!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){throw 'Pokrenite GManager-Setup.cmd kroz Run as administrator iz zasebnog Windows administratorskog naloga.'}
+Write-Host 'G-MANAGER · Welcome / System Check'
+Write-Host 'Pripremite odobrene javne deployment podatke. Lozinke i privatni ključevi se ne unose u paket.'
+if(!$SigningSubject){$SigningSubject=Read-Host 'Očekivani code-signing subject izdavača'}
+if(!$SigningThumbprint){$SigningThumbprint=Read-Host 'Očekivani code-signing thumbprint izdavača'}
+$SigningThumbprint=$SigningThumbprint.Replace(' ','').Trim()
+if(!$SigningSubject -or $SigningThumbprint -notmatch '^[a-fA-F0-9]{40}$'){throw 'Unesite odobreni subject i SHA-1 thumbprint code-signing sertifikata.'}
 $bootstrap=Get-AuthenticodeSignature -LiteralPath (Join-Path $PSScriptRoot 'client-management.ps1')
 if($bootstrap.Status -ne 'Valid' -or $bootstrap.SignerCertificate.Subject -cne $SigningSubject -or $bootstrap.SignerCertificate.Thumbprint -ine $SigningThumbprint){throw 'Installer modul nema očekivani potpis izdavača.'}
 . (Join-Path $PSScriptRoot 'client-management.ps1')
@@ -25,12 +33,17 @@ try {
     $edition=(Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion').EditionID
     if($edition -notmatch '^(Enterprise|Education|IoTEnterprise)'){throw 'Produkcija zahteva podržan Enterprise/Education Windows sa AppLocker podrškom.'}
     foreach($cmd in @('Get-AppLockerPolicy','Set-AppLockerPolicy','Register-ScheduledTask','Get-LocalUser')){if(!(Get-Command $cmd -ErrorAction SilentlyContinue)){throw "Nedostaje Windows komponenta: $cmd"}}
+    if(!$PlayerAccount){$PlayerAccount=Read-Host 'Postojeći standardni lokalni Windows nalog igrača'}
     $player=Get-LocalUser -Name $PlayerAccount
     if(!$player.Enabled){throw 'Windows nalog igrača mora biti aktivan.'}
     $admins=Get-LocalGroupMember -SID 'S-1-5-32-544'
     if($player.SID.Value -in @($admins.SID.Value)){throw 'Nalog igrača ne sme biti lokalni administrator.'}
     if([Security.Principal.WindowsIdentity]::GetCurrent().User.Value -eq $player.SID.Value){throw 'Instalaciju pokrenite iz zasebnog administratorskog naloga.'}
-    [void][Convert]::FromBase64String($PolicySigningPublicKey)
+    Write-Host 'G-MANAGER · Server Configuration'
+    if(!$PolicySigningPublicKey){$PolicySigningPublicKey=Read-Host 'Odobreni javni Ed25519 policy ključ (Base64)'}
+    if(!$PolicySigningKeyId){$PolicySigningKeyId=Read-Host 'Policy signing key ID'}
+    if(!$PolicySigningKeyId){throw 'Policy key ID je obavezan.'}
+    if(([Convert]::FromBase64String($PolicySigningPublicKey)).Length -ne 32){throw 'Ed25519 javni ključ mora imati 32 bajta.'}
     $PackageDirectory=(Resolve-Path -LiteralPath $PackageDirectory).Path
     $manifest=Assert-Package $PackageDirectory $SigningSubject $SigningThumbprint
     $existingConfigPath=Join-Path $script:ClientState 'client.json'
@@ -77,6 +90,7 @@ try {
     }
     Save-RecoveryTools $PackageDirectory $SigningSubject $SigningThumbprint
     Register-RecoveryTasks
+    Write-Host 'G-MANAGER · Installation'
     Install-ClientFiles $PackageDirectory $config
     if(!(Get-Service GManagerClient -ErrorAction SilentlyContinue)){
         New-Service -Name GManagerClient -BinaryPathName ('"'+(Join-Path $script:ClientRoot 'service\GManager.Client.Service.exe')+'"') -StartupType Automatic -DisplayName 'G-Manager Gaming Client'|Out-Null
@@ -86,6 +100,7 @@ try {
     Invoke-Native 'sc.exe' @('failure','GManagerClient','reset=','86400','actions=','restart/5000/restart/15000/restart/60000')
     Invoke-Native 'sc.exe' @('sdset','GManagerClient','D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCLCSWLOCRRC;;;BU)')
     if(!(Test-Path -LiteralPath (Join-Path $script:ClientState 'identity.dpapi'))){
+        Write-Host 'G-MANAGER · Station Enrollment'
         $secret=Read-Host 'Jednokratni enrollment token' -AsSecureString
         $ptr=[Runtime.InteropServices.Marshal]::SecureStringToBSTR($secret)
         try{
@@ -105,6 +120,7 @@ try {
     $updateTrigger=New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(5) -RepetitionInterval (New-TimeSpan -Minutes 15)
     Register-ScheduledTask -TaskName 'GManagerClientUpdate' -Action $updateAction -Trigger $updateTrigger -User SYSTEM -RunLevel Highest -Force|Out-Null
     Start-ClientService
+    Write-Host 'G-MANAGER · Verification'
     Assert-Healthy
     Write-AtomicJson (Join-Path $script:ClientState 'update-status.json') @{status='CURRENT';timestamp=[DateTimeOffset]::UtcNow.ToString('o')}
     $caRecord=Join-Path $script:ClientState 'installed-ca.json'
@@ -114,7 +130,7 @@ try {
     Write-Operation 'INSTALL_COMPLETE' $manifest.version
     $journal=Get-Content -LiteralPath (Join-Path $script:ClientState 'deployment.json') -Raw|ConvertFrom-Json;$journal.phase='Complete';Write-AtomicJson (Join-Path $script:ClientState 'deployment.json') $journal
     Start-ScheduledTask -TaskName 'GManagerClientShell' -ErrorAction SilentlyContinue
-    Write-Host "Instalacija je završena. Za upravljanje: `"$script:ClientRoot\gmanagerctl.cmd`" status"
+    Write-Host "G-MANAGER · Finish. Instalacija je završena. Za upravljanje: `"$script:ClientRoot\gmanagerctl.cmd`" status"
 }catch{
     $failure=$_
     if(Test-Path -LiteralPath (Join-Path $script:ClientState 'deployment.json')){try{Resolve-ClientTransaction}catch{Write-Warning 'Rollback nije završen. Koristite ProgramData\GManager\Client\recovery\gmanagerctl.ps1 repair -Recovery.'}}

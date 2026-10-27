@@ -1,0 +1,26 @@
+.gm-week-scroll { max-width: 100%; max-height: 72dvh; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); overscroll-behavior: contain; scrollbar-width: thin; }
+.gm-week-scroll:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.gm-week-grid { display: grid; grid-template-columns: 4rem repeat(7, minmax(10rem, 1fr)); min-width: 74rem; background: var(--color-surface); }
+.gm-week-corner, .gm-week-heading { position: sticky; top: 0; z-index: 6; display: grid; align-items: center; min-height: 3.5rem; padding: var(--space-2); border: 0; border-bottom: 1px solid var(--color-border); border-inline-end: 1px solid var(--color-border); border-radius: 0; color: var(--color-text-secondary); background: var(--color-surface-raised); font-size: .75rem; font-weight: 600; text-transform: capitalize; text-align: center; }
+.gm-week-corner { left: 0; z-index: 7; }
+.gm-week-heading.is-today { color: var(--color-primary); box-shadow: inset 0 -3px var(--color-primary); }
+.gm-week-axis { position: sticky; left: 0; z-index: 4; background: var(--color-surface-raised); border-inline-end: 1px solid var(--color-border); }
+.gm-week-axis > time { position: absolute; right: var(--space-2); font-size: .7rem; font-variant-numeric: tabular-nums; color: var(--color-text-muted); }
+.gm-week-axis small { display: block; font-size: .6rem; }
+.gm-week-day { position: relative; min-width: 0; border-inline-end: 1px solid var(--color-border); }
+.gm-week-day.is-today { background: var(--color-primary-bg); }
+.gm-week-slot { display: block; width: 100%; height: var(--week-row); min-height: 0; padding: 0; border: 0; border-bottom: 1px solid color-mix(in srgb, var(--color-border) 45%, transparent); border-radius: 0; background: transparent; }
+.gm-week-slot:nth-child(4n) { border-bottom-color: var(--color-border); }
+.gm-week-slot:disabled { opacity: 1; cursor: default; }
+.gm-week-slot.is-closed { background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--color-text-muted) 9%, transparent) 6px 8px), color-mix(in srgb, var(--color-text-muted) 5%, transparent); }
+.gm-week-slot.is-blocked { background-color: var(--color-warning-bg); }
+.gm-week-slot:hover:not(:disabled), .gm-week-slot:focus-visible { background: var(--color-primary-bg); outline: 2px solid var(--color-primary); outline-offset: -2px; }
+.gm-week-event { position: absolute; z-index: 2; display: flex; flex-direction: column; align-items: start; gap: .1rem; min-width: 0; min-height: 0; overflow: hidden; padding: .25rem .4rem; text-align: start; border: 1px solid color-mix(in srgb, var(--event-color) 45%, var(--color-border)); border-inline-start: 3px solid var(--event-color); border-radius: var(--radius-sm); color: var(--color-text); background: color-mix(in srgb, var(--event-color) 15%, var(--color-surface)); }
+.gm-week-event > * { display: block; flex-shrink: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .7rem; line-height: 1.35; }
+.gm-week-event time { font-variant-numeric: tabular-nums; }
+.gm-week-event small { color: var(--color-text-secondary); font-size: .65rem; }
+.gm-week-event:hover, .gm-week-event:focus-visible { z-index: 5; border-color: var(--event-color); box-shadow: var(--focus-ring); }
+.gm-week-event.gm-calendar-status-cancelled { opacity: .7; border-style: dashed; }
+.gm-week-event.gm-calendar-status-cancelled strong { text-decoration: line-through; }
+.gm-week-now { position: absolute; left: 0; right: 0; z-index: 5; height: 2px; background: var(--color-secondary); pointer-events: none; }
+.gm-week-now::before { content: ''; position: absolute; left: -4px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: inherit; }

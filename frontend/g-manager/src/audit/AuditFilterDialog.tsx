@@ -1,6 +1,7 @@
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { Button, FormField, Input, Modal, Select } from '../components/ui'
-import { AuditIcon, defaultDraft, periodLabel, periods, sortOptions, validateDraft, type AuditDraft } from './auditPresentation'
+import { AuditIcon } from './auditPresentation'
+import { defaultDraft, periodLabel, periods, sortOptions, validateDraft, type AuditDraft } from './auditPresentation.model'
 
 export function AuditFilterDialog({ initial, onApply, onClose, returnFocusRef }: {
   initial: AuditDraft; onApply: (draft: AuditDraft) => void; onClose: () => void

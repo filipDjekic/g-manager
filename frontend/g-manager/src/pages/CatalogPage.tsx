@@ -1,4 +1,5 @@
-﻿import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useResettableState } from '../components/useResettableState'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState } from 'react'
 import { catalogApi, type CatalogFilters } from '../api/catalogApi'
 import { apiErrorMessage } from '../api/client'
@@ -19,7 +20,7 @@ import { CatalogPagination } from '../catalog/CatalogPagination'
 import { CatalogIcon } from '../catalog/CatalogPresentation'
 import '../catalog/catalog.css'
 
-const defaults = { page: '0', size: '9', type: 'SERVICE', active: '', deleted: '', search: '', minPrice: '', maxPrice: '', sort: 'name', direction: 'ASC' }
+const defaults = { page: '0', size: '10', type: 'SERVICE', active: '', deleted: '', search: '', minPrice: '', maxPrice: '', sort: 'name', direction: 'ASC' }
 const allowed = ['page', 'size', 'type', 'active', 'deleted', 'search', 'minPrice', 'maxPrice', 'sort', 'direction'] as const
 
 export function CatalogPage() {
@@ -28,9 +29,10 @@ export function CatalogPage() {
   const permissions = { manage: hasCapability(user, 'CATALOG_MANAGE'), remove: hasCapability(user, 'CATALOG_DELETE'),
     restore: hasCapability(user, 'CATALOG_RESTORE'), order: hasCapability(user, 'ORDER_CREATE') }
   const url = useListUrlState(defaults, allowed), id = useId()
+  const setUrl = url.set
   const numericPage = Number(url.state.page)
   const page = Number.isFinite(numericPage) && numericPage <= 2147483647 ? Math.max(0, Math.floor(numericPage)) : 0
-  const size = [9, 24, 48].includes(Number(url.state.size)) ? Number(url.state.size) : 9
+  const size = [9, 24, 48, 10, 20, 50, 100].includes(Number(url.state.size)) ? Number(url.state.size) : 10
   const type: ItemType = url.state.type === 'PRODUCT' ? 'PRODUCT' : 'SERVICE'
   const showDeleted = permissions.restore && url.state.deleted === 'true'
   const active = permissions.manage && ['true', 'false'].includes(url.state.active) ? url.state.active : ''
@@ -44,7 +46,7 @@ export function CatalogPage() {
   const priceError = (min !== undefined && (!Number.isFinite(min) || min < 0)) || (max !== undefined && (!Number.isFinite(max) || max < 0))
     ? 'Cena mora biti validan broj koji nije negativan.' : min !== undefined && max !== undefined && min > max ? 'Minimalna cena ne može biti veća od maksimalne.' : ''
   const [priceOpen, setPriceOpen] = useState(Boolean(url.state.minPrice || url.state.maxPrice))
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [selected, setSelected] = useResettableState<Set<string>>(() => new Set(), JSON.stringify(Object.entries(url.state).filter(([key]) => !['focus', 'reservationId', 'eventId', 'create'].includes(key))))
   const [chosen, setChosen] = useState<CatalogItem | null>(null)
   const [form, setForm] = useState<{ item?: CatalogItem; imageOnly?: boolean } | null>(null)
   const [busyId, setBusyId] = useState('')
@@ -60,11 +62,9 @@ export function CatalogPage() {
     queryFn: () => showDeleted ? catalogApi.deleted(page, size, filters) : catalogApi.list(filters) })
   const stats = useQuery({ queryKey: ['catalog', 'statistics', user?.id], queryFn: catalogApi.statistics, enabled: canRead, staleTime: 30000 })
   const result = !searchPending && !priceError ? list.data : undefined
-  const scope = JSON.stringify([type, showDeleted, active, url.state.search, url.state.minPrice, url.state.maxPrice, sort, direction, page, size])
-  useEffect(() => { setSelected(new Set()) }, [scope])
   useEffect(() => {
-    if (result && page > Math.max(0, result.totalPages - 1)) url.set({ page: String(Math.max(0, result.totalPages - 1)) }, true)
-  }, [page, result, url.set])
+    if (result && page > Math.max(0, result.totalPages - 1)) setUrl({ page: String(Math.max(0, result.totalPages - 1)) }, true)
+  }, [page, result, setUrl])
   const refresh = () => client.invalidateQueries({ queryKey: ['catalog'] })
   const remember = (item: CatalogItem) => {
     client.setQueryData(['catalog', 'detail', item.id], item)
@@ -81,7 +81,7 @@ export function CatalogPage() {
     } })
   const busy = Boolean(busyId) || bulk.isPending
   const visibleSelected = result?.content.filter(item => selected.has(item.id) && !item.deletedAt) ?? []
-  function applyFilter(changes: Partial<typeof defaults>, replace = false) { url.set({ ...changes, page: '0' }, replace) }
+  function applyFilter(changes: Partial<typeof defaults>, replace = false) { setUrl({ ...changes, page: '0' }, replace) }
   function openBulk(action: 'ACTIVATE' | 'DEACTIVATE') {
     if (!permissions.manage || showDeleted || busy || !visibleSelected.length) return
     const items = visibleSelected.map(({ id, version }) => ({ id, version }))
@@ -174,22 +174,22 @@ export function CatalogPage() {
         <label className="gm-catalog-search" htmlFor={`${id}-search`}><span>Pretraga</span><div><CatalogIcon search />
           <Input id={`${id}-search`} type="search" placeholder="Pretraži po nazivu..." value={url.state.search}
             onChange={event => applyFilter({ search: event.target.value }, true)} /></div></label>
-        {permissions.manage && <label>Status<Select value={active} onChange={event => applyFilter({ active: event.target.value })}>
+        {permissions.manage && <label>Status<Select aria-label={"Status"} value={active} onChange={event => applyFilter({ active: event.target.value })}>
           <option value="">Svi statusi</option><option value="true">Aktivni</option><option value="false">Neaktivni</option></Select></label>}
-        <label>Cena<Select value={priceOpen || min !== undefined || max !== undefined ? 'range' : 'all'} onChange={event => {
+        <label>Cena<Select aria-label={"Cena"} value={priceOpen || min !== undefined || max !== undefined ? 'range' : 'all'} onChange={event => {
           setPriceOpen(event.target.value === 'range'); if (event.target.value === 'all') applyFilter({ minPrice: '', maxPrice: '' })
         }}><option value="all">Sve cene</option><option value="range">Raspon cena</option></Select></label>
-        <label>Sortiranje<Select value={sort} onChange={event => applyFilter({ sort: event.target.value,
+        <label>Sortiranje<Select aria-label={"Sortiranje"} value={sort} onChange={event => applyFilter({ sort: event.target.value,
           direction: event.target.value === 'createdAt' ? 'DESC' : 'ASC' })}>
           <option value="name">Naziv</option><option value="price">Cena</option><option value="createdAt">Najnovije</option>
           {sort === 'type' && <option value="type">Tip</option>}</Select></label>
-        <label>Smer<Select value={direction} onChange={event => applyFilter({ direction: event.target.value })}>
+        <label>Smer<Select aria-label={"Smer"} value={direction} onChange={event => applyFilter({ direction: event.target.value })}>
           <option value="ASC">{sort === 'createdAt' ? 'Najstarije prvo' : 'Rastuće'}</option><option value="DESC">{sort === 'createdAt' ? 'Najnovije prvo' : 'Opadajuće'}</option></Select></label>
         {(priceOpen || min !== undefined || max !== undefined) && <div className="gm-catalog-price-filters">
-          <label>Minimalna cena (RSD)<Input type="number" min="0" step="0.01" value={url.state.minPrice}
+          <label>Minimalna cena (RSD)<Input aria-label={"Minimalna cena (RSD)"} type="number" min="0" step="0.01" value={url.state.minPrice}
             aria-invalid={Boolean(priceError)} aria-describedby={priceError ? `${id}-price-error` : undefined}
             onChange={event => applyFilter({ minPrice: event.target.value }, true)} /></label>
-          <label>Maksimalna cena (RSD)<Input type="number" min="0" step="0.01" value={url.state.maxPrice}
+          <label>Maksimalna cena (RSD)<Input aria-label={"Maksimalna cena (RSD)"} type="number" min="0" step="0.01" value={url.state.maxPrice}
             aria-invalid={Boolean(priceError)} aria-describedby={priceError ? `${id}-price-error` : undefined}
             onChange={event => applyFilter({ maxPrice: event.target.value }, true)} /></label>
           {priceError && <p className="field-error" id={`${id}-price-error`} role="alert">{priceError}</p>}
@@ -224,7 +224,7 @@ export function CatalogPage() {
           onAction={action} onSelect={() => setSelected(current => { const next = new Set(current); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next })} />)}</div>}
       </section>
       {result && <CatalogPagination page={page} size={size} totalPages={result.totalPages} totalElements={result.totalElements}
-        loading={list.isFetching || busy} onPageChange={value => url.set({ page: String(value) })} onSizeChange={value => applyFilter({ size: String(value) })} />}
+        loading={list.isFetching || busy} onPageChange={value => setUrl({ page: String(value) })} onSizeChange={value => applyFilter({ size: String(value) })} />}
     </section>
     {chosen && <CatalogDetails key={chosen.id} item={chosen} permissions={permissions} canReadResources={hasCapability(user, 'RESOURCE_READ')}
       busy={busy} returnFocusRef={detailOpener} onClose={() => setChosen(null)} onAction={action} />}

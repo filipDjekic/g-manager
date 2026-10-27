@@ -6,7 +6,8 @@ import { useToast } from '../components/ui/toastContext'
 import { focusFirstInvalid } from '../forms/useDirtyGuard'
 import type { UserResponse } from '../types/user.types'
 import { ProfileAvatarEditor } from './ProfileAvatarEditor'
-import { ProfileIcon, nameError, profileError } from './profilePresentation'
+import { ProfileIcon } from './profilePresentation'
+import { nameError, profileError } from './profilePresentation.model'
 
 export function ProfilePersonalCard({ profile, canUpdate, onSaved, onDirty }: {
   profile: UserResponse; canUpdate: boolean; onSaved: (user: UserResponse) => void; onDirty: (dirty: boolean) => void

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { Button } from '../components/ui'
 import type { AuthUser } from '../types/auth.types'
 import type { ManagedOrder, OrderStatus } from '../types/order.types'
-import { canChangeOrder, orderActionLabels, shortOrderId } from './orderPresentation'
+import { canChangeOrder, orderActionLabels, shortOrderId } from './orderPresentation.model'
 
 export type OrderAction = 'DETAILS' | OrderStatus
 export function OrderActionsMenu({ order, user, disabled, onAction }: {

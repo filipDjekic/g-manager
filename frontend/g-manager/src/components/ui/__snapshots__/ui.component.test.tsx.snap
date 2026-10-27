@@ -36,13 +36,14 @@ exports[`UI component system > renders the complete representative catalog witho
     <section
       class="ui-card "
     >
-      <label
+      <div
         class="ui-field"
-        for="name"
       >
-        <span>
+        <label
+          for="name"
+        >
           Naziv
-        </span>
+        </label>
         <span
           class="ui-field-control"
         >
@@ -62,14 +63,15 @@ exports[`UI component system > renders the complete representative catalog witho
           class="field-error"
           id="name-error"
         />
-      </label>
-      <label
+      </div>
+      <div
         class="ui-field"
-        for="type"
       >
-        <span>
+        <label
+          for="type"
+        >
           Tip
-        </span>
+        </label>
         <span
           class="ui-field-control"
         >
@@ -86,19 +88,22 @@ exports[`UI component system > renders the complete representative catalog witho
           class="field-error"
           id="type-error"
         />
-      </label>
+      </div>
       <button
         class="ui-button ui-button--primary "
+        type="button"
       >
         Sačuvaj
       </button>
       <button
         class="ui-button ui-button--secondary "
+        type="button"
       >
         Odustani
       </button>
       <button
         class="ui-button ui-button--danger "
+        type="button"
       >
         Obriši
       </button>

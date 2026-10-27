@@ -26,10 +26,9 @@ export function LoginPage() {
   const [passwordVisible, setPasswordVisible] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
-  const [activationSuccess, setActivationSuccess] = useState(
+  const [activationSuccess] = useState(
     () => (location.state as LoginLocationState | null)?.activated === true,
   )
-  const consumingActivation = useRef(false)
   const submitting = useRef(false)
   const form = useForm<LoginValues>({ resolver: zodResolver(loginSchema) })
 
@@ -37,8 +36,6 @@ export function LoginPage() {
     if (user) return
     const state = location.state as LoginLocationState | null
     if (state?.activated === true) {
-      setActivationSuccess(true)
-      consumingActivation.current = true
       const nextState = { ...state }
       delete nextState.activated
       navigate({ pathname: location.pathname, search: location.search, hash: location.hash }, {
@@ -46,11 +43,6 @@ export function LoginPage() {
         state: Object.keys(nextState).length ? nextState : null,
         preventScrollReset: true,
       })
-    } else if (consumingActivation.current) {
-      // Keep the notice for this visit after consuming its navigation state.
-      consumingActivation.current = false
-    } else {
-      setActivationSuccess(false)
     }
   }, [location, navigate, user])
 

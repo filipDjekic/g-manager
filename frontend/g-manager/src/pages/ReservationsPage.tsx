@@ -1,3 +1,4 @@
+import { useResettableState } from '../components/useResettableState'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { resourceApi } from '../api/resourceApi'
@@ -37,10 +38,11 @@ export function ReservationsPage() {
   const actor = useAuthStore(state => state.user)
   const defaults = useMemo(() => ({ ...baseDefaults, scope: actor?.role === 'EMPLOYEE' ? 'MANAGEABLE' : 'ALL' }), [actor?.role])
   const url = useListUrlState(defaults, allowed)
+  const setUrl = url.set
   const scope: ReservationScope = url.state.scope === 'MANAGEABLE' ? 'MANAGEABLE' : 'ALL'
   const [createOpen, setCreateOpen] = useState(false)
   const [moreFilters, setMoreFilters] = useState(() => Boolean(url.state.employeeId || url.state.customerId || url.state.sort !== 'startTime' || url.state.direction !== 'ASC'))
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [selected, setSelected] = useResettableState<Set<string>>(() => new Set(), JSON.stringify(Object.entries(url.state).filter(([key]) => !['focus', 'reservationId', 'eventId', 'create'].includes(key))))
   const [bulkSummary, setBulkSummary] = useState('')
   const [cancelOpen, setCancelOpen] = useState(false)
   const [detailAction, setDetailAction] = useState<{ id: string; action?: ReservationDetailAction } | null>(null)
@@ -56,7 +58,7 @@ export function ReservationsPage() {
   const client = useQueryClient()
   const rawPage = Number(url.state.page)
   const page = Number.isSafeInteger(rawPage) && rawPage >= 0 ? rawPage : 0
-  const size = [10, 20, 50].includes(Number(url.state.size)) ? Number(url.state.size) : 10
+  const size = [10, 20, 50, 100].includes(Number(url.state.size)) ? Number(url.state.size) : 10
   const filters = useMemo<ReservationFilters>(() => ({
     scope, resourceId: url.state.resourceId || undefined, locationId: url.state.locationId || undefined,
     customerId: url.state.customerId || undefined, page, size,
@@ -93,32 +95,31 @@ export function ReservationsPage() {
   const changeFilters = (changes: Partial<typeof baseDefaults>) => {
     if (bulk.isPending) return
     setSelected(new Set())
-    url.set({ ...changes, page: '0', ...(changes.locationId !== undefined ? { resourceId: '' } : {}) })
+    setUrl({ ...changes, page: '0', ...(changes.locationId !== undefined ? { resourceId: '' } : {}) })
   }
-  useEffect(() => { setSelected(new Set()) }, [filterKey, actor?.id])
   useEffect(() => {
     if (selectAll.current) selectAll.current.indeterminate = selected.size > 0 && !selectable.every(item => selected.has(item.id))
   }, [selected, selectable])
   useEffect(() => {
     if (!result.data || result.error || result.isFetching || bulk.isPending) return
     if (page >= Math.max(1, result.data.totalPages)) {
-      setSelected(new Set()); url.set({ page: String(Math.max(0, result.data.totalPages - 1)) }, true)
+      setUrl({ page: String(Math.max(0, result.data.totalPages - 1)) }, true)
     }
-  }, [result.data, result.error, result.isFetching, bulk.isPending, page, url.set])
+  }, [result.data, result.error, result.isFetching, bulk.isPending, page, setUrl])
   useEffect(() => {
     if (!resources.data || !url.state.resourceId || resources.isFetching || resources.error || bulk.isPending
       || scope === 'MANAGEABLE' && actor?.role === 'EMPLOYEE' && (!managementScope.data || managementScope.isFetching || managementScope.error)) return
     if (!scopedResources?.some(resource => resource.id === url.state.resourceId
       && (!url.state.locationId || resource.locationId === url.state.locationId))) {
-      setSelected(new Set()); url.set({ resourceId: '', page: '0' }, true)
+      setUrl({ resourceId: '', page: '0' }, true)
     }
   }, [resources.data, resources.isFetching, resources.error, scopedResources, scope, actor?.role,
-    managementScope.data, managementScope.isFetching, managementScope.error, bulk.isPending, url.state.resourceId, url.state.locationId, url.set])
+    managementScope.data, managementScope.isFetching, managementScope.error, bulk.isPending, url.state.resourceId, url.state.locationId, setUrl])
   const toggle = (id: string) => setSelected(current => {
     const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next
   })
   const openDetails = (reservation: Reservation, action?: ReservationDetailAction, target: HTMLButtonElement | null = null) => {
-    returnFocus.current = target; setDetailAction({ id: reservation.id, action }); url.set({ reservationId: reservation.id })
+    returnFocus.current = target; setDetailAction({ id: reservation.id, action }); setUrl({ reservationId: reservation.id })
   }
   const metrics = summary.error ? undefined : summary.data
   const kpis = [
@@ -162,16 +163,16 @@ export function ReservationsPage() {
         <label className="reservations-search">Pretraga rezervacija<span><ReservationIcon kind="search" />
           <input type="search" maxLength={120} value={url.state.search} placeholder="Klijent, usluga, resurs…"
             onChange={event => changeFilters({ search: event.target.value })} /></span></label>
-        <label>Lokacija<select value={url.state.locationId} onChange={event => changeFilters({ locationId: event.target.value })}>
+        <label>Lokacija<select aria-label={"Lokacija"} value={url.state.locationId} onChange={event => changeFilters({ locationId: event.target.value })}>
           <option value="">Sve lokacije</option>{locations.data?.map(location => <option key={location.id} value={location.id}>{location.name}</option>)}</select></label>
-        <label>Resurs<select value={url.state.resourceId} onChange={event => changeFilters({ resourceId: event.target.value })}>
+        <label>Resurs<select aria-label={"Resurs"} value={url.state.resourceId} onChange={event => changeFilters({ resourceId: event.target.value })}>
           <option value="">Svi resursi</option>{scopedResources?.filter(resource => !url.state.locationId || resource.locationId === url.state.locationId)
             .map(resource => <option key={resource.id} value={resource.id}>{resource.code} · {resource.name}</option>)}</select></label>
-        <label>Status<select value={url.state.status} onChange={event => changeFilters({ status: event.target.value })}>
+        <label>Status<select aria-label={"Status"} value={url.state.status} onChange={event => changeFilters({ status: event.target.value })}>
           <option value="">Svi statusi</option>{statuses.map(status => <option value={status} key={status}>{reservationLabels[status]}</option>)}</select></label>
-        <div className="reservations-date-range"><label>Od<input type="date" value={url.state.from} max={url.state.to || undefined}
+        <div className="reservations-date-range"><label>Od<input aria-label={"Od"} type="date" value={url.state.from} max={url.state.to || undefined}
           onChange={event => changeFilters({ from: event.target.value })} /></label>
-          <label>Do<input type="date" value={url.state.to} min={url.state.from || undefined} onChange={event => changeFilters({ to: event.target.value })} /></label></div>
+          <label>Do<input aria-label={"Do"} type="date" value={url.state.to} min={url.state.from || undefined} onChange={event => changeFilters({ to: event.target.value })} /></label></div>
       </fieldset>
       <Button type="button" variant="secondary" className="reservations-more-filters" disabled={bulk.isPending}
         aria-expanded={moreFilters} aria-controls="reservations-advanced-filters" onClick={() => setMoreFilters(!moreFilters)}>
@@ -179,10 +180,10 @@ export function ReservationsPage() {
       </Button>
       <fieldset id="reservations-advanced-filters" className="reservations-advanced-filters" hidden={!moreFilters} disabled={bulk.isPending}>
         <legend className="reservations-sr-only">Dodatni filteri</legend>
-        <label>Zaposleni<select value={url.state.employeeId} onChange={event => changeFilters({ employeeId: event.target.value })}>
+        <label>Zaposleni<select aria-label={"Zaposleni"} value={url.state.employeeId} onChange={event => changeFilters({ employeeId: event.target.value })}>
           <option value="">Svi zaposleni</option>{employees.data?.map(employee => <option key={employee.id} value={employee.id}>{employee.name}</option>)}</select></label>
         <CustomerPicker value={url.state.customerId} disabled={bulk.isPending} onChange={customerId => changeFilters({ customerId })} />
-        <label>Sortiranje<select value={`${filters.sort}:${filters.direction}`} onChange={event => {
+        <label>Sortiranje<select aria-label={"Sortiranje"} value={`${filters.sort}:${filters.direction}`} onChange={event => {
           const [sort, direction] = event.target.value.split(':'); changeFilters({ sort, direction })
         }}><option value="startTime:ASC">Najraniji termin</option><option value="startTime:DESC">Najkasniji termin</option>
           <option value="createdAt:DESC">Najnoviji zahtev</option><option value="createdAt:ASC">Najstariji zahtev</option>
@@ -201,11 +202,11 @@ export function ReservationsPage() {
     {bulkSummary && <p className="reservations-success" role="status">{bulkSummary}</p>}
     <section className="reservations-table-panel" aria-labelledby="reservations-table-title">
       <div className="reservations-table-heading"><h2 id="reservations-table-title">Pregled rezervacija</h2>
-        <label className="reservations-select-page reservations-checkbox"><input ref={selectAll} type="checkbox"
+        <label className="reservations-select-page reservations-checkbox"><input aria-label={"Izaberi stranicu"} ref={selectAll} type="checkbox"
           disabled={bulk.isPending || result.isFetching || !selectable.length} checked={selectable.length > 0 && selectable.every(item => selected.has(item.id))}
           onChange={event => setSelected(event.target.checked ? new Set(selectable.map(item => item.id)) : new Set())} />Izaberi stranicu</label>
-        <label>Redova po stranici<select value={size} disabled={bulk.isPending} onChange={event => changeFilters({ size: event.target.value })}>
-          {[10, 20, 50].map(count => <option key={count} value={count}>{count}</option>)}</select></label></div>
+        <label>Redova po stranici<select aria-label={"Redova po stranici"} value={size} disabled={bulk.isPending} onChange={event => changeFilters({ size: event.target.value })}>
+          {[10, 20, 50, 100].map(count => <option key={count} value={count}>{count}</option>)}</select></label></div>
       <SelectionBar count={selected.size}>
         <Button loading={bulk.isPending} disabled={!mayBulk('CONFIRMED')} onClick={() => bulk.mutate({ status: 'CONFIRMED' })}>Potvrdi izabrane</Button>
         <Button variant="danger" disabled={!mayBulk('CANCELLED')} loading={bulk.isPending} onClick={() => setCancelOpen(true)}>Otkaži izabrane</Button>
@@ -242,13 +243,13 @@ export function ReservationsPage() {
           })}</tbody>
         </table></TableShell>}
       {result.data && !result.error && <Pagination numbered page={page} pageSize={size} totalPages={result.data.totalPages} totalElements={result.data.totalElements}
-        loading={result.isFetching || bulk.isPending} onPageChange={nextPage => { setSelected(new Set()); url.set({ page: String(nextPage) }) }} />}
+        loading={result.isFetching || bulk.isPending} onPageChange={nextPage => { setUrl({ page: String(nextPage) }) }} />}
     </section>
-    {(createOpen || url.state.create === 'true') && <StaffReservationForm onClose={() => { setCreateOpen(false); url.set({ create: '' }) }}
-      onCreated={(id, notice) => { setCreateOpen(false); setBulkSummary(notice ?? 'Rezervacija je kreirana.'); setDetailAction(null); url.set({ create: '', reservationId: id }) }} />}
+    {(createOpen || url.state.create === 'true') && <StaffReservationForm onClose={() => { setCreateOpen(false); setUrl({ create: '' }) }}
+      onCreated={(id, notice) => { setCreateOpen(false); setBulkSummary(notice ?? 'Rezervacija je kreirana.'); setDetailAction(null); setUrl({ create: '', reservationId: id }) }} />}
     <ReservationDetailsDrawer reservationId={url.state.reservationId || null} appearance="operations" returnFocusRef={returnFocus}
       initialAction={detailAction?.id === url.state.reservationId ? detailAction.action : undefined}
-      onClose={() => { setDetailAction(null); url.set({ reservationId: '' }, true) }} />
+      onClose={() => { setDetailAction(null); setUrl({ reservationId: '' }, true) }} />
     <ActionDialog open={cancelOpen} disabled={!mayBulk('CANCELLED')} title="Otkaži izabrane rezervacije"
       description="Svaka dozvoljena promena biće odmah sačuvana i evidentirana." confirmLabel="Otkaži rezervacije"
       reasonLabel="Razlog" reasonRequired danger loading={bulk.isPending} onClose={() => setCancelOpen(false)}

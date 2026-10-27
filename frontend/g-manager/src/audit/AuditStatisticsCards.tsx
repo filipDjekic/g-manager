@@ -1,6 +1,7 @@
 import { Button, ErrorState, Skeleton } from '../components/ui'
 import type { AuditStatistics } from '../types/audit.types'
-import { AuditIcon, type AuditIconKind } from './auditPresentation'
+import { AuditIcon } from './auditPresentation'
+import { type AuditIconKind } from './auditPresentation.model'
 
 const metrics: { key: 'total' | 'created' | 'updated' | 'removed'; label: string; icon: AuditIconKind; tone: string }[] = [
   { key: 'total', label: 'Ukupno događaja', icon: 'file', tone: 'blue' },

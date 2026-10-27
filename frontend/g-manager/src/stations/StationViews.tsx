@@ -1,30 +1,14 @@
-﻿import { useRef } from 'react'
+import { type StationViewHandlers, operationsUrl, stationMenuActions } from './StationViews.model'
+import { useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { hasCapability } from '../auth/capabilities'
 import { Badge, Button, TableShell } from '../components/ui'
 import { permitsStationAction, stationSeconds, stationTimer } from '../gaming/operationsPresentation'
-import { ResourceMenu, type ResourceMenuAction } from '../resources/ResourceMenu'
+import { ResourceMenu } from '../resources/ResourceMenu'
 import { formatBusinessDateTime } from '../reservations/dateTime'
 import type { AuthUser } from '../types/auth.types'
-import { connectionStatus, StationIcon, StationIllustration, stationStatus, stationWarnings, type StationTab, type StationView } from './stationPresentation'
-
-export interface StationViewHandlers {
-  configurationDisabled: boolean
-  administrationDisabled: boolean
-  details: (station: StationView, tab?: StationTab, trigger?: HTMLElement) => void
-  configure: (station: StationView) => void
-  identity: (station: StationView) => void
-  employees: (station: StationView) => void
-}
-export const operationsUrl = (station: StationView) => `/gaming-sessions?stationId=${encodeURIComponent(station.resourceId)}`
-export function stationMenuActions(station: StationView, user: AuthUser | null, handlers: StationViewHandlers): ResourceMenuAction[] {
-  const actions: ResourceMenuAction[] = [{ label: 'Detalji stanice', onClick: () => handlers.details(station) }]
-  if (hasCapability(user, 'STATION_MAINTENANCE')) actions.push({ label: 'Podesi stanicu', onClick: () => handlers.configure(station), disabled: handlers.configurationDisabled })
-  if (hasCapability(user, 'MACHINE_IDENTITY_MANAGE')) actions.push({ label: 'Identitet Gaming Client-a', onClick: () => handlers.identity(station), disabled: handlers.administrationDisabled })
-  if (hasCapability(user, 'RESOURCE_MANAGE')) actions.push({ label: 'Zaposleni na resursu', onClick: () => handlers.employees(station), disabled: handlers.administrationDisabled })
-  if (hasCapability(user, 'GAMING_SESSION_READ') && station.live) actions.push({ label: 'Istorija stanice', onClick: () => handlers.details(station, 'HISTORY') })
-  return actions
-}
+import { StationIcon, StationIllustration } from './stationPresentation'
+import { connectionStatus, stationStatus, stationWarnings, type StationView } from './stationPresentation.model'
 export function StationOperationLinks({ station, user, disabled, compact = false }: { station: StationView; user: AuthUser | null; disabled: boolean; compact?: boolean }) {
   if (!hasCapability(user, 'GAMING_SESSION_READ') || !station.live) return null
   const actions = ([['START', 'Pokreni sesiju'], ['TERMINATE', 'Završi sesiju'], ['EXTEND', 'Produži sesiju'],

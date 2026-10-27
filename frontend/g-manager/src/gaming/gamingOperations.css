@@ -2,7 +2,7 @@
   display: grid;
   gap: var(--space-5);
   width: 100%;
-  max-width: 112rem;
+  max-width: var(--content-width);
   min-width: 0;
 }
 .gaming-ops-page > *, .gaming-ops-page .ops-workspace > * { min-width: 0; }

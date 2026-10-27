@@ -27,7 +27,7 @@ export function SavedViewBar({ resource, query, apply }: {
 
   return <div className="saved-view-bar" aria-label="Sačuvani prikazi">
     {confirmationDialog}
-    <label>Sačuvani prikaz<Select value={selectedId} onChange={(event) => {
+    <label>Sačuvani prikaz<Select aria-label={"Sačuvani prikaz"} value={selectedId} onChange={(event) => {
       setSelectedId(event.target.value)
       const view = views.data?.find(({ id }) => id === event.target.value)
       if (view) apply(view.query)

@@ -19,7 +19,9 @@
   --color-warning: #f6cd72; --color-warning-bg: rgb(245 158 11 / 12%);
   --color-info: var(--color-primary); --color-info-bg: var(--color-primary-bg);
   --focus-ring: 0 0 0 3px color-mix(in srgb, var(--color-primary) 40%, transparent);
-  --control-height: 2.75rem; --content-width: 90rem; --sidebar-width: 16rem;
+  --control-height: 2.75rem; --content-width: 100%; --reading-width: 64rem; --sidebar-width: 16rem;
+  --page-padding-inline: clamp(1rem, 2.5vw, 2.5rem); --page-padding-block: var(--space-6);
+  --duration-fast: .15s; --duration-normal: .25s;
   --sidebar-collapsed-width: 4.75rem; --topbar-height: 4.5rem;
   --shadow-sm: 0 2px 8px rgb(0 0 0 / 10%); --shadow-raised: 0 12px 32px rgb(0 0 0 / 20%);
   --shadow-dialog: 0 24px 70px rgb(0 0 0 / 40%);

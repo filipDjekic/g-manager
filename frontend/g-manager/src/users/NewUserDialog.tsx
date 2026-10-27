@@ -7,7 +7,8 @@ import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useDirtyGuard } from '../forms/useDirtyGuard'
 import type { AuthUser } from '../types/auth.types'
 import type { CreateUserRequest, UserResponse } from '../types/user.types'
-import { UserIcon, UserRoleBadge, userError } from './userPresentation'
+import { UserIcon, UserRoleBadge } from './userPresentation'
+import { userError } from './userPresentation.model'
 
 export function NewUserDialog({ actor, onClose, onCreated, returnFocusRef }: {
   actor: AuthUser; onClose: () => void; onCreated: (user: UserResponse) => void; returnFocusRef: React.RefObject<HTMLElement | null>

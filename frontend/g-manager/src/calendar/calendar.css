@@ -6,12 +6,6 @@
   --calendar-resource-width: 10.5rem;
   color: var(--color-text);
 }
-:root:not([data-theme='light']) .gm-calendar-page, :root:not([data-theme='light']) .gm-calendar-detail {
-  --color-bg: #0b1020; --color-surface: #111a2b; --color-surface-raised: #172238;
-  --color-text: #f4f7ff; --color-text-secondary: #98a6c0; --color-text-muted: #98a6c0;
-  --color-secondary: #ff1493; --calendar-electric: #1685ff;
-  --calendar-purple: color-mix(in srgb, #8b3dff 70%, var(--color-text));
-}
 .gm-calendar-page { display: grid; width: 100%; min-width: 0; max-width: var(--content-width); gap: var(--space-5); background: var(--color-bg); }
 .gm-calendar-page *, .gm-calendar-detail * { box-sizing: border-box; }
 .gm-calendar-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
@@ -38,7 +32,7 @@
 .gm-calendar-filter-extras { display: flex; align-items: center; flex-wrap: wrap; gap: .6rem; margin: .75rem 0; }
 .gm-calendar-filter-extras .reservation-customer-picker { max-width: 100%; width: 16rem; }
 .gm-calendar-filter-extras .reservation-customer-picker > .ui-button { white-space: normal; overflow-wrap: anywhere; }
-.gm-calendar-mobile-views { display: none; }
+.gm-calendar-mobile-views.gm-calendar-views { display: none; }
 .gm-calendar-period { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .7rem; padding: .85rem 0; border-top: 1px solid var(--color-border); }
 .gm-calendar-period-title { min-width: 0; }
 .gm-calendar-period-title h2 { font-size: 1rem; text-transform: capitalize; margin: 0 0 .3rem; }
@@ -107,14 +101,7 @@
 .gm-calendar-agenda-event strong { font-size: .82rem; }
 .gm-calendar-agenda-event span, .gm-calendar-agenda-event small { font-size: .7rem; color: var(--color-text-secondary); }
 .gm-calendar-agenda-event .gm-calendar-event-status { color: var(--event-color); font-weight: 650; }
-.gm-calendar-week { display: grid; grid-template-columns: repeat(7,minmax(9.5rem,1fr)); gap: .5rem; overflow-x: auto; max-width: 100%; padding-bottom: .5rem; scrollbar-width: thin; }
-.gm-calendar-week-day { min-width: 0; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: .65rem; }
-.gm-calendar-week-day.is-today { border-color: var(--calendar-blue); }
-.gm-calendar-week-day-title { width: 100%; display: grid; gap: .3rem; padding: .65rem; text-align: start; background: transparent; color: var(--color-text); border: 0; border-bottom: 1px solid var(--color-border); min-height: 2.75rem; }
-.gm-calendar-week-day-title time { font-size: .8rem; text-transform: capitalize; }
-.gm-calendar-week-day-title small { font-size: .68rem; color: var(--color-text-muted); }
-.gm-calendar-week-day > div { display: grid; gap: .5rem; padding: .5rem; }
-.gm-calendar-week-day p, .gm-calendar-month-agenda > p { color: var(--color-text-muted); font-size: .8rem; }
+.gm-calendar-month-agenda > p { color: var(--color-text-muted); font-size: .8rem; }
 .gm-calendar-month { min-width: 0; }
 .gm-calendar-month-title { display: flex; justify-content: space-between; align-items: center; gap: .2rem; margin-bottom: .65rem; }
 .gm-calendar-month-title strong { font-size: .8rem; text-transform: capitalize; text-align: center; }
@@ -177,7 +164,7 @@
   .gm-calendar-layout { grid-template-columns: minmax(0,1fr); }
   .gm-calendar-side { grid-template-columns: repeat(3,minmax(0,1fr)); }
   .gm-calendar-side > .gm-calendar-side-panel:first-child { display: none; }
-  .gm-calendar-mobile-views { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); margin-bottom: .7rem; }
+  .gm-calendar-mobile-views.gm-calendar-views { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); margin-bottom: .7rem; }
   .gm-calendar-kpis { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
 @media (max-width: 767px) {
@@ -198,8 +185,6 @@
   .gm-calendar-mobile-resource p { margin: 0; line-height: 1.5; font-size: .75rem; overflow-wrap: anywhere; }
   .gm-calendar-mobile-hours { color: var(--color-text-muted); }
   .gm-calendar-mobile-busy { color: var(--calendar-electric); background: var(--color-primary-bg); border-radius: .4rem; padding: .5rem; }
-  .gm-calendar-week { grid-template-columns: minmax(0,1fr); overflow: visible; }
-  .gm-calendar-week-day > div { grid-template-columns: repeat(auto-fit,minmax(min(14rem,100%),1fr)); }
   .gm-calendar-side { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .gm-calendar-month-grid { gap: .2rem; }
   .gm-calendar-date { min-height: 4.25rem; }

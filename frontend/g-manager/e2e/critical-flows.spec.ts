@@ -1,221 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
-import { expect, test, type Page, type Route } from '@playwright/test'
-
-type Role = 'OWNER' | 'ADMIN' | 'EMPLOYEE' | 'CUSTOMER'
-
-const emptyPage = { content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 }
-
-function user(role: Role) {
-  return {
-    id: `00000000-0000-0000-0000-${role.toLowerCase().padEnd(12, '0')}`,
-    name: `${role} E2E`, email: `${role.toLowerCase()}@example.test`, role, active: true,
-  }
-}
-
-async function installApi(page: Page, role: Role, aiEnabled = false, reservationConflictOnce = false) {
-  let authenticated = false
-  let orderCreated = false
-  let reservationCreated = false
-  let reservationStatus = 'PENDING'
-  let reservationConflictReturned = false
-  let orderTransitioned = false
-  let gamingSessionActive = false
-  const savedViews: Array<{ id: string; resourceType: string; name: string; query: Record<string, string>; version: number }> = []
-
-  await page.route('**/api/v1/**', async (route: Route) => {
-    const request = route.request()
-    const url = new URL(request.url())
-    const path = url.pathname.replace('/api/v1', '')
-    const json = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
-
-    if (path === '/auth/refresh') {
-      return authenticated
-        ? json({ token: 'synthetic-e2e-token', expiresAt: '2030-01-01T00:00:00Z', user: user(role) })
-        : json({ status: 401, message: 'No session' }, 401)
-    }
-    if (path === '/auth/login') {
-      authenticated = true
-      return json({ token: 'synthetic-e2e-token', expiresAt: '2030-01-01T00:00:00Z', user: user(role) })
-    }
-    if (path === '/features/bootstrap') return json([
-      { key: 'REPORTS', enabled: true, rolloutPercentage: 100, owner: 'Operations', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
-      { key: 'PWA_OFFLINE', enabled: true, rolloutPercentage: 100, owner: 'Platform', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
-      { key: 'AI_ASSISTANT', enabled: aiEnabled, rolloutPercentage: aiEnabled ? 100 : 0, owner: 'Security', reviewBy: '2026-12-01', overridden: aiEnabled, overrideExpiresAt: null, version: null },
-    ])
-    if (path === '/auth/sessions' || path === '/auth/security-events') return json([])
-    if (path === '/saved-views' && request.method() === 'GET') {
-      const resourceType = url.searchParams.get('resourceType')
-      return json(savedViews.filter((view) => view.resourceType === resourceType))
-    }
-    if (path === '/saved-views' && request.method() === 'POST') {
-      const input = request.postDataJSON() as { resourceType: string; name: string; query: Record<string, string> }
-      const view = { id: `view-${savedViews.length + 1}`, ...input, version: 0 }
-      savedViews.push(view); return json(view, 201)
-    }
-    if (path === '/users/me') return json(user(role))
-    if (path === '/resources/locations' || path === '/stations' || path === '/stations/applications' || path === '/stations/application-profiles') return json([])
-    if (path === '/stations/client-package') return json({status:'DEVELOPMENT',version:'0.1.0-dev',downloadUrl:null,sha256:null})
-    if (path === '/gaming-sessions/me' || path.startsWith('/gaming-sessions/customer/') || path === '/waitlist/me') return json([])
-    if (path === '/waitlist') return json(emptyPage)
-    if (path === '/working-hours/exceptions' || path === '/time-off') return json([])
-    if (path === '/reports/definitions') return json([{ key: 'orders', label: 'Orders', metricDefinition: 'Created in range', formats: ['CSV'] }])
-    if (path === '/reports' && request.method() === 'GET') return json([{ id: 'report-1', definitionKey: 'orders', format: 'CSV', status: 'COMPLETED', progress: 100, rowCount: 42, documentId: 'document-1', errorMessage: null, snapshotAt: '2028-03-15T10:00:00Z', expiresAt: '2028-03-16T10:00:00Z', version: 1 }])
-    if (path === '/reports/schedules') return json([])
-    if (path === '/ai/report-summaries/report-1') return json({ usageId: 'usage-1', aiGenerated: false, summary: 'Deterministic report metadata summary.', limitations: 'Provider unavailable; source report remains authoritative.', sources: [{ reportId: 'report-1', definition: 'orders', rowCount: 42, snapshotAt: '2028-03-15T10:00:00Z' }], promptVersion: 'report-summary-v1', outputVersion: 'report-summary-response-v1' })
-    if (path === '/ai/usage/usage-1/feedback') return json(null, 204)
-    if (path === '/dashboard/summary') return json({
-      totalRevenueCompleted: 1200, completedOrdersCount: 2,
-      reservationsByStatus: { PENDING: 1, CONFIRMED: 2, REJECTED: 0, CANCELLED: 0, COMPLETED: 3 },
-    })
-    if (path === '/dashboard/today') return json({
-      date: '2028-03-16', timezone: 'Europe/Belgrade',
-      workingDayStart: '2028-03-16T08:00:00Z', workingDayEnd: '2028-03-16T16:00:00Z',
-      appointments: [{ id: 'reservation-1', customerName: 'CUSTOMER E2E', serviceName: 'Test usluga',
-        startTime: '2028-03-16T10:00:00Z', endTime: '2028-03-16T11:00:00Z', status: reservationStatus,
-        version: 0, allowedActions: reservationStatus === 'PENDING' ? ['CONFIRMED', 'REJECTED', 'CANCELLED'] : [] }],
-      gaps: [{ startTime: '2028-03-16T08:00:00Z', endTime: '2028-03-16T10:00:00Z' }],
-      unclaimedOrders: orderTransitioned ? [] : [{ id: 'order-2', status: 'CREATED', totalPrice: 120,
-        createdAt: '2028-03-15T10:00:00Z', version: 0, allowedActions: ['IN_PROGRESS'] }],
-      assignedOrders: [], attentionNotifications: [{ id: 'notification-1', priority: 'HIGH',
-        title: 'Novi termin', body: 'Termin zahteva potvrdu', createdAt: '2028-03-16T09:00:00Z' }],
-    })
-    if (path === '/dashboard/attention') return json({
-      date: '2028-03-16', timezone: 'Europe/Belgrade', workloadThresholdPercent: 80,
-      items: [{ key: 'pending-today', label: 'Rezervacije na čekanju', detail: 'Početak termina je danas',
-        count: 1, severity: 'warning', url: '/reservations?status=PENDING&from=2028-03-16&to=2028-03-16' }],
-    })
-    if (path === '/dashboard/widget-preferences') return json([])
-    if (path === '/dashboard/trends') return json({
-      from: '2028-03-01', to: '2028-03-31', previousFrom: '2028-02-01', previousTo: '2028-02-29',
-      timezone: 'Europe/Belgrade', grain: 'DAY',
-      revenue: { current: 1200, previous: 900, absoluteChange: 300, percentChange: 33.33 },
-      completedOrders: { current: 2, previous: 1, absoluteChange: 1, percentChange: 100 },
-      reservations: { current: 6, previous: 4, absoluteChange: 2, percentChange: 50 },
-      reservationsByStatus: { PENDING: 1, CONFIRMED: 2, REJECTED: 0, CANCELLED: 0, COMPLETED: 3 },
-      buckets: [],
-    })
-    if (path === '/dashboard/workload') return json({
-      from: '2028-03-01', to: '2028-03-31', timezone: 'Europe/Belgrade',
-      capacityDefinition: 'Podešeno radno vreme', employees: [],
-    })
-    if (path === '/catalog') {
-      const service = url.searchParams.get('type') === 'SERVICE'
-      return json({ ...emptyPage, size: 100, content: [service ? {
-        id: 'service-1', name: 'Test usluga', description: 'Synthetic', type: 'SERVICE',
-        price: 500, durationMinutes: 60, active: true, version: 0,
-      } : {
-        id: 'product-1', name: 'Test proizvod', description: 'Synthetic', type: 'PRODUCT',
-        price: 120, durationMinutes: null, active: true, version: 0,
-      }] })
-    }
-    if (path === '/orders/me' && request.method() === 'GET') return json(orderCreated ? {
-      ...emptyPage, totalElements: 1, totalPages: 1, content: [{
-        id: 'order-1', customerId: user(role).id, handledBy: null, status: 'CREATED',
-        totalPrice: 120, version: 0, createdAt: '2028-03-15T10:00:00Z',
-        items: [{ productId: 'product-1', productName: 'Test proizvod', quantity: 1, unitPrice: 120 }],
-      }],
-    } : emptyPage)
-    if (path === '/orders' && request.method() === 'POST') {
-      orderCreated = true
-      return json({ id: 'order-1', totalPrice: 120, status:'CREATED', version:0, items:[] }, 201)
-    }
-    if (path === '/orders' && request.method() === 'GET') return json({
-      ...emptyPage, totalElements: 1, totalPages: 1, content: [{
-        id: 'order-2', customerId: 'customer-1', handledBy: null,
-        status: orderTransitioned ? 'IN_PROGRESS' : 'CREATED', totalPrice: 120,
-        version: orderTransitioned ? 1 : 0, createdAt: '2028-03-15T10:00:00Z', items: [],
-      }],
-    })
-    if (/^\/orders\/[^/]+\/status$/.test(path)) {
-      orderTransitioned = true
-      return json({ id: 'order-2', status: 'IN_PROGRESS', version: 1 })
-    }
-    if (path === '/reservations/me') return json(reservationCreated ? {
-      ...emptyPage, totalElements: 1, totalPages: 1, content: [{
-        id: 'reservation-1', customerId: user(role).id, employeeId: 'employee-1',
-        serviceId: 'service-1', startTime: '2028-03-16T10:00:00Z', endTime: '2028-03-16T11:00:00Z',
-        status: 'PENDING', note: null, version: 0,
-      }],
-    } : emptyPage)
-    if (path === '/availability' || path === '/availability/overview') return json({
-      timezone: 'Europe/Belgrade', serviceId: 'service-1', serviceName: 'Test usluga',
-      durationMinutes: 60, slotIncrementMinutes: 15,
-      from: url.searchParams.get('from'), to: url.searchParams.get('to'),
-      employees: [{
-        employeeId: 'employee-1', employeeName: 'EMPLOYEE E2E',
-        slots: [{ startTime: '2028-03-16T10:00:00Z', endTime: '2028-03-16T11:00:00Z' }],
-      }],
-    })
-    if (path === '/reservations/calendar') {
-      const calendarDay = url.searchParams.get('from') ?? '2028-03-16'
-      return json([{
-      id: 'reservation-1', employeeId: 'employee-1', employeeName: 'EMPLOYEE E2E',
-      customerName: 'CUSTOMER E2E', serviceName: 'Test usluga',
-      startTime: `${calendarDay}T10:00:00Z`, endTime: `${calendarDay}T11:00:00Z`, status: 'CONFIRMED',
-      }])
-    }
-    if (path === '/reservations' && request.method() === 'POST') {
-      if (reservationConflictOnce && !reservationConflictReturned) {
-        reservationConflictReturned = true
-        return json({ status: 409, message: 'Employee unavailable' }, 409)
-      }
-      reservationCreated = true
-      return json({ id: 'reservation-1' }, 201)
-    }
-    if (path === '/reservations/reservation-1' && request.method() === 'GET') return json({
-      id: 'reservation-1', customerName: `${role} E2E`, customerContact: role === 'OWNER' || role === 'ADMIN' ? `${role.toLowerCase()}@example.test` : null,
-      employeeName: 'EMPLOYEE E2E', serviceName: 'Test usluga', durationMinutes: 60,
-      startTime: '2028-03-16T10:00:00Z', endTime: '2028-03-16T11:00:00Z', status: reservationStatus,
-      note: null, createdAt: '2028-03-15T10:00:00Z', updatedAt: '2028-03-15T10:00:00Z', version: 0,
-      allowedActions: reservationStatus === 'PENDING' ? ['CANCELLED'] : [], history: [],
-    })
-    if (path === '/reservations/reservation-1/status' && request.method() === 'PATCH') {
-      reservationStatus = (request.postDataJSON() as { status: string }).status
-      return json({ id: 'reservation-1', status: reservationStatus, version: 1 })
-    }
-    if (path === '/users/employees') return json({ ...emptyPage, size: 100, content: [{
-      ...user('EMPLOYEE'), id: 'employee-1', version: 0,
-    }] })
-    if (path === '/gaming-sessions/stream') return route.fulfill({ status: 503, body: '' })
-    if (path === '/gaming-operations/board') return json({ serverTime: '2028-03-16T10:00:00Z', stations: [{
-      resourceId: 'station-1', resourceCode: 'PC-01', resourceName: 'Arena PC 01', locationId: 'location-1',
-      status: gamingSessionActive ? 'ACTIVE' : 'AVAILABLE', clientEnabled: false, staleHeartbeat: false, enforcementStatus: 'LOCKED',
-      applicationProfileName: 'Arena Standard', locationName: 'Arena Centar', areaName: 'Gaming zona',
-      sessionId: gamingSessionActive ? 'gaming-session-1' : null, customerId: gamingSessionActive ? 'customer-1' : null,
-      customerDisplayName: gamingSessionActive ? 'CUSTOMER E2E' : null,
-      startedAt: gamingSessionActive ? '2028-03-16T10:00:00Z' : null,
-      endsAt: gamingSessionActive ? '2028-03-16T12:00:00Z' : null,
-      remainingSeconds: gamingSessionActive ? 7200 : 0, sessionVersion: gamingSessionActive ? 1 : null,
-      allowedActions: gamingSessionActive ? ['EXTEND', 'TERMINATE'] : ['START'],
-    }] })
-    if (path === '/customers' && request.method() === 'GET') return json({ ...emptyPage, size: 8,
-      totalElements: 1, totalPages: 1, content: [{ id: 'customer-1', name: 'CUSTOMER E2E',
-        email: 'customer@example.test', active: true, registeredAt: '2028-01-01T10:00:00Z',
-        reservationCount: 0, completedAppointmentCount: 0, orderCount: 0, completedOrderCount: 0,
-        completedOrderRevenue: 0, lastActivityAt: null, version: 0 }] })
-    if (path === '/gaming-sessions' && request.method() === 'POST') {
-      gamingSessionActive = true
-      return json({ id: 'gaming-session-1', status: 'ACTIVE', version: 1 }, 201)
-    }
-    if (path === '/working-hours') return json([])
-    return json(emptyPage)
-  })
-}
-
-async function login(page: Page, role: Role) {
-  await page.goto('/login')
-  await page.getByLabel('Email').fill(`${role.toLowerCase()}@example.test`)
-  await page.getByLabel('Lozinka').fill('Synthetic-password-123!')
-  await page.getByRole('button', { name: 'Prijavi se' }).click()
-  await expect(page).not.toHaveURL(/\/login/)
-}
-
-async function revealResponsiveNavigation(page: Page) {
-  if ((page.viewportSize()?.width ?? 1280) <= 800) {
-    await page.getByRole('button', { name: 'Meni', exact: true }).click()
-    await expect(page.getByRole('dialog', { name: 'Navigacija' })).toBeVisible()
-  }
-}
+import { expect, test } from '@playwright/test'
+import { installApi, login, revealResponsiveNavigation } from './fixtures'
 
 for (const role of ['OWNER', 'ADMIN', 'EMPLOYEE', 'CUSTOMER'] as const) {
   test(`${role} auth and navigation smoke`, async ({ page }, testInfo) => {
@@ -235,22 +20,24 @@ test('customer creates an order and reservation with visible success states', as
   await login(page, 'CUSTOMER')
 
   await page.goto('/my-orders')
-  await page.locator('input[type="number"]').fill('1')
-  await page.locator('section.panel').getByRole('button').click()
-  await expect(page.getByRole('status')).toBeVisible()
+  await page.getByRole('button', { name: 'Dodaj Test proizvod u korpu' }).click()
+  if ((page.viewportSize()?.width ?? 1280) < 900) await page.getByRole('button', { name: /Korpa/ }).first().click()
+  await page.getByRole('button', { name: 'Pošalji narudžbinu' }).click()
+  await page.getByRole('dialog', { name: 'Potvrda narudžbine' }).getByRole('button', { name: 'Potvrdi slanje' }).click()
+  await expect(page.getByText(/Narudžbina je uspešno poslata/)).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Stavke narudžbine' })).toBeVisible()
 
   await page.goto('/my-reservations')
+  await page.getByRole('button', { name: '+ Nova rezervacija' }).first().click()
   await page.getByLabel('Usluga').selectOption('service-1')
   await page.getByLabel('Zaposleni').selectOption('employee-1')
-  await page.getByLabel('Datum').fill('2028-03-16')
+  await page.getByLabel('Datum', { exact: true }).fill('2028-03-16')
   const slot = page.getByRole('radio')
   await slot.focus()
   await slot.press('Space')
   await page.getByRole('button', { name: 'Potvrdi termin' }).click()
-  await expect(page.getByRole('status')).toBeVisible()
-  await page.getByRole('button', { name: 'Detalji' }).click()
+  await expect(page.getByRole('dialog', { name: 'Nova rezervacija' })).toBeHidden()
   const drawer = page.getByRole('dialog', { name: /Test usluga/ })
-  await expect(drawer.getByText('CUSTOMER E2E')).toBeVisible()
   await expect(drawer.getByText('EMPLOYEE E2E')).toBeVisible()
   await expect(drawer.getByText('customer-1')).toHaveCount(0)
   await drawer.getByRole('button', { name: 'Otkaži' }).click()
@@ -264,12 +51,13 @@ test('customer recovers when a selected slot is taken concurrently', async ({ pa
   await installApi(page, 'CUSTOMER', false, true)
   await login(page, 'CUSTOMER')
   await page.goto('/my-reservations')
+  await page.getByRole('button', { name: '+ Nova rezervacija' }).first().click()
   await page.getByLabel('Usluga').selectOption('service-1')
   await page.getByLabel('Zaposleni').selectOption('ANY')
-  await page.getByLabel('Datum').fill('2028-03-16')
+  await page.getByLabel('Datum', { exact: true }).fill('2028-03-16')
   await page.getByRole('radio').check()
   await page.getByRole('button', { name: 'Potvrdi termin' }).click()
-  await expect(page.getByRole('alert')).toContainText('upravo zauzet')
+  await expect(page.getByRole('alert')).toContainText('u međuvremenu zauzet')
   await expect(page.getByRole('radio')).toBeVisible()
   await expect(page.getByRole('radio')).not.toBeChecked()
 })
@@ -277,37 +65,38 @@ test('customer recovers when a selected slot is taken concurrently', async ({ pa
 test('employee navigates calendar ranges and opens reservation details', async ({ page }) => {
   await installApi(page, 'EMPLOYEE')
   await login(page, 'EMPLOYEE')
-  await page.goto('/calendar')
-  await expect(page.getByRole('heading', { name: 'Kalendar rezervacija' })).toBeVisible()
-  await page.getByRole('button', { name: 'Mesec' }).click()
-  await page.getByRole('button', { name: 'Sledeće' }).click()
-  await page.getByRole('button', { name: /Test usluga/ }).click()
-  await expect(page.getByRole('dialog', { name: /Test usluga/ })).toBeVisible()
+  await page.goto('/calendar?view=week&date=2028-03-16')
+  await expect(page.getByRole('heading', { name: 'Kalendar', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Sledeći period' }).click()
+  await page.getByRole('button', { name: /Test usluga, CUSTOMER E2E/ }).click()
+  await expect(page.getByRole('dialog', { name: 'Pregled rezervacije' })).toBeVisible()
 })
 
 test('employee performs an order status transition', async ({ page }) => {
   await installApi(page, 'EMPLOYEE')
   await login(page, 'EMPLOYEE')
   await page.goto('/orders')
-  const takeOrder = page.getByRole('button', { name: 'Preuzmi' })
+  await page.getByRole('button', { name: /Akcije za narudžbinu/ }).click()
+  const takeOrder = page.getByRole('menuitem', { name: 'Preuzmi' })
   await takeOrder.focus()
   await takeOrder.press('Enter')
-  await expect(page.getByRole('article').getByText('IN_PROGRESS')).toBeVisible()
+  await page.getByRole('dialog').getByRole('button', { name: /Preuzmi/ }).click()
+  await expect(page.getByRole('table').getByText('U pripremi')).toBeVisible()
 })
 
 test('employee starts a gaming session from the location-scoped station board', async ({ page }, testInfo) => {
   await installApi(page, 'EMPLOYEE')
   await login(page, 'EMPLOYEE')
   await page.goto('/gaming-sessions')
-  await expect(page.getByRole('heading', { name: 'Kontrola gaming stanica' })).toBeVisible()
-  await expect(page.locator('.gaming-station-card')).toHaveCount(1)
+  await expect(page.getByRole('heading', { name: 'Gaming sesije' })).toBeVisible()
+  await expect(page.locator('article.ops-station')).toHaveCount(1)
   await page.screenshot({ path:testInfo.outputPath('gaming-board.png'),fullPage:true })
-  await page.getByRole('button', { name: 'Pokreni sesiju' }).click()
+  await page.getByRole('button', { name: 'Pokreni sesiju', exact: true }).first().click()
   await page.getByLabel('Brza pretraga klijenta').fill('CUSTOMER')
   await page.getByRole('button', { name: /CUSTOMER E2E customer@example.test/ }).click()
   await page.getByRole('button', { name: /Pokreni za CUSTOMER E2E/ }).click()
-  await expect(page.locator('.gaming-station-card').getByText('Aktivna sesija')).toBeVisible()
-  await expect(page.getByText('CUSTOMER E2E')).toBeVisible()
+  await expect(page.locator('article.ops-station').getByText('Aktivna sesija')).toBeVisible()
+  await expect(page.locator('article.ops-station').getByText('CUSTOMER E2E')).toBeVisible()
 })
 
 test('employee completes daily work from the Today workspace', async ({ page }) => {
@@ -315,7 +104,7 @@ test('employee completes daily work from the Today workspace', async ({ page }) 
   await login(page, 'EMPLOYEE')
   await expect(page.getByRole('heading', { name: 'Moj radni dan' })).toBeVisible()
   await page.getByRole('button', { name: 'Potvrdi' }).click()
-  await expect(page.getByText('CONFIRMED')).toBeVisible()
+  await expect(page.getByText('Potvrđena')).toBeVisible()
   await page.getByRole('button', { name: 'Preuzmi' }).click()
   await expect(page.getByRole('heading', { name: 'Nema nepreuzetih narudžbina' })).toBeVisible()
   await expect(page.getByText('Novi termin')).toBeVisible()
@@ -324,7 +113,7 @@ test('employee completes daily work from the Today workspace', async ({ page }) 
 test('management attention item opens its authorized operational view', async ({ page }) => {
   await installApi(page, 'OWNER')
   await login(page, 'OWNER')
-  const attention = page.getByRole('region', { name: 'Zahteva pažnju' }).getByRole('link', { name: 'Rezervacije na čekanju' })
+  const attention = page.getByRole('region', { name: 'Zahteva pažnju' }).locator('article').filter({ hasText: 'Rezervacije na čekanju' }).getByRole('link', { name: /Otvori pregled/ })
   await expect(attention).toBeVisible()
   await attention.click()
   await expect(page).toHaveURL(/\/reservations\?status=PENDING/)
@@ -367,7 +156,7 @@ test('theme density and responsive navigation remain usable at configured viewpo
   } else {
     await page.getByRole('navigation', { name: 'Glavna navigacija' }).getByRole('link', { name: 'Katalog' }).click()
   }
-  await expect(page.getByRole('heading', { name: 'Katalog' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Usluge i proizvodi' })).toBeVisible()
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
   expect(overflow).toBe(false)
 })
@@ -409,11 +198,13 @@ test('deep link, refresh, back navigation and saved views preserve list context'
   await login(page, 'OWNER')
   await page.goto('/orders?status=READY&page=2&sort=totalPrice&direction=DESC')
   await expect(page.getByLabel('Status')).toHaveValue('READY')
-  await expect(page.getByText('Strana 3 od 1')).toBeVisible()
+  await expect(page.getByText(/Stranica 1 od 1/)).toBeVisible()
   await page.reload()
   await expect(page.getByLabel('Status')).toHaveValue('READY')
-  page.once('dialog', (dialog) => dialog.accept('Spremne narudžbine'))
-  await page.getByRole('button', { name: 'Sačuvaj prikaz' }).click()
+  await page.getByRole('button', { name: 'Sačuvaj prikaz', exact: true }).click()
+  const saveDialog = page.getByRole('dialog', { name: 'Sačuvaj prikaz' })
+  await saveDialog.getByLabel('Naziv prikaza', { exact: true }).fill('Spremne narudžbine')
+  await saveDialog.getByRole('button', { name: 'Sačuvaj prikaz', exact: true }).click()
   await expect(page.getByRole('combobox', { name: /Sačuvani prikaz/ })).toContainText('Spremne narudžbine')
   await page.goto('/catalog')
   await page.goBack()

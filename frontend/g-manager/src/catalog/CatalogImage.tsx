@@ -1,25 +1,26 @@
+import { useObjectUrl } from '../components/useObjectUrl'
+import { useResettableState } from '../components/useResettableState'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { catalogApi } from '../api/catalogApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
 import type { CatalogItem } from '../types/catalog.types'
-import { CatalogIcon, catalogTypeLabel } from './CatalogPresentation'
+import { CatalogIcon } from './CatalogPresentation'
+import { catalogTypeLabel } from './CatalogPresentation.model'
 
 export function CatalogImage({ item, eager = false, authenticatedPreview = false, alt = '' }: {
   item: Pick<CatalogItem, 'type' | 'imageUrl'>; eager?: boolean; authenticatedPreview?: boolean; alt?: string
 }) {
   const user = useAuthStore(state => state.user)
   const container = useRef<HTMLDivElement>(null)
-  const [visible, setVisible] = useState(eager)
-  const [objectUrl, setObjectUrl] = useState('')
-  const [failed, setFailed] = useState(false)
+  const [visible, setVisible] = useState(() => eager || !('IntersectionObserver' in window))
+  const [failed, setFailed] = useResettableState(() => false, item.imageUrl ?? '')
   const documentId = /^\/api\/v1\/documents\/([\w-]+)\/content(?:\?|$)/.exec(item.imageUrl ?? '')?.[1]
   // Administrators can also see inactive images through the existing authenticated document policy.
   const authenticated = Boolean(documentId && (authenticatedPreview || hasCapability(user, 'CATALOG_MANAGE')))
   useEffect(() => {
     if (visible) return
-    if (!('IntersectionObserver' in window)) { setVisible(true); return }
     const observer = new IntersectionObserver(entries => {
       if (entries.some(entry => entry.isIntersecting)) { setVisible(true); observer.disconnect() }
     }, { rootMargin: '160px' })
@@ -29,12 +30,7 @@ export function CatalogImage({ item, eager = false, authenticatedPreview = false
   const content = useQuery({ queryKey: ['catalog-images', user?.id, documentId],
     queryFn: ({ signal }) => catalogApi.imageContent(documentId!, signal),
     enabled: authenticated && visible, staleTime: 60000, gcTime: 60000, retry: false })
-  useEffect(() => {
-    if (!content.data) return
-    const source = URL.createObjectURL(content.data)
-    setObjectUrl(source); setFailed(false)
-    return () => URL.revokeObjectURL(source)
-  }, [content.data])
+  const objectUrl = useObjectUrl(content.data)
   const source = authenticated ? objectUrl : item.imageUrl
   return <div ref={container} className="gm-catalog-image">
     {authenticatedPreview && content.isLoading ? <div className="gm-catalog-image-placeholder" role="status" aria-label="Učitavanje slike"><CatalogIcon type={item.type} /></div>

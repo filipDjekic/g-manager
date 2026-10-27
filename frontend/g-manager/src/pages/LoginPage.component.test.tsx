@@ -17,9 +17,8 @@ describe('LoginPage', () => {
     const user = userEvent.setup()
     const { container } = render(<MemoryRouter><LoginPage /></MemoryRouter>)
 
-    await user.type(screen.getByLabelText('Email'), 'customer@example.test')
+    await user.type(screen.getByLabelText('Email adresa'), 'customer@example.test')
     await user.type(screen.getByLabelText('Lozinka'), 'Test-password-123!')
-    await user.tab()
     await user.keyboard('{Enter}')
 
     await waitFor(() => expect(useAuthStore.getState().user?.role).toBe('CUSTOMER'))
@@ -34,7 +33,7 @@ describe('LoginPage', () => {
     const user = userEvent.setup()
     render(<MemoryRouter><LoginPage /></MemoryRouter>)
 
-    await user.type(screen.getByLabelText('Email'), 'wrong@example.test')
+    await user.type(screen.getByLabelText('Email adresa'), 'wrong@example.test')
     await user.type(screen.getByLabelText('Lozinka'), 'Wrong-password-123!')
     await user.click(screen.getByRole('button', { name: 'Prijavi se' }))
 

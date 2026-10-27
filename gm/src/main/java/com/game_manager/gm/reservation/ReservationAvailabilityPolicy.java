@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class ReservationAvailabilityPolicy {
+public class ReservationAvailabilityPolicy implements com.game_manager.gm.common.scheduling.ResourceAvailabilityPort {
     private static final List<ReservationStatus> NON_BLOCKING =
             List.of(ReservationStatus.CANCELLED, ReservationStatus.REJECTED);
     private static final List<ReservationStatus> RESOURCE_NON_BLOCKING =

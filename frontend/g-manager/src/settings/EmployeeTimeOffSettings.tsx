@@ -10,7 +10,8 @@ import { useServerNow } from '../gaming/useServerNow'
 import type { TimeOff, TimeOffStatus } from '../types/timeOff.types'
 import type { UserResponse } from '../types/user.types'
 import { TimeOffDialog } from './TimeOffDialog'
-import { businessDayBounds, elapsedTime, restoreSettingsFocus, SettingsActionMenu, SettingsAvatar, SettingsIcon, settingsDateTime, settingsError, timeOffLabels, timeOffTones, validCalendarDate } from './settingsPresentation'
+import { SettingsActionMenu, SettingsAvatar, SettingsIcon } from './settingsPresentation'
+import { businessDayBounds, elapsedTime, restoreSettingsFocus, settingsDateTime, settingsError, timeOffLabels, timeOffTones, validCalendarDate } from './settingsPresentation.model'
 
 export function EmployeeTimeOffSettings({ query, employees, onChanged }: {
   query: UseQueryResult<TimeOff[]>; employees: UseQueryResult<UserResponse[]>; onChanged: () => Promise<void>
@@ -74,12 +75,12 @@ export function EmployeeTimeOffSettings({ query, employees, onChanged }: {
     <div className="gm-settings-timeoff-filters">
       <label className="gm-settings-search"><span>Pretraga zaposlenog</span><Input type="search" maxLength={120} value={filters.search} placeholder="Ime zaposlenog ili email"
         onChange={event => setFilters(current => ({ ...current, search: event.target.value }))} /></label>
-      <label>Status<Select value={filters.status} onChange={event => setFilters(current => ({ ...current, status: event.target.value }))}><option value="">Svi statusi</option>
+      <label>Status<Select aria-label={"Status"} value={filters.status} onChange={event => setFilters(current => ({ ...current, status: event.target.value }))}><option value="">Svi statusi</option>
         {Object.entries(timeOffLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></label>
-      <label>Zaposleni<Select value={filters.employeeId} disabled={employees.isLoading || employees.isError} onChange={event => setFilters(current => ({ ...current, employeeId: event.target.value }))}>
+      <label>Zaposleni<Select aria-label={"Zaposleni"} value={filters.employeeId} disabled={employees.isLoading || employees.isError} onChange={event => setFilters(current => ({ ...current, employeeId: event.target.value }))}>
         <option value="">Svi zaposleni</option>{employees.data?.map(item => <option key={item.id} value={item.id}>{item.name}{!item.active ? ' · neaktivan' : ''}</option>)}</Select></label>
-      <label>Period od<Input type="date" value={filters.from} onChange={event => setFilters(current => ({ ...current, from: event.target.value }))} /></label>
-      <label>Period do<Input type="date" value={filters.to} onChange={event => setFilters(current => ({ ...current, to: event.target.value }))} /></label>
+      <label>Period od<Input aria-label={"Period od"} type="date" value={filters.from} onChange={event => setFilters(current => ({ ...current, from: event.target.value }))} /></label>
+      <label>Period do<Input aria-label={"Period do"} type="date" value={filters.to} onChange={event => setFilters(current => ({ ...current, to: event.target.value }))} /></label>
       <Button type="button" variant="secondary" onClick={() => setFilters({ search: '', status: '', from: '', to: '', employeeId: '' })}>Poništi filtere</Button>
     </div>
     {employees.error && <ErrorState message="Imena zaposlenih nisu dostupna. Odsustva možete pregledati po periodu i statusu." action={<Button onClick={() => void employees.refetch()}>Ponovi učitavanje zaposlenih</Button>} />}

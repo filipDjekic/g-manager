@@ -1,28 +1,26 @@
+import { useObjectUrl } from '../components/useObjectUrl'
+import { useResettableState } from '../components/useResettableState'
 import { useEffect, useId, useRef, useState } from 'react'
 import { userApi } from '../api/userApi'
-import { AccountAvatar, type AvatarStatus } from '../components/AccountAvatar'
+import { AccountAvatar } from '../components/AccountAvatar'
+import { type AvatarStatus } from '../components/AccountAvatar.model'
 import { Button, Modal } from '../components/ui'
 import { useToast } from '../components/ui/toastContext'
 import type { UserResponse } from '../types/user.types'
-import { ProfileIcon, profileError } from './profilePresentation'
+import { ProfileIcon } from './profilePresentation'
+import { profileError } from './profilePresentation.model'
 
 export function ProfileAvatarEditor({ profile, canUpdate, onSaved, onDirty }: {
   profile: UserResponse; canUpdate: boolean; onSaved: (user: UserResponse) => void; onDirty: (dirty: boolean) => void
 }) {
   const picker = useRef<HTMLInputElement>(null), opener = useRef<HTMLElement | null>(null), inFlight = useRef(false)
   const mounted = useRef(true), toast = useToast(), id = useId()
-  const [file, setFile] = useState<File | null>(null), [preview, setPreview] = useState('')
-  const [previewReady, setPreviewReady] = useState(false), [busy, setBusy] = useState(false)
+  const [file, setFile] = useState<File | null>(null)
+  const preview = useObjectUrl(file)
+  const [previewReady, setPreviewReady] = useResettableState(() => false, preview), [busy, setBusy] = useState(false)
   const [error, setError] = useState(''), [avatarStatus, setAvatarStatus] = useState<AvatarStatus>('empty'), [reload, setReload] = useState(0)
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   useEffect(() => { onDirty(file !== null) }, [file, onDirty])
-  useEffect(() => {
-    setPreviewReady(false)
-    if (!file) { setPreview(''); return }
-    const url = URL.createObjectURL(file)
-    setPreview(url)
-    return () => URL.revokeObjectURL(url)
-  }, [file])
   function pick(trigger: HTMLButtonElement) {
     if (!canUpdate || inFlight.current) return
     opener.current = trigger; picker.current?.click()

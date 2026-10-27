@@ -1,5 +1,5 @@
-﻿import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { catalogApi, type CatalogFilters } from '../api/catalogApi'
 import { orderApi } from '../api/orderApi'
@@ -10,10 +10,9 @@ import { Badge, Button, Drawer, EmptyState, ErrorState, Input, Modal, Select, Sk
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { CatalogPagination } from '../catalog/CatalogPagination'
 import { OrdersPagination } from '../order/OrdersPagination'
-import { itemCountLabel, OrderIcon, orderErrorMessage, orderMoney, shortOrderId } from '../order/orderPresentation'
-import {
-  CustomerCartContents, CustomerOrderHistory, CustomerOrderPanel, CustomerOrderTracking, CustomerProductCard, ShoppingBagIcon,
-} from '../order/customer/CustomerOrderComponents'
+import { OrderIcon } from '../order/orderPresentation'
+import { itemCountLabel, orderErrorMessage, orderMoney, shortOrderId } from '../order/orderPresentation.model'
+import { CustomerCartContents, CustomerOrderHistory, CustomerOrderPanel, CustomerOrderTracking, CustomerProductCard, ShoppingBagIcon } from '../order/customer/CustomerOrderComponents'
 import { useCustomerCart } from '../order/customer/useCustomerCart'
 import { calculateEstimatedTotal, type CartLine } from '../order/cart'
 import type { AuthUser } from '../types/auth.types'
@@ -43,18 +42,19 @@ function CustomerOrdersWorkspace({ user }: { user: AuthUser }) {
   const [params, setParams] = useSearchParams()
   const rawStatus = params.get('status') ?? '', status = statuses.includes(rawStatus as OrderStatus) ? rawStatus as OrderStatus : ''
   const rawPage = Number(params.get('page') ?? '1'), page = Number.isSafeInteger(rawPage) && rawPage > 0 ? rawPage - 1 : 0
-  const requestedSize = Number(params.get('size') ?? '10'), historySize = [10, 20, 50].includes(requestedSize) ? requestedSize : 10
+  const requestedSize = Number(params.get('size') ?? '10'), historySize = [10, 20, 50, 100].includes(requestedSize) ? requestedSize : 10
   const selectedId = params.get('orderId')
   const [search, setSearch] = useState(''), [minPrice, setMinPrice] = useState(''), [maxPrice, setMaxPrice] = useState('')
   const [sort, setSort] = useState<keyof typeof productSorts>('NAME_ASC')
   const [filters, setFilters] = useState<Pick<CatalogFilters, 'search' | 'minPrice' | 'maxPrice' | 'sort' | 'direction'>>(emptyFilters)
-  const [productPage, setProductPage] = useState(0), [productSize, setProductSize] = useState(9)
+  const [productPage, setProductPage] = useState(0), [productSize, setProductSize] = useState(10)
   const [cartOpen, setCartOpen] = useState(false), [checkout, setCheckout] = useState<CartLine[] | null>(null)
   const [checkoutError, setCheckoutError] = useState(''), [cancelling, setCancelling] = useState(''), [message, setMessage] = useState('')
   const [selectionWarning, setSelectionWarning] = useState('')
   const [storedSelection, setStoredSelection] = useState(() => { try { return sessionStorage.getItem('gmanager.catalog-selection') } catch { return null } })
   const linkedProduct = params.get('productId') ?? storedSelection
   const consumedSelection = useRef('')
+  const addToCart = cart.add
   const titleRef = useRef<HTMLHeadingElement>(null), catalogRef = useRef<HTMLHeadingElement>(null), trackingRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null), cartOpener = useRef<HTMLElement | null>(null), checkoutOpener = useRef<HTMLElement | null>(null)
   const checkoutCancel = useRef<HTMLButtonElement>(null)
@@ -62,11 +62,11 @@ function CustomerOrdersWorkspace({ user }: { user: AuthUser }) {
     && (!minPrice || !maxPrice || Number(minPrice) <= Number(maxPrice))
   const quantityCount = Object.values(cart.quantities).reduce((sum, quantity) => sum + quantity, 0)
   const cartLocked = Boolean(checkout) || cart.submitting
-  const changeParams = (changes: Record<string, string | undefined>, replace = false) => setParams(current => {
+  const changeParams = useCallback((changes: Record<string, string | undefined>, replace = false) => setParams(current => {
     const next = new URLSearchParams(current)
     Object.entries(changes).forEach(([key, value]) => { if (value) next.set(key, value); else next.delete(key) })
     return next
-  }, { replace })
+  }, { replace }), [setParams])
 
   useEffect(() => {
     if (!pricesValid) return
@@ -93,26 +93,25 @@ function CustomerOrdersWorkspace({ user }: { user: AuthUser }) {
 
   useEffect(() => {
     if (orders.isSuccess && !selectedId && orders.data.content[0]) changeParams({ orderId: orders.data.content[0].id }, true)
-  }, [orders.isSuccess, orders.data, selectedId])
+  }, [orders.isSuccess, orders.data, selectedId, changeParams])
   useEffect(() => {
     if (!canCreate || !canCatalog || !cart.ready || cart.attempt || !linkedProduct || !selection.isSuccess || consumedSelection.current === linkedProduct) return
     const product = selection.data
     if (!product.active || product.deletedAt || product.type !== 'PRODUCT') {
+      // Consume the external catalog deep link once; the cart persists the resulting selection independently.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectionWarning('Izabrani proizvod nije dostupan za naručivanje.'); return
     }
     consumedSelection.current = linkedProduct
-    cart.add(product, true)
+    addToCart(product, true)
     try { if (sessionStorage.getItem('gmanager.catalog-selection') === linkedProduct) sessionStorage.removeItem('gmanager.catalog-selection') }
     catch { setSelectionWarning('Izbor iz kataloga nije moguće obrisati iz memorije pregledača.') }
     setStoredSelection(null)
     if (params.has('productId')) changeParams({ productId: undefined }, true)
-  }, [linkedProduct, selection.data, selection.isSuccess, canCreate, canCatalog, cart.ready, cart.attempt])
-  useEffect(() => {
-    if (catalog.isSuccess && catalog.data.totalPages > 0 && productPage >= catalog.data.totalPages) setProductPage(catalog.data.totalPages - 1)
-  }, [catalog.data, catalog.isSuccess, productPage])
+  }, [linkedProduct, selection.data, selection.isSuccess, canCreate, canCatalog, cart.ready, cart.attempt, addToCart, changeParams, params])
   useEffect(() => {
     if (orders.isSuccess && page > 0 && page >= Math.max(1, orders.data.totalPages)) changeParams({ page: String(Math.max(1, orders.data.totalPages)) }, true)
-  }, [orders.data, orders.isSuccess, page])
+  }, [orders.data, orders.isSuccess, page, changeParams])
 
   const canCancel = (order: Order) => order.customerId === user.id && order.status === 'CREATED' && hasCapability(user, 'ORDER_CHANGE_STATUS')
   function browse() {

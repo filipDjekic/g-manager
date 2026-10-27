@@ -30,8 +30,8 @@ public class StationReadinessService {
     private final StationRuntimeProjectionPort runtimeProjection;
     private final Clock clock;
     private final AuditWriter audit;
-    private final com.game_manager.gm.machine.StationEnforcementProjectionService enforcement;
-    private final com.game_manager.gm.machine.StationHeartbeatRepository heartbeats;
+    private final com.game_manager.gm.common.scheduling.ClientStatePort enforcement;
+    private final com.game_manager.gm.common.scheduling.ClientStatePort heartbeats;
 
     @Transactional(readOnly = true)
     @PreAuthorize("hasAuthority('STATION_READ')")
@@ -85,7 +85,7 @@ public class StationReadinessService {
             throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,
                     "Gaming station has no application profile");
         requireActiveProfile(station.getApplicationProfileId());
-        if (station.isClientEnabled() && heartbeats.findById(resourceId).map(value -> Boolean.TRUE.equals(value.getMaintenanceActive()) || value.getClientErrorCode() != null).orElse(false))
+        if (station.isClientEnabled() && heartbeats.heartbeat(resourceId).map(value -> Boolean.TRUE.equals(value.maintenanceActive()) || value.clientErrorCode() != null).orElse(false))
             throw new ApplicationException(HttpStatus.CONFLICT, "Gaming Client is in maintenance or reports a local error");
         if (station.isClientEnabled() && !enforcement.safeForNewSession(resourceId))
             throw new ApplicationException(HttpStatus.CONFLICT,"Gaming station has not acknowledged a safe local lock");

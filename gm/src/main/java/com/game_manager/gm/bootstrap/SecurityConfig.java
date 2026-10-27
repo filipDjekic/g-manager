@@ -1,4 +1,6 @@
-package com.game_manager.gm.security;
+package com.game_manager.gm.bootstrap;
+
+import com.game_manager.gm.security.JwtAuthenticationFilter;
 
 import com.game_manager.gm.common.error.ApiErrorFactory;
 import com.game_manager.gm.common.config.GManagerProperties;

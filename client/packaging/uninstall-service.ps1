@@ -1,4 +1,4 @@
-﻿param([switch]$PurgeData,[switch]$Resume)
+﻿param([switch]$PurgeData,[switch]$Resume,[string]$PurgeConfirmation)
 . (Join-Path $PSScriptRoot 'client-management.ps1')
 Assert-Administrator
 $mutex=[Threading.Mutex]::new($false,'Global\GManager.Client.Deployment')
@@ -10,7 +10,10 @@ try{
         if($plan.phase -eq 'Complete'){return}
         $PurgeData=[bool]$plan.purgeData
     }else{
-        if($PurgeData -and (Read-Host 'Brisanje lokalnog identiteta i podataka zahteva novi enrollment. Unesite OBRISI') -cne 'OBRISI'){throw 'Brisanje podataka nije potvrđeno.'}
+        if($PurgeData){
+            if(!$PurgeConfirmation){$PurgeConfirmation=Read-Host 'Brisanje lokalnog identiteta i podataka zahteva novi enrollment. Unesite OBRISI'}
+            if($PurgeConfirmation -cne 'OBRISI'){throw 'Brisanje podataka nije potvrđeno.'}
+        }
         $plan=@{phase='Restoring';purgeData=[bool]$PurgeData;timestamp=[DateTimeOffset]::UtcNow.ToString('o')}
         Write-AtomicJson $journalPath $plan
     }

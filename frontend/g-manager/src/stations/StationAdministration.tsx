@@ -1,7 +1,9 @@
+import { useResettableState } from '../components/useResettableState'
 import { useEffect, useRef, useState } from 'react'
 import { Badge, Button, EmptyState, ErrorState, Skeleton } from '../components/ui'
 import type { ApplicationDefinition, ApplicationProfile, GamingClientPackage } from '../types/station.types'
-import { applicationTypeLabels, StationIcon, stationError } from './stationPresentation'
+import { StationIcon } from './stationPresentation'
+import { applicationTypeLabels, stationError } from './stationPresentation.model'
 import { downloadClientPackage, useClientPackageAvailability } from './clientPackageDistribution'
 
 export function StationAdministration({ definitions, profiles, loadingDefinitions, loadingProfiles, definitionsError, profilesError, manage, busy, onDefinition, onProfile, deleteDefinition, deleteProfile, onRefresh }: {
@@ -51,13 +53,12 @@ const packageStatus: Record<string, string> = { RELEASED: 'Objavljen', AVAILABLE
 export function StationClientPackage({ data, loading, error, onRefresh }: { data?: GamingClientPackage; loading: boolean; error: unknown; onRefresh: () => void }) {
   const availability = useClientPackageAvailability(!error && !loading ? data : undefined)
   const [downloading, setDownloading] = useState(false)
-  const [downloadError, setDownloadError] = useState('')
+  const [downloadError, setDownloadError] = useResettableState(() => '', JSON.stringify([data?.downloadUrl, data?.sha256, data?.status]))
   const request = useRef<AbortController | null>(null), mounted = useRef(false)
   useEffect(() => {
     mounted.current = true
     return () => { mounted.current = false; request.current?.abort() }
   }, [])
-  useEffect(() => { setDownloadError('') }, [data?.downloadUrl, data?.sha256, data?.status])
 
   async function download() {
     if (!data || !availability.ready || availability.checking || request.current) return

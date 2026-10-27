@@ -17,11 +17,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class ResourceManagementService {
  private final LocationRepository locations; private final AreaRepository areas;
  private final PhysicalResourceRepository resources; private final CatalogService catalog;
- private final com.game_manager.gm.reservation.ReservationAvailabilityPolicy availability;
- private final com.game_manager.gm.station.GamingStationProfileRepository stationProfiles;
+ private final com.game_manager.gm.common.scheduling.ResourceAvailabilityPort availability;
+ private final com.game_manager.gm.common.scheduling.StationStatePort stationProfiles;
  private final com.game_manager.gm.workinghours.WorkingHoursService workingHours;
  private final jakarta.persistence.EntityManager entityManager;
- private final com.game_manager.gm.reservation.ReservationDurationPolicy durations;
+ private final com.game_manager.gm.resource.ReservationDurationPolicy durations;
 
  public int reservationDuration(CatalogItem service,Integer requested){return durations.resolve(service,requested);}
  @Transactional(readOnly=true) @PreAuthorize("hasAuthority('RESOURCE_READ')")
@@ -69,13 +69,12 @@ public class ResourceManagementService {
   Map<UUID,Area> areaMap=areas.findAllById(areaIds).stream().collect(java.util.stream.Collectors.toMap(Area::getId,java.util.function.Function.identity()));
   Set<UUID> locationIds=areaMap.values().stream().map(Area::getLocationId).collect(java.util.stream.Collectors.toSet());
   Map<UUID,Location> locationMap=locations.findAllById(locationIds).stream().collect(java.util.stream.Collectors.toMap(Location::getId,java.util.function.Function.identity()));
-  Map<UUID,com.game_manager.gm.station.StationOperationalStatus> states=stationProfiles.findByResourceIdIn(values.stream().map(PhysicalResource::getId).toList()).stream()
-   .collect(java.util.stream.Collectors.toMap(com.game_manager.gm.station.GamingStationProfile::getResourceId,com.game_manager.gm.station.GamingStationProfile::getOperationalStatus));
+  Map<UUID,String> states=stationProfiles.operationalStates(values.stream().map(PhysicalResource::getId).toList());
   Map<UUID,String> result=new HashMap<>();
   for(PhysicalResource v:values){
    Area area=areaMap.get(v.getAreaId());Location location=area==null?null:locationMap.get(area.getLocationId());
    if(!v.isActive()||!v.isBookable()||area==null||!area.isActive()||location==null||!location.isActive())result.put(v.getId(),"Resource or location is inactive or not bookable");
-   else if(v.getType()==ResourceType.GAMING_PC&&states.getOrDefault(v.getId(),com.game_manager.gm.station.StationOperationalStatus.AVAILABLE)!=com.game_manager.gm.station.StationOperationalStatus.AVAILABLE)
+   else if(v.getType()==ResourceType.GAMING_PC&&!"AVAILABLE".equals(states.getOrDefault(v.getId(),"AVAILABLE")))
     result.put(v.getId(),"Station is unavailable for booking");
   }
   return result;
@@ -221,11 +220,11 @@ public class ResourceManagementService {
  private static void apply(Area v,AreaRequest r){v.setCode(r.code().trim());v.setName(r.name().trim());v.setDescription(trim(r.description()));v.setActive(r.active());v.setDisplayOrder(r.displayOrder());v.setMapWidth(r.mapWidth());v.setMapHeight(r.mapHeight());}
  private static void apply(PhysicalResource v,ResourceRequest r){v.setServiceId(r.serviceId());v.setCode(r.code().trim());v.setName(r.name().trim());v.setType(r.type());v.setDescription(trim(r.description()));v.setActive(r.active());v.setBookable(r.bookable());v.setCapacity(r.capacity());v.setDisplayOrder(r.displayOrder());v.setX(r.x());v.setY(r.y());v.setWidth(r.width());v.setHeight(r.height());v.setRotation(r.rotation());}
  private boolean isBookableState(PhysicalResource v,UUID serviceId){
-  boolean unavailableStation=v.getType()==ResourceType.GAMING_PC&&stationProfiles.findByResourceId(v.getId()).map(profile->profile.getOperationalStatus()!=com.game_manager.gm.station.StationOperationalStatus.AVAILABLE).orElse(false);
+  boolean unavailableStation=v.getType()==ResourceType.GAMING_PC&&!"AVAILABLE".equals(stationProfiles.operationalState(v.getId()));
   Area a=area(v.getAreaId());
   return v.isActive()&&v.isBookable()&&v.getServiceId().equals(serviceId)&&!unavailableStation&&a.isActive()&&location(a.getLocationId()).isActive();
  }
  private void requireBookableState(PhysicalResource v,UUID serviceId){if(!isBookableState(v,serviceId))throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Selected resource is not bookable for this service");}
- private ResourceAvailabilityView.Availability availabilityStatus(PhysicalResource v,Instant start,Instant end){if(!v.isActive()||!v.isBookable())return ResourceAvailabilityView.Availability.INACTIVE;if(v.getType()==ResourceType.GAMING_PC){var state=stationProfiles.findByResourceId(v.getId()).map(com.game_manager.gm.station.GamingStationProfile::getOperationalStatus).orElse(com.game_manager.gm.station.StationOperationalStatus.AVAILABLE);if(state==com.game_manager.gm.station.StationOperationalStatus.MAINTENANCE)return ResourceAvailabilityView.Availability.MAINTENANCE;if(state==com.game_manager.gm.station.StationOperationalStatus.RETIRED)return ResourceAvailabilityView.Availability.RETIRED;}return availability.isResourceAvailable(v.getId(),start,end,null)?ResourceAvailabilityView.Availability.AVAILABLE:ResourceAvailabilityView.Availability.OCCUPIED;}
+ private ResourceAvailabilityView.Availability availabilityStatus(PhysicalResource v,Instant start,Instant end){if(!v.isActive()||!v.isBookable())return ResourceAvailabilityView.Availability.INACTIVE;if(v.getType()==ResourceType.GAMING_PC){var state=stationProfiles.operationalState(v.getId());if("MAINTENANCE".equals(state))return ResourceAvailabilityView.Availability.MAINTENANCE;if("RETIRED".equals(state))return ResourceAvailabilityView.Availability.RETIRED;}return availability.isResourceAvailable(v.getId(),start,end,null)?ResourceAvailabilityView.Availability.AVAILABLE:ResourceAvailabilityView.Availability.OCCUPIED;}
  private static String trim(String v){return v==null||v.isBlank()?null:v.trim();}
 }

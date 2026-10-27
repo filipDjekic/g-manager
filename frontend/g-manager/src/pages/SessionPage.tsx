@@ -5,7 +5,8 @@ import { hasCapability } from '../auth/capabilities'
 import { Card, ErrorState } from '../components/ui'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { ActiveDevices, SecurityHistory, SessionHeading, SessionKpis } from '../sessions/SessionDashboardViews'
-import { SessionIcon, SessionTime, type SecurityFilter } from '../sessions/sessionPresentation'
+import { SessionIcon, SessionTime } from '../sessions/sessionPresentation'
+import { type SecurityFilter } from '../sessions/sessionPresentation.model'
 import { useSessionDashboard } from '../sessions/useSessionDashboard'
 import type { SessionInfo } from '../types/auth.types'
 import '../sessions/sessions.css'
@@ -14,7 +15,7 @@ type RevocationSelection = { kind: 'session'; session: SessionInfo } | { kind: '
 
 export function SessionPage() {
   const actor = useAuthStore(state => state.user)
-  if (!actor || !hasCapability(actor, 'PROFILE_READ')) return <main className="workspace gm-session">
+  if (!actor || !hasCapability(actor, 'PROFILE_READ')) return <main className="workspace workspace--reading gm-session">
     <SessionHeading /><ErrorState title="Pristup nije dozvoljen" message="Nemate dozvolu za pregled aktivnih sesija." />
   </main>
   return <SessionWorkspace key={actor.id} actorId={actor.id} canChangePassword={hasCapability(actor, 'PROFILE_UPDATE')} />
@@ -54,7 +55,7 @@ function SessionWorkspace({ actorId, canChangePassword }: { actorId: string; can
     }
   }
 
-  return <main className="workspace gm-session">
+  return <main className="workspace workspace--reading gm-session">
     <SessionHeading fetching={dashboard.fetching} disabled={dashboard.pendingId !== null} onRefresh={refresh} />
     <SessionKpis sessions={dashboard.sessions} events={dashboard.events} />
     {tokenReuse && <Card className="gm-session-risk">

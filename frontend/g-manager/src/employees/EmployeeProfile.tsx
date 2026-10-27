@@ -1,10 +1,12 @@
+import { useServerNow } from '../gaming/useServerNow'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { userApi } from '../api/userApi'
 import { Badge, Button, EmptyState, ErrorState, Skeleton } from '../components/ui'
 import { roleLabels } from '../components/ui/statusPresentation'
 import type { UserResponse } from '../types/user.types'
-import { EmployeeAvatar, EmployeeIcon, employeeDate, employeeError } from './employeePresentation'
+import { EmployeeAvatar, EmployeeIcon } from './employeePresentation'
+import { employeeDate, employeeError } from './employeePresentation.model'
 
 export function EmployeeProfile({ employee, actorId, canAssignments, canAssignLocation, canLeave, canSettings, canResourceRead, canDeactivate, canDelete, busy,
   onClose, onDeactivate, onDelete, onAssign, onRefresh }: {
@@ -13,6 +15,7 @@ export function EmployeeProfile({ employee, actorId, canAssignments, canAssignLo
   canDeactivate: boolean; canDelete: boolean; busy: boolean; onClose: () => void; onDeactivate: () => void
   onDelete: () => void; onAssign: () => void; onRefresh: () => void
 }) {
+  const now = useServerNow()
   const assignments = useQuery({ queryKey: ['users', 'employee-assignments', actorId, employee.id],
     queryFn: () => userApi.employeeAssignments(employee.id), enabled: canAssignments, staleTime: 15000, retry: false })
   const leaves = useQuery({ queryKey: ['users', 'employee-leaves', actorId, employee.id],
@@ -48,8 +51,8 @@ export function EmployeeProfile({ employee, actorId, canAssignments, canAssignLo
       {leaves.isLoading ? <Skeleton lines={3} /> : leaves.isError ? <ErrorState message={employeeError(leaves.error, 'Odsustva nije moguće učitati.')}
         action={<Button type="button" variant="secondary" onClick={() => void leaves.refetch()}>Pokušaj ponovo</Button>} /> : !leaves.data?.length
           ? <EmptyState title="Nema odobrenih odsustava" description="Nema odsustava koja obuhvataju danas ili buduće datume." />
-          : <ul className="gm-employee-leave-list">{leaves.data.map(leave => <li key={leave.id}><Badge tone={new Date(leave.startsAt).getTime() > Date.now() ? 'info' : 'success'}>
-            {new Date(leave.startsAt).getTime() > Date.now() ? 'Buduće · odobreno' : 'Odobreno'}</Badge>
+          : <ul className="gm-employee-leave-list">{leaves.data.map(leave => <li key={leave.id}><Badge tone={new Date(leave.startsAt).getTime() > now ? 'info' : 'success'}>
+            {new Date(leave.startsAt).getTime() > now ? 'Buduće · odobreno' : 'Odobreno'}</Badge>
             <div><time dateTime={leave.startsAt}>{employeeDate(leave.startsAt)}</time><span> — </span><time dateTime={leave.endsAt}>{employeeDate(leave.endsAt)}</time></div></li>)}</ul>}
       <p className="gm-employee-note">Prikazani su datumi odobrenih odsustava, bez privatnih razloga.</p>
     </section>}

@@ -1,14 +1,18 @@
+import { useObjectUrl } from '../components/useObjectUrl'
+import { useResettableState } from '../components/useResettableState'
+import { employeeDate, type EmployeeAction } from './employeePresentation.model'
+import { Pagination } from '../components/ui'
 import { useQuery } from '@tanstack/react-query'
-import { isAxiosError } from 'axios'
+
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { apiErrorMessage } from '../api/client'
+
 import { userApi } from '../api/userApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Badge, Button, Select, Skeleton } from '../components/ui'
+import { Badge, Button, Skeleton } from '../components/ui'
 import { roleLabels } from '../components/ui/statusPresentation'
-import { formatBusinessDateTime } from '../reservations/dateTime'
+
 import type { UserResponse } from '../types/user.types'
 
 export function EmployeeIcon({ kind = 'users' }: { kind?: 'users' | 'add' | 'check' | 'calendar' | 'leave' | 'search' | 'profile' | 'location' | 'resource' | 'lock' | 'delete' | 'eye' | 'eye-off' | 'refresh' }) {
@@ -31,38 +35,17 @@ export function EmployeeIcon({ kind = 'users' }: { kind?: 'users' | 'add' | 'che
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">{paths[kind]}</svg>
 }
 
-export const employeeDate = (value: string) => formatBusinessDateTime(value, false, 'sr-Latn-RS')
-export function employeeError(cause: unknown, fallback: string) {
-  const message = typeof cause === 'string' ? cause : cause instanceof Error && !isAxiosError(cause) ? cause.message : apiErrorMessage(cause, fallback)
-  return message
-    .replace('Email is already in use', 'Email adresa je već zauzeta.')
-    .replace('Employee not found', 'Zaposleni nije pronađen.')
-    .replace('User not found', 'Nalog nije pronađen.')
-    .replace('Employee is inactive', 'Nalog zaposlenog je neaktivan.')
-    .replace('Location access changed; refresh before saving', 'Dodela lokacije je promenjena. Pregledajte osvežene podatke pre nove potvrde.')
-    .replace('User management is not permitted', 'Nemate dozvolu za upravljanje zaposlenima.')
-    .replace('You cannot deactivate your own account', 'Sopstveni nalog ne možete deaktivirati.')
-    .replace('The requested user cannot be deactivated', 'Nemate dozvolu za deaktivaciju ovog naloga.')
-    .replace('User is not active', 'Nalog nije aktivan.')
-    .replace('Access is denied', 'Nemate dozvolu za ovu akciju.')
-    .replace('Authentication is required', 'Potrebno je da se ponovo prijavite.')
-}
-
 export function EmployeeAvatar({ employee, large = false }: { employee: Pick<UserResponse, 'id' | 'name' | 'avatarUrl'>; large?: boolean }) {
   return <Avatar key={`${employee.id}:${employee.avatarUrl}`} employee={employee} large={large} />
 }
 function Avatar({ employee, large }: { employee: Pick<UserResponse, 'name' | 'avatarUrl'>; large: boolean }) {
   const user = useAuthStore(state => state.user)
-  const [source, setSource] = useState(''), [failed, setFailed] = useState(false)
+  const [failed, setFailed] = useResettableState(() => false, employee.avatarUrl ?? '')
   const documentId = /^\/api\/v1\/documents\/([\w-]+)\/content(?:\?|$)/.exec(employee.avatarUrl ?? '')?.[1]
   const content = useQuery({ queryKey: ['employee-avatars', user?.id, documentId],
     queryFn: ({ signal }) => userApi.avatarPreview(documentId!, signal),
     enabled: Boolean(documentId) && hasCapability(user, 'USER_LIST'), staleTime: 60000, gcTime: 60000, retry: false })
-  useEffect(() => {
-    if (!content.data) return
-    const url = URL.createObjectURL(content.data); setSource(url); setFailed(false)
-    return () => URL.revokeObjectURL(url)
-  }, [content.data])
+  const source = useObjectUrl(content.data)
   const parts = employee.name.trim().split(/\s+/).filter(Boolean)
   const initials = [parts[0]?.[0], parts.length > 1 ? parts.at(-1)?.[0] : ''].join('').toLocaleUpperCase('sr-Latn-RS') || '?'
   const image = documentId ? source : employee.avatarUrl
@@ -81,8 +64,6 @@ export function EmployeeKpi({ title, value, kind, tone, description, loading }: 
       <p>{description}</p></div>
   </section>
 }
-
-export type EmployeeAction = 'profile' | 'deactivate' | 'delete'
 export function EmployeeActionsMenu({ employee, canDeactivate, canDelete, disabled, onAction }: {
   employee: UserResponse; canDeactivate: boolean; canDelete: boolean; disabled: boolean
   onAction: (employee: UserResponse, action: EmployeeAction, opener: HTMLButtonElement | null) => void
@@ -154,15 +135,9 @@ export function EmployeesTable({ employees, actorId, focus, selected, canDeactiv
 }
 
 export function EmployeePagination({ page, size, totalPages, totalElements, busy, onPage, onSize }: {
-  page: number; size: number; totalPages: number; totalElements: number; busy: boolean; onPage: (value: number) => void; onSize: (value: number) => void
+  page: number; size: number; totalPages: number; totalElements: number; busy: boolean
+  onPage: (value: number) => void; onSize: (value: number) => void
 }) {
-  const pages = Math.max(1, totalPages), start = Math.max(0, Math.min(page - 1, pages - 3))
-  const numbers = [...new Set([0, ...Array.from({ length: Math.min(3, pages) }, (_, index) => start + index), pages - 1])].sort((a, b) => a - b)
-  return <div className="gm-employee-pagination"><div><span aria-live="polite">Prikazano {totalElements ? page * size + 1 : 0}–{Math.min((page + 1) * size, totalElements)} od {totalElements} zaposlenih.</span>
-    <label>Po stranici<Select value={size} disabled={busy} onChange={event => onSize(Number(event.target.value))}>{[10, 20, 50].map(value => <option key={value} value={value}>{value}</option>)}</Select></label></div>
-    <nav aria-label="Stranice zaposlenih"><Button type="button" variant="secondary" disabled={busy || page === 0} onClick={() => onPage(page - 1)}>Prethodna</Button>
-      {numbers.map((number, index) => <span key={number}>{index > 0 && number - numbers[index - 1] > 1 && <span aria-hidden="true">…</span>}
-        <Button type="button" variant="secondary" disabled={busy} aria-label={`Stranica ${number + 1}`} aria-current={page === number ? 'page' : undefined} onClick={() => onPage(number)}>{number + 1}</Button></span>)}
-      <Button type="button" variant="secondary" disabled={busy || page + 1 >= pages} onClick={() => onPage(page + 1)}>Sledeća</Button></nav>
-  </div>
+  return <Pagination numbered label="Stranice zaposlenih" page={page} pageSize={size} totalPages={totalPages}
+    totalElements={totalElements} loading={busy} onPageChange={onPage} onPageSizeChange={onSize} />
 }

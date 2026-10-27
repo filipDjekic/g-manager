@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { Badge } from '../components/ui'
 import { roleLabels } from '../components/ui/statusPresentation'
 import type { UserResponse } from '../types/user.types'
-import { ProfileIcon, profileDate } from './profilePresentation'
+import { ProfileIcon } from './profilePresentation'
+import { profileDate } from './profilePresentation.model'
 
 export function ProfileAccountCard({ profile, canRead, onSessions }: {
   profile: UserResponse; canRead: boolean; onSessions: (event: MouseEvent<HTMLAnchorElement>) => void

@@ -15,7 +15,8 @@ import { CustomerPicker } from '../reservations/CustomerPicker'
 import { businessInstantToLocal, businessLocalToInstant, formatBusinessTime, todayInBusinessZone } from '../reservations/dateTime'
 import { useServerNow } from '../gaming/useServerNow'
 import type { ManageWaitlistInput, WaitlistDetail, WaitlistOperationalEntry } from '../types/waitlist.types'
-import { WaitlistIcon, waitlistEmployees, waitlistError, waitlistServices } from './waitlistPresentation'
+import { WaitlistIcon } from './waitlistPresentation'
+import { waitlistEmployees, waitlistError, waitlistServices } from './waitlistPresentation.model'
 
 export function WaitlistEntryDialog({ entry, serverTime, returnFocusRef, onClose, onSaved, onConflict }: {
   entry?: WaitlistOperationalEntry; serverTime?: string; returnFocusRef: RefObject<HTMLElement | null>

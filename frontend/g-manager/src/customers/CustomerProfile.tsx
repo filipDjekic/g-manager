@@ -16,7 +16,8 @@ import type { CustomerListItem } from '../types/customer.types'
 import type { OrderStatus } from '../types/order.types'
 import type { ReservationStatus } from '../types/reservation.types'
 import { CustomerCrmPanel } from './CustomerCrmPanel'
-import { CustomerAvatar, customerDate, customerMoney } from './CustomerTable'
+import { CustomerAvatar } from './CustomerTable'
+import { customerDate, customerMoney } from './CustomerTable.model'
 
 type ProfileTab = 'overview' | 'reservations' | 'gaming' | 'orders' | 'crm'
 

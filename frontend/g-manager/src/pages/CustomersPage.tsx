@@ -10,7 +10,8 @@ import { ActionDialog } from '../components/ui/ActionDialog'
 import { SavedViewBar } from '../components/lists/SavedViewBar'
 import { CustomerFormDialog } from '../customers/CustomerFormDialog'
 import { CustomerProfile } from '../customers/CustomerProfile'
-import { CustomerTable, CustomersPagination, type CustomerAction } from '../customers/CustomerTable'
+import { CustomerTable, CustomersPagination } from '../customers/CustomerTable'
+import { type CustomerAction } from '../customers/CustomerTable.model'
 import { StartSessionDialog } from '../gaming/StartSessionDialog'
 import { NavigationIcon } from '../layout/NavigationIcon'
 import { useListUrlState } from '../lists/useListUrlState'
@@ -36,9 +37,10 @@ export function CustomersPage() {
   const canDeactivate = hasCapability(user, 'CUSTOMER_DEACTIVATE')
   const client = useQueryClient()
   const url = useListUrlState(defaults, allowed)
+  const setUrl = url.set
   const requestedPage = Number(url.state.page)
   const page = Number.isFinite(requestedPage) ? Math.max(0, Math.trunc(requestedPage)) : 0
-  const size = [10, 20, 50].includes(Number(url.state.size)) ? Number(url.state.size) : 10
+  const size = [10, 20, 50, 100].includes(Number(url.state.size)) ? Number(url.state.size) : 10
   const [search, setSearch] = useState(url.state.search)
   useEffect(() => {
     const timer = window.setTimeout(() => setSearch(url.state.search), 300)
@@ -51,9 +53,9 @@ export function CustomersPage() {
   const statistics = useQuery({ queryKey: ['customers', 'statistics'], queryFn: customerApi.statistics, enabled: canRead })
   useEffect(() => {
     if (list.data && !list.isFetching && !searchPending && page >= Math.max(list.data.totalPages, 1)) {
-      url.set({ page: String(Math.max(list.data.totalPages - 1, 0)) }, true)
+      setUrl({ page: String(Math.max(list.data.totalPages - 1, 0)) }, true)
     }
-  }, [list.data, list.isFetching, page, searchPending, url.set])
+  }, [list.data, list.isFetching, page, searchPending, setUrl])
   const detailOpener = useRef<HTMLButtonElement>(null)
   const createOpener = useRef<HTMLButtonElement>(null)
   const [createOpen, setCreateOpen] = useState(false)
@@ -90,7 +92,7 @@ export function CustomersPage() {
   function action(customer: CustomerListItem, kind: CustomerAction, opener: HTMLButtonElement | null) {
     detailOpener.current = opener
     setError('')
-    if (kind === 'PROFILE') url.set({ customerId: customer.id })
+    if (kind === 'PROFILE') setUrl({ customerId: customer.id })
     else if (kind === 'EDIT') edit(customer)
     else if (kind === 'DEACTIVATE') deactivate(customer)
     else void start(customer)
@@ -132,8 +134,8 @@ export function CustomersPage() {
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
             <circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5" /></svg>
           <Input type="search" value={url.state.search} placeholder="Pretraži po imenu, prezimenu ili email adresi…"
-            onChange={event => url.set({ search: event.target.value, page: '0' }, true)} /></div></label>
-        <label>Status<Select value={url.state.active} onChange={event => url.set({ active: event.target.value, page: '0' })}>
+            onChange={event => setUrl({ search: event.target.value, page: '0' }, true)} /></div></label>
+        <label>Status<Select aria-label={"Status"} value={url.state.active} onChange={event => setUrl({ active: event.target.value, page: '0' })}>
           <option value="">Svi statusi</option><option value="true">Aktivni</option><option value="false">Neaktivni</option>
         </Select></label>
       </div>
@@ -144,15 +146,15 @@ export function CustomersPage() {
         <ErrorState message={apiErrorMessage(list.error, 'Klijente nije moguće učitati.')}
           action={<Button onClick={() => void list.refetch()}>Pokušaj ponovo</Button>} /> : !list.data?.content.length ?
           <EmptyState title="Nema klijenata" description={url.state.search || url.state.active ? 'Nema rezultata za izabranu pretragu i status.' : 'Kreirani klijenti će se pojaviti ovde.'}
-            action={url.state.search || url.state.active ? <Button variant="secondary" onClick={() => url.set({ search: '', active: '', page: '0' })}>Resetuj filtere</Button> : undefined} /> :
+            action={url.state.search || url.state.active ? <Button variant="secondary" onClick={() => setUrl({ search: '', active: '', page: '0' })}>Resetuj filtere</Button> : undefined} /> :
           <CustomerTable customers={list.data.content} selectedId={url.state.customerId} canEdit={canEdit}
             canStart={canStart} canDeactivate={canDeactivate} disabled={busy || startBusy} onAction={action} />}
       {list.data && !list.error && !searchPending && <CustomersPagination page={page} size={size}
         totalElements={list.data.totalElements} totalPages={list.data.totalPages} loading={list.isFetching}
-        onPageChange={next => url.set({ page: String(next) })} onSizeChange={next => url.set({ size: next, page: '0' })} />}
+        onPageChange={next => setUrl({ page: String(next) })} onSizeChange={next => setUrl({ size: next, page: '0' })} />}
     </section>
     {url.state.customerId && <CustomerProfile key={url.state.customerId} customerId={url.state.customerId}
-      open={!sessionCustomer && !editing && !deactivating && !createOpen} onClose={() => url.set({ customerId: '' })}
+      open={!sessionCustomer && !editing && !deactivating && !createOpen} onClose={() => setUrl({ customerId: '' })}
       onEdit={edit} onDeactivate={deactivate} onStart={customer => void start(customer)} startBusy={startBusy} actionError={error} returnFocusRef={detailOpener} />}
     {createOpen && canCreate && <CustomerFormDialog onClose={() => setCreateOpen(false)} onSaved={refreshCustomers} returnFocusRef={createOpener} />}
     {editing && canEdit && <CustomerFormDialog customer={editing} onClose={() => setEditing(null)} onSaved={refreshCustomers} returnFocusRef={detailOpener} />}

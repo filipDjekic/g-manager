@@ -18,7 +18,7 @@ try{
     $settings.Client.Version=$Version
     $settings.Client|Add-Member -MemberType NoteProperty -Name Mode -Value 'Production' -Force
     $settings|ConvertTo-Json -Depth 10|Set-Content -LiteralPath (Join-Path $stage 'service\appsettings.json') -Encoding UTF8
-    foreach($name in @('GManager-Setup.ps1','install-service.ps1','uninstall-service.ps1','update-client.ps1','support-bundle.ps1','gmanagerctl.ps1','gmanagerctl.cmd','client-management.ps1')){
+    foreach($name in @('GManager-Setup.ps1','GManager-Setup.cmd','GManager-Management.ps1','install-service.ps1','uninstall-service.ps1','update-client.ps1','support-bundle.ps1','gmanagerctl.ps1','gmanagerctl.cmd','client-management.ps1')){
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $stage
     }
     $certificate=Get-Item -LiteralPath "Cert:\CurrentUser\My\$CertificateThumbprint"

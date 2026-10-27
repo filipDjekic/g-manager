@@ -4,7 +4,7 @@ import { customerApi } from '../api/customerApi'
 import { Button, FormField, Input, Modal, Textarea } from '../components/ui'
 import { NavigationIcon } from '../layout/NavigationIcon'
 import type { CustomerListItem } from '../types/customer.types'
-import { customerDate } from './CustomerTable'
+import { customerDate } from './CustomerTable.model'
 
 export function CustomerFormDialog({ customer, onClose, onSaved, returnFocusRef }: {
   customer?: CustomerListItem; onClose: () => void; onSaved: () => void

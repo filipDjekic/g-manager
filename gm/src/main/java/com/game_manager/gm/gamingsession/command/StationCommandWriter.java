@@ -18,11 +18,11 @@ public class StationCommandWriter {
     private final ObjectMapper json;
     private final Clock clock;
     private final Duration retention;
-    private final com.game_manager.gm.machine.StationEnforcementProjectionService enforcement;
+    private final com.game_manager.gm.common.scheduling.ClientStatePort enforcement;
 
     public StationCommandWriter(JdbcTemplate jdbc, ObjectMapper json, Clock clock,
             @Value("${app.gaming-session.command-retention-days:30}") long retentionDays,
-            com.game_manager.gm.machine.StationEnforcementProjectionService enforcement) {
+            com.game_manager.gm.common.scheduling.ClientStatePort enforcement) {
         this.jdbc = jdbc; this.json = json; this.clock = clock; this.retention = Duration.ofDays(retentionDays);this.enforcement=enforcement;
     }
 
@@ -50,7 +50,7 @@ public class StationCommandWriter {
                 type.name(), json.writeValueAsString(payload), correlation, Timestamp.from(now),
                 Timestamp.from(now.plus(retention)), Timestamp.from(now), Timestamp.from(now));
         session.setLastCommandSequence(sequence);
-        enforcement.commandIssued(session,type,sequence);
+        enforcement.commandIssued(session.getResourceId(),session.getId(),type.name(),sequence);
         return sequence;
     }
 

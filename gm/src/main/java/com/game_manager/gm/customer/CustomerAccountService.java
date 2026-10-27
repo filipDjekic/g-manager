@@ -2,7 +2,6 @@ package com.game_manager.gm.customer;
 
 import com.game_manager.gm.audit.AuditVisibility;
 import com.game_manager.gm.audit.AuditWriter;
-import com.game_manager.gm.auth.dto.ActivateCustomerRequest;
 import com.game_manager.gm.common.error.ApplicationException;
 import com.game_manager.gm.common.security.AuthenticatedUser;
 import com.game_manager.gm.common.security.CurrentUserProvider;
@@ -124,17 +123,17 @@ public class CustomerAccountService {
     }
 
     @Transactional
-    public void activate(ActivateCustomerRequest request) {
+    public void activate(String activationSecret, String password) {
         Instant now = clock.instant();
         CustomerActivationToken token = activationTokens.findByHashForUpdate(
-                        hash(request.activationSecret()))
+                        hash(activationSecret))
                 .filter(value -> value.getConsumedAt() == null)
                 .filter(value -> value.getExpiresAt().isAfter(now))
                 .orElseThrow(() -> new ApplicationException(HttpStatus.BAD_REQUEST, INVALID_ACTIVATION));
         User customer = users.findByIdForUpdate(token.getUserId())
                 .filter(value -> value.getRole() == Role.CUSTOMER && value.isActive())
                 .orElseThrow(() -> new ApplicationException(HttpStatus.BAD_REQUEST, INVALID_ACTIVATION));
-        customer.setPasswordHash(passwordEncoder.encode(request.password()));
+        customer.setPasswordHash(passwordEncoder.encode(password));
         customer.setMustChangePassword(false);
         users.save(customer);
         activationTokens.consumeActiveForUser(customer.getId(), now);

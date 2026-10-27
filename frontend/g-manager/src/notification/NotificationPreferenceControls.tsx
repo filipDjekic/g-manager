@@ -1,10 +1,7 @@
 import { useId, type ReactNode } from 'react'
 import { Badge, Card, Skeleton } from '../components/ui'
 import type { NotificationPreference, NotificationType } from '../types/notification.types'
-import {
-  channelState, notificationDefinitions, notificationGroups,
-  type NotificationChannel, type NotificationIconKind,
-} from './notificationPreferences'
+import { channelState, notificationDefinitions, notificationGroups, type NotificationChannel, type NotificationIconKind } from './notificationPreferences'
 
 export function NotificationIcon({ kind, className = '' }: { kind: NotificationIconKind; className?: string }) {
   const paths: Record<NotificationIconKind, ReactNode> = {
