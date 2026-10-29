@@ -1,5 +1,5 @@
 ﻿GManager.Client.Shell
-
+1.0.0.0
 
 winexe
 C#
@@ -12,9 +12,9 @@ TRACE;DEBUG;NET;NET10_0;NETCOREAPP;WINDOWS;WINDOWS10_0_19041_0;NET5_0_OR_GREATER
 C:\Users\cofid\Desktop\GITHUB\g-manager\client\src\GManager.Client.Shell\App.xaml
 5-1385578701
 1-98308137
-71692531027
+9-828899560
 209992729991
 MainWindow.xaml;Resources\DashboardTheme.xaml;Resources\GamingRoom.xaml;Resources\ShellTheme.xaml;Views\DashboardView.xaml;
 
-False
+True
 
