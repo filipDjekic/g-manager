@@ -5,7 +5,7 @@ import { resourceApi } from '../../api/resourceApi'
 import { reservationApi } from '../../api/reservationApi'
 import { waitlistApi } from '../../api/waitlistApi'
 import { IdempotencyKeyManager, isConflictResponse } from '../../api/idempotency'
-import { Badge, Button, EmptyState, ErrorState, Input, Modal, Select, Skeleton, Textarea } from '../../components/ui'
+import { Badge, Button, EmptyState, ErrorState, Input, Modal, Select, Skeleton, Textarea, Alert } from '../../components/ui'
 import { useToast } from '../../components/ui/toastContext'
 import { businessInstantToLocal, businessLocalToInstant, formatBusinessDateTime, formatBusinessIntervalEnd, formatBusinessTime, todayInBusinessZone } from '../dateTime'
 import { RecurrencePreviewPanel, RecurrenceResultPanel } from '../RecurrencePreviewPanel'
@@ -155,23 +155,23 @@ export function CustomerBookingDialog({ prefill, services, employees, loading, d
     } catch (cause) { setError(customerReservationError(cause, 'Prijava na listu čekanja nije uspela.')); await availability.refetch() }
     finally { inFlight.current = false; setJoining(false) }
   }
-  const footer = recurrenceResult ? <div className="dialog-actions"><Button type="button" variant="secondary" onClick={onClose}>Zatvori</Button></div>
-    : <div className="dialog-actions"><Button type="button" variant="secondary" disabled={blocked} onClick={onClose}>Otkaži</Button>
+  const footer = recurrenceResult ? <div className="ui-actions dialog-actions"><Button type="button" variant="secondary" onClick={onClose}>Zatvori</Button></div>
+    : <div className="ui-actions dialog-actions"><Button type="button" variant="secondary" disabled={blocked} onClick={onClose}>Otkaži</Button>
       {occupied && !recurring && !frozen ? <Button type="button" disabled={!canJoin || blocked} loading={joining} onClick={() => void joinWaitlist()}>Prijavi se na listu čekanja</Button>
         : <Button type="submit" form={id} loading={submitting} disabled={joining || !canSubmit && !frozen}>{frozen ? 'Ponovi isti zahtev' : recurring ? 'Kreiraj seriju' : 'Potvrdi termin'}</Button>}</div>
-  return <Modal open title="Nova rezervacija" titleIcon={<CalendarClock />} className="gm-my-booking-dialog" closeDisabled={blocked} returnFocusRef={returnFocusRef} onClose={() => { if (!blocked) onClose() }} footer={footer}>
-    {recurrenceResult ? <RecurrenceResultPanel result={recurrenceResult} locale="sr-Latn-RS" /> : <form id={id} className="gm-my-booking" onSubmit={create}>
+  return <Modal size="wide" open title="Nova rezervacija" titleIcon={<CalendarClock />} className="gm-my-booking-dialog" closeDisabled={blocked} returnFocusRef={returnFocusRef} onClose={() => { if (!blocked) onClose() }} footer={footer}>
+    {recurrenceResult ? <RecurrenceResultPanel result={recurrenceResult} locale="sr-Latn-RS" /> : <form id={id} className="ui-form-grid gm-my-booking" onSubmit={create}>
       <p className="gm-my-booking-intro">Izaberite uslugu i termin. Dostupnost se proverava ponovo pri potvrđivanju.</p>
-      {error && <p className="error-banner" role="alert">{error}</p>}
+      {error && <Alert tone="danger" role="alert">{error}</Alert>}
       {frozen && <p className="gm-my-reservation-warning" role="status">Prethodni zahtev čeka konačan ishod. Ponovite isti zahtev sa istim podacima da biste dobili njegov rezultat.</p>}
-      {loading ? <Skeleton lines={4} label="Učitavanje usluga i zaposlenih" /> : dataError ? <ErrorState message={customerReservationError(dataError, 'Podaci za zakazivanje nisu dostupni.')} action={<Button type="button" onClick={onReload}>Pokušaj ponovo</Button>} /> : null}
+      {loading ? <Skeleton lines={4} label="Učitavanje usluga i zaposlenih" /> : dataError ? <ErrorState message={customerReservationError(dataError, 'Podaci za zakazivanje nisu dostupni.')} action={<Button variant="secondary" type="button" onClick={onReload}>Pokušaj ponovo</Button>} /> : null}
       <fieldset disabled={blocked || loading || Boolean(dataError)} className="gm-my-booking-fields">
         <section className="gm-my-booking-step"><h3><span>1</span>Usluga i prostor</h3><div className="gm-my-booking-grid">
           <label className="gm-my-full">Usluga<Select aria-label={"Usluga"} required value={serviceId} onChange={event => { const next = event.target.value; setServiceId(next); setResourceId(''); setLocationId(''); setAreaId(''); setEmployeeChoice('UNSELECTED'); setDate(''); setRecurring(false); resetSelection(true); onScopeChanged({ serviceId: next }) }}>
             <option value="">Izaberite uslugu</option>{serviceId && !service && <option value={serviceId} disabled>Izabrana usluga nije dostupna za rezervisanje</option>}
             {services.map(value => <option key={value.id} value={value.id}>{value.name} · {value.durationMinutes} min</option>)}</Select></label>
           {serviceId && resourceOptions.isLoading && <div className="gm-my-full"><Skeleton lines={2} label="Učitavanje resursa" /></div>}
-          {resourceOptions.isError && <div className="gm-my-full"><ErrorState message={customerReservationError(resourceOptions.error, 'Resurse nije moguće učitati.')} action={<Button type="button" onClick={() => resourceOptions.refetch()}>Pokušaj ponovo</Button>} /></div>}
+          {resourceOptions.isError && <div className="gm-my-full"><ErrorState message={customerReservationError(resourceOptions.error, 'Resurse nije moguće učitati.')} action={<Button variant="secondary" type="button" onClick={() => resourceOptions.refetch()}>Pokušaj ponovo</Button>} /></div>}
           {serviceId && physicalStep && <><label>Lokal<Select aria-label={"Lokal"} required={resourceRequired} value={scopedLocationId} onChange={event => { const next = event.target.value; setLocationId(next); setAreaId(''); setResourceId(''); resetSelection(); onScopeChanged({ serviceId, locationId: next }) }}>
             <option value="">Izaberite lokal</option>{locations.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</Select></label>
             <label>Zona<Select aria-label={"Zona"} required={resourceRequired} value={scopedAreaId} disabled={!scopedLocationId || blocked} onChange={event => { const next = event.target.value; setAreaId(next); setResourceId(''); resetSelection(); onScopeChanged({ serviceId, locationId: scopedLocationId, areaId: next }) }}>
@@ -191,17 +191,17 @@ export function CustomerBookingDialog({ prefill, services, employees, loading, d
             <label>Datum završetka<Input aria-label={"Datum završetka"} type="date" min={date} required value={endDate || date} disabled={blocked} onChange={event => { setEndDate(event.target.value); resetSelection() }} /></label>
             <div className="gm-my-booking-duration"><span>Trajanje</span><strong>{!timeError ? customerDuration(duration) : '—'}</strong><small>{minimum}–{rules.maximumDurationMinutes} min</small></div>
             <p className="gm-my-booking-note gm-my-full">Izaberite ponuđeni početak ili unesite Od–Do. Proverava se ceo interval. Ručno uneto vreme mora biti dostupno u serverskom pregledu termina.</p>
-            {timeError && <p className="error-banner gm-my-full" role="alert">{timeError}</p>}</>}
+            {timeError && <Alert tone="danger" className="gm-my-full" role="alert">{timeError}</Alert>}</>}
           {date && rules && !rules.variableDuration && <p className="gm-my-booking-note gm-my-full">Usluga ima fiksno trajanje od {rules.defaultDurationMinutes} minuta.</p>}
         </div></section>}
         {date && scopeReady && <section className="gm-my-booking-step"><h3><span>3</span>Slobodni i zauzeti termini</h3>
           <p className="gm-my-booking-note">Slobodan termin rezervišite uz potvrdu. Za zauzet termin možete se prijaviti na listu čekanja.</p>
           {availability.isLoading && <Skeleton lines={3} label="Provera dostupnosti termina" />}
-          {availability.isError && <ErrorState message={customerReservationError(availability.error, 'Dostupne termine nije moguće učitati.')} action={<Button type="button" onClick={() => availability.refetch()}>Pokušaj ponovo</Button>} />}
+          {availability.isError && <ErrorState message={customerReservationError(availability.error, 'Dostupne termine nije moguće učitati.')} action={<Button variant="secondary" type="button" onClick={() => availability.refetch()}>Pokušaj ponovo</Button>} />}
           {!availability.isLoading && !availability.isError && !slots.some(value => value.status !== 'UNAVAILABLE') && <EmptyState title="Nema ponuđenih termina" description="Proverite razloge nedostupnosti ili izaberite drugi datum, zaposlenog ili resurs." />}
           {manualStart && !timeError && !availability.isFetching && !availability.isError && !chosenSlot && <p className="gm-my-reservation-warning">Za ručno unet početak nema ponuđenog termina. Izaberite početak iz serverskog pregleda.</p>}
           {!availability.isError && <div className="gm-my-booking-slots">{slots.filter(value => value.status !== 'UNAVAILABLE').map(slot => <label key={slot.startTime} className={`gm-my-booking-slot ${slot.status?.startsWith('OCCUPIED_') ? 'is-occupied' : ''}${selectedStart === slot.startTime ? ' is-selected' : ''}`}>
-            <input type="radio" name={`${id}-slot`} checked={selectedStart === slot.startTime} disabled={blocked || availability.isFetching} onChange={() => choose(slot)} />
+            <Input type="radio" name={`${id}-slot`} checked={selectedStart === slot.startTime} disabled={blocked || availability.isFetching} onChange={() => choose(slot)} />
             <strong>{formatBusinessTime(slot.startTime)} – {formatBusinessIntervalEnd(slot.startTime, slot.endTime, 'sr-Latn-RS')}</strong><Badge tone={slot.status?.startsWith('OCCUPIED_') ? 'warning' : 'success'}>{slot.status?.startsWith('OCCUPIED_') ? 'Zauzet' : 'Slobodan'}</Badge>
             <small>{[slot.resourceCode, slot.resourceName, slot.locationName, employeeChoice === 'ANY' ? slot.employeeName : null].filter(Boolean).join(' · ')}</small>{slot.reason && <small>{bookingConflictReason(slot.reason)}</small>}
           </label>)}</div>}
@@ -216,7 +216,7 @@ export function CustomerBookingDialog({ prefill, services, employees, loading, d
             <label>Politika konflikata<Select aria-label={"Politika konflikata"} value={conflictPolicy} onChange={event => setConflictPolicy(event.target.value as RecurrenceConflictPolicy)}><option value="ALL_OR_NOTHING">Sve ili nijedan termin</option><option value="SKIP_CONFLICTS">Preskoči konflikte</option></Select></label></div>
           {physicalStep && <p className="gm-my-booking-note">Za svaki termin serije posebno se proverava resurs u izabranom prostoru.</p>}
           <Button type="button" variant="secondary" loading={preview.isFetching} onClick={() => preview.refetch()}>Pregledaj ponavljanje</Button>
-          {preview.isLoading && <Skeleton lines={3} label="Provera ponavljajućih termina" />}{preview.isError && <ErrorState message={customerReservationError(preview.error, 'Ponavljanje nije moguće pregledati.')} action={<Button type="button" onClick={() => preview.refetch()}>Pokušaj ponovo</Button>} />}
+          {preview.isLoading && <Skeleton lines={3} label="Provera ponavljajućih termina" />}{preview.isError && <ErrorState message={customerReservationError(preview.error, 'Ponavljanje nije moguće pregledati.')} action={<Button variant="secondary" type="button" onClick={() => preview.refetch()}>Pokušaj ponovo</Button>} />}
           {preview.data && <RecurrencePreviewPanel preview={preview.data} policy={conflictPolicy} locale="sr-Latn-RS" />}
           </>}
         </details>}
@@ -227,12 +227,12 @@ export function CustomerBookingDialog({ prefill, services, employees, loading, d
         <div><dt>Računar / resurs</dt><dd>{resolvedResourceId ? [chosenSlot?.resourceCode || assigned?.code, chosenSlot?.resourceName || assigned?.name].filter(Boolean).join(' · ') : resourceRequired ? 'Resurs nije dodeljen' : 'Usluga ne zahteva resurs'}</dd></div>
         <div className="gm-my-full"><dt>Datum i vreme</dt><dd>{formatBusinessDateTime(selectedStart, false, 'sr-Latn-RS')}{chosenSlot && ` – ${formatBusinessIntervalEnd(selectedStart, chosenSlot.endTime, 'sr-Latn-RS')}`}</dd></div></dl>
         {!occupied && physicalStep && slotResources.isFetching && <p role="status">Provera dostupnosti resursa…</p>}
-        {!occupied && slotResources.isError && <ErrorState message={customerReservationError(slotResources.error, 'Dostupnost resursa nije moguće proveriti.')} action={<Button type="button" onClick={() => slotResources.refetch()}>Pokušaj ponovo</Button>} />}
+        {!occupied && slotResources.isError && <ErrorState message={customerReservationError(slotResources.error, 'Dostupnost resursa nije moguće proveriti.')} action={<Button variant="secondary" type="button" onClick={() => slotResources.refetch()}>Pokušaj ponovo</Button>} />}
         {resourceUnavailable && !occupied && <p className="gm-my-reservation-warning">Resurs više nije dostupan za izabrani interval. Osvežite pregled termina.</p>}
         {occupied && !recurring && <><p className="gm-my-reservation-warning">{bookingConflictReason(chosenSlot?.reason)}</p>
           {needsStandardWaitlist && <p className="gm-my-booking-note">Lista čekanja koristi standardno trajanje ove usluge: {service?.durationMinutes} min. Proverava se dostupnost tog intervala pre prijave.</p>}
           {waitlistAvailability.isFetching && needsStandardWaitlist && <p role="status">Provera termina za listu čekanja…</p>}
-          {waitlistAvailability.isError && needsStandardWaitlist && <ErrorState message={customerReservationError(waitlistAvailability.error, 'Termin za listu čekanja nije moguće proveriti.')} action={<Button type="button" onClick={() => waitlistAvailability.refetch()}>Pokušaj ponovo</Button>} />}
+          {waitlistAvailability.isError && needsStandardWaitlist && <ErrorState message={customerReservationError(waitlistAvailability.error, 'Termin za listu čekanja nije moguće proveriti.')} action={<Button variant="secondary" type="button" onClick={() => waitlistAvailability.refetch()}>Pokušaj ponovo</Button>} />}
           {needsStandardWaitlist && !waitlistAvailability.isFetching && !waitlistAvailability.isError && !canJoin && <p className="gm-my-reservation-warning">Standardni interval nije ponuđen kao zauzet termin za listu čekanja. Izaberite drugi ponuđeni termin.</p>}</>}
         {!chosenSlot && <p className="gm-my-reservation-warning">Termin se promenio. Izaberite ga ponovo iz osveženog pregleda.</p>}
       </section>}

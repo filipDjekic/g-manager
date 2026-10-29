@@ -73,7 +73,7 @@ export function LoginPage() {
   }
 
   return <AuthLayout>
-    <form className="gm-auth-form" onSubmit={submit} noValidate aria-labelledby="login-title">
+    <form className="ui-form-grid gm-auth-form" onSubmit={submit} noValidate aria-labelledby="login-title">
       <h1 id="login-title">Prijava</h1>
       {activationSuccess && <p className="gm-auth-success" role="status">
         Nalog je uspešno aktiviran. Sada se možete prijaviti.

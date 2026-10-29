@@ -8,7 +8,7 @@ import { reservationApi } from '../api/reservationApi'
 import { orderApi } from '../api/orderApi'
 import { waitlistApi } from '../api/waitlistApi'
 import { apiErrorMessage } from '../api/client'
-import { Badge, Button, EmptyState, ErrorState, Skeleton } from '../components/ui'
+import { Badge, Button, EmptyState, ErrorState, Skeleton, PageHeader, PageLayout } from '../components/ui'
 import { reservationLabels, reservationTones } from '../components/ui/statusPresentation'
 import { DashboardOrderCard, DashboardSection } from '../dashboard/DashboardComponents'
 import { ActiveGamingVisit, CustomerActivityList, CustomerHomeIcon, CustomerHomeMetric, CustomerSessionDialog, CustomerWaitlistPreview, GamingMotif, UpcomingReservations } from '../dashboard/customer/CustomerHomeComponents'
@@ -121,17 +121,12 @@ export function CustomerHomePage() {
   ].filter(value => value.failed)
   const activityLoading = canReserve && (visits.isLoading || recentReservations.isLoading) || canOrder && orders.isLoading
 
-  if (!customer || !canReserve && !canOrder) return <main className="workspace g-dashboard gm-customer-home">
+  if (!customer || !canReserve && !canOrder) return <PageLayout className="g-dashboard gm-customer-home">
     <EmptyState title="Početna kupca nije dostupna" description="Lični pregled zahteva odgovarajuću dozvolu za sopstvene aktivnosti." />
-  </main>
+  </PageLayout>
 
-  return <main className="workspace g-dashboard gm-customer-home">
-    <header className="gm-home-page-heading">
-      <div><span className="gm-home-house-icon"><NavigationIcon to="/home" /></span><div>
-        <h1 ref={titleRef} tabIndex={-1}>Početna</h1><p>Lični pregled vaših aktivnosti, rezervacija i gaming sesija.</p>
-      </div></div>
-      <Button type="button" variant="secondary" loading={refreshing} onClick={refresh}><CustomerHomeIcon kind="refresh" />Osveži pregled</Button>
-    </header>
+  return <PageLayout className="g-dashboard gm-customer-home">
+    <PageHeader title="Početna" description={<>Lični pregled vaših aktivnosti, rezervacija i gaming sesija.</>} icon={<NavigationIcon to="/home" />} titleRef={titleRef} actions={<><Button type="button" variant="secondary" loading={refreshing} onClick={refresh}><CustomerHomeIcon kind="refresh" />Osveži pregled</Button></>} />
 
     <section className="dashboard-customer-hero gm-home-hero" aria-labelledby="customer-welcome">
       <div className="dashboard-hero-content">
@@ -140,8 +135,8 @@ export function CustomerHomePage() {
         <p className="gm-home-hero-subtitle">Spreman za novu gaming avanturu?</p>
         <p>Ovde možeš pregledati svoje sesije, rezervacije, narudžbine i sve važne informacije.</p>
         <div className="dashboard-hero-actions">
-          {canCreateReservation ? <Link className="button-link" to={bookingHref}><NavigationIcon to="/my-reservations" />Rezerviši termin</Link>
-            : canReserve && <Link className="button-link" to="/my-reservations">Moji termini</Link>}
+          {canCreateReservation ? <Link className="ui-button ui-button--primary ui-button--medium" to={bookingHref}><NavigationIcon to="/my-reservations" />Rezerviši termin</Link>
+            : canReserve && <Link className="ui-button ui-button--primary ui-button--medium" to="/my-reservations">Moji termini</Link>}
           {canCatalog && <Link className="dashboard-hero-secondary" to="/catalog">Istraži katalog<CustomerHomeIcon kind="arrow" /></Link>}
         </div>
         {canResources && <Link className="gm-home-resource-link" to="/resources"><NavigationIcon to="/resources" />Pogledaj stanice i resurse<CustomerHomeIcon kind="arrow" /></Link>}
@@ -149,7 +144,7 @@ export function CustomerHomePage() {
       <div className="gm-home-hero-motif" aria-hidden="true"><GamingMotif /><span className="gm-home-motif-orbit" /></div>
     </section>
 
-    <section className="gm-home-kpis" aria-label="Lični pregled aktivnosti">
+    <section className="ui-stat-grid gm-home-kpis" aria-label="Lični pregled aktivnosti">
       {canReserve && <>
         <CustomerHomeMetric label="Aktivna sesija" icon="/gaming-sessions" iconNode={<CustomerHomeIcon kind="gamepad" />}
           value={firstActive ? activeState?.label === 'Vreme isteklo' ? 'Vreme isteklo' : 'U toku' : 'Bez sesije'}
@@ -175,18 +170,18 @@ export function CustomerHomePage() {
         <DashboardSection title="Aktivna gaming sesija" iconNode={<CustomerHomeIcon kind="gamepad" />} className="gm-home-session-panel"
           actions={firstActive && activeState && <Badge tone={activeState.tone}>{activeState.label}</Badge>}>
           {visits.isLoading ? <Skeleton lines={6} label="Učitavanje aktivne gaming sesije" /> : visits.isError
-            ? <ErrorState message={apiErrorMessage(visits.error, 'Sesije nisu dostupne.')} action={<Button type="button" onClick={() => void refreshVisits()}>Pokušaj ponovo</Button>} />
+            ? <ErrorState message={apiErrorMessage(visits.error, 'Sesije nisu dostupne.')} action={<Button variant="secondary" type="button" onClick={() => void refreshVisits()}>Pokušaj ponovo</Button>} />
             : active.length ? active.map(visit => <ActiveGamingVisit key={visit.id} visit={visit} now={now} synchronized={synchronized} onOpen={rememberSessionTrigger} />)
               : <EmptyState title="Trenutno ne igrate." description="Osoblje pokreće sesiju kada dođete u igraonicu."
-                action={canCreateReservation ? <Link className="button-link" to={bookingHref}>Rezerviši termin</Link> : <Link to="/my-reservations">Moji termini</Link>} />}
+                action={canCreateReservation ? <Link className="ui-button ui-button--primary ui-button--medium" to={bookingHref}>Rezerviši termin</Link> : <Link to="/my-reservations">Moji termini</Link>} />}
         </DashboardSection>
         <DashboardSection title="Sledeće rezervacije" icon="/my-reservations" className="gm-home-reservations-panel"
           actions={<Link to="/my-reservations?filter=UPCOMING">Vidi sve →</Link>}>
           {reservations.isLoading ? <Skeleton lines={6} label="Učitavanje sledećih rezervacija" /> : reservations.isError
-            ? <ErrorState message={apiErrorMessage(reservations.error, 'Termini nisu dostupni.')} action={<Button type="button" onClick={() => void reservations.refetch()}>Pokušaj ponovo</Button>} />
+            ? <ErrorState message={apiErrorMessage(reservations.error, 'Termini nisu dostupni.')} action={<Button variant="secondary" type="button" onClick={() => void reservations.refetch()}>Pokušaj ponovo</Button>} />
             : upcoming.length ? <UpcomingReservations reservations={upcoming} /> : <EmptyState title="Nemate predstojećih termina."
               description="Ovde se prikazuju vaši budući termini na čekanju i potvrđene rezervacije."
-              action={canCreateReservation && <Link className="button-link" to={bookingHref}>Nova rezervacija</Link>} />}
+              action={canCreateReservation && <Link className="ui-button ui-button--primary ui-button--medium" to={bookingHref}>Nova rezervacija</Link>} />}
         </DashboardSection>
       </>}
       <DashboardSection title="Brze akcije" icon="/catalog" className="gm-home-quick-panel">
@@ -203,13 +198,13 @@ export function CustomerHomePage() {
       {canReserve && <DashboardSection title="Lista čekanja" icon="/waitlist" className="gm-home-waitlist-panel"
         actions={<Link to="/my-reservations?section=waitlist">Sve prijave →</Link>}>
         {queue.isLoading ? <Skeleton lines={5} label="Učitavanje liste čekanja" /> : queue.isError
-          ? <ErrorState message={apiErrorMessage(queue.error, 'Lista čekanja nije dostupna.')} action={<Button type="button" onClick={() => void refreshQueue()}>Pokušaj ponovo</Button>} />
+          ? <ErrorState message={apiErrorMessage(queue.error, 'Lista čekanja nije dostupna.')} action={<Button variant="secondary" type="button" onClick={() => void refreshQueue()}>Pokušaj ponovo</Button>} />
           : waiting.length ? <CustomerWaitlistPreview entries={waiting} now={now} synchronized={synchronized} canManage={canCreateReservation} />
             : <EmptyState title="Nemate aktivnih prijava na listi čekanja." description="Kada se prijavite za zauzet termin, prijave i ponude pojaviće se ovde."
               action={canCreateReservation && <Link to={bookingHref}>Nova rezervacija →</Link>} />}
       </DashboardSection>}
       <DashboardSection title="Poslednje aktivnosti" icon="/waitlist" description="Pregled dostupnih sesija, rezervacija i narudžbina." className="gm-home-activity-panel">
-        {activityErrors.map(error => <ErrorState key={error.key} message={error.message} action={<Button type="button" onClick={error.retry}>Pokušaj ponovo</Button>} />)}
+        {activityErrors.map(error => <ErrorState key={error.key} message={error.message} action={<Button variant="secondary" type="button" onClick={error.retry}>Pokušaj ponovo</Button>} />)}
         {activityLoading && <Skeleton lines={4} label="Učitavanje poslednjih aktivnosti" />}
         {activities.length > 0 && <CustomerActivityList activities={activities} icon={path => <NavigationIcon to={path} />} onOpen={rememberSessionTrigger} />}
         {activityErrors.length > 0 && activities.length > 0 && <p className="gm-home-section-note">Prikazane su aktivnosti iz dostupnih izvora.</p>}
@@ -220,7 +215,7 @@ export function CustomerHomePage() {
     {canOrder && <DashboardSection title="Poslednje narudžbine" iconNode={<CustomerHomeIcon kind="cart" />} className="gm-home-orders-panel"
       actions={<Link to="/my-orders">Sve narudžbine →</Link>}>
       {orders.isLoading ? <div className="gm-home-orders-grid"><Skeleton lines={3} label="Učitavanje narudžbine" /><Skeleton lines={3} label="Učitavanje narudžbine" /></div> : orders.isError
-        ? <ErrorState message={apiErrorMessage(orders.error, 'Narudžbine nisu dostupne.')} action={<Button type="button" onClick={() => void orders.refetch()}>Pokušaj ponovo</Button>} />
+        ? <ErrorState message={apiErrorMessage(orders.error, 'Narudžbine nisu dostupne.')} action={<Button variant="secondary" type="button" onClick={() => void orders.refetch()}>Pokušaj ponovo</Button>} />
         : !orders.data?.content.length ? <EmptyState title="Još nemate narudžbine" action={canCatalog && <Link to="/catalog">Pogledajte ponudu →</Link>} />
           : <div className="gm-home-orders-grid">{orders.data.content.slice(0, 3).map(order => <DashboardOrderCard key={order.id} order={order} locale="sr-Latn-RS">
             <Link to="/my-orders">Pregled narudžbina →</Link></DashboardOrderCard>)}</div>}
@@ -229,12 +224,12 @@ export function CustomerHomePage() {
     {canReserve && <details id="gaming-history" className="ui-card dashboard-history gm-home-history">
       <summary><span><CustomerHomeIcon kind="gamepad" />Gaming istorija</span>{visits.isSuccess && <small>{history.length} sesija u pregledu</small>}</summary>
       {visits.isLoading ? <Skeleton lines={4} label="Učitavanje gaming istorije" /> : visits.isError
-        ? <ErrorState message={apiErrorMessage(visits.error, 'Gaming istorija nije dostupna.')} action={<Button type="button" onClick={() => void refreshVisits()}>Pokušaj ponovo</Button>} />
+        ? <ErrorState message={apiErrorMessage(visits.error, 'Gaming istorija nije dostupna.')} action={<Button variant="secondary" type="button" onClick={() => void refreshVisits()}>Pokušaj ponovo</Button>} />
         : <GamingVisitList visits={history} locale="sr-Latn-RS" showDuration />}
     </details>}
 
     <CustomerSessionDialog open={Boolean(selectedSessionId)} visit={currentSession} now={now} synchronized={synchronized} loading={visits.isLoading}
       error={visits.isError ? apiErrorMessage(visits.error, 'Detalji gaming sesije nisu dostupni.') : undefined} returnFocusRef={sessionTrigger}
       onClose={closeSession} onRefresh={() => void refreshVisits()} />
-  </main>
+  </PageLayout>
 }

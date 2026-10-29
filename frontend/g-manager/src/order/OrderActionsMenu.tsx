@@ -44,12 +44,12 @@ export function OrderActionsMenu({ order, user, disabled, onAction }: {
     if (trigger.current) onAction(action, trigger.current)
   }
   return <>
-    <Button ref={trigger} type="button" variant="secondary" className="gm-orders-menu-trigger" disabled={disabled}
+    <Button size="small" iconOnly ref={trigger} type="button" variant="ghost" className="gm-orders-menu-trigger" disabled={disabled}
       aria-label={`Akcije za narudžbinu ${shortOrderId(order.id)}`} aria-haspopup="menu" aria-expanded={open}
       aria-controls={open ? id : undefined} onClick={() => setOpen(!open)} onKeyDown={event => {
         if (['ArrowDown', 'ArrowUp'].includes(event.key)) { event.preventDefault(); setOpen(true) }
       }}>⋯</Button>
-    {open && createPortal(<div ref={menu} role="menu" id={id} className="gm-orders-action-menu" style={position}
+    {open && createPortal(<div ref={menu} role="menu" id={id} className="ui-menu gm-orders-action-menu" style={position}
       aria-label={`Narudžbina ${shortOrderId(order.id)}`} onKeyDown={keyboard}>
       <button type="button" role="menuitem" tabIndex={-1} onClick={() => choose('DETAILS')}>Detalji</button>
       {(['IN_PROGRESS', 'READY', 'COMPLETED', 'CANCELLED'] as const).filter(status => canChangeOrder(order, status, user)).map(status =>

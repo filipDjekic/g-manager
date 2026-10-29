@@ -25,7 +25,7 @@ export function OrderDetails({ order, user, loading, error, busy, returnFocusRef
           <div className="gm-orders-details-hero"><strong title={order.id}>{shortOrderId(order.id)}</strong>
             <Badge tone={orderTones[order.status]}>{orderLabels[order.status]}</Badge>
             <time dateTime={order.createdAt}>{formatBusinessDateTime(order.createdAt, false, 'sr-Latn-RS')}</time></div>
-          <div className="gm-orders-details-tabs" role="tablist" aria-label="Detalji narudžbine">
+          <div className="ui-tab-list gm-orders-details-tabs" role="tablist" aria-label="Detalji narudžbine">
             {(['OVERVIEW', 'ITEMS'] as const).map(value => <button key={value} id={`${id}-${value}-tab`} role="tab" type="button"
               aria-selected={tab === value} aria-controls={`${id}-panel`} tabIndex={tab === value ? 0 : -1} onClick={() => setTab(value)}
               onKeyDown={event => { if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {

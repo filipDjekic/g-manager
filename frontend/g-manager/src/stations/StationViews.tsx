@@ -2,7 +2,7 @@ import { type StationViewHandlers, operationsUrl, stationMenuActions } from './S
 import { useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { hasCapability } from '../auth/capabilities'
-import { Badge, Button, TableShell } from '../components/ui'
+import { Badge, Button, TableShell, Card } from '../components/ui'
 import { permitsStationAction, stationSeconds, stationTimer } from '../gaming/operationsPresentation'
 import { ResourceMenu } from '../resources/ResourceMenu'
 import { formatBusinessDateTime } from '../reservations/dateTime'
@@ -35,13 +35,13 @@ export function StationCard({ station, user, now, selected, disabled, handlers }
 }) {
   const trigger = useRef<HTMLButtonElement>(null), status = stationStatus(station), connection = connectionStatus(station)
   const warnings = stationWarnings(station)
-  return <article className={`gm-stations-card${selected ? ' is-selected' : ''}`} onClick={event => {
+  return <Card as="article" className={`gm-stations-card${selected ? ' is-selected' : ''}`} onClick={event => {
     if (!(event.target as HTMLElement).closest('button, a, input, label') && trigger.current) handlers.details(station, 'OVERVIEW', trigger.current)
   }}>
     <header><Badge tone={status.tone}>{status.label}</Badge><ResourceMenu label={`Akcije za ${station.resourceName}`}
       actions={stationMenuActions(station, user, handlers)}>⋯</ResourceMenu></header>
-    <button ref={trigger} className="gm-stations-card-title" type="button" aria-label={`Detalji stanice ${station.resourceName}`}
-      onClick={event => handlers.details(station, 'OVERVIEW', event.currentTarget)}><strong>{station.resourceName}</strong><span>{station.resourceCode}</span></button>
+    <Button variant="ghost" ref={trigger} className="gm-stations-card-title" type="button" aria-label={`Detalji stanice ${station.resourceName}`}
+      onClick={event => handlers.details(station, 'OVERVIEW', event.currentTarget)}><strong>{station.resourceName}</strong><span>{station.resourceCode}</span></Button>
     <StationIllustration />
     <div className="gm-stations-card-location"><span>{station.locationName || 'Lokal nije dostupan'}</span><span>{station.areaName || 'Zona nije dostupna'}</span></div>
     <dl className="gm-stations-card-facts"><div><dt>Profil aplikacija</dt><dd>{station.applicationProfileName || 'Nije dodeljen'}</dd></div>
@@ -50,18 +50,18 @@ export function StationCard({ station, user, now, selected, disabled, handlers }
     {warnings.length > 0 && <div className="gm-stations-card-warnings">{warnings.map(warning => <p key={warning}>{warning}</p>)}</div>}
     <footer><Button type="button" variant="secondary" onClick={event => handlers.details(station, 'OVERVIEW', event.currentTarget)}>Detalji</Button>
       <StationOperationLinks station={station} user={user} disabled={disabled} compact /></footer>
-  </article>
+  </Card>
 }
 export function StationsTable({ stations, user, now, selectedId, disabled, handlers }: {
   stations: StationView[]; user: AuthUser | null; now: number; selectedId: string; disabled: boolean; handlers: StationViewHandlers
 }) {
-  return <div className="gm-stations-table-wrap"><TableShell label="Pregled gaming stanica"><table className="gm-stations-table">
+  return <TableShell label="Pregled gaming stanica" className="gm-stations-table-wrap"><table className="ui-data-table gm-stations-table">
     <thead><tr><th scope="col">Stanica</th><th scope="col">Lokal i zona</th><th scope="col">Operativni status</th><th scope="col">Konekcija</th>
       <th scope="col">Profil aplikacija</th><th scope="col">Aktivna sesija</th><th scope="col">Poslednji kontakt</th><th scope="col">Akcije</th></tr></thead>
     <tbody>{stations.map(station => { const status = stationStatus(station), connection = connectionStatus(station)
       return <tr key={station.resourceId} className={selectedId === station.resourceId ? 'is-selected' : undefined}>
-        <td data-label="Stanica"><button type="button" className="gm-stations-table-title" onClick={event => handlers.details(station, 'OVERVIEW', event.currentTarget)}><StationIcon />
-          <span><strong>{station.resourceName}</strong><small>{station.resourceCode}</small></span></button></td>
+        <td data-label="Stanica"><Button variant="ghost" type="button" className="gm-stations-table-title" onClick={event => handlers.details(station, 'OVERVIEW', event.currentTarget)}><StationIcon />
+          <span><strong>{station.resourceName}</strong><small>{station.resourceCode}</small></span></Button></td>
         <td data-label="Lokal i zona">{station.locationName || 'Nije dostupan'}<small>{station.areaName || 'Zona nije dostupna'}</small></td>
         <td data-label="Operativni status"><Badge tone={status.tone}>{status.label}</Badge>{stationWarnings(station).map(warning => <small className="gm-stations-table-warning" key={warning}>{warning}</small>)}</td>
         <td data-label="Konekcija"><Badge tone={connection.tone}>{connection.label}</Badge></td>
@@ -73,5 +73,5 @@ export function StationsTable({ stations, user, now, selectedId, disabled, handl
           <StationOperationLinks station={station} user={user} disabled={disabled} compact /></div></td>
       </tr>
     })}</tbody>
-  </table></TableShell></div>
+  </table></TableShell>
 }

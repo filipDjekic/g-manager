@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { customerApi } from '../api/customerApi'
-import { Badge, Button, EmptyState, ErrorState, Modal, Pagination, Skeleton, TableShell } from '../components/ui'
+import { Badge, Button, EmptyState, ErrorState, Modal, Pagination, Skeleton, TableShell, Input, Alert } from '../components/ui'
 import './reservations.css'
 
 export function CustomerPicker({ value, onChange, required = false, disabled = false }: {
@@ -31,22 +31,22 @@ export function CustomerPicker({ value, onChange, required = false, disabled = f
       aria-label={value ? `Promeni klijenta: ${name ?? 'Izabrani klijent'}` : 'Izaberi klijenta'} onClick={() => setOpen(true)}>
       {value ? name ?? 'Učitavanje izabranog klijenta…' : required ? 'Izaberi klijenta' : 'Svi klijenti · izaberi klijenta'}
     </Button>
-    {required && value && selected.data && !selected.data.customer.active && <p className="warning-banner" role="alert">Klijent je deaktiviran. Izaberite aktivnog klijenta za rezervaciju.</p>}
-    {value && selected.error && <ErrorState message="Izabranog klijenta nije moguće proveriti." action={<Button type="button" onClick={() => selected.refetch()}>Pokušaj ponovo</Button>} />}
-    <Modal open={open} title="Izbor klijenta" className="reservation-customer-dialog" initialFocusRef={searchRef}
+    {required && value && selected.data && !selected.data.customer.active && <Alert tone="warning" role="alert">Klijent je deaktiviran. Izaberite aktivnog klijenta za rezervaciju.</Alert>}
+    {value && selected.error && <ErrorState message="Izabranog klijenta nije moguće proveriti." action={<Button variant="secondary" type="button" onClick={() => selected.refetch()}>Pokušaj ponovo</Button>} />}
+    <Modal size="wide" open={open} title="Izbor klijenta" className="reservation-customer-dialog" initialFocusRef={searchRef}
       returnFocusRef={trigger} onClose={() => setOpen(false)} footer={<>
-        {customers.data && !customers.error && <div className="reservation-customer-pagination"><small>
-          Prikazano {customers.data.totalElements ? page * 10 + 1 : 0}–{Math.min((page + 1) * 10, customers.data.totalElements)} od {customers.data.totalElements} klijenata
-        </small><Pagination page={page} totalPages={customers.data.totalPages} loading={customers.isFetching || searching} onPageChange={setPage} /></div>}
+        {customers.data && !customers.error && <Pagination numbered label="Stranice klijenata" page={page} pageSize={10}
+          totalElements={customers.data.totalElements} totalPages={customers.data.totalPages}
+          loading={customers.isFetching || searching} onPageChange={setPage} />}
       </>}>
       <label className="reservation-customer-search">Pretraži po imenu, prezimenu ili mejlu
-        <input aria-label={"Pretraži po imenu, prezimenu ili mejlu"} ref={searchRef} type="search" value={search} maxLength={120} placeholder="Ime, prezime ili email" onChange={event => setSearch(event.target.value)} />
+        <Input aria-label={"Pretraži po imenu, prezimenu ili mejlu"} ref={searchRef} type="search" value={search} maxLength={120} placeholder="Ime, prezime ili email" onChange={event => setSearch(event.target.value)} />
       </label>
       {!required && <Button type="button" variant="secondary" onClick={() => choose('')}>Svi klijenti</Button>}
       {searching && <p role="status">Pretraga klijenata…</p>}
-      {customers.error ? <ErrorState message="Klijente nije moguće učitati." action={<Button type="button" onClick={() => customers.refetch()}>Pokušaj ponovo</Button>} />
+      {customers.error ? <ErrorState message="Klijente nije moguće učitati." action={<Button variant="secondary" type="button" onClick={() => customers.refetch()}>Pokušaj ponovo</Button>} />
         : customers.isLoading ? <Skeleton lines={5} /> : !customers.data?.content.length ? <EmptyState title="Nema klijenata" description="Promenite pretragu." />
-          : <TableShell label="Klijenti"><table className="reservation-customer-table" role="table">
+          : <TableShell label="Klijenti"><table className="ui-data-table reservation-customer-table" role="table">
             <thead role="rowgroup"><tr role="row"><th scope="col">Ime i prezime</th><th scope="col">Email</th><th scope="col">Status</th><th scope="col">Akcija</th></tr></thead>
             <tbody role="rowgroup">{customers.data.content.map(customer => <tr role="row" key={customer.id} className={value === customer.id ? 'reservation-customer-selected' : ''}>
               <td role="cell"><strong>{customer.name}</strong>{value === customer.id && <small>Trenutni izbor</small>}</td>

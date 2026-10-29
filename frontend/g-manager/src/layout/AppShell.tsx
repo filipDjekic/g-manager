@@ -96,7 +96,7 @@ export function AppShell() {
   return <div className={`app-shell${collapsed ? ' sidebar-collapsed' : ''}${user?.role === 'CUSTOMER' ? ' customer-shell' : ''}`}>
     <ConnectivityBanner />
     <header className="shell-topbar">
-      <Button className="mobile-menu-button" variant="secondary" type="button"
+      <Button iconOnly className="mobile-menu-button" variant="secondary" type="button"
         aria-label="Meni" aria-expanded={menuOpen} aria-controls="mobile-navigation" onClick={() => setMenuOpen(true)}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"
           strokeLinecap="round" aria-hidden="true" focusable="false"><path d="M4 6h16M4 12h16M4 18h16" /></svg>

@@ -3,7 +3,7 @@ import { useEffect, useId, useMemo, useRef, useState, type PointerEvent as React
 import { useQueryClient } from '@tanstack/react-query'
 import { resourceApi } from '../api/resourceApi'
 import { apiErrorMessage } from '../api/client'
-import { Button, Select } from '../components/ui'
+import { Button, Select, Card, Alert } from '../components/ui'
 import type { AreaView, FloorPlanGeometry, LocationFloorPlan, ResourceAvailability, ResourcePosition, ResourceView } from '../types/resource.types'
 import { FloorPlanInspector } from './FloorPlanInspector'
 import { ResourceIcon } from './ResourceIcon'
@@ -151,9 +151,9 @@ export function ResourceFloorMap({plan,geometry,areas,resources,areaId,editing,o
   }
   const visibleRooms=current.rooms.filter(room=>editing||!areaId||room.areaId===areaId)
   const visibleResources=resources.filter(resource=>editing||!areaId||resource.areaId===areaId)
-  return <section className="resource-map-panel" aria-label="Interaktivna mapa prostora">
+  return <Card className="resource-map-panel" aria-label="Interaktivna mapa prostora">
     <div className="resource-section-heading"><div><h2>{editing?'Uređivanje rasporeda':'Tlocrt prostora'}</h2><p>{editing?'Nacrtajte element ili prevucite postojeći. Izmene važe tek nakon čuvanja.':'Izaberite resurs za detalje. Statusi se odnose na izabrani interval od 60 minuta.'}</p></div>
-      <div className="resource-map-zoom" aria-label="Uvećanje mape"><Button variant="secondary" aria-label="Umanji mapu" onClick={()=>zoom(1.25)}>−</Button><Button variant="secondary" onClick={()=>setView(bounds)}>Cela mapa</Button><Button variant="secondary" aria-label="Uvećaj mapu" onClick={()=>zoom(.8)}>+</Button></div>
+      <div className="resource-map-zoom" aria-label="Uvećanje mape"><Button iconOnly variant="secondary" aria-label="Umanji mapu" onClick={()=>zoom(1.25)}>−</Button><Button variant="secondary" onClick={()=>setView(bounds)}>Cela mapa</Button><Button iconOnly variant="secondary" aria-label="Uvećaj mapu" onClick={()=>zoom(.8)}>+</Button></div>
     </div>
     {editing&&<div className="resource-map-toolbar" role="toolbar" aria-label="Alati za uređivanje mape">
       {tools.map(item=><Button key={item.id} variant="secondary" aria-pressed={tool===item.id} disabled={busy} onClick={()=>{setTool(item.id);setMessage('')}}>{item.label}</Button>)}
@@ -161,7 +161,7 @@ export function ResourceFloorMap({plan,geometry,areas,resources,areaId,editing,o
       <Button loading={busy} onClick={()=>void save()}>Sačuvaj</Button><Button variant="secondary" disabled={busy} onClick={onFinish}>Otkaži</Button>
       {tool==='resource'&&<label>Postojeći resurs<Select aria-label={"Postojeći resurs"} disabled={busy} value={placing} onChange={event=>setPlacing(event.target.value)}><option value="">Izaberite resurs</option>{resources.filter(resource=>baseline.has(resource.id)).map(resource=><option key={resource.id} value={resource.id}>{resource.name} · {resource.areaName}</option>)}</Select></label>}
     </div>}
-    {error&&<p className="error-banner" role="alert">{error}</p>}{message&&<p className="resource-map-hint" role="status">{message}</p>}
+    {error&&<Alert tone="danger" role="alert">{error}</Alert>}{message&&<p className="resource-map-hint" role="status">{message}</p>}
     <div className={`resource-map-canvas${editing?' is-editing':''}`}>
       <svg ref={svg} role="group" tabIndex={0} viewBox={`${view.x} ${view.y} ${view.width} ${view.height}`} aria-label="2D mapa lokala. Strelice pomeraju mapu, plus i minus menjaju uvećanje, Home prikazuje celu mapu. Resursi otvaraju detalje." onPointerDown={event=>begin(event)} onPointerMove={move} onPointerUp={event=>end(event)} onPointerCancel={event=>end(event,true)} onKeyDown={event=>{
         if(event.target!==event.currentTarget)return
@@ -228,5 +228,5 @@ export function ResourceFloorMap({plan,geometry,areas,resources,areaId,editing,o
     </div>
     <div className="resource-map-legend">{Object.entries(resourceStatusLabels).map(([status,label])=><span key={status} className={`resource-state-${status.toLowerCase()}`}><i aria-hidden="true"/>{label}</span>)}<span className="resource-pan-hint">Prevucite praznu površinu za pomeranje mape.</span></div>
     {editing&&<FloorPlanInspector selection={selection} geometry={draft} areas={areas} resources={resources} positions={positions} onGeometry={setDraft} onPosition={updatePosition} onRemove={remove} disabled={busy}/>}
-  </section>
+  </Card>
 }

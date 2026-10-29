@@ -1,7 +1,7 @@
 import { useId, useRef, useState, type FormEvent, type RefObject } from 'react'
 import type { UseQueryResult } from '@tanstack/react-query'
 import { timeOffApi } from '../api/timeOffApi'
-import { Button, ErrorState, FormField, Input, Modal, Select, Textarea } from '../components/ui'
+import { Button, ErrorState, FormField, Input, Modal, Select, Textarea, Alert } from '../components/ui'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useDirtyGuard } from '../forms/useDirtyGuard'
 import { businessLocalToInstant } from '../reservations/dateTime'
@@ -43,12 +43,12 @@ export function TimeOffDialog({ employees, returnFocusRef, onClose, onSaved }: {
     finally { inFlight.current = false; setBusy(false) }
   }
   return <>
-    <Modal open title="Novo odsustvo" titleIcon={<SettingsIcon kind="calendar" />} className="gm-settings-dialog" onClose={close} closeDisabled={busy}
+    <Modal size="wide" open title="Novo odsustvo" titleIcon={<SettingsIcon kind="calendar" />} className="gm-settings-dialog" onClose={close} closeDisabled={busy}
       descriptionId={id + '-description'} initialFocusRef={first} returnFocusRef={returnFocusRef}
-      footer={<div className="gm-settings-dialog-actions"><Button type="button" variant="secondary" disabled={busy} onClick={close}>Otkaži</Button>
+      footer={<div className="ui-actions gm-settings-dialog-actions"><Button type="button" variant="secondary" disabled={busy} onClick={close}>Otkaži</Button>
         <Button type="submit" form={id} className="gm-settings-primary" loading={busy} disabled={employees.isLoading || employees.isError}>Sačuvaj zahtev</Button></div>}>
       <p id={id + '-description'} className="gm-settings-note">Kreirajte zahtev za odsustvo zaposlenog.</p>
-      <form id={id} className="gm-settings-form" onSubmit={submit}>
+      <form id={id} className="ui-form-grid gm-settings-form" onSubmit={submit}>
         <div className="gm-settings-form-wide"><FormField label="Zaposleni *" htmlFor={id + '-employee'}><Select ref={first} id={id + '-employee'} required
           value={form.employeeId} disabled={busy || employees.isLoading || employees.isError} onChange={event => change({ employeeId: event.target.value })}>
           <option value="">Izaberite zaposlenog</option>{employees.data?.filter(item => item.active && item.role === 'EMPLOYEE' && !item.deletedAt).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></FormField></div>
@@ -59,9 +59,9 @@ export function TimeOffDialog({ employees, returnFocusRef, onClose, onSaved }: {
         {start && end && Date.parse(end) > Date.parse(start) && <div className="gm-settings-form-wide gm-settings-duration"><SettingsIcon kind="clock" />Ukupno trajanje perioda: <strong>{elapsedTime(start, end)}</strong></div>}
         <div className="gm-settings-form-wide"><FormField label="Razlog *" htmlFor={id + '-reason'} hint={`${form.reason.length}/500`}>
           <Textarea id={id + '-reason'} required rows={4} maxLength={500} value={form.reason} disabled={busy} onChange={event => change({ reason: event.target.value })} /></FormField></div>
-        {employees.error && <div className="gm-settings-form-wide"><ErrorState message="Zaposlene nije moguće učitati." action={<Button type="button" onClick={() => void employees.refetch()}>Pokušaj ponovo</Button>} /></div>}
+        {employees.error && <div className="gm-settings-form-wide"><ErrorState message="Zaposlene nije moguće učitati." action={<Button variant="secondary" type="button" onClick={() => void employees.refetch()}>Pokušaj ponovo</Button>} /></div>}
         {!employees.isLoading && !employees.error && !employees.data?.some(item => item.active) && <p className="gm-settings-note gm-settings-form-wide">Nema aktivnih zaposlenih za izbor.</p>}
-        {error && <p className="error-banner gm-settings-form-wide" role="alert">{error}</p>}
+        {error && <Alert tone="danger" className="gm-settings-form-wide" role="alert">{error}</Alert>}
       </form>
     </Modal>
     {confirmationDialog}

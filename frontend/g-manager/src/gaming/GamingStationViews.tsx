@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Badge, Button, EmptyState, TableShell } from '../components/ui'
+import { Badge, Button, EmptyState, TableShell, Card } from '../components/ui'
 import { formatBusinessDateTime } from '../reservations/dateTime'
 import type { GamingStationCard } from '../types/gamingSession.types'
 import { enforcementLabels, remaining, stationLabels, stationTones } from './presentation'
@@ -45,7 +45,7 @@ function StationActions({ station, disabled, handlers, variant = 'panel' }: {
   if (variant === 'card' && !permit('START') && !permit('EXTEND') && !permit('TERMINATE')) return null
   return <div className={`ops-station-actions${compact ? ' ops-station-actions--compact' : ''}`}
     onClick={event => event.stopPropagation()}>
-    {permit('START') && <Button type="button" disabled={disabled} onClick={() => handlers.onStart(station)}>Pokreni sesiju</Button>}
+    {permit('START') && <Button variant="primary" type="button" disabled={disabled} onClick={() => handlers.onStart(station)}>Pokreni sesiju</Button>}
     {permit('EXTEND') && <Button type="button" variant="secondary" disabled={disabled} onClick={() => handlers.onExtend(station, 30)}>+30 min</Button>}
     {permit('TERMINATE') && <Button type="button" variant="danger" disabled={disabled} onClick={() => handlers.onEnd(station)}>Završi</Button>}
     {variant !== 'card' && <>
@@ -79,15 +79,15 @@ export const StationTile = memo(function StationTile({ station, seconds, selecte
   const connectivity = stationConnection(station)
   const expiring = !!station.sessionId && seconds <= 600
   const connectionLabel = connectivity.tone === 'success' ? 'Povezan' : connectivity.tone === 'danger' ? 'Veza nepoznata' : connectivity.label
-  return <article id={`station-${station.resourceId}`}
+  return <Card as="article" id={`station-${station.resourceId}`}
     className={`ops-station ops-station--${station.status.toLowerCase().replace('_', '-')}${selected ? ' ops-station--selected' : ''}${expiring ? ' ops-station--expiring' : ''}`}
     onClick={(event) => { if (!(event.target as Element).closest('button, a')) onSelect(station) }}>
     <header className="ops-station-header">
       <span className="ops-monitor"><GamingOperationsIcon /></span>
-      <h3><button type="button" className="ops-station-select" aria-pressed={selected}
+      <h3><Button variant="ghost" type="button" className="ops-station-select" aria-pressed={selected}
         aria-controls="ops-selected-station" aria-label={`Pregled stanice ${station.resourceName}`} onClick={() => onSelect(station)}>
         {station.resourceName}
-      </button></h3>
+      </Button></h3>
     </header>
     <div className="ops-station-signals">
       <Badge tone={stationTones[station.status]}>{stationLabels[station.status]}</Badge>
@@ -100,7 +100,7 @@ export const StationTile = memo(function StationTile({ station, seconds, selecte
     </div>}
     <StationWarnings station={station} compact />
     <StationActions station={station} disabled={disabled} handlers={handlers} variant="card" />
-  </article>
+  </Card>
 })
 
 export function StationDetailsPanel({ station, now, disabled, handlers, unavailable, outsidePage }: {
@@ -142,15 +142,15 @@ export function GamingSessionsTable({ stations, selectedId, now, disabled, onSel
   stations: GamingStationCard[]; selectedId: string; now: number; disabled: boolean
   onSelect: (station: GamingStationCard) => void; handlers: StationActionHandlers
 }) {
-  return <TableShell label="Aktivne sesije na dostupnim stanicama"><table className="ops-session-table">
+  return <TableShell label="Aktivne sesije na dostupnim stanicama"><table className="ui-data-table ops-session-table">
     <caption className="ops-sr-only">Trenutne sesije iz Gaming Operations Board-a</caption>
     <thead><tr><th scope="col">Računar</th><th scope="col">Klijent</th><th scope="col">Lokacija</th><th scope="col">Početak</th>
       <th scope="col">Planirani kraj</th><th scope="col">Preostalo</th><th scope="col">Status</th><th scope="col">Akcije</th></tr></thead>
     <tbody>{stations.map((station) => {
       const seconds = stationSeconds(station, now)
       return <tr key={station.resourceId} className={selectedId === station.resourceId ? 'ops-session-row--selected' : undefined}>
-        <th scope="row"><button type="button" className="ops-table-select" aria-pressed={selectedId === station.resourceId}
-          aria-label={`Pregled stanice ${station.resourceName}`} onClick={() => onSelect(station)}><GamingOperationsIcon /><span>{station.resourceName}<small>{station.resourceCode}</small></span></button></th>
+        <th scope="row"><Button variant="ghost" type="button" className="ops-table-select" aria-pressed={selectedId === station.resourceId}
+          aria-label={`Pregled stanice ${station.resourceName}`} onClick={() => onSelect(station)}><GamingOperationsIcon /><span>{station.resourceName}<small>{station.resourceCode}</small></span></Button></th>
         <td>{station.customerDisplayName ?? 'Klijent'}</td><td>{station.locationName ?? '—'}</td>
         <td>{station.startedAt ? <time dateTime={station.startedAt}>{formatBusinessDateTime(station.startedAt)}</time> : '—'}</td>
         <td>{station.endsAt ? <time dateTime={station.endsAt}>{formatBusinessDateTime(station.endsAt)}</time> : '—'}</td>

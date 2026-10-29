@@ -43,7 +43,7 @@ export function StationDetails({ station, user, now, initialTab, profiles, defin
           <p>{station.locationName || 'Lokal nije dostupan'} · {station.areaName || 'Zona nije dostupna'}</p></div>
         {stale && <div className="gm-stations-warning" role="status">Podaci mogu biti zastareli. Osvežite pre operativnih ili konfiguracionih promena.
           <Button type="button" variant="secondary" onClick={onRefresh}>Osveži podatke</Button></div>}
-        <div className="gm-stations-detail-tabs" role="tablist" aria-label="Detalji gaming stanice">{tabs.map(([value, label], index) =>
+        <div className="ui-tab-list gm-stations-detail-tabs" role="tablist" aria-label="Detalji gaming stanice">{tabs.map(([value, label], index) =>
           <button key={value} type="button" role="tab" id={`${id}-${value}`} aria-selected={tab === value} aria-controls={`${id}-panel`} tabIndex={tab === value ? 0 : -1}
             onClick={() => setTab(value)} onKeyDown={event => { if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
               event.preventDefault(); const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length
@@ -87,7 +87,7 @@ export function StationDetails({ station, user, now, initialTab, profiles, defin
             {hasCapability(user, 'STATION_MAINTENANCE') && <Button type="button" className="gm-stations-detail-configure" variant="secondary" disabled={handlers.configurationDisabled} onClick={() => handlers.configure(station)}>Podesi stanicu</Button>}
           </>}
           {tab === 'APPLICATIONS' && (applicationLoading ? <Skeleton lines={4} label="Učitavanje profila i aplikacija" /> : applicationError
-            ? <ErrorState message={stationError(applicationError, 'Profil i aplikacije nisu dostupni.')} action={<Button type="button" onClick={onRefresh}>Pokušaj ponovo</Button>} />
+            ? <ErrorState message={stationError(applicationError, 'Profil i aplikacije nisu dostupni.')} action={<Button variant="secondary" type="button" onClick={onRefresh}>Pokušaj ponovo</Button>} />
             : !profile ? <EmptyState title="Profil aplikacija nije dostupan" description="Dodelite aktivan profil u podešavanjima stanice." />
             : <div className="gm-stations-detail-applications"><header><h3>{profile.name}</h3><Badge tone={profile.active ? 'success' : 'neutral'}>{profile.active ? 'Aktivan' : 'Neaktivan'}</Badge><p>{profile.code} · Konfiguracija v{profile.configurationVersion}</p>{profile.description && <p>{profile.description}</p>}</header>
               <p className="gm-stations-form-note">Dozvoljene aplikacije ovog profila. Ovaj prikaz ne potvrđuje koji se procesi trenutno izvršavaju.</p>
@@ -101,7 +101,7 @@ export function StationDetails({ station, user, now, initialTab, profiles, defin
               })}
             </div>)}
           {tab === 'HISTORY' && (!canHistory ? <EmptyState title="Istorija nije dostupna" description="Istorija je dostupna samo za stanice u vašem Gaming Operations opsegu." />
-            : history.isLoading ? <Skeleton lines={5} label="Učitavanje istorije stanice" /> : history.isError ? <ErrorState message={stationError(history.error, 'Istoriju nije moguće učitati.')} action={<Button type="button" onClick={() => history.refetch()}>Pokušaj ponovo</Button>} />
+            : history.isLoading ? <Skeleton lines={5} label="Učitavanje istorije stanice" /> : history.isError ? <ErrorState message={stationError(history.error, 'Istoriju nije moguće učitati.')} action={<Button variant="secondary" type="button" onClick={() => history.refetch()}>Pokušaj ponovo</Button>} />
               : !history.data?.entries.length ? <EmptyState title="Nema zabeleženih događaja" description="Komande i promene potvrde zaključavanja prikazivaće se ovde." />
                 : <div className="gm-stations-history"><p className="gm-stations-form-note">Poslednji zabeleženi događaji · osveženo {date(history.data.serverTime)}</p>
                   {history.data.entries.map((entry, index) => <article key={`${entry.category}-${entry.occurredAt}-${index}`}><div><strong>{actionLabels[entry.action] ?? entry.action}</strong>

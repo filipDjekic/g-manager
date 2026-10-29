@@ -1,5 +1,5 @@
 import { forwardRef, type InputHTMLAttributes, type ReactNode } from 'react'
-import { Input } from '../components/ui'
+import { Input, Button } from '../components/ui'
 
 type AuthFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'children'> & {
   id: string
@@ -26,7 +26,7 @@ export const AuthField = forwardRef<HTMLInputElement, AuthFieldProps>(function A
       </svg>
       <Input {...props} ref={ref} id={id} aria-invalid={!!error} aria-describedby={description}
         type={passwordToggle ? (passwordToggle.visible ? 'text' : 'password') : props.type} />
-      {passwordToggle && <button className="gm-auth-password-toggle" type="button" aria-controls={id}
+      {passwordToggle && <Button iconOnly variant="ghost" className="gm-auth-password-toggle" type="button" aria-controls={id}
         aria-label={passwordToggle.label} disabled={props.disabled || passwordToggle.disabled}
         onClick={passwordToggle.onToggle}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"
@@ -35,7 +35,7 @@ export const AuthField = forwardRef<HTMLInputElement, AuthFieldProps>(function A
           <circle cx="12" cy="12" r="3" />
           {passwordToggle.visible && <path d="m3 3 18 18" />}
         </svg>
-      </button>}
+      </Button>}
     </div>
     {error && <span id={`${id}-error`} className="field-error" role="alert">{error}</span>}
     {hint && <div id={`${id}-hint`} className="gm-auth-hint">{hint}</div>}

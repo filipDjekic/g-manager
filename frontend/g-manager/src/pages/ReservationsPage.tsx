@@ -11,7 +11,7 @@ import { apiErrorMessage } from '../api/client'
 import { reservationApi, type ReservationFilters } from '../api/reservationApi'
 import { SavedViewBar } from '../components/lists/SavedViewBar'
 import { SelectionBar } from '../components/lists/SelectionBar'
-import { Pagination, Badge, Button, EmptyState, ErrorState, Skeleton, TableShell } from '../components/ui'
+import { Pagination, Badge, Button, EmptyState, ErrorState, Skeleton, TableShell, PageHeader, PageLayout, Input, Select, StatCard, Card } from '../components/ui'
 import { reservationLabels, reservationTones } from '../components/ui/statusPresentation'
 import { ActionDialog } from '../components/ui/ActionDialog'
 import { useListUrlState } from '../lists/useListUrlState'
@@ -134,24 +134,16 @@ export function ReservationsPage() {
   ]
   const filterError = resources.error || locations.error || employees.error || managementScope.error
 
-  return <main className="workspace reservations-page">
-    <header className="reservations-page-header">
-      <div className="reservations-title"><span className="reservations-title-icon"><ReservationIcon /></span>
-        <div><h1>Rezervacije</h1><p>Upravljanje terminima, rezervacijama i dostupnošću resursa.</p></div></div>
-      <Button className="reservations-create-button" onClick={() => setCreateOpen(true)}><span aria-hidden="true">+</span> Nova rezervacija</Button>
-    </header>
-    <section className="reservations-kpis" aria-label="Statistika rezervacija" aria-busy={summary.isFetching}>
-      {kpis.map(kpi => <article key={kpi.label} className={`reservations-kpi reservations-kpi--${kpi.tone}`}>
-        <span className="reservations-kpi-label">{kpi.label}</span><ReservationIcon kind={kpi.icon} />
-        {summary.isLoading ? <Skeleton lines={1} label={`Učitavanje: ${kpi.label}`} /> : <strong>{kpi.value?.toLocaleString('sr-Latn-RS') ?? '—'}</strong>}
-        <small>{kpi.hint}</small>
-      </article>)}
+  return <PageLayout className="reservations-page">
+    <PageHeader title="Rezervacije" description={<>Upravljanje terminima, rezervacijama i dostupnošću resursa.</>} icon={<ReservationIcon />} actions={<><Button className="reservations-create-button" onClick={() => setCreateOpen(true)}><span aria-hidden="true">+</span> Nova rezervacija</Button></>} />
+    <section className="ui-stat-grid reservations-kpis" aria-label="Statistika rezervacija" aria-busy={summary.isFetching}>
+      {kpis.map(kpi => <StatCard label={<>{kpi.label}</>} value={summary.isLoading ? <Skeleton lines={1} label={`Učitavanje: ${kpi.label}`} /> : <>{kpi.value?.toLocaleString('sr-Latn-RS') ?? '—'}</>} icon={<ReservationIcon kind={kpi.icon} />} description={<>{kpi.hint}</>} tone={kpi.tone} key={kpi.label} />)}
     </section>
     <p className="reservations-statistics-note">Statistika po opsegu, pretrazi, lokaciji, resursu, zaposlenom i klijentu; sve statusne kategorije.
       {metrics && ` Poslovna vremenska zona: ${metrics.timezone}.`}</p>
     {summary.error && <ErrorState message={apiErrorMessage(summary.error, 'Statistiku nije moguće učitati.')}
-      action={<Button onClick={() => summary.refetch()}>Pokušaj ponovo</Button>} />}
-    <section className="reservations-filter-panel" aria-label="Filteri rezervacija">
+      action={<Button variant="secondary" onClick={() => summary.refetch()}>Pokušaj ponovo</Button>} />}
+    <section className="ui-filter-bar reservations-filter-panel" aria-label="Filteri rezervacija">
       <div className="reservations-filter-heading"><h2><ReservationIcon kind="filter" />Filteri i pretraga</h2>
         <Button type="button" variant="secondary" disabled={bulk.isPending} onClick={() => { setSelected(new Set()); url.apply({ scope }) }}>Resetuj filtere</Button></div>
       {actor?.role === 'EMPLOYEE' && <div className="reservations-scope-row">
@@ -161,18 +153,18 @@ export function ReservationsPage() {
       <fieldset className="reservations-filter-fields" disabled={bulk.isPending}>
         <legend className="reservations-sr-only">Osnovni filteri</legend>
         <label className="reservations-search">Pretraga rezervacija<span><ReservationIcon kind="search" />
-          <input type="search" maxLength={120} value={url.state.search} placeholder="Klijent, usluga, resurs…"
+          <Input type="search" maxLength={120} value={url.state.search} placeholder="Klijent, usluga, resurs…"
             onChange={event => changeFilters({ search: event.target.value })} /></span></label>
-        <label>Lokacija<select aria-label={"Lokacija"} value={url.state.locationId} onChange={event => changeFilters({ locationId: event.target.value })}>
-          <option value="">Sve lokacije</option>{locations.data?.map(location => <option key={location.id} value={location.id}>{location.name}</option>)}</select></label>
-        <label>Resurs<select aria-label={"Resurs"} value={url.state.resourceId} onChange={event => changeFilters({ resourceId: event.target.value })}>
+        <label>Lokacija<Select aria-label={"Lokacija"} value={url.state.locationId} onChange={event => changeFilters({ locationId: event.target.value })}>
+          <option value="">Sve lokacije</option>{locations.data?.map(location => <option key={location.id} value={location.id}>{location.name}</option>)}</Select></label>
+        <label>Resurs<Select aria-label={"Resurs"} value={url.state.resourceId} onChange={event => changeFilters({ resourceId: event.target.value })}>
           <option value="">Svi resursi</option>{scopedResources?.filter(resource => !url.state.locationId || resource.locationId === url.state.locationId)
-            .map(resource => <option key={resource.id} value={resource.id}>{resource.code} · {resource.name}</option>)}</select></label>
-        <label>Status<select aria-label={"Status"} value={url.state.status} onChange={event => changeFilters({ status: event.target.value })}>
-          <option value="">Svi statusi</option>{statuses.map(status => <option value={status} key={status}>{reservationLabels[status]}</option>)}</select></label>
-        <div className="reservations-date-range"><label>Od<input aria-label={"Od"} type="date" value={url.state.from} max={url.state.to || undefined}
+            .map(resource => <option key={resource.id} value={resource.id}>{resource.code} · {resource.name}</option>)}</Select></label>
+        <label>Status<Select aria-label={"Status"} value={url.state.status} onChange={event => changeFilters({ status: event.target.value })}>
+          <option value="">Svi statusi</option>{statuses.map(status => <option value={status} key={status}>{reservationLabels[status]}</option>)}</Select></label>
+        <div className="reservations-date-range"><label>Od<Input aria-label={"Od"} type="date" value={url.state.from} max={url.state.to || undefined}
           onChange={event => changeFilters({ from: event.target.value })} /></label>
-          <label>Do<input aria-label={"Do"} type="date" value={url.state.to} min={url.state.from || undefined} onChange={event => changeFilters({ to: event.target.value })} /></label></div>
+          <label>Do<Input aria-label={"Do"} type="date" value={url.state.to} min={url.state.from || undefined} onChange={event => changeFilters({ to: event.target.value })} /></label></div>
       </fieldset>
       <Button type="button" variant="secondary" className="reservations-more-filters" disabled={bulk.isPending}
         aria-expanded={moreFilters} aria-controls="reservations-advanced-filters" onClick={() => setMoreFilters(!moreFilters)}>
@@ -180,18 +172,18 @@ export function ReservationsPage() {
       </Button>
       <fieldset id="reservations-advanced-filters" className="reservations-advanced-filters" hidden={!moreFilters} disabled={bulk.isPending}>
         <legend className="reservations-sr-only">Dodatni filteri</legend>
-        <label>Zaposleni<select aria-label={"Zaposleni"} value={url.state.employeeId} onChange={event => changeFilters({ employeeId: event.target.value })}>
-          <option value="">Svi zaposleni</option>{employees.data?.map(employee => <option key={employee.id} value={employee.id}>{employee.name}</option>)}</select></label>
+        <label>Zaposleni<Select aria-label={"Zaposleni"} value={url.state.employeeId} onChange={event => changeFilters({ employeeId: event.target.value })}>
+          <option value="">Svi zaposleni</option>{employees.data?.map(employee => <option key={employee.id} value={employee.id}>{employee.name}</option>)}</Select></label>
         <CustomerPicker value={url.state.customerId} disabled={bulk.isPending} onChange={customerId => changeFilters({ customerId })} />
-        <label>Sortiranje<select aria-label={"Sortiranje"} value={`${filters.sort}:${filters.direction}`} onChange={event => {
+        <label>Sortiranje<Select aria-label={"Sortiranje"} value={`${filters.sort}:${filters.direction}`} onChange={event => {
           const [sort, direction] = event.target.value.split(':'); changeFilters({ sort, direction })
         }}><option value="startTime:ASC">Najraniji termin</option><option value="startTime:DESC">Najkasniji termin</option>
           <option value="createdAt:DESC">Najnoviji zahtev</option><option value="createdAt:ASC">Najstariji zahtev</option>
           <option value="status:ASC">Status · rastuće</option><option value="status:DESC">Status · opadajuće</option>
-          <option value="endTime:ASC">Najraniji kraj</option><option value="endTime:DESC">Najkasniji kraj</option></select></label>
+          <option value="endTime:ASC">Najraniji kraj</option><option value="endTime:DESC">Najkasniji kraj</option></Select></label>
       </fieldset>
       {filterError && <ErrorState message={apiErrorMessage(filterError, 'Opcije filtera nije moguće učitati.')}
-        action={<Button onClick={() => { void resources.refetch(); void locations.refetch(); void employees.refetch(); if (actor?.role === 'EMPLOYEE') void managementScope.refetch() }}>Pokušaj ponovo</Button>} />}
+        action={<Button variant="secondary" onClick={() => { void resources.refetch(); void locations.refetch(); void employees.refetch(); if (actor?.role === 'EMPLOYEE') void managementScope.refetch() }}>Pokušaj ponovo</Button>} />}
       <fieldset className="reservations-saved-views" disabled={bulk.isPending}><legend className="reservations-sr-only">Sačuvani prikazi</legend>
         <SavedViewBar resource="RESERVATIONS" query={{ ...url.queryObject, scope }} apply={query => {
           if (bulk.isPending) return
@@ -200,23 +192,23 @@ export function ReservationsPage() {
       </fieldset>
     </section>
     {bulkSummary && <p className="reservations-success" role="status">{bulkSummary}</p>}
-    <section className="reservations-table-panel" aria-labelledby="reservations-table-title">
+    <Card padding="none" className="reservations-table-panel" aria-labelledby="reservations-table-title">
       <div className="reservations-table-heading"><h2 id="reservations-table-title">Pregled rezervacija</h2>
-        <label className="reservations-select-page reservations-checkbox"><input aria-label={"Izaberi stranicu"} ref={selectAll} type="checkbox"
+        <label className="reservations-select-page reservations-checkbox"><Input aria-label={"Izaberi stranicu"} ref={selectAll} type="checkbox"
           disabled={bulk.isPending || result.isFetching || !selectable.length} checked={selectable.length > 0 && selectable.every(item => selected.has(item.id))}
           onChange={event => setSelected(event.target.checked ? new Set(selectable.map(item => item.id)) : new Set())} />Izaberi stranicu</label>
-        <label>Redova po stranici<select aria-label={"Redova po stranici"} value={size} disabled={bulk.isPending} onChange={event => changeFilters({ size: event.target.value })}>
-          {[10, 20, 50, 100].map(count => <option key={count} value={count}>{count}</option>)}</select></label></div>
+        <label>Redova po stranici<Select aria-label={"Redova po stranici"} value={size} disabled={bulk.isPending} onChange={event => changeFilters({ size: event.target.value })}>
+          {[10, 20, 50, 100].map(count => <option key={count} value={count}>{count}</option>)}</Select></label></div>
       <SelectionBar count={selected.size}>
         <Button loading={bulk.isPending} disabled={!mayBulk('CONFIRMED')} onClick={() => bulk.mutate({ status: 'CONFIRMED' })}>Potvrdi izabrane</Button>
         <Button variant="danger" disabled={!mayBulk('CANCELLED')} loading={bulk.isPending} onClick={() => setCancelOpen(true)}>Otkaži izabrane</Button>
         <Button variant="secondary" disabled={bulk.isPending} onClick={() => setSelected(new Set())}>Poništi izbor</Button>
       </SelectionBar>
       {(result.error || bulk.error) && <ErrorState message={apiErrorMessage(result.error || bulk.error, 'Operaciju nad rezervacijama nije moguće izvršiti.')}
-        action={<Button onClick={() => result.refetch()}>Pokušaj ponovo</Button>} />}
+        action={<Button variant="secondary" onClick={() => result.refetch()}>Pokušaj ponovo</Button>} />}
       {result.isLoading ? <Skeleton lines={10} label="Učitavanje rezervacija" /> : !rows.length ?
         !result.error && <EmptyState title="Nema rezervacija" description="Promenite filtere ili period da biste pronašli druge termine." /> :
-        <TableShell label="Rezervacije"><table className="reservations-table" role="table">
+        <TableShell label="Rezervacije"><table className="ui-data-table reservations-table" role="table">
           <caption className="reservations-sr-only">Rezervacije sa dozvoljenim akcijama; vreme u poslovnoj vremenskoj zoni.</caption>
           <thead role="rowgroup"><tr role="row"><th scope="col" className="reservations-select-cell"><span className="reservations-sr-only">Izbor</span></th>
             {['Datum i vreme', 'Klijent', 'Usluga', 'Resurs', 'Lokacija', 'Trajanje', 'Status', 'Akcije'].map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead>
@@ -224,7 +216,7 @@ export function ReservationsPage() {
             const localDate = businessInstantToLocal(reservation.startTime).split('T')[0]
             const minutes = Math.round((Date.parse(reservation.endTime) - Date.parse(reservation.startTime)) / 60000)
             return <tr role="row" key={reservation.id} className={`${selected.has(reservation.id) ? 'reservations-row-selected ' : ''}${reservation.readOnly ? 'reservations-row-readonly' : ''}`}>
-              <td role="cell" className="reservations-select-cell"><label className="reservations-checkbox"><input type="checkbox" checked={selected.has(reservation.id)}
+              <td role="cell" className="reservations-select-cell"><label className="reservations-checkbox"><Input type="checkbox" checked={selected.has(reservation.id)}
                 disabled={bulk.isPending || result.isFetching || !reservation.allowedActions?.length || !!reservation.readOnly}
                 onChange={() => toggle(reservation.id)} aria-label={`Izaberi rezervaciju: ${reservation.customerName}, ${formatBusinessDateTime(reservation.startTime)}`} /></label></td>
               <td role="cell" className="reservations-date-cell"><time dateTime={reservation.startTime}><strong>{calendarDate(localDate)}</strong>
@@ -244,7 +236,7 @@ export function ReservationsPage() {
         </table></TableShell>}
       {result.data && !result.error && <Pagination numbered page={page} pageSize={size} totalPages={result.data.totalPages} totalElements={result.data.totalElements}
         loading={result.isFetching || bulk.isPending} onPageChange={nextPage => { setUrl({ page: String(nextPage) }) }} />}
-    </section>
+    </Card>
     {(createOpen || url.state.create === 'true') && <StaffReservationForm onClose={() => { setCreateOpen(false); setUrl({ create: '' }) }}
       onCreated={(id, notice) => { setCreateOpen(false); setBulkSummary(notice ?? 'Rezervacija je kreirana.'); setDetailAction(null); setUrl({ create: '', reservationId: id }) }} />}
     <ReservationDetailsDrawer reservationId={url.state.reservationId || null} appearance="operations" returnFocusRef={returnFocus}
@@ -254,5 +246,5 @@ export function ReservationsPage() {
       description="Svaka dozvoljena promena biće odmah sačuvana i evidentirana." confirmLabel="Otkaži rezervacije"
       reasonLabel="Razlog" reasonRequired danger loading={bulk.isPending} onClose={() => setCancelOpen(false)}
       onConfirm={async reason => { if (!reason || !mayBulk('CANCELLED')) return; await bulk.mutateAsync({ status: 'CANCELLED', reason }); setCancelOpen(false) }} />
-  </main>
+  </PageLayout>
 }

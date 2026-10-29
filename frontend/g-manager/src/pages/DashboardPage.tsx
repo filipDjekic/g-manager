@@ -7,7 +7,7 @@ import { orderApi } from '../api/orderApi'
 import { reservationApi } from '../api/reservationApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Badge, Button, EmptyState, ErrorState, Input, Select, Skeleton } from '../components/ui'
+import { Badge, Button, EmptyState, ErrorState, Input, Select, Skeleton, PageLayout, Card, Alert } from '../components/ui'
 import { Tabs } from '../components/ui/Tabs'
 import { useToast } from '../components/ui/toastContext'
 import { GamingOverview } from '../gaming/GamingOverview'
@@ -191,25 +191,25 @@ export function DashboardPage() {
     : 'Termini, narudžbine i zadaci koji su danas pred vama.'
   const hasDashboardData = management ? Boolean(trends) : Boolean(today)
 
-  if (!management && !operational) return <main className="workspace g-dashboard">
+  if (!management && !operational) return <PageLayout className="g-dashboard">
     <ErrorState title="Dashboard nije dostupan" message="Nemate dozvolu za ovaj pregled." />
-  </main>
+  </PageLayout>
 
-  if (loading && !hasDashboardData) return <main className="workspace g-dashboard" aria-busy="true">
+  if (loading && !hasDashboardData) return <PageLayout className="g-dashboard" aria-busy="true">
     <DashboardHeader title={headerTitle} eyebrow={headerEyebrow} description={headerDescription} date={operationalDate}
       loading onRefresh={() => void retryInitial()} />
-    <div className="dashboard-kpis">{Array.from({ length: 4 }, (_, index) =>
-      <div className="ui-card" key={index}><Skeleton lines={3} label="Učitavanje metrike" /></div>)}</div>
-    <div className="ui-card"><Skeleton lines={6} label="Učitavanje dashboarda" /></div>
-  </main>
+    <div className="ui-stat-grid dashboard-kpis">{Array.from({ length: 4 }, (_, index) =>
+      <Card as="div" className="ui-card" key={index}><Skeleton lines={3} label="Učitavanje metrike" /></Card>)}</div>
+    <Card as="div" className="ui-card"><Skeleton lines={6} label="Učitavanje dashboarda" /></Card>
+  </PageLayout>
 
-  if (!hasDashboardData) return <main className="workspace g-dashboard">
+  if (!hasDashboardData) return <PageLayout className="g-dashboard">
     <DashboardHeader title={headerTitle} eyebrow={headerEyebrow} description={headerDescription} date={operationalDate}
       onRefresh={() => void retryInitial()} />
     <ErrorState message={error || 'Pregled trenutno nije dostupan.'}
-      action={<Button onClick={() => void retryInitial()}>Pokušaj ponovo</Button>} />
+      action={<Button variant="secondary" onClick={() => void retryInitial()}>Pokušaj ponovo</Button>} />
     {hasCapability(user, 'GAMING_SESSION_READ') && <div className="dashboard-gaming"><GamingOverview /></div>}
-  </main>
+  </PageLayout>
 
   if (!management && today) return <EmployeeDashboard today={today} busy={actionBusy} refreshing={loading} error={error}
     onRefresh={() => void refreshToday()}
@@ -264,17 +264,17 @@ export function DashboardPage() {
     detail="Primljene narudžbine bez zaposlenog"><Link to="/orders?status=CREATED">Otvori narudžbine →</Link>
   </DashboardMetricCard>
 
-  return <main className={`workspace g-dashboard ${adminPriority ? 'dashboard-admin' : 'dashboard-owner'}`} aria-busy={loading || undefined}>
+  return <PageLayout className={`g-dashboard ${adminPriority ? 'dashboard-admin' : 'dashboard-owner'}`} aria-busy={loading || undefined}>
     <DashboardHeader title="Dashboard" eyebrow={headerEyebrow} description={headerDescription}
       date={attention?.date ?? operationalDate} timezone={attention?.timezone ?? trends?.timezone}
       loading={loading} onRefresh={() => void retryInitial()} />
-    {error && <p className="error-banner" role="alert">{error}</p>}
+    {error && <Alert tone="danger" role="alert">{error}</Alert>}
     <Tabs idPrefix="dashboard" label="Sadržaj dashboarda" value={view} onChange={setView}
       items={[{ id: 'operations', label: 'Operativni pregled' }, { id: 'analytics', label: 'Analitika' }]} />
 
     <div className="dashboard-tab-panel" role="tabpanel" id="dashboard-panel-operations"
       aria-labelledby="dashboard-tab-operations" hidden={view !== 'operations'}>
-      {adminPriority ? <div className="dashboard-kpis dashboard-kpis--compact" aria-label="Današnja operativa">
+      {adminPriority ? <div className="ui-stat-grid dashboard-kpis dashboard-kpis--compact" aria-label="Današnja operativa">
         {dailyCard}
         {hasCapability(user, 'RESERVATION_READ_ALL') && <DashboardMetricCard label="Rezervacije na čekanju" icon="/waitlist" tone="warning"
           value={attention?.items.find((item) => item.key === 'pending-today')?.count ?? '—'} detail="Početak termina je danas">
@@ -287,7 +287,7 @@ export function DashboardPage() {
         </DashboardMetricCard>}
       </div> : <>
         <p className="dashboard-period-label">Izabrani period: {trends && `${formatDashboardDate(trends.from)} – ${formatDashboardDate(trends.to)}`}</p>
-        <div className="dashboard-kpis dashboard-kpis--owner" aria-label="Poslovanje i današnja operativa">
+        <div className="ui-stat-grid dashboard-kpis dashboard-kpis--owner" aria-label="Poslovanje i današnja operativa">
           {businessMetrics}{dailyCard}{unclaimedCard}
         </div>
       </>}
@@ -307,7 +307,7 @@ export function DashboardPage() {
       {adminPriority && <section className="dashboard-business-preview" aria-labelledby="dashboard-business-title">
         <div className="section-heading"><h2 id="dashboard-business-title">Poslovni pregled</h2>
           <span className="dashboard-period-label">{trends && `${formatDashboardDate(trends.from)} – ${formatDashboardDate(trends.to)}`}</span></div>
-        <div className="dashboard-kpis dashboard-kpis--business">{businessMetrics}</div>
+        <div className="ui-stat-grid dashboard-kpis dashboard-kpis--business">{businessMetrics}</div>
       </section>}
     </div>
 
@@ -315,12 +315,12 @@ export function DashboardPage() {
       aria-labelledby="dashboard-tab-analytics" hidden={view !== 'analytics'}>
       <div className="dashboard-analytics-toolbar">
         <div><h2>Poslovni rezultati</h2><p>Prihod od završenih narudžbina, rezervacije i opterećenje zaposlenih.</p></div>
-        <div className="form-actions">
+        <div className="ui-actions form-actions">
           <Button type="button" variant="secondary" disabled={loading} onClick={() => void download('current')}>Izvezi prikaz</Button>
           <Button type="button" variant="secondary" disabled={loading} onClick={() => void download('raw')}>Izvezi izvorne podatke</Button>
         </div>
       </div>
-      <form className="dashboard-filter-panel" onSubmit={load}>
+      <form className="ui-form-grid dashboard-filter-panel" onSubmit={load}>
         <label>Od<Input aria-label={"Od"} type="date" required value={from} onChange={(event) => setFrom(event.target.value)} /></label>
         <label>Do<Input aria-label={"Do"} type="date" required value={to} onChange={(event) => setTo(event.target.value)} /></label>
         <label>Zaposleni<Select aria-label={"Zaposleni"} value={employeeId} onChange={(event) => setEmployeeId(event.target.value)}>
@@ -333,12 +333,12 @@ export function DashboardPage() {
         Trenutni period: {formatDashboardDate(trends.from)} – {formatDashboardDate(trends.to)}.
         Prethodni: {formatDashboardDate(trends.previousFrom)} – {formatDashboardDate(trends.previousTo)} · {trends.timezone}.
       </p>}
-      <div className="dashboard-kpis dashboard-kpis--business" aria-label="Poslovni rezultati u periodu">{businessMetrics}</div>
+      <div className="ui-stat-grid dashboard-kpis dashboard-kpis--business" aria-label="Poslovni rezultati u periodu">{businessMetrics}</div>
 
       <details className="ui-card dashboard-widget-settings"><summary>Prilagodi dashboard</summary>
         <fieldset disabled={savingPreferences}>{orderedPreferences.map((item, index) =>
           <div className="dashboard-widget-setting" key={item.widgetKey}>
-            <label className="inline-toggle"><input type="checkbox" checked={item.visible}
+            <label className="inline-toggle"><Input type="checkbox" checked={item.visible}
               onChange={(event) => setPreferences((items) => items.map((value) =>
                 value.widgetKey === item.widgetKey ? { ...value, visible: event.target.checked } : value))} />{widgetLabels[item.widgetKey]}</label>
             {item.widgetKey === 'workload' && <label className="dashboard-threshold">Prag %
@@ -346,7 +346,7 @@ export function DashboardPage() {
                 onChange={(event) => setPreferences((items) => items.map((value) =>
                   value.widgetKey === item.widgetKey ? { ...value, threshold: event.target.value ? Number(event.target.value) : null } : value))} />
             </label>}
-            <div className="form-actions"><Button type="button" variant="secondary" disabled={index === 0}
+            <div className="ui-actions form-actions"><Button type="button" variant="secondary" disabled={index === 0}
               aria-label={`Pomeri ${widgetLabels[item.widgetKey]} gore`} onClick={() => moveWidget(item.widgetKey, -1)}>Gore</Button>
               <Button type="button" variant="secondary" disabled={index === preferences.length - 1}
                 aria-label={`Pomeri ${widgetLabels[item.widgetKey]} dole`} onClick={() => moveWidget(item.widgetKey, 1)}>Dole</Button>
@@ -359,5 +359,5 @@ export function DashboardPage() {
         <div key={item.widgetKey} className={`dashboard-widget dashboard-widget--${item.widgetKey}`}>{widgets[item.widgetKey]}</div>)}
       </div>
     </div>
-  </main>
+  </PageLayout>
 }

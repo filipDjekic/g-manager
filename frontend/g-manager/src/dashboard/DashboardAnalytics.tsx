@@ -51,7 +51,7 @@ export function DashboardTrendChart({ trends }: { trends: DashboardTrends }) {
           strokeWidth={2} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} />
       </ComposedChart></ResponsiveContainer>
     </div>}
-    <ChartTable label="Tabelarni podaci dnevnih trendova"><table>
+    <ChartTable label="Tabelarni podaci dnevnih trendova"><table className="ui-data-table">
       <caption>Dnevni prihod, završene narudžbine i rezervacije</caption>
       <thead><tr><th scope="col">Datum</th><th scope="col">Prihod RSD</th><th scope="col">Narudžbine</th><th scope="col">Rezervacije</th></tr></thead>
       <tbody>{trends.buckets.map((item) => <tr key={item.date}><th scope="row">{formatChartDate(item.date)}</th>
@@ -83,7 +83,7 @@ export function DashboardStatusChart({ trends }: { trends: DashboardTrends }) {
         <span>{reservationLabels[status]}</span><strong>{number(count)}</strong>
       </li>)}</ul>
     </>}
-    <ChartTable label="Tabelarni podaci statusa rezervacija"><table>
+    <ChartTable label="Tabelarni podaci statusa rezervacija"><table className="ui-data-table">
       <caption>Rezervacije po statusu</caption><thead><tr><th scope="col">Status</th><th scope="col">Broj</th><th scope="col">Detalji</th></tr></thead>
       <tbody>{statuses.map(([status, count]) => <tr key={status}>
         <th scope="row"><Badge tone={reservationTones[status]}>{reservationLabels[status]}</Badge></th><td>{number(count)}</td>
@@ -117,7 +117,7 @@ export function DashboardWorkloadChart({ workload, threshold }: { workload: Dash
           </BarChart>
         </ResponsiveContainer>
       </div>}
-    <ChartTable label="Tabelarni podaci opterećenja"><table>
+    <ChartTable label="Tabelarni podaci opterećenja"><table className="ui-data-table">
       <caption>Potvrđeni i završeni rezervisani minuti prema dostupnim poslovnim minutima</caption>
       <thead><tr><th scope="col">Zaposleni</th><th scope="col">Termini</th><th scope="col">Rezervisano</th><th scope="col">Kapacitet</th><th scope="col">Iskorišćenost</th></tr></thead>
       <tbody>{workload.employees.map((item) => <tr key={item.employeeId}

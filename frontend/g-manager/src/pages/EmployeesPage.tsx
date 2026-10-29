@@ -5,7 +5,7 @@ import { userApi } from '../api/userApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
 import { SelectionBar } from '../components/lists/SelectionBar'
-import { Badge, Button, Drawer, EmptyState, ErrorState, Input, Select, Skeleton } from '../components/ui'
+import { Badge, Button, Drawer, EmptyState, ErrorState, Input, Select, Skeleton, PageHeader, PageLayout, Card } from '../components/ui'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useToast } from '../components/ui/toastContext'
 import { EmployeeLocationDialog } from '../employees/EmployeeLocationDialog'
@@ -24,9 +24,9 @@ const allowed = ['page', 'size', 'active', 'search', 'sort', 'direction', 'focus
 
 export function EmployeesPage() {
   const actor = useAuthStore(state => state.user)
-  if (!actor || !hasCapability(actor, 'USER_LIST') || !['ADMIN', 'OWNER'].includes(actor.role)) return <main className="workspace">
+  if (!actor || !hasCapability(actor, 'USER_LIST') || !['ADMIN', 'OWNER'].includes(actor.role)) return <PageLayout>
     <EmptyState title="Pregled zaposlenih nije dostupan" description="Nemate odgovarajuću dozvolu." />
-  </main>
+  </PageLayout>
   return <EmployeeWorkspace key={actor.id} actor={actor} />
 }
 
@@ -168,21 +168,18 @@ useEffect(() => {
   const filtered = Boolean(url.state.search || url.state.active)
   const onLeaveAvailable = canLeave && statistics.data?.onLeave !== null && statistics.data?.onLeave !== undefined
   const profileBody = profile.isLoading ? <Skeleton lines={8} label="Učitavanje profila zaposlenog" /> : profile.isError
-    ? <ErrorState message={employeeError(profile.error, 'Profil zaposlenog nije moguće učitati.')} action={<Button type="button" onClick={() => void profile.refetch()}>Pokušaj ponovo</Button>} />
+    ? <ErrorState message={employeeError(profile.error, 'Profil zaposlenog nije moguće učitati.')} action={<Button variant="secondary" type="button" onClick={() => void profile.refetch()}>Pokušaj ponovo</Button>} />
     : profile.data && <EmployeeProfile employee={profile.data} actorId={actor.id} canAssignments={canAssign} canAssignLocation={canChooseLocation}
       canLeave={canLeave} canSettings={canSettings} canResourceRead={canReadResources}
       canDeactivate={canDeactivate && profile.data.active && profile.data.id !== actor.id} canDelete={canDelete && profile.data.id !== actor.id} busy={Boolean(busy)}
       onClose={closeProfile} onRefresh={() => void profile.refetch()} onDeactivate={() => { if (profile.data) deactivate(profile.data) }}
       onDelete={() => { if (profile.data) remove(profile.data) }} onAssign={() => { if (profile.data?.active) setAssignEmployee(profile.data) }} />
 
-  return <main ref={root} className="workspace gm-employees">
+  return <PageLayout ref={root} className="gm-employees">
     {confirmationDialog}
-    <header className="gm-employees-heading"><div><span className="gm-employees-heading-icon"><EmployeeIcon /></span><div><h1>Zaposleni</h1>
-      <p>Pregled zaposlenih, njihovih naloga i dostupnosti.</p></div></div>
-      {canCreate && <Button type="button" className="gm-employee-primary" aria-haspopup="dialog" aria-expanded={createOpen}
-        onClick={event => { createOpener.current = event.currentTarget; setCreateOpen(true) }}><EmployeeIcon kind="add" />+ Novi zaposleni</Button>}
-    </header>
-    <div className="gm-employee-kpis">
+    <PageHeader title="Zaposleni" description={<>Pregled zaposlenih, njihovih naloga i dostupnosti.</>} icon={<EmployeeIcon />} actions={<>{canCreate && <Button type="button" className="gm-employee-primary" aria-haspopup="dialog" aria-expanded={createOpen}
+        onClick={event => { createOpener.current = event.currentTarget; setCreateOpen(true) }}><EmployeeIcon kind="add" />+ Novi zaposleni</Button>}</>} />
+    <div className="ui-stat-grid gm-employee-kpis">
       <EmployeeKpi title="Ukupno zaposlenih" kind="users" tone="blue" value={statistics.isError ? undefined : statistics.data?.total} loading={statistics.isLoading} description="Nalozi koji nisu obrisani" />
       <EmployeeKpi title="Aktivni nalozi" kind="check" tone="green" value={statistics.isError ? undefined : statistics.data?.active} loading={statistics.isLoading} description="Omogućen pristup aplikaciji" />
       <EmployeeKpi title="Novi ovog meseca" kind="calendar" tone="purple" value={statistics.isError ? undefined : statistics.data?.newThisMonth} loading={statistics.isLoading} description="Kreirani u poslovnom mesecu" />
@@ -196,9 +193,9 @@ useEffect(() => {
       {canChooseLocation && <Button type="button" variant="secondary" onClick={() => setAssignEmployee(createdEmployee)}><EmployeeIcon kind="location" />Dodeli lokaciju</Button>}
       <Button type="button" variant="secondary" onClick={() => setCreatedEmployee(null)}>{canChooseLocation ? 'Kasnije' : 'Zatvori'}</Button></div>}
     <div className={`gm-employees-layout${wide && url.state.focus ? ' has-profile' : ''}`}>
-      <section className="ui-card gm-employees-list" aria-labelledby="gm-employees-list-title"><header className="gm-employees-list-heading"><h2 id="gm-employees-list-title">Pregled zaposlenih</h2>
+      <Card className="ui-card gm-employees-list" aria-labelledby="gm-employees-list-title"><header className="gm-employees-list-heading"><h2 id="gm-employees-list-title">Pregled zaposlenih</h2>
         <Badge tone="info">Zaposleni</Badge><Button type="button" variant="secondary" disabled={Boolean(busy)} onClick={() => { void employees.refetch(); void statistics.refetch() }}><EmployeeIcon kind="refresh" />Osveži</Button></header>
-        <div className="gm-employee-filters"><label className="gm-employee-search"><span>Pretraga</span><div><EmployeeIcon kind="search" /><Input ref={searchInput} type="search" value={search} maxLength={200}
+        <div className="ui-filter-bar gm-employee-filters"><label className="gm-employee-search"><span>Pretraga</span><div><EmployeeIcon kind="search" /><Input ref={searchInput} type="search" value={search} maxLength={200}
           placeholder="Pretraži zaposlene po imenu ili email adresi..." onChange={event => setSearch(event.target.value)} /></div></label>
           <label><span>Status naloga</span><Select value={active === undefined ? '' : String(active)} onChange={event => { setSelected(new Set()); setUrl({ active: event.target.value, page: '0' }) }}>
             <option value="">Svi statusi</option><option value="true">Aktivni</option><option value="false">Neaktivni</option></Select></label>
@@ -217,7 +214,7 @@ useEffect(() => {
         {bulkResult?.failed ? <ul className="gm-employee-bulk-errors" aria-label="Neuspešne grupne akcije">{bulkResult.outcomes.filter(value => !value.success).map(value => <li key={value.id}>
           <strong>{employees.data?.content.find(employee => employee.id === value.id)?.name ?? `Nalog ${value.id.slice(0, 8)}`}</strong><span>{employeeError(new Error(value.message), 'Operacija nije uspela.')}</span></li>)}</ul> : null}
         {employees.isLoading ? <Skeleton lines={7} label="Učitavanje zaposlenih" /> : employees.isError ? <ErrorState message={employeeError(employees.error, 'Zaposlene nije moguće učitati.')}
-          action={<Button type="button" onClick={() => void employees.refetch()}>Pokušaj ponovo</Button>} /> : !employees.data?.content.length
+          action={<Button variant="secondary" type="button" onClick={() => void employees.refetch()}>Pokušaj ponovo</Button>} /> : !employees.data?.content.length
             ? <EmptyState title={filtered ? 'Nema zaposlenih koji odgovaraju filterima.' : 'Nema zaposlenih.'}
               action={filtered ? <Button type="button" variant="secondary" onClick={resetFilters}>Ukloni filtere</Button> : canCreate ? <Button type="button" aria-haspopup="dialog"
                 onClick={event => { createOpener.current = event.currentTarget; setCreateOpen(true) }}>Dodaj zaposlenog</Button> : undefined} />
@@ -227,10 +224,10 @@ useEffect(() => {
               })} />}
         {employees.isSuccess && <EmployeePagination page={page} size={size} totalPages={employees.data.totalPages} totalElements={employees.data.totalElements}
           busy={employees.isFetching || Boolean(busy)} onPage={next => { setUrl({ page: String(next) }) }} onSize={next => setUrl({ size: String(next), page: '0' })} />}
-      </section>
+      </Card>
       {wide && url.state.focus && <aside ref={profileRegion} tabIndex={-1} className="ui-card gm-employee-profile-panel" aria-label="Profil izabranog zaposlenog">
         {(!profile.data || profile.isError) && <header className="gm-employee-profile-heading"><span>Profil zaposlenog</span>
-          <Button type="button" variant="secondary" className="gm-employee-inline-close" onClick={closeProfile} aria-label="Zatvori profil zaposlenog">×</Button></header>}{profileBody}
+          <Button iconOnly type="button" variant="secondary" className="gm-employee-inline-close" onClick={closeProfile} aria-label="Zatvori profil zaposlenog">×</Button></header>}{profileBody}
       </aside>}
     </div>
     <Drawer open={!wide && Boolean(url.state.focus)} title="Profil zaposlenog" size="wide" className="gm-employee-profile-drawer"
@@ -241,5 +238,5 @@ useEffect(() => {
       if (wide) window.requestAnimationFrame(() => profileRegion.current?.focus({ preventScroll: true }))
     }} />}
     {assignEmployee && canChooseLocation && <EmployeeLocationDialog key={assignEmployee.id} employee={assignEmployee} actorId={actor.id} onClose={() => setAssignEmployee(null)} />}
-  </main>
+  </PageLayout>
 }

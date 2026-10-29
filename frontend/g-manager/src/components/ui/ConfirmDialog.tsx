@@ -1,6 +1,6 @@
 import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { apiErrorMessage } from '../../api/client'
-import { Button, FormField, Input, Modal, Textarea } from './index'
+import { Button, FormField, Input, Modal, Textarea, Alert } from './index'
 
 export interface ConfirmDialogProps {
   open: boolean
@@ -58,12 +58,12 @@ function Confirmation({ title, description, confirmLabel = 'Potvrdi', cancelLabe
   return <Modal open title={title} onClose={close} closeDisabled={busy}
     className={`ui-confirm ui-confirm--${variant} ${className}`} titleIcon={titleIcon} descriptionId={descriptionId}
     initialFocusRef={showReason ? inputMode === 'text' ? inputRef : textareaRef : cancelRef}
-    footer={<div className="dialog-actions">
+    footer={<div className="ui-actions dialog-actions">
       <Button ref={cancelRef} type="button" variant="secondary" disabled={busy} onClick={close}>{cancelLabel}</Button>
-      <Button type="submit" form={formId} variant={variant === 'danger' ? 'danger' : 'primary'}
+      <Button type="submit" form={formId} variant={variant === 'danger' ? 'danger' : variant === 'warning' ? 'warning' : 'primary'}
         loading={busy} disabled={disabled || invalid}>{confirmLabel}</Button>
     </div>}>
-    <form id={formId} className="form-grid" onSubmit={submit}>
+    <form id={formId} className="ui-form-grid form-grid" onSubmit={submit}>
       <div id={descriptionId} className="confirmation-description">{description}</div>
       {showReason && <FormField label={reasonLabel ?? 'Razlog'} htmlFor={`${id}-reason`}
         hint={reasonRequired ? 'Obavezno obrazloženje.' : 'Opciono obrazloženje.'}>
@@ -72,7 +72,7 @@ function Confirmation({ title, description, confirmLabel = 'Potvrdi', cancelLabe
           <Textarea ref={textareaRef} id={`${id}-reason`} value={reason} maxLength={reasonMaxLength}
             required={reasonRequired} disabled={busy || disabled} onChange={(event) => setReason(event.target.value)} />}
       </FormField>}
-      {(failure || error) && <p className="error-banner" role="alert">{failure || error}</p>}
+      {(failure || error) && <Alert tone="danger" role="alert">{failure || error}</Alert>}
     </form>
   </Modal>
 }

@@ -4,7 +4,7 @@ import { apiErrorMessage } from '../api/client'
 import { reportApi } from '../api/reportApi'
 import { hasCapability } from '../auth/capabilities'
 import { useAuthStore } from '../auth/authStore'
-import { Badge, Button, Card, EmptyState, ErrorState, PageHeader, Select, Skeleton } from '../components/ui'
+import { Badge, Button, Card, EmptyState, ErrorState, PageHeader, Select, Skeleton, PageLayout, Input, TableShell } from '../components/ui'
 import type { ReportDefinition, ReportFormat, ReportItem, ReportSchedule } from '../types/report.types'
 import { useEncryptedDraft } from '../pwa/useEncryptedDraft'
 import { useFeatureStore } from '../feature/featureStore'
@@ -90,15 +90,15 @@ export function ReportsPage() {
     catch (cause) { setError(apiErrorMessage(cause, 'Povratna informacija nije sačuvana.')) }
   }
 
-  return <main className="workspace">{confirmationDialog}<PageHeader eyebrow="Asinhrona obrada" title="Izveštaji" />
+  return <PageLayout>{confirmationDialog}<PageHeader eyebrow="Asinhrona obrada" title="Izveštaji" description="Kreiranje, preuzimanje i zakazivanje izveštaja." />
     {draft.recovered && <p role="status" className="connectivity-banner">Oporavljen je šifrovani lokalni draft. Pregledajte podatke pre slanja. <Button variant="secondary" onClick={draft.acknowledge}>U redu</Button></p>}
     <Card><h2>Novi izveštaj</h2><div className="form-grid">
       <label>Definicija<Select aria-label={"Definicija"} value={definition} onChange={(event) => setDefinition(event.target.value)}>
         {definitions.map((value) => <option key={value.key} value={value.key}>{value.label}</option>)}</Select></label>
       <label>Format<Select aria-label={"Format"} value={format} onChange={(event) => setFormat(event.target.value as ReportFormat)}>
         <option>CSV</option><option>XLSX</option><option>PDF</option></Select></label>
-      <label>Od<input aria-label={"Od"} type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
-      <label>Do<input aria-label={"Do"} type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
+      <label>Od<Input aria-label={"Od"} type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
+      <label>Do<Input aria-label={"Do"} type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
     </div><p>{definitions.find((value) => value.key === definition)?.metricDefinition} · Zona: {timezone}</p>
     <Button loading={busy} onClick={() => void generate()}>Generiši</Button>
     <Button variant="secondary" onClick={async () => { try { const value = payload(); await reportApi.createTemplate({ name: `${definition} ${from}`, definitionKey: definition, format, from: value.from, to: value.to }) } catch (cause) { setError(apiErrorMessage(cause, 'Šablon nije sačuvan.')) } }}>Sačuvaj kao šablon</Button>
@@ -107,18 +107,18 @@ export function ReportsPage() {
     } catch (cause) { setError(apiErrorMessage(cause, 'Raspored nije sačuvan.')) } }}>Zakaži ponedeljkom u 08:00</Button>}</Card>
     {error && <ErrorState message={error} action={<Button variant="secondary" onClick={() => void refresh()}>Osveži</Button>} />}
     {loading ? <Skeleton lines={5} /> : !items.length ? <EmptyState title="Nema izveštaja" description="Pokrenite prvi izveštaj." /> :
-      <Card><h2>Istorija</h2><div className="table-scroll"><table className="responsive-table"><thead><tr><th>Izveštaj</th><th>Format</th><th>Status</th><th>Redovi</th><th>Akcije</th></tr></thead>
+      <Card><h2>Istorija</h2><TableShell label="Tabelarni pregled" className="table-scroll"><table className="ui-data-table"><thead><tr><th>Izveštaj</th><th>Format</th><th>Status</th><th>Redovi</th><th>Akcije</th></tr></thead>
         <tbody>{items.map((item) => <tr key={item.id}><td data-label="Izveštaj">{definitions.find((definition) => definition.key === item.definitionKey)?.label ?? item.definitionKey}</td><td data-label="Format">{item.format}</td><td data-label="Status"><Badge tone={item.status === 'COMPLETED' ? 'success' : item.status === 'FAILED' ? 'danger' : item.status === 'RUNNING' ? 'info' : 'neutral'}>{{ QUEUED:'Na čekanju', RUNNING:'U obradi', COMPLETED:'Spreman', FAILED:'Neuspešno', CANCELLED:'Otkazan', EXPIRED:'Istekao' }[item.status]} {item.status === 'RUNNING' && `${item.progress}%`}</Badge>{item.errorMessage && <small>{item.errorMessage}</small>}</td><td data-label="Redovi">{item.rowCount ?? '—'}</td><td data-label="Akcije">
           {item.status === 'COMPLETED' && <Button onClick={() => void download(item)}>Preuzmi</Button>}
           {item.status === 'COMPLETED' && aiEnabled && <Button variant="secondary" loading={aiBusy} onClick={() => void summarize(item)}>AI sažetak</Button>}
           {['QUEUED', 'RUNNING'].includes(item.status) && <Button variant="secondary" onClick={() => confirm({ title: 'Otkaži generisanje', description: 'Obrada izveštaja biće zaustavljena.', variant: 'warning', confirmLabel: 'Otkaži obradu', onConfirm: async () => { await reportApi.cancel(item.id); await refresh() } })}>Otkaži</Button>}
-        </td></tr>)}</tbody></table></div></Card>}
+        </td></tr>)}</tbody></table></TableShell></Card>}
     {manage && <Card><h2>Rasporedi</h2>{!schedules.length ? <p>Nema rasporeda.</p> : <ul>{schedules.map((schedule) =>
       <li key={schedule.id}>{definitions.find((definition) => definition.key === schedule.definitionKey)?.label ?? schedule.definitionKey} · {schedule.timezone} · sledeće {formatBusinessDateTime(schedule.nextRunAt)} <Button variant="danger" onClick={() => confirm({ title: 'Obriši raspored izveštaja', description: 'Automatsko generisanje po ovom rasporedu biće uklonjeno.', variant: 'danger', confirmLabel: 'Obriši raspored', onConfirm: async () => { await reportApi.removeSchedule(schedule.id); await refresh() } })}>Obriši</Button></li>)}</ul>}</Card>}
     {aiEnabled && <Card><h2>AI asistencija (eksperimentalno)</h2><p>AI dobija samo definiciju, broj redova i vreme preseka izveštaja. Rezultat može biti netačan; izvorni izveštaj ostaje merodavan.</p>
-      <label><input aria-label={"Saglasan/na sam sa obradom ovih ograničenih metapodataka."} type="checkbox" checked={aiConsent} onChange={(event) => setAiConsent(event.target.checked)} /> Saglasan/na sam sa obradom ovih ograničenih metapodataka.</label></Card>}
+      <label><Input aria-label={"Saglasan/na sam sa obradom ovih ograničenih metapodataka."} type="checkbox" checked={aiConsent} onChange={(event) => setAiConsent(event.target.checked)} /> Saglasan/na sam sa obradom ovih ograničenih metapodataka.</label></Card>}
     {aiSummary && <Card><h2>{aiSummary.aiGenerated ? 'AI sažetak' : 'Sažetak bez AI-a'}</h2><p role="status">{aiSummary.summary}</p><p><strong>Ograničenja:</strong> {aiSummary.limitations}</p>
       <h3>Izvori</h3><ul>{aiSummary.sources.map((source) => <li key={source.reportId}>Izveštaj {source.definition}, {source.rowCount} redova, presek {formatBusinessDateTime(source.snapshotAt)}</li>)}</ul>
       <p>Pregledajte rezultat pre bilo kakve odluke.</p><Button onClick={() => void feedback('ACCEPTED')}>Prihvati</Button><Button variant="secondary" onClick={() => void feedback('CORRECTED')}>Ispravljeno</Button><Button variant="danger" onClick={() => void feedback('REJECTED')}>Odbaci</Button></Card>}
-  </main>
+  </PageLayout>
 }

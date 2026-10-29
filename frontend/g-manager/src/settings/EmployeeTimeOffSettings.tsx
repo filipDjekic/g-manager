@@ -3,7 +3,7 @@ import { useQueryClient, type UseQueryResult } from '@tanstack/react-query'
 import { timeOffApi } from '../api/timeOffApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Badge, Button, EmptyState, ErrorState, Input, Modal, Select, Skeleton, TableShell } from '../components/ui'
+import { Badge, Button, EmptyState, ErrorState, Input, Modal, Select, Skeleton, TableShell, Card, Alert } from '../components/ui'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useToast } from '../components/ui/toastContext'
 import { useServerNow } from '../gaming/useServerNow'
@@ -68,7 +68,7 @@ export function EmployeeTimeOffSettings({ query, employees, onChanged }: {
   const person = (item: TimeOff) => <div className="gm-settings-person"><SettingsAvatar name={names.get(item.employeeId)?.name ?? ''} /><div><strong>{name(item)}</strong>
     {canEmail && names.get(item.employeeId)?.email && <small>{names.get(item.employeeId)?.email}</small>}</div></div>
   const period = (item: TimeOff) => <div className="gm-settings-period"><span>{settingsDateTime(item.startsAt)}</span><span>do {settingsDateTime(item.endsAt)}</span><small>Ukupno {elapsedTime(item.startsAt, item.endsAt)}</small></div>
-  return <section className="gm-settings-section">
+  return <Card className="gm-settings-section">
     <header className="gm-settings-section-header"><div><h2>Odsustva zaposlenih</h2><p>Pregled i upravljanje odsustvima i zahtevima zaposlenih.</p></div><div className="gm-settings-actions">
       <Button type="button" variant="secondary" loading={query.isFetching} disabled={Boolean(saving)} onClick={() => void query.refetch()}><SettingsIcon kind="refresh" />Osveži</Button>
       {canManage && <Button type="button" ref={newButton} className="gm-settings-primary" disabled={Boolean(saving)} onClick={create}><SettingsIcon kind="plus" />Novo odsustvo</Button>}</div></header>
@@ -84,27 +84,27 @@ export function EmployeeTimeOffSettings({ query, employees, onChanged }: {
       <Button type="button" variant="secondary" onClick={() => setFilters({ search: '', status: '', from: '', to: '', employeeId: '' })}>Poništi filtere</Button>
     </div>
     {employees.error && <ErrorState message="Imena zaposlenih nisu dostupna. Odsustva možete pregledati po periodu i statusu." action={<Button onClick={() => void employees.refetch()}>Ponovi učitavanje zaposlenih</Button>} />}
-    {filterError && <p className="error-banner" role="alert">{filterError}</p>}
+    {filterError && <Alert tone="danger" role="alert">{filterError}</Alert>}
     {query.isLoading ? <Skeleton lines={6} label="Učitavanje odsustava" /> : query.error ? <ErrorState message={settingsError(query.error, 'Odsustva nije moguće učitati.')}
-      action={<Button onClick={() => void query.refetch()}>Pokušaj ponovo</Button>} /> : !filterError && !rows.length ? <EmptyState title={hasFilters ? 'Nema odsustava koja odgovaraju filterima.' : 'Nema zahteva za odsustvo.'}
+      action={<Button variant="secondary" onClick={() => void query.refetch()}>Pokušaj ponovo</Button>} /> : !filterError && !rows.length ? <EmptyState title={hasFilters ? 'Nema odsustava koja odgovaraju filterima.' : 'Nema zahteva za odsustvo.'}
         description={hasFilters ? 'Promenite pretragu ili izabrani period.' : 'Dodajte novi zahtev za odsustvo zaposlenog.'}
         action={hasFilters ? <Button variant="secondary" onClick={() => setFilters({ search: '', status: '', from: '', to: '', employeeId: '' })}>Poništi filtere</Button> : canManage ? <Button onClick={create}>Novo odsustvo</Button> : undefined} />
       : !filterError && <div className="gm-settings-timeoff-list">
-        <div className="gm-settings-timeoff-table"><TableShell label="Odsustva zaposlenih"><table><thead><tr><th scope="col">Zaposleni</th><th scope="col">Period odsustva</th><th scope="col">Razlog</th><th scope="col">Status</th><th scope="col">Akcije</th></tr></thead>
+        <TableShell label="Odsustva zaposlenih" className="gm-settings-timeoff-table"><table className="ui-data-table"><thead><tr><th scope="col">Zaposleni</th><th scope="col">Period odsustva</th><th scope="col">Razlog</th><th scope="col">Status</th><th scope="col">Akcije</th></tr></thead>
           <tbody>{rows.map(item => <tr key={item.id}><td>{person(item)}</td><td>{period(item)}</td><td><p className="gm-settings-reason">{item.reason}</p></td>
-            <td><Badge tone={timeOffTones[item.status]}>{timeOffLabels[item.status]}</Badge></td><td><SettingsActionMenu label={`Akcije odsustva za ${name(item)}`} actions={actions(item)} disabled={disabled} /></td></tr>)}</tbody></table></TableShell></div>
-        <div className="gm-settings-timeoff-cards">{rows.map(item => <article className="gm-settings-timeoff-card" key={item.id}><header>{person(item)}
+            <td><Badge tone={timeOffTones[item.status]}>{timeOffLabels[item.status]}</Badge></td><td><SettingsActionMenu label={`Akcije odsustva za ${name(item)}`} actions={actions(item)} disabled={disabled} /></td></tr>)}</tbody></table></TableShell>
+        <div className="gm-settings-timeoff-cards">{rows.map(item => <Card as="article" className="gm-settings-timeoff-card" key={item.id}><header>{person(item)}
           <SettingsActionMenu label={`Akcije odsustva za ${name(item)}`} actions={actions(item)} disabled={disabled} /></header>{period(item)}<p className="gm-settings-reason">{item.reason}</p>
-          <footer><Badge tone={timeOffTones[item.status]}>{timeOffLabels[item.status]}</Badge><Button type="button" variant="secondary" onClick={event => showDetails(item, event.currentTarget)}>Detalji</Button></footer></article>)}</div>
+          <footer><Badge tone={timeOffTones[item.status]}>{timeOffLabels[item.status]}</Badge><Button type="button" variant="secondary" onClick={event => showDetails(item, event.currentTarget)}>Detalji</Button></footer></Card>)}</div>
       </div>}
     {query.data && !query.isError && !filterError && <p className="gm-settings-note">Prikazano {rows.length} od {query.data.length} odsustava. Trajanje predstavlja proteklo vreme perioda.</p>}
     {createOpen && <TimeOffDialog employees={employees} returnFocusRef={opener} onClose={closeCreate} onSaved={item => {
       client.setQueryData<TimeOff[]>(['settings', 'time-off', actor?.id], current => [...(current ?? []), item])
       closeCreate(); toast('Zahtev za odsustvo je sačuvan.', 'success'); void onChanged()
     }} />}
-    {detail && <Modal open title="Detalji odsustva" titleIcon={<SettingsIcon kind="calendar" />} className="gm-settings-dialog" returnFocusRef={opener} onClose={closeDetail}
-      footer={<div className="gm-settings-dialog-actions"><Button ref={detailClose} type="button" variant="secondary" onClick={closeDetail}>Zatvori</Button>
-        {canManage && detail.status === 'PENDING' && Date.parse(detail.endsAt) > now && <Button type="button" className="gm-settings-primary" disabled={disabled} onClick={() => decide(detail, 'APPROVED')}>Odobri</Button>}
+    {detail && <Modal size="wide" open title="Detalji odsustva" titleIcon={<SettingsIcon kind="calendar" />} className="gm-settings-dialog" returnFocusRef={opener} onClose={closeDetail}
+      footer={<div className="ui-actions gm-settings-dialog-actions"><Button ref={detailClose} type="button" variant="secondary" onClick={closeDetail}>Zatvori</Button>
+        {canManage && detail.status === 'PENDING' && Date.parse(detail.endsAt) > now && <Button variant="success" type="button" className="gm-settings-primary" disabled={disabled} onClick={() => decide(detail, 'APPROVED')}>Odobri</Button>}
         {canManage && detail.status === 'PENDING' && <Button type="button" variant="secondary" disabled={disabled} onClick={() => decide(detail, 'REJECTED')}>Odbij</Button>}
         {canManage && (detail.status === 'PENDING' || detail.status === 'APPROVED') && <Button type="button" variant="danger" disabled={disabled} onClick={() => decide(detail, 'CANCELLED')}>Otkaži odsustvo</Button>}</div>}>
       {person(detail)}<dl className="gm-settings-detail-list"><div><dt>Početak</dt><dd>{settingsDateTime(detail.startsAt)}</dd></div><div><dt>Kraj</dt><dd>{settingsDateTime(detail.endsAt)}</dd></div>
@@ -113,5 +113,5 @@ export function EmployeeTimeOffSettings({ query, employees, onChanged }: {
       {detail.decisionReason && <div className="gm-settings-detail-reason"><h3>Razlog odluke</h3><p>{detail.decisionReason}</p></div>}
     </Modal>}
     {confirmationDialog}
-  </section>
+  </Card>
 }

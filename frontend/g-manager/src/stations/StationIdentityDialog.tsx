@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { stationApi } from '../api/stationApi'
-import { Button, EmptyState, ErrorState, Modal, Skeleton } from '../components/ui'
+import { Button, EmptyState, ErrorState, Modal, Skeleton, Alert } from '../components/ui'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useToast } from '../components/ui/toastContext'
 import { formatBusinessDateTime } from '../reservations/dateTime'
@@ -45,15 +45,15 @@ export function StationIdentityDialog({ station, onClose }: { station: StationOv
   }
   const hasActive = identities.data?.some(identity => identity.status === 'ACTIVE')
   const invalid = identities.isLoading || identities.isFetching || identities.isError || !identities.data
-  return <Modal open className="gm-stations-dialog gm-stations-identity-dialog" title={`Identitet klijenta · ${station.resourceName}`}
+  return <Modal size="wide" open className="gm-stations-dialog gm-stations-identity-dialog" title={`Identitet klijenta · ${station.resourceName}`}
     titleIcon={<StationIcon kind="shield" />} closeDisabled={busy} onClose={onClose}
-    footer={<div className="dialog-actions"><Button type="button" variant="secondary" disabled={busy} onClick={onClose}>Zatvori</Button></div>}>
+    footer={<div className="ui-actions dialog-actions"><Button type="button" variant="secondary" disabled={busy} onClick={onClose}>Zatvori</Button></div>}>
     {confirmationDialog}
     <div className="gm-stations-identity-content">
       <p className="gm-stations-form-note">{station.resourceCode} · {connectionStatus(station).label}{station.lastHeartbeatAt && ` · poslednji kontakt ${formatBusinessDateTime(station.lastHeartbeatAt, false, 'sr-Latn-RS')}`}</p>
-      {error && <p className="error-banner" role="alert">{error}</p>}
+      {error && <Alert tone="danger" role="alert">{error}</Alert>}
       {identities.isLoading ? <Skeleton lines={3} label="Učitavanje identiteta klijenta" /> : identities.isError
-        ? <ErrorState message={stationError(identities.error, 'Identiteti klijenta nisu dostupni.')} action={<Button type="button" onClick={() => identities.refetch()}>Pokušaj ponovo</Button>} />
+        ? <ErrorState message={stationError(identities.error, 'Identiteti klijenta nisu dostupni.')} action={<Button variant="secondary" type="button" onClick={() => identities.refetch()}>Pokušaj ponovo</Button>} />
         : !identities.data?.length ? <EmptyState title="Klijent još nije upisan" description="Kreirajte jednokratni kod za povezivanje Gaming Client-a sa ovom stanicom." />
         : <div className="gm-stations-identities">{identities.data.map(identity => <article key={identity.id}><strong>Ključ v{identity.keyVersion} · {{ ACTIVE: 'Aktivan', ROTATING: 'Rotacija u toku', REVOKED: 'Opozvan' }[identity.status]}</strong>
           <dl><div><dt>Otisak javnog ključa</dt><dd><code>{identity.publicKeyFingerprint}</code></dd></div>

@@ -17,15 +17,15 @@ export function AuditFilterDialog({ initial, onApply, onClose, returnFocusRef }:
     if (message) { setError(message); return }
     onApply({ ...next, from: next.period === 'CUSTOM' ? next.from : '', to: next.period === 'CUSTOM' ? next.to : '' })
   }
-  return <Modal open title="Filteri audit događaja" titleIcon={<AuditIcon kind="filters" />} className="gm-audit-dialog"
+  return <Modal size="wide" open title="Filteri audit događaja" titleIcon={<AuditIcon kind="filters" />} className="gm-audit-dialog"
     onClose={onClose} initialFocusRef={periodRef} returnFocusRef={returnFocusRef} descriptionId={`${id}-description`}
     footer={<>
       <Button type="button" variant="secondary" onClick={() => { setDraft(defaultDraft()); setError('') }}><AuditIcon kind="reset" />Resetuj</Button>
-      <div className="gm-audit-dialog-actions"><Button type="button" variant="secondary" onClick={onClose}>Otkaži</Button>
+      <div className="ui-actions gm-audit-dialog-actions"><Button type="button" variant="secondary" onClick={onClose}>Otkaži</Button>
         <Button type="submit" form={`${id}-form`}>Primeni filtere</Button></div>
     </>}>
     <p id={`${id}-description`} className="gm-audit-muted">Preciznije pronađite aktivnosti i promene u sistemu.</p>
-    <form id={`${id}-form`} onSubmit={apply} className="gm-audit-filter-form">
+    <form id={`${id}-form`} onSubmit={apply} className="ui-form-grid gm-audit-filter-form">
       <FormField label="Period" htmlFor={`${id}-period`} hint="Svi datumi koriste vremensku zonu Europe/Belgrade.">
         <Select id={`${id}-period`} ref={periodRef} value={draft.period} onChange={event => change({ period: event.target.value })}>
           {Object.entries(periods).map(([value, label]) => <option key={value} value={value}>{label}</option>)}

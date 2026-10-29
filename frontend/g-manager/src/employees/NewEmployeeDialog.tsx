@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { userApi } from '../api/userApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Badge, Button, FormField, Input, Modal } from '../components/ui'
+import { Badge, Button, FormField, Input, Modal, Alert } from '../components/ui'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { focusFirstInvalid, useDirtyGuard } from '../forms/useDirtyGuard'
 import type { UserResponse } from '../types/user.types'
@@ -47,10 +47,10 @@ export function NewEmployeeDialog({ actorId, onClose, onCreated, returnFocusRef 
   return <>{confirmationDialog}<Modal open title="Novi zaposleni" titleIcon={<EmployeeIcon kind="add" />}
     className="gm-employee-dialog gm-employee-create-dialog" closeDisabled={busy} initialFocusRef={initialFocus} returnFocusRef={returnFocusRef}
     descriptionId={`${id}-description`} onClose={close}
-    footer={<div className="dialog-actions"><Button type="button" variant="secondary" disabled={busy} onClick={close}>Otkaži</Button>
+    footer={<div className="ui-actions dialog-actions"><Button type="button" variant="secondary" disabled={busy} onClick={close}>Otkaži</Button>
       <Button type="submit" form={`${id}-form`} className="gm-employee-primary" loading={busy}>Dodaj zaposlenog</Button></div>}>
     <p id={`${id}-description`} className="gm-employee-note">Kreirajte nalog novog zaposlenog.</p>
-    <form id={`${id}-form`} className="gm-employee-create-form" onSubmit={event => void submit(event)}>
+    <form id={`${id}-form`} className="ui-form-grid gm-employee-create-form" onSubmit={event => void submit(event)}>
       <FormField htmlFor={`${id}-name`} label="Ime i prezime" error={nameError}>
         <Input ref={initialFocus} id={`${id}-name`} required minLength={2} maxLength={120} autoComplete="off" disabled={busy}
           value={name} onChange={event => { setName(event.target.value); setNameError(''); setError('') }} />
@@ -62,10 +62,10 @@ export function NewEmployeeDialog({ actorId, onClose, onCreated, returnFocusRef 
       <div className="gm-employee-password-field"><FormField htmlFor={`${id}-password`} label="Početna lozinka" hint="Od 8 do 100 karaktera.">
         <Input id={`${id}-password`} type={visible ? 'text' : 'password'} required minLength={8} maxLength={100}
           autoComplete="new-password" disabled={busy} value={password} onChange={event => { setPassword(event.target.value); setError('') }} />
-      </FormField><Button type="button" variant="secondary" disabled={busy} aria-controls={`${id}-password`} aria-pressed={visible}
+      </FormField><Button iconOnly type="button" variant="secondary" disabled={busy} aria-controls={`${id}-password`} aria-pressed={visible}
         aria-label={visible ? 'Sakrij lozinku' : 'Prikaži lozinku'} onClick={() => setVisible(value => !value)}><EmployeeIcon kind={visible ? 'eye-off' : 'eye'} /></Button></div>
       <div className="gm-employee-fixed-role"><span>Uloga</span><Badge tone="info">Zaposleni</Badge><small>Nalog se kreira sa ulogom zaposlenog.</small></div>
-      {error && <p className="error-banner" role="alert">{error}</p>}
+      {error && <Alert tone="danger" role="alert">{error}</Alert>}
     </form>
   </Modal></>
 }

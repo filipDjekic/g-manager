@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { userApi } from '../api/userApi'
 import { AccountAvatar } from '../components/AccountAvatar'
 import { type AvatarStatus } from '../components/AccountAvatar.model'
-import { Button, Modal } from '../components/ui'
+import { Button, Modal, Input } from '../components/ui'
 import { useToast } from '../components/ui/toastContext'
 import type { UserResponse } from '../types/user.types'
 import { ProfileIcon } from './profilePresentation'
@@ -45,7 +45,7 @@ export function ProfileAvatarEditor({ profile, canUpdate, onSaved, onDirty }: {
   return <div className="gm-profile-avatar-editor">
     <div className="gm-profile-avatar-wrap"><span className="gm-profile-avatar" role="img" aria-label={`Avatar korisnika ${profile.name}`}>
       <AccountAvatar user={profile} reload={reload} onStatus={setAvatarStatus} /></span>
-      <Button type="button" variant="secondary" className="gm-profile-camera-button" disabled={!canUpdate || busy}
+      <Button iconOnly type="button" variant="secondary" className="gm-profile-camera-button" disabled={!canUpdate || busy}
         aria-label="Izaberi novu sliku avatara" onClick={event => pick(event.currentTarget)}><ProfileIcon kind="camera" /></Button>
     </div>
     <div className="gm-profile-avatar-controls"><Button type="button" variant="secondary" disabled={!canUpdate || busy}
@@ -56,11 +56,11 @@ export function ProfileAvatarEditor({ profile, canUpdate, onSaved, onDirty }: {
         <Button type="button" variant="secondary" onClick={() => setReload(value => value + 1)}>Učitaj avatar ponovo</Button></div>}
       {error && !file && <p className="gm-profile-error" role="alert">{error}</p>}
     </div>
-    <input ref={picker} type="file" hidden accept="image/png,image/jpeg,.png,.jpg,.jpeg" aria-label="Izaberite sliku avatara"
+    <Input ref={picker} type="file" hidden accept="image/png,image/jpeg,.png,.jpg,.jpeg" aria-label="Izaberite sliku avatara"
       disabled={!canUpdate || busy} onChange={event => { choose(event.target.files?.[0]); event.target.value = '' }} />
     <Modal open={file !== null} title="Promeni avatar" titleIcon={<ProfileIcon kind="camera" />} className="gm-profile-avatar-dialog"
       descriptionId={`${id}-description`} returnFocusRef={opener} onClose={close} closeDisabled={busy}
-      footer={<div className="gm-profile-dialog-actions"><Button type="button" variant="secondary" disabled={busy} onClick={close}>Odustani</Button>
+      footer={<div className="ui-actions gm-profile-dialog-actions"><Button type="button" variant="secondary" disabled={busy} onClick={close}>Odustani</Button>
         <Button type="button" loading={busy} disabled={!canUpdate || !previewReady} onClick={() => void upload()}><ProfileIcon kind="upload" />Otpremi avatar</Button></div>}>
       <p id={`${id}-description`}>Pregledajte izabranu sliku pre otpremanja. Server proverava format, veličinu i bezbednost fajla.</p>
       <div className="gm-profile-avatar-preview">{preview && <img key={preview} src={preview} alt="Pregled izabranog avatara"

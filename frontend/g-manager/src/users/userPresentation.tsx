@@ -1,9 +1,9 @@
 import { type IconKind, userDate, allowedUserActions, type UserAction, type ActionHandler } from './userPresentation.model'
-import { Pagination } from '../components/ui'
+import { Pagination, Input, TableShell, Button, StatCard, Badge, Skeleton } from '../components/ui'
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
-import { Badge, Button, Skeleton } from '../components/ui'
+
 import { roleLabels } from '../components/ui/statusPresentation'
 import { EmployeeAvatar, EmployeeIcon } from '../employees/employeePresentation'
 
@@ -29,9 +29,7 @@ export function UserStatus({ user }: { user: UserResponse }) {
 export function UserKpi({ title, value, kind, tone, loading }: {
   title: string; value: number | undefined; kind: IconKind; tone: 'blue' | 'green' | 'purple' | 'pink'; loading: boolean
 }) {
-  return <section className={`ui-card gm-user-kpi gm-user-kpi--${tone}`} aria-label={title}><span className="gm-user-kpi-icon"><UserIcon kind={kind} /></span>
-    <div><h2>{title}</h2>{loading ? <Skeleton lines={1} label={`Učitavanje: ${title}`} /> : <strong>{value === undefined ? '—' : new Intl.NumberFormat('sr-Latn-RS').format(value)}</strong>}</div>
-  </section>
+  return <StatCard label={<>{title}</>} value={loading ? <Skeleton lines={1} label={`Učitavanje: ${title}`} /> : <>{value === undefined ? '—' : new Intl.NumberFormat('sr-Latn-RS').format(value)}</>} icon={<UserIcon kind={kind} />} tone={tone} aria-label={title} />
 }
 function UserRowMenu({ user, actor, busy, onAction }: { user: UserResponse; actor: AuthUser; busy: boolean; onAction: ActionHandler }) {
   const permissions = allowedUserActions(actor, user), id = useId(), trigger = useRef<HTMLButtonElement>(null), menu = useRef<HTMLDivElement>(null)
@@ -56,9 +54,9 @@ function UserRowMenu({ user, actor, busy, onAction }: { user: UserResponse; acto
     return () => { document.removeEventListener('pointerdown', outside); window.removeEventListener('scroll', scroll, true) }
   }, [open])
   const choose = (action: UserAction) => { setOpen(false); onAction(user, action, trigger.current) }
-  return <><Button ref={trigger} type="button" variant="secondary" className="gm-user-menu-trigger" disabled={busy} aria-label={`Akcije za ${user.name}`}
+  return <><Button size="small" iconOnly ref={trigger} type="button" variant="ghost" className="gm-user-menu-trigger" disabled={busy} aria-label={`Akcije za ${user.name}`}
     aria-haspopup="menu" aria-expanded={open} aria-controls={open ? id : undefined} onClick={() => setOpen(value => !value)}>⋯</Button>
-    {open && createPortal(<div ref={menu} id={id} className="gm-user-menu" style={position} role="menu" aria-label={`Akcije za ${user.name}`} onKeyDown={event => {
+    {open && createPortal(<div ref={menu} id={id} className="ui-menu gm-user-menu" style={position} role="menu" aria-label={`Akcije za ${user.name}`} onKeyDown={event => {
       const buttons = Array.from(menu.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [])
       const index = buttons.indexOf(document.activeElement as HTMLButtonElement)
       if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setOpen(false); trigger.current?.focus() }
@@ -77,19 +75,19 @@ function UserRowMenu({ user, actor, busy, onAction }: { user: UserResponse; acto
 export function UsersTable({ users, actor, selected, focus, busy, onToggle, onAction }: {
   users: UserResponse[]; actor: AuthUser; selected: Set<string>; focus: string; busy: boolean; onToggle: (id: string) => void; onAction: ActionHandler
 }) {
-  return <div className="gm-users-table-shell"><table className="gm-users-table" role="table"><thead><tr>
+  return <TableShell label="Tabelarni pregled" className="gm-users-table-shell"><table className="ui-data-table gm-users-table" role="table"><thead><tr>
     <th scope="col" className="gm-user-selection"><span className="sr-only">Izbor</span></th>
     {['Korisnik', 'Email', 'Uloga', 'Status', 'Kreiran', 'Akcije'].map(label => <th scope="col" key={label}>{label}</th>)}
   </tr></thead><tbody>{users.map(user => <tr key={user.id} className={focus === user.id ? 'is-selected' : undefined}>
-    <td className="gm-user-selection" data-label="Izbor"><input type="checkbox" checked={selected.has(user.id)} disabled={busy || !allowedUserActions(actor, user).deactivate}
+    <td className="gm-user-selection" data-label="Izbor"><Input type="checkbox" checked={selected.has(user.id)} disabled={busy || !allowedUserActions(actor, user).deactivate}
       aria-label={`Izaberi korisnika ${user.name}`} onChange={() => onToggle(user.id)} /></td>
-    <td data-label="Korisnik"><button type="button" className="gm-user-name-button" aria-pressed={focus === user.id} onClick={event => onAction(user, 'details', event.currentTarget)}>
-      <UserAvatar user={user} /><span><strong>{user.name}</strong><small>Detalji naloga</small></span></button></td>
+    <td data-label="Korisnik"><Button variant="ghost" type="button" className="gm-user-name-button" aria-pressed={focus === user.id} onClick={event => onAction(user, 'details', event.currentTarget)}>
+      <UserAvatar user={user} /><span><strong>{user.name}</strong><small>Detalji naloga</small></span></Button></td>
     <td data-label="Email"><a href={`mailto:${user.email}`}>{user.email}</a></td><td data-label="Uloga"><UserRoleBadge role={user.role} /></td>
     <td data-label="Status"><UserStatus user={user} /></td><td data-label="Kreiran"><time dateTime={user.createdAt}>{userDate(user.createdAt)}</time></td>
-    <td data-label="Akcije"><div className="gm-user-row-actions"><Button type="button" variant="secondary" className="gm-user-detail-button" aria-label={`Detalji za ${user.name}`}
+    <td data-label="Akcije"><div className="gm-user-row-actions"><Button iconOnly type="button" variant="secondary" className="gm-user-detail-button" aria-label={`Detalji za ${user.name}`}
       onClick={event => onAction(user, 'details', event.currentTarget)}><UserIcon kind="profile" /><span>Detalji</span></Button><UserRowMenu user={user} actor={actor} busy={busy} onAction={onAction} /></div></td>
-  </tr>)}</tbody></table></div>
+  </tr>)}</tbody></table></TableShell>
 }
 export function UserPagination({ page, size, totalPages, totalElements, busy, onPage, onSize }: {
   page: number; size: number; totalPages: number; totalElements: number; busy: boolean
@@ -133,7 +131,7 @@ export function UserDetails({ user, actor, busy, onClose, onAction, onRefresh }:
   for (const permission of [...new Set(user.permissions ?? [])]) {
     const group = permissionGroup(permission); groups.set(group, [...(groups.get(group) ?? []), permission])
   }
-  return <div className="gm-user-details"><header className="gm-user-details-heading"><span>Detalji korisnika</span><Button className="gm-user-inline-close" type="button" variant="secondary" disabled={busy} aria-label="Zatvori detalje korisnika" onClick={onClose}>×</Button></header>
+  return <div className="gm-user-details"><header className="gm-user-details-heading"><span>Detalji korisnika</span><Button iconOnly className="gm-user-inline-close" type="button" variant="secondary" disabled={busy} aria-label="Zatvori detalje korisnika" onClick={onClose}>×</Button></header>
     <div className="gm-user-identity"><UserAvatar user={user} large /><h2>{user.name}</h2><a href={`mailto:${user.email}`}>{user.email}</a><div><UserRoleBadge role={user.role} /><UserStatus user={user} /></div></div>
     <section><h3>Osnovne informacije</h3><dl className="gm-user-information">
       <div><dt>ID korisnika</dt><dd><code>{user.id}</code></dd></div><div><dt>Ime i prezime</dt><dd>{user.name}</dd></div><div><dt>Email</dt><dd>{user.email}</dd></div>
@@ -148,7 +146,7 @@ export function UserDetails({ user, actor, busy, onClose, onAction, onRefresh }:
     <div className="gm-user-details-actions"><Button type="button" variant="secondary" disabled={busy} onClick={onRefresh}><UserIcon kind="refresh" />Osveži detalje</Button>
       {actions.deactivate && <Button type="button" variant="danger" disabled={busy} onClick={event => onAction(user, 'deactivate', event.currentTarget)}><UserIcon kind="lock" />Deaktiviraj nalog</Button>}
       {actions.remove && <Button type="button" variant="danger" disabled={busy} onClick={event => onAction(user, 'delete', event.currentTarget)}><UserIcon kind="delete" />Obriši nalog</Button>}
-      {actions.restore && <Button type="button" variant="secondary" disabled={busy} onClick={event => onAction(user, 'restore', event.currentTarget)}><UserIcon kind="restore" />Vrati nalog</Button>}
+      {actions.restore && <Button type="button" variant="success" disabled={busy} onClick={event => onAction(user, 'restore', event.currentTarget)}><UserIcon kind="restore" />Vrati nalog</Button>}
     </div>
   </div>
 }

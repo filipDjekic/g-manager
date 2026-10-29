@@ -8,7 +8,7 @@ import { resourceApi } from '../api/resourceApi'
 import { userApi } from '../api/userApi'
 import { hasCapability } from '../auth/capabilities'
 import { useAuthStore } from '../auth/authStore'
-import { Badge, Button, EmptyState, ErrorState, Skeleton, TableShell } from '../components/ui'
+import { Badge, Button, EmptyState, ErrorState, Skeleton, TableShell, PageHeader, PageLayout, Select, Input, StatCard, Card, Alert } from '../components/ui'
 import { reservationLabels, reservationTones } from '../components/ui/statusPresentation'
 import { useListUrlState } from '../lists/useListUrlState'
 import { CustomerPicker } from '../reservations/CustomerPicker'
@@ -95,30 +95,27 @@ export function CalendarPage() {
     {label:'Zauzete stanice',value:context.error?undefined:context.data?.occupiedStations,kind:'users' as const,accent:'blue',hint:'Aktivne gaming sesije · izabrani resursi'},
     {label:'Otkazane za danas',value:summary.error?undefined:summary.data?.cancelledTodayAppointments,kind:'cancel' as const,accent:'pink',hint:'Otkazane rezervacije za današnje termine'},
   ]
-  return <main className="workspace gm-calendar-page">
-    <header className="gm-calendar-header"><div className="gm-calendar-title"><span><ReservationIcon/></span><div><h1>Kalendar</h1><p>Pregled rezervacija, dostupnosti resursa i zaposlenih.</p></div></div>
-      {canCreate && <Button type="button" className="gm-calendar-create" onClick={openCreate}>+ Nova rezervacija</Button>}
-    </header>
-    {message && <p className="success-banner" role="status">{message}</p>}
-    <section className="gm-calendar-kpis" aria-label="Statistika kalendara">
-      {kpis.map(kpi => <article key={kpi.label} className={`gm-calendar-kpi gm-calendar-kpi--${kpi.accent}`}><div><span>{kpi.label}</span><ReservationIcon kind={kpi.kind}/></div>
-        <strong aria-live="polite">{kpi.value ?? '—'}</strong><small>{kpi.hint}</small></article>)}
+  return <PageLayout className="gm-calendar-page">
+    <PageHeader title="Kalendar" description={<>Pregled rezervacija, dostupnosti resursa i zaposlenih.</>} icon={<ReservationIcon/>} actions={<>{canCreate && <Button type="button" className="gm-calendar-create" onClick={openCreate}>+ Nova rezervacija</Button>}</>} />
+    {message && <Alert tone="success" role="status">{message}</Alert>}
+    <section className="ui-stat-grid gm-calendar-kpis" aria-label="Statistika kalendara">
+      {kpis.map(kpi => <StatCard label={<>{kpi.label}</>} value={<>{kpi.value ?? '—'}</>} icon={<ReservationIcon kind={kpi.kind}/>} description={<>{kpi.hint}</>} tone={kpi.accent} key={kpi.label} />)}
     </section>
     {summary.error && <ErrorState message="Statistiku rezervacija nije moguće učitati." action={<Button variant="secondary" onClick={() => summary.refetch()}>Pokušaj ponovo</Button>}/>}
     <div className="gm-calendar-layout"><section className="gm-calendar-main" aria-label="Raspored rezervacija">
-      <div className="gm-calendar-filters">
-        <label>Lokal<select aria-label={"Lokal"} value={url.state.locationId} disabled={locations.isLoading || !!locations.error} onChange={event => setUrl({locationId:event.target.value,areaId:'',resourceId:''})}>
-          <option value="">Svi lokali</option>{locations.data?.map(item=><option key={item.id} value={item.id}>{item.name}{!item.active?' · Neaktivan':''}</option>)}</select></label>
-        <label>Zona<select aria-label={"Zona"} value={url.state.areaId} disabled={!url.state.locationId || areas.isFetching || !!areas.error} onChange={event=>setUrl({areaId:event.target.value,resourceId:''})}>
-          <option value="">Sve zone</option>{areas.data?.map(item=><option key={item.id} value={item.id}>{item.name}{!item.active?' · Neaktivna':''}</option>)}</select></label>
-        {canEmployees && <label>Zaposleni<select aria-label={"Zaposleni"} value={url.state.employeeId} disabled={employees.isLoading || !!employees.error} onChange={event=>setUrl({employeeId:event.target.value})}>
-          <option value="">Svi zaposleni</option>{employees.data?.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
-        <label>Gaming stanica / resurs<select aria-label={"Gaming stanica / resurs"} value={url.state.resourceId} disabled={inventory.isLoading || !!inventory.error || actor?.role==='EMPLOYEE' && scope==='MANAGEABLE' && (management.isLoading || !!management.error)}
+      <div className="ui-filter-bar gm-calendar-filters">
+        <label>Lokal<Select aria-label={"Lokal"} value={url.state.locationId} disabled={locations.isLoading || !!locations.error} onChange={event => setUrl({locationId:event.target.value,areaId:'',resourceId:''})}>
+          <option value="">Svi lokali</option>{locations.data?.map(item=><option key={item.id} value={item.id}>{item.name}{!item.active?' · Neaktivan':''}</option>)}</Select></label>
+        <label>Zona<Select aria-label={"Zona"} value={url.state.areaId} disabled={!url.state.locationId || areas.isFetching || !!areas.error} onChange={event=>setUrl({areaId:event.target.value,resourceId:''})}>
+          <option value="">Sve zone</option>{areas.data?.map(item=><option key={item.id} value={item.id}>{item.name}{!item.active?' · Neaktivna':''}</option>)}</Select></label>
+        {canEmployees && <label>Zaposleni<Select aria-label={"Zaposleni"} value={url.state.employeeId} disabled={employees.isLoading || !!employees.error} onChange={event=>setUrl({employeeId:event.target.value})}>
+          <option value="">Svi zaposleni</option>{employees.data?.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</Select></label>}
+        <label>Gaming stanica / resurs<Select aria-label={"Gaming stanica / resurs"} value={url.state.resourceId} disabled={inventory.isLoading || !!inventory.error || actor?.role==='EMPLOYEE' && scope==='MANAGEABLE' && (management.isLoading || !!management.error)}
           onChange={event=>setUrl({resourceId:event.target.value})}><option value="">Svi resursi</option>
           {url.state.resourceId && !resourceOptions.some(item=>item.id===url.state.resourceId) && <option value={url.state.resourceId} disabled>Izabrani resurs nije u ovom opsegu</option>}
-          {resourceOptions.map(item=><option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}</select></label>
-        <label>Status<select aria-label={"Status"} value={status??''} onChange={event=>setUrl({status:event.target.value})}><option value="">Svi statusi</option>{statuses.map(item=><option key={item} value={item}>{reservationLabels[item]}</option>)}</select></label>
-        <label>Datum<input aria-label={"Datum"} type="date" value={anchor} onClick={event=>{try{event.currentTarget.showPicker?.()}catch{/* native fallback */}}} onChange={event=>selectDate(event.target.value)}/></label>
+          {resourceOptions.map(item=><option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}</Select></label>
+        <label>Status<Select aria-label={"Status"} value={status??''} onChange={event=>setUrl({status:event.target.value})}><option value="">Svi statusi</option>{statuses.map(item=><option key={item} value={item}>{reservationLabels[item]}</option>)}</Select></label>
+        <label>Datum<Input aria-label={"Datum"} type="date" value={anchor} onClick={event=>{try{event.currentTarget.showPicker?.()}catch{/* native fallback */}}} onChange={event=>selectDate(event.target.value)}/></label>
       </div>
       {(locations.error || areas.error || inventory.error || employees.error || management.error) && <ErrorState message="Neke opcije filtera nije moguće učitati." action={<Button variant="secondary" onClick={() => {
         void locations.refetch();void inventory.refetch();if(url.state.locationId)void areas.refetch();if(canEmployees)void employees.refetch();if(actor?.role==='EMPLOYEE')void management.refetch()
@@ -135,8 +132,8 @@ export function CalendarPage() {
       <div className="gm-calendar-views gm-calendar-mobile-views" role="group" aria-label="Režim prikaza na manjim ekranima">
         {(Object.keys(calendarViews) as CalendarView[]).map(item=><Button type="button" key={item} variant="secondary" aria-pressed={item===view} onClick={()=>setUrl({view:item})}>{calendarViews[item]}</Button>)}
       </div>
-      {result.isLoading ? <Skeleton lines={7} label="Učitavanje kalendara"/> : result.error ? <ErrorState message="Kalendar nije moguće učitati." action={<Button onClick={()=>result.refetch()}>Pokušaj ponovo</Button>}/>
-        : view==='day' ? context.isLoading ? <Skeleton lines={7} label="Učitavanje resursa i radnog vremena"/> : context.error ? <ErrorState message="Stvarnu zauzetost i stanje resursa nije moguće učitati." action={<Button onClick={()=>context.refetch()}>Pokušaj ponovo</Button>}/>
+      {result.isLoading ? <Skeleton lines={7} label="Učitavanje kalendara"/> : result.error ? <ErrorState message="Kalendar nije moguće učitati." action={<Button variant="secondary" onClick={()=>result.refetch()}>Pokušaj ponovo</Button>}/>
+        : view==='day' ? context.isLoading ? <Skeleton lines={7} label="Učitavanje resursa i radnog vremena"/> : context.error ? <ErrorState message="Stvarnu zauzetost i stanje resursa nije moguće učitati." action={<Button variant="secondary" onClick={()=>context.refetch()}>Pokušaj ponovo</Button>}/>
           : context.data && <CalendarTimeline context={context.data} events={events} now={now} onOpen={openReservation}/>
         : view==='week' ? <>
           {weekContexts.some(query => query.isError) && <ErrorState message="Radno vreme i odsustva za deo nedelje nisu dostupni. Kreiranje u tim danima je privremeno onemogućeno."
@@ -148,31 +145,31 @@ export function CalendarPage() {
         </>
         : view==='month' ? <><CalendarMonth month={anchor} selected={anchor} byDay={byDay} onSelect={selectDate}/><section className="gm-calendar-month-agenda"><h3>{dateLabel(anchor,true)}</h3>
           <div>{(byDay[anchor]??[]).map(item=><CalendarEvent key={item.id} item={item} onOpen={openReservation}/>)}</div>{!byDay[anchor]?.length && <p>Nema rezervacija za izabrani dan.</p>}</section></>
-        : events.length ? <TableShell label="Lista rezervacija"><table className="gm-calendar-list"><thead><tr><th>Datum i vreme</th><th>Klijent / usluga</th><th>Resurs / lokal</th><th>Status</th><th>Detalji</th></tr></thead>
+        : events.length ? <TableShell label="Lista rezervacija"><table className="ui-data-table gm-calendar-list"><thead><tr><th>Datum i vreme</th><th>Klijent / usluga</th><th>Resurs / lokal</th><th>Status</th><th>Detalji</th></tr></thead>
           <tbody>{events.map(item=><tr key={item.id}><td><time dateTime={item.startTime}>{instantLabel(item.startTime)}</time><small>Kraj: {instantLabel(item.endTime)}</small></td>
             <td><strong>{item.customerName}</strong><small>{item.serviceName}</small><small>{item.employeeName}</small></td><td>{item.resourceCode??item.resourceName??'Bez dodeljenog resursa'}<small>{item.locationName??'Lokal nije dodeljen'}</small></td>
             <td className={`gm-calendar-status-${item.status.toLowerCase()}`}><Badge tone={reservationTones[item.status]}>{reservationLabels[item.status]}</Badge>{item.readOnly&&<small>Samo pregled</small>}</td>
             <td><Button type="button" variant="secondary" onClick={event=>openReservation(item.id,event)} aria-label={`Detalji rezervacije: ${item.customerName}, ${eventTime(item)}`}>Detalji</Button></td>
           </tr>)}</tbody></table></TableShell> : <EmptyState title="Nema rezervacija u periodu" description="Promenite period ili filtere."/>}
     </section><aside className="gm-calendar-side" aria-label="Kontrole i pomoćni kalendar">
-      <section className="gm-calendar-side-panel"><h2>Prikaz kalendara</h2><div className="gm-calendar-views" role="group" aria-label="Režim prikaza">
+      <Card className="gm-calendar-side-panel"><h2>Prikaz kalendara</h2><div className="gm-calendar-views" role="group" aria-label="Režim prikaza">
         {(Object.keys(calendarViews) as CalendarView[]).map(item=><Button type="button" key={item} variant="secondary" aria-pressed={item===view} onClick={()=>setUrl({view:item})}>{calendarViews[item]}</Button>)}
-      </div></section>
-      <section className="gm-calendar-side-panel" aria-label="Mali mesečni kalendar"><CalendarMonth month={miniMonth} selected={anchor} byDay={miniByDay} mini onMonth={setMiniMonth} onSelect={selectDate}/>
-        {mini.isLoading && <small role="status">Učitavanje indikatora rezervacija…</small>}{mini.error && <p className="search-help">Indikatore rezervacija nije moguće učitati. <button type="button" onClick={()=>mini.refetch()}>Pokušaj ponovo</button></p>}</section>
-      <section className="gm-calendar-side-panel"><h2>Statusi rezervacija</h2><ul className="gm-calendar-legend">
+      </div></Card>
+      <Card className="gm-calendar-side-panel" aria-label="Mali mesečni kalendar"><CalendarMonth month={miniMonth} selected={anchor} byDay={miniByDay} mini onMonth={setMiniMonth} onSelect={selectDate}/>
+        {mini.isLoading && <small role="status">Učitavanje indikatora rezervacija…</small>}{mini.error && <p className="search-help">Indikatore rezervacija nije moguće učitati. <Button variant="secondary" type="button" onClick={()=>mini.refetch()}>Pokušaj ponovo</Button></p>}</Card>
+      <Card className="gm-calendar-side-panel"><h2>Statusi rezervacija</h2><ul className="gm-calendar-legend">
         {statuses.map(item=><li key={item}><i className={`gm-calendar-status-${item.toLowerCase()}`} aria-hidden="true"/>{reservationLabels[item]}</li>)}
       </ul><ul className="gm-calendar-legend gm-calendar-legend--occupancy"><li><i className="gm-calendar-session" aria-hidden="true"/>Aktivna gaming sesija</li>
         <li><i className="gm-calendar-busy" aria-hidden="true"/>Zauzeće resursa</li><li><i className="gm-calendar-closed" aria-hidden="true"/>Nedostupno / van radnog vremena</li>
-        {url.state.employeeId && <li><i className="gm-calendar-employee-block" aria-hidden="true"/>Zaposleni zauzet ili na odsustvu</li>}</ul></section>
-      <section className="gm-calendar-side-panel"><h2>Brze akcije</h2><div className="gm-calendar-quick-actions">
+        {url.state.employeeId && <li><i className="gm-calendar-employee-block" aria-hidden="true"/>Zaposleni zauzet ili na odsustvu</li>}</ul></Card>
+      <Card className="gm-calendar-side-panel"><h2>Brze akcije</h2><div className="gm-calendar-quick-actions">
         {canCreate&&<Button type="button" className="gm-calendar-create" onClick={openCreate}>+ Nova rezervacija</Button>}
         {hasCapability(actor,'RESERVATION_READ_ALL')&&<Link className="gm-calendar-link" to="/reservations">Prikaži sve rezervacije <span aria-hidden="true">↗</span></Link>}
         {hasCapability(actor,'RESOURCE_READ')&&<Link className="gm-calendar-link" to="/resources">Upravljanje resursima <span aria-hidden="true">↗</span></Link>}
-      </div></section>
+      </div></Card>
     </aside></div>
     {createOpen&&canCreate&&<StaffReservationForm initial={{ startTime: createStart, employeeId: url.state.employeeId, resourceId: url.state.resourceId, locationId: url.state.locationId, areaId: url.state.areaId }} onClose={()=>setCreateOpen(false)} onCreated={(id,summaryText)=>{setCreateOpen(false);setMessage(summaryText??'Rezervacija je kreirana.');setUrl({reservationId:id});void refresh()}}/>}
     <ReservationDetailsDrawer reservationId={url.state.reservationId||null} onClose={()=>setUrl({reservationId:''})} onChanged={refresh}
       appearance="calendar" areaNames={areaNames} returnFocusRef={returnFocus}/>
-  </main>
+  </PageLayout>
 }

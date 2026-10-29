@@ -4,7 +4,7 @@ import { apiErrorMessage } from '../api/client'
 import { resourceApi } from '../api/resourceApi'
 import { reservationApi } from '../api/reservationApi'
 import { ActionDialog } from '../components/ui/ActionDialog'
-import { Badge, Button, Drawer, ErrorState, Modal, Skeleton } from '../components/ui'
+import { Badge, Button, Drawer, ErrorState, Modal, Skeleton, Select, Alert } from '../components/ui'
 import { reservationLabels as labels, reservationTones } from '../components/ui/statusPresentation'
 import { queryKeys } from '../query/queryKeys'
 import { ReservationEditForm } from './ReservationEditForm'
@@ -100,7 +100,7 @@ function ReservationDetailsContent({ reservationId, onClose, onChanged, initialA
   const content = <>
       {detail.isLoading && <Skeleton lines={7} label="Učitavanje detalja rezervacije" />}
       {detail.error && <ErrorState message={errorMessage(detail.error, 'Detalje rezervacije nije moguće učitati.')}
-        action={<Button onClick={() => detail.refetch()}>Pokušaj ponovo</Button>} />}
+        action={<Button variant="secondary" onClick={() => detail.refetch()}>Pokušaj ponovo</Button>} />}
       {isModal && transition.error && <ErrorState message={errorMessage(transition.error, 'Status rezervacije nije moguće promeniti.')}/>}
       {value && <div className={`reservation-detail${isCalendar ? ` gm-calendar-status-${value.status.toLowerCase()}` : ''}`}>
         {isCustomer && <ReservationServiceMedia serviceId={value.serviceId} eager />}
@@ -132,23 +132,23 @@ function ReservationDetailsContent({ reservationId, onClose, onChanged, initialA
           <div><dt>Izmenjeno</dt><dd>{formatBusinessDateTime(value.updatedAt)}</dd></div></>}
         </dl>
         {value.resourceRequired && !value.resourceId && <section ref={assignment} tabIndex={-1} className="reservation-resource-assignment">
-          <p className="error-banner" role="alert">Rezervacija nema zahtevan fizički resurs. Potrebna je ručna dodela; potvrđivanje nije dozvoljeno.</p>
+          <Alert tone="danger" role="alert">Rezervacija nema zahtevan fizički resurs. Potrebna je ručna dodela; potvrđivanje nije dozvoljeno.</Alert>
           {value.canAssignResource && <>
             {resourceOptions.isLoading && <Skeleton lines={2} label="Učitavanje slobodnih resursa" />}
             {resourceOptions.error && <ErrorState message={errorMessage(resourceOptions.error, 'Slobodne resurse nije moguće učitati.')}
-              action={<Button onClick={() => resourceOptions.refetch()}>Pokušaj ponovo</Button>} />}
-            <label>Slobodan računar / resurs<select aria-label={"Slobodan računar / resurs"} value={resourceId} onChange={(event) =>
+              action={<Button variant="secondary" onClick={() => resourceOptions.refetch()}>Pokušaj ponovo</Button>} />}
+            <label>Slobodan računar / resurs<Select aria-label={"Slobodan računar / resurs"} value={resourceId} onChange={(event) =>
               setResourceChoice({ reservationId: value.id, resourceId: event.target.value })}>
               <option value="">Izaberite konkretan resurs</option>
               {resourceOptions.data?.resources.map((resource) => <option key={resource.id} value={resource.id} disabled={!resource.available}>
                 {resource.code} · {resource.name} · {resource.locationName}{resource.available ? '' : ' — Zauzet ili van radnog vremena'}</option>)}
-            </select></label>
+            </Select></label>
             {!resourceOptions.isLoading && !resourceOptions.error && !resourceOptions.data?.resources.some((resource) => resource.available)
               && <p>Nema slobodnog kompatibilnog resursa za ovaj termin. Rezervaciju možete otkazati.</p>}
             <Button type="button" loading={assign.isPending}
               disabled={resourceOptions.isFetching || !resourceOptions.data?.resources.some((resource) => resource.id === resourceId && resource.available)}
               onClick={() => assign.mutate()}>Dodeli resurs</Button>
-            {assign.error && <p role="alert" className="error-banner">{errorMessage(assign.error, 'Resurs nije moguće dodeliti.')}</p>}
+            {assign.error && <Alert tone="danger" role="alert">{errorMessage(assign.error, 'Resurs nije moguće dodeliti.')}</Alert>}
           </>}
         </section>}
         {value.canEdit&&!value.readOnly&&<>
@@ -161,7 +161,7 @@ function ReservationDetailsContent({ reservationId, onClose, onChanged, initialA
             {labels[item.fromStatus]} → {labels[item.toStatus]} · {formatBusinessDateTime(item.occurredAt)}
             {item.reason && <span> · Razlog: {item.reason}</span>}</li>)}
         </ol></section>}
-        {!isCustomer && value.allowedActions.length > 0 && (!isCalendar || expanded) && <div className="card-actions">
+        {!isCustomer && value.allowedActions.length > 0 && (!isCalendar || expanded) && <div className="ui-actions card-actions">
           {value.allowedActions.map((next) => <Button type="button" key={next}
             disabled={transition.isPending || assign.isPending || editBusy}
             variant={next === 'REJECTED' || next === 'CANCELLED' ? 'danger' : 'primary'}
@@ -170,7 +170,7 @@ function ReservationDetailsContent({ reservationId, onClose, onChanged, initialA
       </div>}
     </>
   return <>
-    {isModal ? <Modal open={Boolean(reservationId)} title={isCustomer ? value?.serviceName ?? 'Detalji rezervacije' : 'Pregled rezervacije'} titleIcon={isCustomer ? <CalendarClock /> : <ReservationIcon/>} className={isCustomer ? 'gm-my-reservation-detail' : 'gm-calendar-detail'}
+    {isModal ? <Modal size="wide" open={Boolean(reservationId)} title={isCustomer ? value?.serviceName ?? 'Detalji rezervacije' : 'Pregled rezervacije'} titleIcon={isCustomer ? <CalendarClock /> : <ReservationIcon/>} className={isCustomer ? 'gm-my-reservation-detail' : 'gm-calendar-detail'}
       onClose={onClose} returnFocusRef={returnFocusRef} closeDisabled={busy} footer={value && <div className={`dialog-actions ${isCustomer ? 'gm-my-detail-actions' : 'gm-calendar-detail-actions'}`}>
         {value.canEdit && !value.readOnly && <Button type="button" variant="secondary" disabled={busy || detail.isFetching || editId===value.id} onClick={()=>setEditId(value.id)}>{isCustomer ? 'Izmeni termin' : 'Izmeni'}</Button>}
         {!value.readOnly && value.allowedActions.includes('CANCELLED') && <Button type="button" variant="danger" disabled={busy || detail.isFetching} onClick={()=>setAction('CANCELLED')}>Otkaži</Button>}
@@ -186,7 +186,7 @@ function ReservationDetailsContent({ reservationId, onClose, onChanged, initialA
       onClose={() => setAction(null)} onConfirm={async (note) => {
         if (action && value?.allowedActions.includes(action)) await transition.mutateAsync({ next: action, note })
       }} />
-    {!isModal && transition.error && <p className="error-banner" role="alert">
-      {apiErrorMessage(transition.error, 'Status rezervacije nije moguće promeniti.')}</p>}
+    {!isModal && transition.error && <Alert tone="danger" role="alert">
+      {apiErrorMessage(transition.error, 'Status rezervacije nije moguće promeniti.')}</Alert>}
   </>
 }

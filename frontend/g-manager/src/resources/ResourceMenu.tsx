@@ -34,6 +34,6 @@ export function ResourceMenu({label,children,actions,disabled=false}:{label:stri
   }
   return <div className="resource-menu" ref={root} onBlur={blur} onKeyDown={keyboard}>
     <Button ref={trigger} variant="secondary" disabled={disabled} aria-label={label} aria-haspopup="menu" aria-controls={open?id:undefined} aria-expanded={open} onClick={()=>setOpen(value=>!value)}>{children}</Button>
-    {open&&createPortal(<div ref={menu} id={id} style={position} className="resource-menu-popover" role="menu" aria-label={label} onBlur={blur} onKeyDown={event=>{keyboard(event);event.stopPropagation()}}>{actions.map(action=><button type="button" role="menuitem" key={action.label} disabled={action.disabled} onClick={()=>{setOpen(false);trigger.current?.focus();action.onClick()}}>{action.label}</button>)}</div>,document.body)}
+    {open&&createPortal(<div ref={menu} id={id} style={position} className="ui-menu resource-menu-popover" role="menu" aria-label={label} onBlur={blur} onKeyDown={event=>{keyboard(event);event.stopPropagation()}}>{actions.map(action=><button type="button" role="menuitem" key={action.label} disabled={action.disabled} onClick={()=>{setOpen(false);trigger.current?.focus();action.onClick()}}>{action.label}</button>)}</div>,document.body)}
   </div>
 }

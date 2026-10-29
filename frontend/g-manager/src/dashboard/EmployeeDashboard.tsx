@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Badge, Button, EmptyState } from '../components/ui'
+import { Badge, Button, EmptyState, PageLayout, Alert } from '../components/ui'
 import { reservationLabels, reservationTones } from '../components/ui/statusPresentation'
 import { GamingOverview } from '../gaming/GamingOverview'
 import { formatBusinessTime } from '../reservations/dateTime'
@@ -36,14 +36,14 @@ export function EmployeeDashboard({ today, busy, refreshing, error, onRefresh, o
     </div>
   }
 
-  return <main className="workspace g-dashboard dashboard-workday">
+  return <PageLayout className="g-dashboard dashboard-workday">
     {children}
     <DashboardHeader title="Moj radni dan" eyebrow="Dnevna operativa" date={today.date} timezone={today.timezone}
       description="Termini, narudžbine i zadaci koji su danas pred vama." onRefresh={onRefresh} loading={refreshing}>
       {today.workingDayStart && today.workingDayEnd && <span>Radno vreme igraonice: {formatBusinessTime(today.workingDayStart)}–{formatBusinessTime(today.workingDayEnd)}</span>}
     </DashboardHeader>
-    {error && <p className="error-banner" role="alert">{error}</p>}
-    <div className="dashboard-kpis" aria-label="Pregled radnog dana">
+    {error && <Alert tone="danger" role="alert">{error}</Alert>}
+    <div className="ui-stat-grid dashboard-kpis" aria-label="Pregled radnog dana">
       {canAppointments && <DashboardMetricCard label="Današnji termini" value={today.appointments.length} icon="/calendar"
         detail="Svi statusi u vašem dnevnom rasporedu" />}
       {canOrders && <>
@@ -65,7 +65,7 @@ export function EmployeeDashboard({ today, busy, refreshing, error, onRefresh, o
               <div className="dashboard-appointment-heading"><strong>{item.serviceName}</strong>
                 <Badge tone={reservationTones[item.status]}>{reservationLabels[item.status]}</Badge></div>
               <p>{item.customerName}</p>
-              <div className="card-actions">
+              <div className="ui-actions card-actions">
                 {canChangeAppointments && item.allowedActions.map((action) => <Button key={action} type="button"
                   variant={action === 'CANCELLED' || action === 'REJECTED' ? 'danger' : 'primary'}
                   disabled={busy} onClick={() => onAppointmentAction(item, action)}>{dashboardActionLabels[action] ?? action}</Button>)}
@@ -103,5 +103,5 @@ export function EmployeeDashboard({ today, busy, refreshing, error, onRefresh, o
       </DashboardSection>
     </div>}
     <DashboardQuickActions />
-  </main>
+  </PageLayout>
 }

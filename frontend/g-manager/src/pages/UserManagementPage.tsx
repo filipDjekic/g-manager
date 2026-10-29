@@ -6,7 +6,7 @@ import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
 import { SavedViewBar } from '../components/lists/SavedViewBar'
 import { SelectionBar } from '../components/lists/SelectionBar'
-import { Badge, Button, Drawer, EmptyState, ErrorState, Input, Select, Skeleton } from '../components/ui'
+import { Badge, Button, Drawer, EmptyState, ErrorState, Input, Select, Skeleton, PageHeader, PageLayout, Card } from '../components/ui'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useToast } from '../components/ui/toastContext'
 import { useListUrlState } from '../lists/useListUrlState'
@@ -29,9 +29,9 @@ const sorting = [{ sort: 'createdAt', direction: 'DESC', label: 'Najnoviji' }, {
 export function UserManagementPage({ employeesOnly = false }: Props) {
   const actor = useAuthStore(state => state.user)
   if (employeesOnly) return <EmployeesPage />
-  if (!actor || !hasCapability(actor, 'USER_LIST') || !['OWNER', 'ADMIN'].includes(actor.role)) return <main className="workspace">
+  if (!actor || !hasCapability(actor, 'USER_LIST') || !['OWNER', 'ADMIN'].includes(actor.role)) return <PageLayout>
     <EmptyState title="Pregled korisnika nije dostupan" description="Nemate odgovarajuću dozvolu." />
-  </main>
+  </PageLayout>
   return <UserWorkspace key={`${actor.id}:${actor.role}`} actor={actor} />
 }
 
@@ -168,15 +168,13 @@ useEffect(() => {
   const filtered = Boolean(url.state.search || role || active !== undefined)
   const sortValue = `${sort}:${direction}`, standardSort = sorting.some(value => `${value.sort}:${value.direction}` === sortValue)
   const detailBody = detail.isLoading ? <Skeleton lines={8} label="Učitavanje detalja korisnika" /> : detail.isError
-    ? <ErrorState message={userError(detail.error, 'Detalje naloga nije moguće učitati.')} action={<Button type="button" onClick={() => void detail.refetch()}>Pokušaj ponovo</Button>} />
+    ? <ErrorState message={userError(detail.error, 'Detalje naloga nije moguće učitati.')} action={<Button variant="secondary" type="button" onClick={() => void detail.refetch()}>Pokušaj ponovo</Button>} />
     : detail.data && <UserDetails user={detail.data} actor={actor} busy={Boolean(busy)} onAction={onAction} onClose={closeDetails} onRefresh={() => void detail.refetch()} />
 
-  return <main ref={root} className="workspace gm-users">
+  return <PageLayout ref={root} className="gm-users">
     {confirmationDialog}
-    <header className="gm-users-heading"><div><span className="gm-users-heading-icon"><UserIcon /></span><div><h1>Korisnici i uloge</h1><p>Upravljanje nalozima, statusima i korisničkim ulogama.</p></div></div>
-      {canCreate && <Button type="button" className="gm-user-primary" aria-haspopup="dialog" aria-expanded={createOpen} onClick={event => openCreate(event.currentTarget)}><UserIcon kind="add" />+ Novi korisnik</Button>}
-    </header>
-    <div className="gm-user-kpis">
+    <PageHeader title="Korisnici i uloge" description={<>Upravljanje nalozima, statusima i korisničkim ulogama.</>} icon={<UserIcon />} actions={<>{canCreate && <Button type="button" className="gm-user-primary" aria-haspopup="dialog" aria-expanded={createOpen} onClick={event => openCreate(event.currentTarget)}><UserIcon kind="add" />+ Novi korisnik</Button>}</>} />
+    <div className="ui-stat-grid gm-user-kpis">
       <UserKpi title="Ukupno korisnika" kind="users" tone="blue" value={statistics.isError ? undefined : statistics.data?.total} loading={statistics.isLoading} />
       <UserKpi title="Aktivni nalozi" kind="check" tone="green" value={statistics.isError ? undefined : statistics.data?.active} loading={statistics.isLoading} />
       <UserKpi title="Administratori" kind="shield" tone="purple" value={statistics.isError ? undefined : statistics.data?.administrators} loading={statistics.isLoading} />
@@ -186,13 +184,13 @@ useEffect(() => {
     {statistics.isError && <ErrorState message={userError(statistics.error, 'Statistiku korisnika nije moguće učitati.')}
       action={<Button type="button" variant="secondary" onClick={() => void statistics.refetch()}>Ponovo učitaj statistiku</Button>} />}
     <div className={`gm-users-layout${wide && url.state.focus ? ' has-details' : ''}`}>
-      <section className="ui-card gm-users-list" aria-labelledby="gm-users-list-title">
+      <Card className="ui-card gm-users-list" aria-labelledby="gm-users-list-title">
         <header className="gm-users-list-heading"><h2 id="gm-users-list-title">{deleted ? 'Obrisani korisnici' : 'Pregled korisnika'}</h2>
           {canRestore && <Button type="button" variant="secondary" disabled={Boolean(busy)} onClick={() => { setSelected(new Set()); setUrl({ deleted: deleted ? '' : 'true', page: '0', focus: '' }) }}>
             <UserIcon kind={deleted ? 'users' : 'restore'} />{deleted ? 'Postojeći korisnici' : 'Obrisani korisnici'}</Button>}
           <Button type="button" variant="secondary" disabled={Boolean(busy)} onClick={() => { void users.refetch(); void statistics.refetch(); if (url.state.focus) void detail.refetch() }}><UserIcon kind="refresh" />Osveži</Button>
         </header>
-        <div className="gm-user-filters"><label className="gm-user-search"><span>Pretraga</span><div><UserIcon kind="search" /><Input ref={searchInput} type="search" maxLength={200}
+        <div className="ui-filter-bar gm-user-filters"><label className="gm-user-search"><span>Pretraga</span><div><UserIcon kind="search" /><Input ref={searchInput} type="search" maxLength={200}
           value={search} placeholder="Pretraži korisnike po imenu ili email adresi..." onChange={event => setSearch(event.target.value)} /></div></label>
           <label><span>Uloga</span><Select value={role ?? ''} onChange={event => setUrl({ role: event.target.value, page: '0' })}><option value="">Sve uloge</option>
             <option value="OWNER">Vlasnik</option><option value="ADMIN">Administrator</option><option value="EMPLOYEE">Zaposleni</option><option value="CUSTOMER">Klijent</option></Select></label>
@@ -212,7 +210,7 @@ useEffect(() => {
         {bulkResult?.failed ? <ul className="gm-user-bulk-errors" aria-label="Neuspešne grupne akcije">{bulkResult.outcomes.filter(value => !value.success).map(value => <li key={value.id}>
           <strong>{users.data?.content.find(user => user.id === value.id)?.name ?? `Nalog ${value.id.slice(0, 8)}`}</strong><span>{userError(value.message, 'Operacija nije uspela.')}</span></li>)}</ul> : null}
         {users.isLoading ? <Skeleton lines={7} label="Učitavanje korisnika" /> : users.isError ? <ErrorState message={userError(users.error, 'Korisnike nije moguće učitati.')}
-          action={<Button type="button" onClick={() => void users.refetch()}>Pokušaj ponovo</Button>} /> : !users.data?.content.length
+          action={<Button variant="secondary" type="button" onClick={() => void users.refetch()}>Pokušaj ponovo</Button>} /> : !users.data?.content.length
             ? <EmptyState title={filtered ? 'Nema korisnika koji odgovaraju izabranim filterima.' : deleted ? 'Nema obrisanih korisnika.' : 'Nema korisnika.'}
               action={filtered ? <Button type="button" variant="secondary" onClick={resetFilters}>Ukloni filtere</Button> : !deleted && canCreate ? <Button type="button" aria-haspopup="dialog" onClick={event => openCreate(event.currentTarget)}>Novi korisnik</Button> : undefined} />
             : <UsersTable users={users.data.content} actor={actor} selected={selected} focus={url.state.focus} busy={Boolean(busy)} onAction={onAction} onToggle={id => setSelected(previous => {
@@ -220,9 +218,9 @@ useEffect(() => {
             })} />}
         {users.isSuccess && <UserPagination page={page} size={size} totalPages={users.data.totalPages} totalElements={users.data.totalElements} busy={users.isFetching || Boolean(busy)}
           onPage={next => setUrl({ page: String(next) })} onSize={next => setUrl({ size: String(next), page: '0' })} />}
-      </section>
+      </Card>
       {wide && url.state.focus && <aside ref={detailsRegion} tabIndex={-1} className="ui-card gm-user-details-panel" aria-label="Detalji izabranog korisnika">
-        {(!detail.data || detail.isError) && <header className="gm-user-details-heading"><span>Detalji korisnika</span><Button type="button" variant="secondary" className="gm-user-inline-close" aria-label="Zatvori detalje korisnika" onClick={closeDetails}>×</Button></header>}{detailBody}
+        {(!detail.data || detail.isError) && <header className="gm-user-details-heading"><span>Detalji korisnika</span><Button iconOnly type="button" variant="secondary" className="gm-user-inline-close" aria-label="Zatvori detalje korisnika" onClick={closeDetails}>×</Button></header>}{detailBody}
       </aside>}
     </div>
     <Drawer open={!wide && Boolean(url.state.focus)} title="Detalji korisnika" className="gm-user-details-drawer" size="wide" returnFocusRef={detailsOpener} closeDisabled={Boolean(busy)} onClose={closeDetails}>{detailBody}</Drawer>
@@ -232,5 +230,5 @@ useEffect(() => {
       toast('Korisnik je uspešno kreiran.', 'success'); void refresh()
       if (wide) window.requestAnimationFrame(() => detailsRegion.current?.focus({ preventScroll: true }))
     }} />}
-  </main>
+  </PageLayout>
 }

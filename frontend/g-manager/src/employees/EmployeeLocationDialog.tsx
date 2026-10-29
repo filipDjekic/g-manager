@@ -3,7 +3,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { resourceApi } from '../api/resourceApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Badge, Button, EmptyState, ErrorState, Modal, Select, Skeleton } from '../components/ui'
+import { Badge, Button, EmptyState, ErrorState, Modal, Select, Skeleton, Alert } from '../components/ui'
 import { useToast } from '../components/ui/toastContext'
 import type { UserResponse } from '../types/user.types'
 import { EmployeeIcon } from './employeePresentation'
@@ -39,11 +39,11 @@ export function EmployeeLocationDialog({ employee, actorId, onClose }: { employe
   }
   return <Modal open title="Dodeli lokaciju" titleIcon={<EmployeeIcon kind="location" />} className="gm-employee-dialog"
     initialFocusRef={select} closeDisabled={busy} onClose={() => { if (!inFlight.current) onClose() }}
-    footer={<div className="dialog-actions"><Button type="button" variant="secondary" disabled={busy} onClick={onClose}>Kasnije</Button>
+    footer={<div className="ui-actions dialog-actions"><Button type="button" variant="secondary" disabled={busy} onClick={onClose}>Kasnije</Button>
       <Button type="button" className="gm-employee-primary" loading={busy} disabled={!location || !access.isSuccess || access.isFetching || !employee.active} onClick={() => void assign()}>Potvrdi dodelu</Button></div>}>
     <p className="gm-employee-note">Dodelite pristup zaposlenom <strong>{employee.name}</strong>.</p>
     {locations.isLoading ? <Skeleton lines={3} /> : locations.isError ? <ErrorState message={employeeError(locations.error, 'Lokacije nije moguće učitati.')}
-      action={<Button type="button" onClick={() => void locations.refetch()}>Pokušaj ponovo</Button>} /> : !locations.data?.some(value => value.active)
+      action={<Button variant="secondary" type="button" onClick={() => void locations.refetch()}>Pokušaj ponovo</Button>} /> : !locations.data?.some(value => value.active)
         ? <EmptyState title="Nema aktivnih lokacija" description="Lokacije možete urediti na Mapi resursa." />
         : <label className="gm-employee-location-select" htmlFor={`${id}-location`}>Lokacija<Select aria-label={"Lokacija"} ref={select} id={`${id}-location`} value={locationId} disabled={busy}
           onChange={event => { setLocationId(event.target.value); setError('') }}><option value="">Izaberite lokaciju</option>
@@ -52,6 +52,6 @@ export function EmployeeLocationDialog({ employee, actorId, onClose }: { employe
       action={<Button type="button" variant="secondary" onClick={() => void access.refetch()}>Pokušaj ponovo</Button>} />
       : current?.active && <p className="gm-employee-note"><Badge tone="info">Lokacija je već dodeljena</Badge> Nova potvrda ponovo primenjuje pristup postojećim stanicama.</p>)}
     <p className="gm-employee-assignment-notice">Potvrda dodeljuje pristup svim postojećim stanicama lokacije kroz postojeći sistem dodela. Naknadno dodate stanice zahtevaju novu dodelu.</p>
-    {error && <p className="error-banner" role="alert">{error}</p>}
+    {error && <Alert tone="danger" role="alert">{error}</Alert>}
   </Modal>
 }

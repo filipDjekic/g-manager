@@ -47,7 +47,7 @@ export function ActivatePage() {
   }
 
   return <AuthLayout>
-    <form className="gm-auth-form" onSubmit={submit} noValidate
+    <form className="ui-form-grid gm-auth-form" onSubmit={submit} noValidate
       aria-labelledby="activation-title" aria-describedby="activation-description">
       <header className="gm-auth-heading">
         <span className="gm-auth-heading-icon" aria-hidden="true">

@@ -6,7 +6,7 @@ import { orderApi } from '../api/orderApi'
 import { isConflictResponse } from '../api/idempotency'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Badge, Button, Drawer, EmptyState, ErrorState, Input, Modal, Select, Skeleton } from '../components/ui'
+import { Badge, Button, Drawer, EmptyState, ErrorState, Input, Modal, Select, Skeleton, PageHeader, PageLayout, Card, Alert } from '../components/ui'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { CatalogPagination } from '../catalog/CatalogPagination'
 import { OrdersPagination } from '../order/OrdersPagination'
@@ -28,9 +28,9 @@ const emptyFilters = { search: '', minPrice: undefined, maxPrice: undefined, ...
 
 export function MyOrdersPage() {
   const user = useAuthStore(state => state.user)
-  if (!user || user.role !== 'CUSTOMER' || !hasCapability(user, 'ORDER_READ_OWN')) return <main className="workspace gm-my-orders">
+  if (!user || user.role !== 'CUSTOMER' || !hasCapability(user, 'ORDER_READ_OWN')) return <PageLayout className="gm-my-orders">
     <EmptyState title="Moje narudžbine nisu dostupne" description="Ovaj pregled zahteva dozvolu za sopstvene narudžbine." />
-  </main>
+  </PageLayout>
   // A different account receives a fresh workspace before any old cart can be rendered.
   return <CustomerOrdersWorkspace key={user.id} user={user} />
 }
@@ -175,23 +175,21 @@ function CustomerOrdersWorkspace({ user }: { user: AuthUser }) {
   const checkoutItems = cart.attempt?.items ?? checkout?.map(({ product, quantity }) => ({ productId: product.id, quantity })) ?? []
   const checkoutEstimate = cart.attempt?.estimatedTotal ?? calculateEstimatedTotal(checkout ?? [])
 
-  return <main className="workspace gm-my-orders">
+  return <PageLayout className="gm-my-orders">
     {confirmationDialog}
-    <header className="gm-my-orders-heading"><div><span className="gm-my-shopping-icon"><ShoppingBagIcon /></span><div>
-      <h1 ref={titleRef} tabIndex={-1}>Moje narudžbine</h1><p>Katalog proizvoda, korpa i praćenje statusa porudžbina.</p>
-    </div></div><Button type="button" variant="secondary" onClick={() => { void orders.refetch(); if (selectedId) void detail.refetch(); if (canCatalog && pricesValid) void catalog.refetch(); void cart.retryProducts() }}>
-      <OrderIcon kind="refresh" />Osveži pregled</Button></header>
-    {message && <p className="success-banner gm-my-order-message" role="status">{message}<Button type="button" variant="secondary" onClick={() => setMessage('')} aria-label="Zatvori potvrdu">×</Button></p>}
-    {cart.warning && cart.ready && <p className="warning-banner" role="status">{cart.warning}</p>}
+    <PageHeader title="Moje narudžbine" description={<>Katalog proizvoda, korpa i praćenje statusa porudžbina.</>} icon={<ShoppingBagIcon />} titleRef={titleRef} actions={<><Button type="button" variant="secondary" onClick={() => { void orders.refetch(); if (selectedId) void detail.refetch(); if (canCatalog && pricesValid) void catalog.refetch(); void cart.retryProducts() }}>
+      <OrderIcon kind="refresh" />Osveži pregled</Button></>} />
+    {message && <Alert tone="success" className="gm-my-order-message" role="status">{message}<Button iconOnly type="button" variant="secondary" onClick={() => setMessage('')} aria-label="Zatvori potvrdu">×</Button></Alert>}
+    {cart.warning && cart.ready && <Alert tone="warning" role="status">{cart.warning}</Alert>}
     {cart.notice && <p className="gm-my-order-notice" role="status">{cart.notice}</p>}
-    {selectionWarning && <p className="warning-banner" role="status">{selectionWarning}</p>}
+    {selectionWarning && <Alert tone="warning" role="status">{selectionWarning}</Alert>}
     {selection.isError && canCreate && canCatalog && linkedProduct && <ErrorState message={orderErrorMessage(selection.error, 'Izabrani proizvod nije moguće učitati.')}
       action={<Button type="button" variant="secondary" onClick={() => void selection.refetch()}>Pokušaj ponovo</Button>} />}
 
     <div className="gm-my-shop-grid">
       <CustomerOrderPanel title="Katalog proizvoda" icon={<ShoppingBagIcon />} className="gm-my-catalog-panel"
         actions={<Badge tone="info">Svi proizvodi</Badge>}>
-        <div className="gm-my-product-filters">
+        <div className="ui-filter-bar gm-my-product-filters">
           <label className="gm-my-product-search"><span>Pretraga proizvoda</span><div><OrderIcon kind="search" /><Input ref={searchRef} type="search" value={search} maxLength={200}
             placeholder="Pretraži proizvode..." disabled={!canCatalog} onChange={event => setSearch(event.target.value)} /></div></label>
           <label><span>Sortiranje</span><Select value={sort} disabled={!canCatalog} onChange={event => setSort(event.target.value as keyof typeof productSorts)}>
@@ -203,8 +201,8 @@ function CustomerOrdersWorkspace({ user }: { user: AuthUser }) {
         <h3 ref={catalogRef} tabIndex={-1} className="sr-only">Dostupni proizvodi</h3>
         {!canCatalog ? <EmptyState title="Katalog nije dostupan" description="Pregled proizvoda zahteva odgovarajuću dozvolu." />
           : !pricesValid ? <ErrorState message="Unesite nenegativne cene, pri čemu cena od nije veća od cene do." action={<Button type="button" variant="secondary" onClick={resetFilters}>Ukloni filtere</Button>} />
-            : catalog.isLoading ? <div className="gm-my-product-grid">{Array.from({ length: 6 }, (_, index) => <div className="gm-my-product-card" key={index}><Skeleton lines={5} label="Učitavanje proizvoda" /></div>)}</div>
-              : catalog.isError ? <ErrorState message={orderErrorMessage(catalog.error, 'Katalog proizvoda nije moguće učitati.')} action={<Button type="button" onClick={() => void catalog.refetch()}>Pokušaj ponovo</Button>} />
+            : catalog.isLoading ? <div className="gm-my-product-grid">{Array.from({ length: 6 }, (_, index) => <Card as="div" padding="none" className="gm-my-product-card" key={index}><Skeleton lines={5} label="Učitavanje proizvoda" /></Card>)}</div>
+              : catalog.isError ? <ErrorState message={orderErrorMessage(catalog.error, 'Katalog proizvoda nije moguće učitati.')} action={<Button variant="secondary" type="button" onClick={() => void catalog.refetch()}>Pokušaj ponovo</Button>} />
                 : !catalog.data?.content.length ? <EmptyState title="Trenutno nema dostupnih proizvoda." description="Proverite pretragu ili raspon cena."
                   action={<Button type="button" variant="secondary" onClick={resetFilters}>Ukloni filtere</Button>} />
                   : <div className="gm-my-product-grid">{catalog.data.content.filter(product => product.active && !product.deletedAt && product.type === 'PRODUCT')
@@ -230,7 +228,7 @@ function CustomerOrdersWorkspace({ user }: { user: AuthUser }) {
               aria-pressed={status === option.value} onClick={() => changeParams({ status: option.value || undefined, page: undefined })}>{option.label}</Button>)}
         </div>
         {orders.isLoading ? <Skeleton lines={6} label="Učitavanje narudžbina" /> : orders.isError
-          ? <ErrorState message={orderErrorMessage(orders.error, 'Istoriju narudžbina nije moguće učitati.')} action={<Button type="button" onClick={() => void orders.refetch()}>Pokušaj ponovo</Button>} />
+          ? <ErrorState message={orderErrorMessage(orders.error, 'Istoriju narudžbina nije moguće učitati.')} action={<Button variant="secondary" type="button" onClick={() => void orders.refetch()}>Pokušaj ponovo</Button>} />
           : !orders.data?.content.length ? <EmptyState title={status ? 'Nemate narudžbine za izabrani status.' : 'Još nemate narudžbine.'}
             action={<Button type="button" variant="secondary" onClick={status ? () => changeParams({ status: undefined, page: undefined }) : browse}>{status ? 'Sve narudžbine' : 'Pregledaj proizvode'}</Button>} />
             : <CustomerOrderHistory orders={orders.data.content} selectedId={selectedId} canCancel={canCancel} cancelling={cancelling}
@@ -243,7 +241,7 @@ function CustomerOrdersWorkspace({ user }: { user: AuthUser }) {
         <CustomerOrderPanel title="Praćenje narudžbine" icon={<OrderIcon kind="clock" />} className="gm-my-tracking-panel">
           {!selectedId ? <EmptyState title="Izaberite narudžbinu" description="Izaberite „Prikaži“ da vidite status i stavke narudžbine." />
             : detail.isLoading ? <Skeleton lines={6} label="Učitavanje detalja narudžbine" /> : detail.isError
-              ? <ErrorState message={orderErrorMessage(detail.error, 'Detalje narudžbine nije moguće učitati.')} action={<Button type="button" onClick={() => void detail.refetch()}>Pokušaj ponovo</Button>} />
+              ? <ErrorState message={orderErrorMessage(detail.error, 'Detalje narudžbine nije moguće učitati.')} action={<Button variant="secondary" type="button" onClick={() => void detail.refetch()}>Pokušaj ponovo</Button>} />
               : detail.data && <CustomerOrderTracking order={detail.data} canCancel={canCancel(detail.data)} cancelling={cancelling === detail.data.id}
                 onCancel={() => { if (detail.data) cancel(detail.data) }} onRefresh={() => void detail.refetch()} />}
         </CustomerOrderPanel>
@@ -255,7 +253,7 @@ function CustomerOrdersWorkspace({ user }: { user: AuthUser }) {
     </Drawer>
     <Modal open={Boolean(checkout)} title={cart.attempt ? 'Provera prethodnog slanja' : 'Potvrda narudžbine'} titleIcon={<ShoppingBagIcon />} className="gm-my-order-dialog gm-my-checkout-dialog"
       returnFocusRef={checkoutOpener} initialFocusRef={checkoutCancel} onClose={closeCheckout} closeDisabled={cart.submitting}
-      footer={<div className="dialog-actions"><Button ref={checkoutCancel} type="button" variant="secondary" disabled={cart.submitting} onClick={closeCheckout}>Zatvori</Button>
+      footer={<div className="ui-actions dialog-actions"><Button ref={checkoutCancel} type="button" variant="secondary" disabled={cart.submitting} onClick={closeCheckout}>Zatvori</Button>
         <Button type="button" className="gm-my-submit-order" disabled={!canCreate || !checkoutItems.length} loading={cart.submitting} onClick={() => void submit()}>
           {cart.attempt ? 'Ponovi isti zahtev' : 'Potvrdi slanje'}</Button></div>}>
       <p className="gm-my-order-note">{cart.attempt ? 'Ponovni pokušaj proverava iste proizvode i količine uz zaštitu od duplog slanja.' : 'Pregledajte proizvode i količine pre slanja.'}</p>
@@ -264,7 +262,7 @@ function CustomerOrdersWorkspace({ user }: { user: AuthUser }) {
       </li>)}</ul>
       <div className="gm-my-cart-total"><span>Informativno ukupno</span><strong>{orderMoney.format(checkoutEstimate)}</strong></div>
       <p className="gm-my-order-note">Server potvrđuje konačne cene. {itemCountLabel(checkoutItems.length)}.</p>
-      {checkoutError && <p className="error-banner" role="alert">{checkoutError}</p>}
+      {checkoutError && <Alert tone="danger" role="alert">{checkoutError}</Alert>}
     </Modal>
-  </main>
+  </PageLayout>
 }

@@ -6,6 +6,7 @@
   background: var(--color-bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  font-size: 16px;
 }
 
 * {
@@ -18,8 +19,17 @@ body {
   min-height: 100vh;
   color: var(--color-text);
   background: var(--color-bg);
+  line-height: var(--line-height);
 }
 
+button { font: inherit; cursor: pointer; }
+button:disabled { opacity: var(--disabled-opacity); cursor: not-allowed; }
+:is(button, input, select, textarea, summary, a):focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; box-shadow: var(--focus-ring); }
+label { display: grid; gap: var(--space-2); min-width: 0; color: var(--color-text-secondary); font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); }
+:is(h1, h2, h3) { line-height: var(--line-height-heading); }
+h1 { font-size: var(--font-size-title); font-weight: var(--font-weight-semibold); }
+h2 { font-size: var(--font-size-xl); font-weight: var(--font-weight-semibold); }
+small { font-size: var(--font-size-xs); }
 .connectivity-banner {
   position: sticky;
   top: 0;

@@ -4,7 +4,7 @@ import { workingHoursApi } from '../api/workingHoursApi'
 import { resourceApi } from '../api/resourceApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Badge, Button, EmptyState, ErrorState, Modal, Skeleton } from '../components/ui'
+import { Badge, Button, EmptyState, ErrorState, Modal, Skeleton, Card } from '../components/ui'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useToast } from '../components/ui/toastContext'
 import type { WorkingHours, WorkingHoursException } from '../types/workingHours.types'
@@ -79,17 +79,17 @@ export function WorkingHoursExceptions({ query, hours, active, onChanged }: {
   const changeMonth = (amount: number) => { const next = shiftedMonth(month, amount); setMonth(next); setSelected(''); setFocused(next + '-01') }
   const future = query.data?.filter(item => item.date >= today) ?? []
   const chosen = grouped.get(selected) ?? []
-  return <section className="gm-settings-section">
+  return <Card className="gm-settings-section">
     <header className="gm-settings-section-header"><div><h2>Izuzeci radnog vremena</h2><p>Posebni datumi kada igraonica ne radi ili ima izmenjeno radno vreme.</p></div>
       <div className="gm-settings-actions"><Button variant="secondary" type="button" loading={query.isFetching || calendarQuery.isFetching} disabled={deleting} onClick={() => void refresh()}><SettingsIcon kind="refresh" />Osveži</Button>
         {canManage && <Button ref={newButton} type="button" className="gm-settings-primary" disabled={deleting} onClick={() => create()}><SettingsIcon kind="plus" />Novi izuzetak</Button>}</div></header>
     <div className="gm-settings-exceptions-grid">
-      <section className="gm-settings-calendar-card">
+      <Card className="gm-settings-calendar-card">
         <header className="gm-settings-calendar-heading"><h3 aria-live="polite">{new Intl.DateTimeFormat('sr-Latn-RS', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(first + 'T12:00:00Z'))}</h3>
-          <div><Button type="button" variant="secondary" aria-label="Prethodni mesec" onClick={() => changeMonth(-1)}><SettingsIcon kind="chevron-left" /></Button>
-            <Button type="button" variant="secondary" aria-label="Sledeći mesec" onClick={() => changeMonth(1)}><SettingsIcon kind="chevron-right" /></Button></div></header>
+          <div><Button iconOnly type="button" variant="secondary" aria-label="Prethodni mesec" onClick={() => changeMonth(-1)}><SettingsIcon kind="chevron-left" /></Button>
+            <Button iconOnly type="button" variant="secondary" aria-label="Sledeći mesec" onClick={() => changeMonth(1)}><SettingsIcon kind="chevron-right" /></Button></div></header>
         <div className="gm-settings-calendar-weekdays" aria-hidden="true">{weekdays.map(day => <span key={day}>{day}</span>)}</div>
-        {calendarQuery.error && <ErrorState message={settingsError(calendarQuery.error, 'Izuzetke za ovaj mesec nije moguće učitati.')} action={<Button onClick={() => void calendarQuery.refetch()}>Pokušaj ponovo</Button>} />}
+        {calendarQuery.error && <ErrorState message={settingsError(calendarQuery.error, 'Izuzetke za ovaj mesec nije moguće učitati.')} action={<Button variant="secondary" onClick={() => void calendarQuery.refetch()}>Pokušaj ponovo</Button>} />}
         {calendarQuery.isLoading ? <Skeleton lines={6} label="Učitavanje kalendara izuzetaka" /> : <div ref={calendar} className="gm-settings-calendar-days" aria-label="Datumi meseca">
           {Array.from({ length: 42 }, (_, index) => {
             const date = addCalendarDays(start, index), entries = grouped.get(date) ?? []
@@ -118,16 +118,16 @@ export function WorkingHoursExceptions({ query, hours, active, onChanged }: {
           })}
         </div>}
         <div className="gm-settings-calendar-legend"><span className="is-closed">Zatvoreno</span><span className="is-shorter">Skraćeno</span><span className="is-extended">Produženo</span><span className="is-custom">Posebno</span></div>
-        {selected && <div className="gm-settings-selected-date"><strong>{settingsDate(selected)}</strong>{chosen.length ? chosen.map(item => <button type="button" key={item.id} onClick={event => view(item, event.currentTarget)}>
-          {locationName(item)} · {exceptionPresentation(item, hours.data).label}</button>) : <p>{calendarQuery.error ? 'Izuzetke nije moguće potvrditi.' : 'Nema evidentiranih izuzetaka za izabrani datum.'}</p>}</div>}
+        {selected && <div className="gm-settings-selected-date"><strong>{settingsDate(selected)}</strong>{chosen.length ? chosen.map(item => <Button variant="ghost" type="button" key={item.id} onClick={event => view(item, event.currentTarget)}>
+          {locationName(item)} · {exceptionPresentation(item, hours.data).label}</Button>) : <p>{calendarQuery.error ? 'Izuzetke nije moguće potvrditi.' : 'Nema evidentiranih izuzetaka za izabrani datum.'}</p>}</div>}
         <p className="gm-settings-note">Boje posebnog radnog vremena upoređuju globalni izuzetak sa sačuvanim nedeljnim rasporedom. Lokacijski izuzeci označeni su kao posebno radno vreme.</p>
-      </section>
+      </Card>
       <section className="gm-settings-upcoming"><header><h3>Budući izuzeci</h3><Badge tone="neutral">{query.isError ? '—' : future.length}</Badge></header>
         {query.isLoading ? <Skeleton lines={5} label="Učitavanje budućih izuzetaka" /> : query.error ? <ErrorState message={settingsError(query.error, 'Listu izuzetaka nije moguće učitati.')}
-          action={<Button onClick={() => void query.refetch()}>Pokušaj ponovo</Button>} /> : !future.length ? <EmptyState title="Nema definisanih izuzetaka." description="Standardni nedeljni raspored važi dok ne dodate izuzetak."
+          action={<Button variant="secondary" onClick={() => void query.refetch()}>Pokušaj ponovo</Button>} /> : !future.length ? <EmptyState title="Nema definisanih izuzetaka." description="Standardni nedeljni raspored važi dok ne dodate izuzetak."
             action={canManage ? <Button type="button" variant="secondary" onClick={() => create()}>Novi izuzetak</Button> : undefined} /> : <div className="gm-settings-exception-list">{future.map(item => {
               const presentation = exceptionPresentation(item, hours.isError ? undefined : hours.data)
-              return <article key={item.id} className={`gm-settings-exception gm-settings-exception--${presentation.kind}`}><header><div><button type="button" className="gm-settings-text-button" onClick={event => view(item, event.currentTarget)}>{settingsDate(item.date)}</button><small>{locationName(item)}</small></div>
+              return <article key={item.id} className={`gm-settings-exception gm-settings-exception--${presentation.kind}`}><header><div><Button variant="ghost" type="button" className="gm-settings-text-button" onClick={event => view(item, event.currentTarget)}>{settingsDate(item.date)}</Button><small>{locationName(item)}</small></div>
                 <SettingsActionMenu label={`Akcije izuzetka za ${settingsDate(item.date)}`} actions={actions(item)} disabled={deleting || query.isFetching} /></header>
                 <p>{item.description || 'Bez opisa'}</p><div className="gm-settings-exception-meta"><Badge tone={presentation.tone}>{presentation.label}</Badge>
                   {!item.fullDayClosed && <span>{item.overrideOpenTime?.slice(0, 5)} – {item.overrideCloseTime?.slice(0, 5)}{(item.overrideCloseTime ?? '') < (item.overrideOpenTime ?? '') ? ' · prelazi ponoć' : ''}</span>}</div></article>
@@ -136,8 +136,8 @@ export function WorkingHoursExceptions({ query, hours, active, onChanged }: {
     </div>
     {dialog && <WorkingHoursExceptionDialog item={dialog.item} date={dialog.date} locationName={dialog.item ? locationName(dialog.item) : undefined} returnFocusRef={opener} onClose={closeDialog}
       onConflict={refresh} onSaved={value => { setDialog(null); setSelected(value.date); setMonth(value.date.slice(0, 7)); setFocused(value.date); restoreSettingsFocus(opener.current); toast('Izuzetak je sačuvan.', 'success'); void onChanged() }} />}
-    {detailValue && <Modal open title="Detalji izuzetka" titleIcon={<SettingsIcon kind="calendar" />} className="gm-settings-dialog" returnFocusRef={opener} onClose={closeDetail}
-      footer={<div className="gm-settings-dialog-actions"><Button type="button" variant="secondary" onClick={closeDetail}>Zatvori</Button>
+    {detailValue && <Modal size="wide" open title="Detalji izuzetka" titleIcon={<SettingsIcon kind="calendar" />} className="gm-settings-dialog" returnFocusRef={opener} onClose={closeDetail}
+      footer={<div className="ui-actions gm-settings-dialog-actions"><Button type="button" variant="secondary" onClick={closeDetail}>Zatvori</Button>
         {canManage && <Button type="button" className="gm-settings-primary" onClick={() => edit(detailValue, opener.current)}>Izmeni izuzetak</Button>}</div>}>
       <dl className="gm-settings-detail-list"><div><dt>Datum</dt><dd>{settingsDate(detailValue.date)}</dd></div><div><dt>Raspored</dt><dd>{locationName(detailValue)}</dd></div>
         <div><dt>Status</dt><dd><Badge tone={exceptionPresentation(detailValue, hours.data).tone}>{exceptionPresentation(detailValue, hours.data).label}</Badge></dd></div>
@@ -145,5 +145,5 @@ export function WorkingHoursExceptions({ query, hours, active, onChanged }: {
       <div className="gm-settings-detail-reason"><h3>Opis</h3><p>{detailValue.description || 'Bez opisa'}</p></div>
     </Modal>}
     {confirmationDialog}
-  </section>
+  </Card>
 }

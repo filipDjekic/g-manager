@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Card, ErrorState } from '../components/ui'
+import { Card, ErrorState, PageLayout } from '../components/ui'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { ActiveDevices, SecurityHistory, SessionHeading, SessionKpis } from '../sessions/SessionDashboardViews'
 import { SessionIcon, SessionTime } from '../sessions/sessionPresentation'
@@ -15,9 +15,9 @@ type RevocationSelection = { kind: 'session'; session: SessionInfo } | { kind: '
 
 export function SessionPage() {
   const actor = useAuthStore(state => state.user)
-  if (!actor || !hasCapability(actor, 'PROFILE_READ')) return <main className="workspace workspace--reading gm-session">
+  if (!actor || !hasCapability(actor, 'PROFILE_READ')) return <PageLayout className="gm-session">
     <SessionHeading /><ErrorState title="Pristup nije dozvoljen" message="Nemate dozvolu za pregled aktivnih sesija." />
-  </main>
+  </PageLayout>
   return <SessionWorkspace key={actor.id} actorId={actor.id} canChangePassword={hasCapability(actor, 'PROFILE_UPDATE')} />
 }
 
@@ -55,7 +55,7 @@ function SessionWorkspace({ actorId, canChangePassword }: { actorId: string; can
     }
   }
 
-  return <main className="workspace workspace--reading gm-session">
+  return <PageLayout className="gm-session">
     <SessionHeading fetching={dashboard.fetching} disabled={dashboard.pendingId !== null} onRefresh={refresh} />
     <SessionKpis sessions={dashboard.sessions} events={dashboard.events} />
     {tokenReuse && <Card className="gm-session-risk">
@@ -63,7 +63,7 @@ function SessionWorkspace({ actorId, canChangePassword }: { actorId: string; can
       <div><h2>Proverite bezbednost naloga</h2>
         <p>U dostupnoj istoriji zabeležena je neuobičajena bezbednosna aktivnost. Preporučujemo proveru aktivnih sesija i promenu lozinke.</p>
       </div>
-      {canChangePassword && <Link className="ui-button ui-button--secondary" to="/profile">Promeni lozinku</Link>}
+      {canChangePassword && <Link className="ui-button ui-button--secondary ui-button--medium" to="/profile">Promeni lozinku</Link>}
     </Card>}
     <ActiveDevices resource={dashboard.sessions} busy={busy} pendingId={dashboard.pendingId} headingRef={devicesHeading}
       onRetry={refresh} onRevoke={session => openConfirmation({ kind: 'session', session })}
@@ -85,5 +85,5 @@ function SessionWorkspace({ actorId, canChangePassword }: { actorId: string; can
             <div><dt>Poslednja aktivnost</dt><dd><SessionTime value={selection.session.lastSeenAt} /></dd></div></dl>
           {selection.session.current && <p className="gm-session-current-warning">Ovo je uređaj koji trenutno koristite. Nakon odjavljivanja moraćete ponovo da se prijavite.</p>}
         </div> : ''} />
-  </main>
+  </PageLayout>
 }

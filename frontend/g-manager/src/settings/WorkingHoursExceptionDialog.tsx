@@ -1,7 +1,7 @@
 import { useId, useRef, useState, type FormEvent, type RefObject } from 'react'
 import { isAxiosError } from 'axios'
 import { workingHoursApi } from '../api/workingHoursApi'
-import { Button, FormField, Input, Modal, Textarea, Badge } from '../components/ui'
+import { Button, FormField, Input, Modal, Textarea, Badge, Alert } from '../components/ui'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useDirtyGuard } from '../forms/useDirtyGuard'
 import { workingHoursExceptionSchema } from '../workingHours/workingHoursSchema'
@@ -48,13 +48,13 @@ export function WorkingHoursExceptionDialog({ item, date, locationName, returnFo
     } finally { inFlight.current = false; setBusy(false) }
   }
   return <>
-    <Modal open title={item ? 'Izmeni izuzetak' : 'Novi izuzetak'} titleIcon={<SettingsIcon kind="calendar" />} className="gm-settings-dialog"
+    <Modal size="wide" open title={item ? 'Izmeni izuzetak' : 'Novi izuzetak'} titleIcon={<SettingsIcon kind="calendar" />} className="gm-settings-dialog"
       descriptionId={id + '-description'} initialFocusRef={dateRef} returnFocusRef={returnFocusRef} onClose={close} closeDisabled={busy}
-      footer={<div className="gm-settings-dialog-actions"><Button type="button" variant="secondary" disabled={busy} onClick={close}>Otkaži</Button>
+      footer={<div className="ui-actions gm-settings-dialog-actions"><Button type="button" variant="secondary" disabled={busy} onClick={close}>Otkaži</Button>
         <Button type="submit" form={id} className="gm-settings-primary" loading={busy} disabled={conflict}>Sačuvaj izuzetak</Button></div>}>
       <p id={id + '-description'} className="gm-settings-note">Dodajte poseban datum i izmenjeno radno vreme.</p>
       <p className="gm-settings-scope">{item?.locationId ? `Izuzetak lokala: ${locationName || 'izabrani lokal'}` : 'Izuzetak standardnog rasporeda igraonice'}</p>
-      <form id={id} className="gm-settings-form" onSubmit={submit}>
+      <form id={id} className="ui-form-grid gm-settings-form" onSubmit={submit}>
         <div className="gm-settings-form-wide"><FormField label="Datum *" htmlFor={id + '-date'}><Input ref={dateRef} id={id + '-date'} type="date"
           required min={addCalendarDays(today, 1)} value={form.date} disabled={busy} onChange={event => change({ date: event.target.value })} /></FormField></div>
         <div className="gm-settings-form-wide"><FormField label="Opis" htmlFor={id + '-note'} hint={`${form.description.length}/500`}>
@@ -68,7 +68,7 @@ export function WorkingHoursExceptionDialog({ item, date, locationName, returnFo
             onChange={event => change({ overrideCloseTime: event.target.value })} /></FormField>
           {form.overrideOpenTime && form.overrideCloseTime && form.overrideCloseTime < form.overrideOpenTime && <div className="gm-settings-form-wide"><Badge tone="info"><SettingsIcon kind="clock" />Prelazi ponoć</Badge></div>}
         </>}
-        {error && <p className="error-banner gm-settings-form-wide" role="alert">{error}</p>}
+        {error && <Alert tone="danger" className="gm-settings-form-wide" role="alert">{error}</Alert>}
         {conflict && <p className="gm-settings-note gm-settings-form-wide">Aktuelni podaci su osveženi. Zatvorite formu i ponovo otvorite izmenu izuzetka.</p>}
       </form>
     </Modal>

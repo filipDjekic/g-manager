@@ -1,6 +1,6 @@
 import { validTime } from './ReservationTimePicker.model'
 import { useId, useRef, useState } from 'react'
-import { Button, Modal } from '../components/ui'
+import { Button, Modal, Input } from '../components/ui'
 const padded = (value: number) => String(value).padStart(2, '0')
 
 export function ReservationTimePicker({label,value,onChange,disabled}: {
@@ -13,17 +13,17 @@ export function ReservationTimePicker({label,value,onChange,disabled}: {
   const angle = (mode === 'hours' ? hour % 12 : minute / 5) * 30
   return <div className="reservation-time-field">
     <label htmlFor={id}>{label} (HH:mm)</label><div className="reservation-time-input">
-      <input id={id} type="text" inputMode="numeric" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxLength={5} placeholder="14:30"
+      <Input id={id} type="text" inputMode="numeric" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxLength={5} placeholder="14:30"
         required disabled={disabled} value={value} aria-invalid={!validTime(value) || undefined} onChange={event => {
           const entered = event.target.value.replace(/[^0-9:]/g,'')
           onChange(!entered.includes(':') && entered.length >= 3 ? `${entered.slice(0,2)}:${entered.slice(2,4)}` : entered)
         }} />
-      <Button ref={trigger} type="button" variant="secondary" disabled={disabled} aria-haspopup="dialog" aria-label={`Izaberi vreme ${label.toLowerCase()} preko sata`}
+      <Button iconOnly ref={trigger} type="button" variant="secondary" disabled={disabled} aria-haspopup="dialog" aria-label={`Izaberi vreme ${label.toLowerCase()} preko sata`}
         onClick={() => {const parts = (validTime(value) ? value : '00:00').split(':');setHour(Number(parts[0]));setMinute(Number(parts[1]));setMode('hours');setOpen(true)}}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg>
       </Button></div>
     <Modal open={open} title={`Vreme ${label.toLowerCase()}`} className="reservation-time-dialog" returnFocusRef={trigger} onClose={() => setOpen(false)}
-      footer={<div className="dialog-actions"><Button type="button" variant="secondary" onClick={() => setOpen(false)}>Odustani</Button>
+      footer={<div className="ui-actions dialog-actions"><Button type="button" variant="secondary" onClick={() => setOpen(false)}>Odustani</Button>
         <Button type="button" onClick={() => {onChange(`${padded(hour)}:${padded(minute)}`);setOpen(false)}}>Potvrdi vreme</Button></div>}>
       <div className="reservation-clock-controls"><Button type="button" variant="secondary" aria-pressed={mode === 'hours'} onClick={() => setMode('hours')}>{padded(hour)}</Button>
         <span aria-hidden="true">:</span><Button type="button" variant="secondary" aria-pressed={mode === 'minutes'} onClick={() => setMode('minutes')}>{padded(minute)}</Button></div>
@@ -42,7 +42,7 @@ export function ReservationTimePicker({label,value,onChange,disabled}: {
             onClick={() => {if(mode === 'hours'){setHour(tick);setMode('minutes')}else setMinute(tick)}}>{padded(tick)}</button>
         })}
       </div>
-      <label className="reservation-clock-manual">Ručni unos (HH:mm)<input aria-label={"Ručni unos (HH:mm)"} type="time" step={60} value={`${padded(hour)}:${padded(minute)}`}
+      <label className="reservation-clock-manual">Ručni unos (HH:mm)<Input aria-label={"Ručni unos (HH:mm)"} type="time" step={60} value={`${padded(hour)}:${padded(minute)}`}
         onChange={event => {if(validTime(event.target.value)){const parts=event.target.value.split(':');setHour(Number(parts[0]));setMinute(Number(parts[1]))}}}/></label>
       <div className="reservation-clock-quarters" role="group" aria-label="Koraci od 15 minuta">{[0,15,30,45].map(value =>
         <Button key={value} type="button" variant="secondary" aria-pressed={minute === value} onClick={() => setMinute(value)}>{padded(value)} min</Button>)}</div>

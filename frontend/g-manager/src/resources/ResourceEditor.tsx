@@ -3,7 +3,7 @@ import { useRef, useState, type FormEvent } from 'react'
 import { resourceApi } from '../api/resourceApi'
 import { catalogApi } from '../api/catalogApi'
 import { apiErrorMessage } from '../api/client'
-import { Button, Modal } from '../components/ui'
+import { Button, Modal, Input, Select, Textarea, Alert } from '../components/ui'
 import type { LocationView, AreaView, ResourceView, ResourceType } from '../types/resource.types'
 import './resources.css'
 
@@ -30,22 +30,22 @@ export function ResourceEditor({kind,initial,locationId='',areaId='',onClose,onS
     } catch(cause){setError(apiErrorMessage(cause,'Podešavanje nije moguće sačuvati.'))}
     finally{inFlight.current=false;setBusy(false)}
   }
-  return <Modal open className="resource-editor-dialog" closeDisabled={busy} title={`${initial?'Izmeni':'Dodaj'} ${kind==='LOCATION'?'lokaciju':kind==='AREA'?'zonu':'resurs'}`} onClose={()=>{if(!busy)onClose()}}><form className="form-grid resource-editor-form" onSubmit={save}>
-    {error&&<p className="error-banner" role="alert">{error}</p>}
-    <label>Naziv<input aria-label={"Naziv"} required maxLength={120} disabled={busy} value={name} onChange={e=>setName(e.target.value)}/></label>
-    <label>Šifra<input aria-label={"Šifra"} required maxLength={40} disabled={busy} value={code} onChange={e=>setCode(e.target.value)}/></label>
-    {kind==='LOCATION'&&<><label>Adresa<input aria-label={"Adresa"} required maxLength={255} value={address} disabled={busy} onChange={e=>setAddress(e.target.value)}/></label><label>Vremenska zona<input aria-label={"Vremenska zona"} required maxLength={60} value={timezone} disabled={busy} onChange={e=>setTimezone(e.target.value)}/></label></>}
-    {kind==='AREA'&&<div className="editor-columns"><label>Širina mape<input aria-label={"Širina mape"} required type="number" min={1} disabled={busy} value={mapWidth} onChange={e=>setMapWidth(Number(e.target.value))}/></label><label>Visina mape<input aria-label={"Visina mape"} required type="number" min={1} disabled={busy} value={mapHeight} onChange={e=>setMapHeight(Number(e.target.value))}/></label></div>}
-    {kind==='RESOURCE'&&<><label>Usluga<select aria-label={"Usluga"} required value={serviceId} disabled={busy||catalog.isLoading} onChange={e=>setServiceId(e.target.value)}><option value="">Izaberite uslugu</option>{catalog.data?.content.map(service=><option key={service.id} value={service.id}>{service.name}</option>)}</select></label>
-      {catalog.error&&<p role="alert">Usluge nisu dostupne. <Button type="button" onClick={()=>catalog.refetch()}>Pokušaj ponovo</Button></p>}
+  return <Modal size="wide" open className="resource-editor-dialog" closeDisabled={busy} title={`${initial?'Izmeni':'Dodaj'} ${kind==='LOCATION'?'lokaciju':kind==='AREA'?'zonu':'resurs'}`} onClose={()=>{if(!busy)onClose()}}><form className="ui-form-grid form-grid resource-editor-form" onSubmit={save}>
+    {error&&<Alert tone="danger" role="alert">{error}</Alert>}
+    <label>Naziv<Input aria-label={"Naziv"} required maxLength={120} disabled={busy} value={name} onChange={e=>setName(e.target.value)}/></label>
+    <label>Šifra<Input aria-label={"Šifra"} required maxLength={40} disabled={busy} value={code} onChange={e=>setCode(e.target.value)}/></label>
+    {kind==='LOCATION'&&<><label>Adresa<Input aria-label={"Adresa"} required maxLength={255} value={address} disabled={busy} onChange={e=>setAddress(e.target.value)}/></label><label>Vremenska zona<Input aria-label={"Vremenska zona"} required maxLength={60} value={timezone} disabled={busy} onChange={e=>setTimezone(e.target.value)}/></label></>}
+    {kind==='AREA'&&<div className="editor-columns"><label>Širina mape<Input aria-label={"Širina mape"} required type="number" min={1} disabled={busy} value={mapWidth} onChange={e=>setMapWidth(Number(e.target.value))}/></label><label>Visina mape<Input aria-label={"Visina mape"} required type="number" min={1} disabled={busy} value={mapHeight} onChange={e=>setMapHeight(Number(e.target.value))}/></label></div>}
+    {kind==='RESOURCE'&&<><label>Usluga<Select aria-label={"Usluga"} required value={serviceId} disabled={busy||catalog.isLoading} onChange={e=>setServiceId(e.target.value)}><option value="">Izaberite uslugu</option>{catalog.data?.content.map(service=><option key={service.id} value={service.id}>{service.name}</option>)}</Select></label>
+      {catalog.error&&<p role="alert">Usluge nisu dostupne. <Button variant="secondary" type="button" onClick={()=>catalog.refetch()}>Pokušaj ponovo</Button></p>}
       {catalog.data&&!catalog.data.content.length&&<p>Prvo dodajte aktivnu uslugu u katalogu.</p>}
-      <label>Tip<select aria-label={"Tip"} value={type} disabled={busy} onChange={e=>setType(e.target.value as ResourceType)}>{['GAMING_PC','PLAYSTATION','SIMULATOR','VIP_ROOM','OTHER'].map(value=><option key={value}>{value}</option>)}</select></label>
-      <label>Kapacitet<input aria-label={"Kapacitet"} required type="number" min={1} value={capacity} disabled={busy} onChange={e=>setCapacity(Number(e.target.value))}/></label>
-      <fieldset><legend>Pozicija na mapi</legend><div className="editor-columns"><label>X<input aria-label={"X"} required type="number" min={0} value={x} disabled={busy} onChange={e=>setX(Number(e.target.value))}/></label><label>Y<input aria-label={"Y"} required type="number" min={0} value={y} disabled={busy} onChange={e=>setY(Number(e.target.value))}/></label>
-        <label>Širina<input aria-label={"Širina"} required type="number" min={1} value={width} disabled={busy} onChange={e=>setWidth(Number(e.target.value))}/></label><label>Visina<input aria-label={"Visina"} required type="number" min={1} value={height} disabled={busy} onChange={e=>setHeight(Number(e.target.value))}/></label><label>Rotacija<input aria-label={"Rotacija"} required type="number" value={rotation} disabled={busy} onChange={e=>setRotation(Number(e.target.value))}/></label></div></fieldset>
-      <label className="inline-toggle"><input aria-label={"Dozvoljeno zakazivanje"} type="checkbox" checked={bookable} disabled={busy} onChange={e=>setBookable(e.target.checked)}/> Dozvoljeno zakazivanje</label></>}
-    {kind!=='LOCATION'&&<label>Redosled prikaza<input aria-label={"Redosled prikaza"} type="number" required value={displayOrder} disabled={busy} onChange={e=>setDisplayOrder(Number(e.target.value))}/></label>}
-    <label>Opis<textarea aria-label={"Opis"} maxLength={500} value={description} disabled={busy} onChange={e=>setDescription(e.target.value)}/></label><label className="inline-toggle"><input aria-label={"Aktivan"} type="checkbox" checked={active} disabled={busy} onChange={e=>setActive(e.target.checked)}/> Aktivan</label>
+      <label>Tip<Select aria-label={"Tip"} value={type} disabled={busy} onChange={e=>setType(e.target.value as ResourceType)}>{['GAMING_PC','PLAYSTATION','SIMULATOR','VIP_ROOM','OTHER'].map(value=><option key={value}>{value}</option>)}</Select></label>
+      <label>Kapacitet<Input aria-label={"Kapacitet"} required type="number" min={1} value={capacity} disabled={busy} onChange={e=>setCapacity(Number(e.target.value))}/></label>
+      <fieldset><legend>Pozicija na mapi</legend><div className="editor-columns"><label>X<Input aria-label={"X"} required type="number" min={0} value={x} disabled={busy} onChange={e=>setX(Number(e.target.value))}/></label><label>Y<Input aria-label={"Y"} required type="number" min={0} value={y} disabled={busy} onChange={e=>setY(Number(e.target.value))}/></label>
+        <label>Širina<Input aria-label={"Širina"} required type="number" min={1} value={width} disabled={busy} onChange={e=>setWidth(Number(e.target.value))}/></label><label>Visina<Input aria-label={"Visina"} required type="number" min={1} value={height} disabled={busy} onChange={e=>setHeight(Number(e.target.value))}/></label><label>Rotacija<Input aria-label={"Rotacija"} required type="number" value={rotation} disabled={busy} onChange={e=>setRotation(Number(e.target.value))}/></label></div></fieldset>
+      <label className="inline-toggle"><Input aria-label={"Dozvoljeno zakazivanje"} type="checkbox" checked={bookable} disabled={busy} onChange={e=>setBookable(e.target.checked)}/> Dozvoljeno zakazivanje</label></>}
+    {kind!=='LOCATION'&&<label>Redosled prikaza<Input aria-label={"Redosled prikaza"} type="number" required value={displayOrder} disabled={busy} onChange={e=>setDisplayOrder(Number(e.target.value))}/></label>}
+    <label>Opis<Textarea aria-label={"Opis"} maxLength={500} value={description} disabled={busy} onChange={e=>setDescription(e.target.value)}/></label><label className="inline-toggle"><Input aria-label={"Aktivan"} type="checkbox" checked={active} disabled={busy} onChange={e=>setActive(e.target.checked)}/> Aktivan</label>
     <Button type="submit" loading={busy} disabled={kind==='RESOURCE'&&!serviceId}>Sačuvaj</Button>
   </form></Modal>
 }

@@ -7,7 +7,7 @@ import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
 import { SavedViewBar } from '../components/lists/SavedViewBar'
 import { SelectionBar } from '../components/lists/SelectionBar'
-import { Button, EmptyState, ErrorState, Input, Select, Skeleton } from '../components/ui'
+import { Button, EmptyState, ErrorState, Input, Select, Skeleton, PageHeader, PageLayout, StatCard } from '../components/ui'
 import { orderLabels } from '../components/ui/statusPresentation'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useToast } from '../components/ui/toastContext'
@@ -181,26 +181,20 @@ export function OrdersPage() {
   const listError = result.error || transition.error || bulk.error
   const savedQuery = Object.fromEntries(Object.entries(url.queryObject).filter(([key]) => key !== 'focus'))
 
-  if (!canRead) return <main className="workspace gm-orders"><ErrorState title="Pristup nije dostupan" message="Nemate dozvolu za pregled narudžbina." /></main>
-  return <main className="workspace gm-orders">
+  if (!canRead) return <PageLayout className="gm-orders"><ErrorState title="Pristup nije dostupan" message="Nemate dozvolu za pregled narudžbina." /></PageLayout>
+  return <PageLayout className="gm-orders">
     {confirmationDialog}
-    <header className="gm-orders-heading"><div className="gm-orders-title"><span className="gm-orders-heading-icon"><OrderIcon /></span>
-      <div><h1 ref={heading} tabIndex={-1}>Narudžbine</h1><p>Pregled i upravljanje narudžbinama proizvoda.</p></div></div>
-      <Button ref={refreshButton} type="button" variant="secondary" disabled={busy || Boolean(filterError) || searchPending}
-        loading={result.isFetching || statistics.isFetching || detail.isFetching} onClick={retry}><OrderIcon kind="refresh" />Osveži</Button>
-    </header>
+    <PageHeader title="Narudžbine" description={<>Pregled i upravljanje narudžbinama proizvoda.</>} icon={<OrderIcon />} titleRef={heading} actions={<><Button ref={refreshButton} type="button" variant="secondary" disabled={busy || Boolean(filterError) || searchPending}
+        loading={result.isFetching || statistics.isFetching || detail.isFetching} onClick={retry}><OrderIcon kind="refresh" />Osveži</Button></>} />
     <section className="gm-orders-statistics" aria-label="Statistika narudžbina">
       <p className="gm-orders-statistics-scope">Statistika: {!dateError ? periodLabel(statistics.data?.from ?? filters.from, statistics.data?.to ?? filters.to) : 'Neispravan period'}
         {filters.handledBy ? ` · Obrađuje: ${handler}` : ' · Sve dostupne narudžbine'} · Nezavisno od pretrage i status filtera</p>
-      <div className="gm-orders-kpis">{kpis.map(kpi => <article key={kpi.key} className={`gm-orders-kpi gm-orders-kpi--${kpi.tone}`}>
-        <div><span>{kpi.label}</span>{statistics.isLoading ? <Skeleton lines={1} label={`Učitavanje: ${kpi.label}`} />
-          : <strong>{statistics.data && !dateError ? statistics.data[kpi.key].toLocaleString('sr-Latn-RS') : '—'}</strong>}</div>
-        <span className="gm-orders-kpi-icon"><OrderIcon kind={kpi.icon} /></span>
-      </article>)}</div>
+      <div className="ui-stat-grid gm-orders-kpis">{kpis.map(kpi => <StatCard label={<>{kpi.label}</>} value={statistics.isLoading ? <Skeleton lines={1} label={`Učitavanje: ${kpi.label}`} />
+          : <>{statistics.data && !dateError ? statistics.data[kpi.key].toLocaleString('sr-Latn-RS') : '—'}</>} icon={<OrderIcon kind={kpi.icon} />} tone={kpi.tone} key={kpi.key} />)}</div>
       {statistics.isError && <ErrorState title="Statistika nije dostupna" message={orderErrorMessage(statistics.error, 'Statistiku nije moguće učitati.')}
         action={<Button type="button" variant="secondary" onClick={() => statistics.refetch()}>Pokušaj ponovo</Button>} />}
     </section>
-    <section className="gm-orders-filters" aria-label="Filteri narudžbina">
+    <section className="ui-filter-bar gm-orders-filters" aria-label="Filteri narudžbina">
       <div className="gm-orders-filter-main">
         <label className="gm-orders-search"><span>Pretraga</span><div><OrderIcon kind="search" /><Input type="search" maxLength={200}
           placeholder="Pretraži narudžbine, klijente ili proizvode..." value={url.state.search} disabled={busy}
@@ -229,7 +223,7 @@ export function OrdersPage() {
           {url.state.handledBy && url.state.handledBy !== user?.id && !employees.data?.some(employee => employee.id === url.state.handledBy)
             && <option value={url.state.handledBy}>Izabrana osoba nije dostupna</option>}
         </Select>{employees.isError && <span className="gm-orders-field-error" role="alert">Spisak zaposlenih nije dostupan.
-          <button type="button" disabled={busy} onClick={() => employees.refetch()}>Pokušaj ponovo</button></span>}</label>}
+          <Button variant="secondary" type="button" disabled={busy} onClick={() => employees.refetch()}>Pokušaj ponovo</Button></span>}</label>}
         <label>Sortiranje<Select aria-label={"Sortiranje"} value={filters.sort} disabled={busy} onChange={event => setFilter({ sort: event.target.value })}>
           {Object.entries(sorts).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </Select></label>
@@ -273,5 +267,5 @@ export function OrdersPage() {
     {detailId && <OrderDetails key={detailId} order={detail.data} user={user} loading={detail.isLoading} error={detail.error}
       busy={busy} returnFocusRef={detailOpener} onClose={() => setUrl({ focus: '' })}
       onRefresh={() => { transition.reset(); void detail.refetch() }} onStatus={statusAction} />}
-  </main>
+  </PageLayout>
 }

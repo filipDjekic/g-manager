@@ -2,7 +2,7 @@ import { useId, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Badge, Button, PageHeader, type StatusTone } from '../components/ui'
+import { Badge, Button, PageHeader, StatCard, type StatusTone, Card } from '../components/ui'
 import { orderLabels, orderTones } from '../components/ui/statusPresentation'
 import { NavigationIcon } from '../layout/NavigationIcon'
 import { formatBusinessDateTime } from '../reservations/dateTime'
@@ -15,7 +15,7 @@ export function DashboardHeader({ title, eyebrow, description, date, timezone, l
   loading?: boolean; onRefresh: () => void; children?: ReactNode
 }) {
   return <div className="dashboard-header">
-    <PageHeader eyebrow={eyebrow} title={title} actions={
+    <PageHeader eyebrow={eyebrow} title={title} description={description} actions={
       <Button type="button" variant="secondary" loading={loading} onClick={onRefresh}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"
           strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
@@ -23,7 +23,6 @@ export function DashboardHeader({ title, eyebrow, description, date, timezone, l
         </svg>
         Osveži pregled
       </Button>} />
-    <p className="dashboard-description">{description}</p>
     <div className="dashboard-meta">
       <time dateTime={date}>{formatDashboardDate(date)}</time>
       {timezone && <Badge tone="neutral">{timezone}</Badge>}
@@ -35,28 +34,22 @@ export function DashboardHeader({ title, eyebrow, description, date, timezone, l
 export function DashboardMetricCard({ label, value, detail, icon, iconNode, tone = 'info', children }: {
   label: string; value: ReactNode; detail?: ReactNode; icon: string; iconNode?: ReactNode; tone?: StatusTone; children?: ReactNode
 }) {
-  return <article className={`ui-card dashboard-metric dashboard-metric--${tone}`}>
-    <div className="dashboard-metric-heading"><span>{label}</span>
-      <span className="dashboard-metric-icon">{iconNode ?? <NavigationIcon to={icon} />}</span>
-    </div>
-    <strong className="dashboard-metric-value">{typeof value === 'number' ? value.toLocaleString('sr-RS') : value}</strong>
-    {detail && <div className="dashboard-metric-detail">{detail}</div>}
-    {children}
-  </article>
+  return <StatCard label={label} value={typeof value === 'number' ? value.toLocaleString('sr-RS') : value}
+    icon={iconNode ?? <NavigationIcon to={icon} />} description={detail} tone={tone}>{children}</StatCard>
 }
 
 export function DashboardSection({ title, description, icon, iconNode, actions, className = '', children }: {
   title: string; description?: ReactNode; icon?: string; iconNode?: ReactNode; actions?: ReactNode; className?: string; children: ReactNode
 }) {
   const titleId = useId()
-  return <section className={`ui-card dashboard-section ${className}`} aria-labelledby={titleId}>
+  return <Card className={`ui-card dashboard-section ${className}`} aria-labelledby={titleId}>
     <header className="dashboard-section-heading">
       {(icon || iconNode) && <span className="dashboard-section-icon">{iconNode ?? <NavigationIcon to={icon!} />}</span>}
       <div><h2 id={titleId}>{title}</h2>{description && <p>{description}</p>}</div>
       {actions && <div className="dashboard-section-actions">{actions}</div>}
     </header>
     <div className="dashboard-section-body">{children}</div>
-  </section>
+  </Card>
 }
 
 const shortcuts: Array<{ label: string; to: string; icon: string; capability: Permission }> = [

@@ -3,7 +3,7 @@ import { useQueryClient, type UseQueryResult } from '@tanstack/react-query'
 import { workingHoursApi } from '../api/workingHoursApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Badge, Button, ErrorState, Input, Skeleton } from '../components/ui'
+import { Badge, Button, ErrorState, Input, Skeleton, Card, Alert } from '../components/ui'
 import { useToast } from '../components/ui/toastContext'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useDirtyGuard } from '../forms/useDirtyGuard'
@@ -63,11 +63,11 @@ export function WorkingHoursSettings({ query, onDirtyChange }: { query: UseQuery
       void query.refetch()
     } finally { inFlight.current = false; setSaving(null) }
   }
-  return <section className="gm-settings-section" id="working-hours">
+  return <Card className="gm-settings-section" id="working-hours">
     <header className="gm-settings-section-header"><div><h2>Radno vreme</h2><p>Definišite standardno radno vreme igraonice.</p></div>
       <Button type="button" variant="secondary" loading={query.isFetching} disabled={Boolean(saving)} onClick={() => void query.refetch()}><SettingsIcon kind="refresh" />Osveži</Button></header>
     {!canManage && <p className="gm-settings-note">Raspored možete pregledati. Za čuvanje je potrebna dozvola za upravljanje.</p>}
-    {query.error && <ErrorState message={settingsError(query.error, 'Radno vreme nije moguće učitati.')} action={<Button onClick={() => void query.refetch()}>Pokušaj ponovo</Button>} />}
+    {query.error && <ErrorState message={settingsError(query.error, 'Radno vreme nije moguće učitati.')} action={<Button variant="secondary" onClick={() => void query.refetch()}>Pokušaj ponovo</Button>} />}
     {query.isLoading ? <Skeleton lines={7} label="Učitavanje nedeljnog rasporeda" /> : query.data && <div className="gm-settings-hours">
       <div className="gm-settings-hours-head" aria-hidden="true"><span>Dan</span><span>Status</span><span>Vreme otvaranja</span><span>Vreme zatvaranja</span><span>Rad preko ponoći</span><span>Akcije</span></div>
       {days.map(day => {
@@ -87,11 +87,11 @@ export function WorkingHoursSettings({ query, onDirtyChange }: { query: UseQuery
           <div className="gm-settings-hour-midnight">{overnight ? <Badge tone="info"><SettingsIcon kind="clock" />Prelazi ponoć</Badge> : <span>{values.openTime && values.closeTime ? 'Istog dana' : '—'}</span>}</div>
           <div className="gm-settings-hour-actions">{canManage && <><Button type="button" loading={saving === day} disabled={disabled || !draft || Boolean(conflict)} onClick={() => void save(day)}>Sačuvaj</Button>
             {draft && <Button type="button" variant="secondary" disabled={Boolean(saving)} onClick={() => discard(day)}>{conflict ? 'Učitaj aktuelne' : 'Poništi'}</Button>}</>}</div>
-          {(errors[day] || conflict) && <p className="error-banner gm-settings-hour-error" role="alert">{errors[day] || 'Raspored je promenjen. Vaše nesačuvane vrednosti ostaju sačuvane dok ne učitate aktuelne podatke.'}</p>}
+          {(errors[day] || conflict) && <Alert tone="danger" className="gm-settings-hour-error" role="alert">{errors[day] || 'Raspored je promenjen. Vaše nesačuvane vrednosti ostaju sačuvane dok ne učitate aktuelne podatke.'}</Alert>}
         </article>
       })}
     </div>}
     <aside className="gm-settings-info"><SettingsIcon kind="info" /><div><h3>Rad preko ponoći</h3><p>Ako je vreme zatvaranja ranije od otvaranja, radno vreme se nastavlja narednog dana.</p><small>Raspored se čuva po danima. Isključivanje dana čuva njegova vremena otvaranja i zatvaranja.</small></div></aside>
     {confirmationDialog}
-  </section>
+  </Card>
 }

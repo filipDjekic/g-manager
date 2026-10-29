@@ -6,7 +6,7 @@ import { apiErrorMessage } from '../api/client'
 import { resourceApi } from '../api/resourceApi'
 import { hasCapability } from '../auth/capabilities'
 import { useAuthStore } from '../auth/authStore'
-import { Button, EmptyState, ErrorState, Input, Select, Skeleton } from '../components/ui'
+import { Button, EmptyState, ErrorState, Input, Select, Skeleton, PageHeader, PageLayout, Card } from '../components/ui'
 import { businessInstantToLocal, businessLocalToInstant } from '../reservations/dateTime'
 import { ResourceEditor, type ResourceEditorKind } from '../resources/ResourceEditor'
 import { ResourceEmployees } from '../resources/ResourceEmployees'
@@ -88,19 +88,19 @@ export function ResourcesPage() {
     {label:'Novi resurs',disabled:!area,onClick:()=>setEditor({kind:'RESOURCE',areaId})},
     {label:'Uredi mapu',disabled:!canEdit,onClick:()=>{details(null);setEditing(true);setSavedNotice('')}},
   ]
-  return <main className="workspace resource-workspace">
-    <header className="resource-page-header"><span className="resource-header-icon"><ResourceIcon/></span><div><h1>Mapa resursa</h1><p>Vizuelni prikaz i upravljanje rasporedom lokala, zona i resursa.</p></div></header>
-    {locations.isLoading?<Skeleton lines={4} label="Učitavanje lokacija"/>:locations.error?<ErrorState message={apiErrorMessage(locations.error,'Lokacije nisu dostupne.')} action={<Button onClick={()=>void locations.refetch()}>Pokušaj ponovo</Button>}/>:!visibleLocations.length?<EmptyState title="Nema dostupnih lokacija" description="Dodajte lokaciju, zatim zone i resurse." action={manage&&<Button onClick={()=>setEditor({kind:'LOCATION'})}>Dodaj prvu lokaciju</Button>}/>:<>
-      <section className="resource-context-panel" aria-label="Izbor prostora i intervala">
+  return <PageLayout className="resource-workspace">
+    <PageHeader title="Mapa resursa" description={<>Vizuelni prikaz i upravljanje rasporedom lokala, zona i resursa.</>} icon={<ResourceIcon/>} />
+    {locations.isLoading?<Skeleton lines={4} label="Učitavanje lokacija"/>:locations.error?<ErrorState message={apiErrorMessage(locations.error,'Lokacije nisu dostupne.')} action={<Button variant="secondary" onClick={()=>void locations.refetch()}>Pokušaj ponovo</Button>}/>:!visibleLocations.length?<EmptyState title="Nema dostupnih lokacija" description="Dodajte lokaciju, zatim zone i resurse." action={manage&&<Button onClick={()=>setEditor({kind:'LOCATION'})}>Dodaj prvu lokaciju</Button>}/>:<>
+      <Card className="resource-context-panel" aria-label="Izbor prostora i intervala">
         <div className="resource-context-fields"><label>Lokal<Select aria-label={"Lokal"} value={locationId} disabled={editing} onChange={event=>setLocation(event.target.value)}>{visibleLocations.map(value=><option key={value.id} value={value.id}>{value.name}{!value.active?' · neaktivan':''}</option>)}</Select></label>
           <label>Zona<Select aria-label={"Zona"} value={areaId||'all'} disabled={editing||areas.isLoading||!visibleAreas.length} onChange={event=>setArea(event.target.value)}><option value="all">Sve zone</option>{visibleAreas.map(value=><option key={value.id} value={value.id}>{value.name}{!value.active?' · neaktivna':''}</option>)}</Select></label>
           <label>Početak intervala<Input aria-label={"Početak intervala"} type="datetime-local" required value={start} disabled={editing} onChange={event=>{setStart(event.target.value);details(null)}}/></label>
         </div>
         {manage&&<div className="resource-context-actions"><Button variant="secondary" disabled={editing} onClick={()=>setShowEmployees(true)}>Zaposleni na lokaciji</Button><ResourceMenu label="Upravljanje prostorom" disabled={editing} actions={managementActions}>Upravljaj prostorom <span aria-hidden="true">⌄</span></ResourceMenu></div>}
         <p className="resource-interval-note">Dostupnost za izabrani početak i narednih 60 minuta · Europe/Belgrade.{manage&&!area&&' Za novi resurs ili izmenu zone izaberite pojedinačnu zonu.'}</p>
-      </section>
+      </Card>
       {savedNotice&&<p className="resource-save-notice" role="status">{savedNotice}</p>}
-      {areas.isLoading?<Skeleton lines={3} label="Učitavanje zona"/>:areas.error?<ErrorState message={apiErrorMessage(areas.error,'Zone nisu dostupne.')} action={<Button onClick={()=>void areas.refetch()}>Pokušaj ponovo</Button>}/>:!visibleAreas.length?<EmptyState title="Lokacija nema dostupne zone" description="Dodajte zonu ili izaberite drugu lokaciju." action={manage&&<Button onClick={()=>setEditor({kind:'AREA'})}>Dodaj zonu</Button>}/>:!interval?<ErrorState title="Izaberite početak intervala" message="Unesite validan datum i vreme za proveru dostupnosti."/>:mapLoading?<Skeleton lines={6} label="Učitavanje mape i dostupnosti"/>:floorPlan.error||availabilityError?<ErrorState message={apiErrorMessage(floorPlan.error??availabilityError,'Mapu i dostupnost nije moguće učitati.')} action={<Button onClick={()=>{void floorPlan.refetch();availability.forEach(query=>void query.refetch())}}>Pokušaj ponovo</Button>}/>:mapReady&&floorPlan.data&&geometry&&<>
+      {areas.isLoading?<Skeleton lines={3} label="Učitavanje zona"/>:areas.error?<ErrorState message={apiErrorMessage(areas.error,'Zone nisu dostupne.')} action={<Button variant="secondary" onClick={()=>void areas.refetch()}>Pokušaj ponovo</Button>}/>:!visibleAreas.length?<EmptyState title="Lokacija nema dostupne zone" description="Dodajte zonu ili izaberite drugu lokaciju." action={manage&&<Button onClick={()=>setEditor({kind:'AREA'})}>Dodaj zonu</Button>}/>:!interval?<ErrorState title="Izaberite početak intervala" message="Unesite validan datum i vreme za proveru dostupnosti."/>:mapLoading?<Skeleton lines={6} label="Učitavanje mape i dostupnosti"/>:floorPlan.error||availabilityError?<ErrorState message={apiErrorMessage(floorPlan.error??availabilityError,'Mapu i dostupnost nije moguće učitati.')} action={<Button variant="secondary" onClick={()=>{void floorPlan.refetch();availability.forEach(query=>void query.refetch())}}>Pokušaj ponovo</Button>}/>:mapReady&&floorPlan.data&&geometry&&<>
         {metadataError&&<ErrorState title="Dodatna podešavanja nisu dostupna" message="Dostupnost je prikazana. Uređivanje mape i podešavanje resursa zahtevaju učitana podešavanja." action={<Button variant="secondary" onClick={()=>metadata.forEach(query=>void query.refetch())}>Ponovo učitaj podešavanja</Button>}/>}
         <ResourceFloorMap key={`${locationId}:${areaId}:${editing?'edit':'view'}`} plan={floorPlan.data} geometry={geometry} areas={visibleAreas} resources={resources} areaId={areaId} editing={editing&&manage} onFinish={()=>setEditing(false)} onDetails={id=>{if(!editing)details(id)}} onSaved={()=>setSavedNotice('Raspored prostora i pozicije resursa su sačuvani.')}/>
         {!resources.length&&!editing&&<EmptyState title="Prostor nema resurse" description="Mapa i dalje može da se uređuje. Za novi resurs izaberite zonu." action={manage&&area&&<Button onClick={()=>setEditor({kind:'RESOURCE',areaId})}>Dodaj prvi resurs</Button>}/>}
@@ -111,5 +111,5 @@ export function ResourcesPage() {
     {editor&&manage&&<ResourceEditor key={`${editor.kind}:${editor.initial?.id??'new'}`} {...editor} locationId={locationId} areaId={editor.areaId??areaId} onClose={()=>setEditor(null)} onSaved={id=>{if(editor.kind==='LOCATION')setLocation(id);else if(editor.kind==='AREA')setArea(id)}}/>}
     {resourceEmployees&&manage&&<ResourceEmployees resourceId={resourceEmployees.id} resourceName={resourceEmployees.name} onClose={()=>setResourceEmployees(null)}/>}
     {showEmployees&&location&&manage&&<LocationEmployees locationId={location.id} locationName={location.name} onClose={()=>setShowEmployees(false)}/>}
-  </main>
+  </PageLayout>
 }

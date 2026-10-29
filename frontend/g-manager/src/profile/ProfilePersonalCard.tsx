@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { userApi } from '../api/userApi'
-import { Badge, Button, Input } from '../components/ui'
+import { Badge, Button, Input, Card } from '../components/ui'
 import { roleLabels } from '../components/ui/statusPresentation'
 import { useToast } from '../components/ui/toastContext'
 import { focusFirstInvalid } from '../forms/useDirtyGuard'
@@ -35,11 +35,11 @@ export function ProfilePersonalCard({ profile, canUpdate, onSaved, onDirty }: {
     } catch (cause) { if (mounted.current) setError(profileError(cause, 'Lične podatke nije moguće sačuvati.')) }
     finally { inFlight.current = false; if (mounted.current) setBusy(false) }
   }
-  return <section className="gm-profile-card gm-profile-personal" aria-labelledby={`${id}-title`}>
+  return <Card className="gm-profile-card gm-profile-personal" aria-labelledby={`${id}-title`}>
     <header className="gm-profile-card-header"><span className="gm-profile-card-icon"><ProfileIcon kind="user" /></span>
       <div><h2 id={`${id}-title`}>Lični podaci</h2><p>Uredite svoje osnovne informacije i avatar.</p></div></header>
     <ProfileAvatarEditor profile={profile} canUpdate={canUpdate} onSaved={onSaved} onDirty={setAvatarDirty} />
-    <form className="gm-profile-form" onSubmit={save} noValidate>
+    <form className="ui-form-grid gm-profile-form" onSubmit={save} noValidate>
       <div className="gm-profile-field"><label htmlFor={`${id}-name`}>Ime i prezime</label><div className="gm-profile-input-wrap"><ProfileIcon kind="user" />
         <Input id={`${id}-name`} name="name" autoComplete="name" required minLength={2} maxLength={120} value={name}
           disabled={!canUpdate || busy} aria-invalid={touched && !!invalid || undefined} aria-describedby={`${id}-name-feedback`}
@@ -59,5 +59,5 @@ export function ProfilePersonalCard({ profile, canUpdate, onSaved, onDirty }: {
       {error && <p className="gm-profile-error" role="alert">{error}</p>}
       <Button className="gm-profile-save-button" type="submit" loading={busy} disabled={!canUpdate || !dirty || !!invalid}><ProfileIcon kind="save" />Sačuvaj izmene</Button>
     </form>
-  </section>
+  </Card>
 }
