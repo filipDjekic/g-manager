@@ -1,4 +1,4 @@
-import { PageLayout, Button } from '../components/ui'
+import { PageLayout, Button, Card } from '../components/ui'
 import { Component, type ReactNode } from 'react'
 import { reportFrontendError } from '../observability/errorReporter'
 
@@ -23,11 +23,11 @@ export class AppErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.failed) {
-      return <PageLayout className="screen-message">
+      return <PageLayout className="screen-message"><Card>
         <h1>Aplikacija trenutno nije dostupna.</h1>
-        <p>Osvežite stranicu i pokušajte ponovo.</p>
+        <p>Došlo je do greške u prikazu. Ponovo učitajte aplikaciju da biste preuzeli aktuelne podatke.</p>
         <Button variant="secondary" type="button" onClick={() => window.location.reload()}>Osveži</Button>
-      </PageLayout>
+      </Card></PageLayout>
     }
     return this.props.children
   }

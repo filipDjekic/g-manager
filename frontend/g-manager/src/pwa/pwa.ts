@@ -10,6 +10,13 @@ export function registerPwa(): void {
   }).catch(() => window.dispatchEvent(new Event('gmanager:pwa-error')))
 }
 
-export function activateUpdate(): void {
-  navigator.serviceWorker.getRegistration().then((registration) => registration?.waiting?.postMessage({ type: 'SKIP_WAITING' }))
+export async function activateUpdate(): Promise<void> {
+  const registration = await navigator.serviceWorker.getRegistration()
+  if (!registration?.waiting) return
+  await new Promise<void>((resolve, reject) => {
+    const ready = () => { clearTimeout(timeout); resolve() }
+    const timeout = window.setTimeout(() => { navigator.serviceWorker.removeEventListener('controllerchange', ready); reject(new Error('Update activation timed out')) }, 10000)
+    navigator.serviceWorker.addEventListener('controllerchange', ready, { once: true })
+    registration.waiting!.postMessage({ type: 'SKIP_WAITING' })
+  })
 }

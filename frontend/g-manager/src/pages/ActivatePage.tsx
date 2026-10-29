@@ -87,6 +87,7 @@ export function ActivatePage() {
         }}
         {...form.register('confirmPassword')} />
       {error && <ErrorState title="Aktivacija nije uspela" message={error} />}
+      <p className="gm-auth-activation">Kod izdaje osoblje prilikom registracije. Ako je kod istekao, već iskorišćen ili nedostaje, obratite se osoblju za proveru naloga.</p>
       <Button className="gm-auth-submit" type="submit" loading={form.formState.isSubmitting}>Aktiviraj nalog</Button>
       <p className="gm-auth-activation"><Link to="/login">← Nazad na prijavu</Link></p>
     </form>

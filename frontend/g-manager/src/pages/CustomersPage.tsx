@@ -1,3 +1,4 @@
+import type { CustomerChoice } from '../customers/CustomerSearch'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { apiErrorMessage } from '../api/client'
@@ -61,7 +62,7 @@ export function CustomersPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [editing, setEditing] = useState<CustomerListItem | null>(null)
   const [deactivating, setDeactivating] = useState<CustomerListItem | null>(null)
-  const [sessionCustomer, setSessionCustomer] = useState<CustomerListItem | null>(null)
+  const [sessionCustomer, setSessionCustomer] = useState<CustomerChoice | null>(null)
   const [busy, setBusy] = useState(false), [startBusy, setStartBusy] = useState(false)
   const [error, setError] = useState(''), [deactivationError, setDeactivationError] = useState('')
   const inFlight = useRef(false), startInFlight = useRef(false)
@@ -110,14 +111,15 @@ export function CustomersPage() {
   if (!canRead) return <PageLayout className="customers-workspace"><EmptyState title="Pregled klijenata nije dostupan"
     description="Nemate dozvolu za pregled klijenata." /></PageLayout>
 
-  return <PageLayout className="customers-">
-    <PageHeader title="Klijenti" description={<>Upravljanje klijentima, istorija aktivnosti i lojalnost.</>} icon={<NavigationIcon to="/customers" />} actions={<>{canCreate && <Button ref={createOpener} type="button" className="customers-pink-button" onClick={() => setCreateOpen(true)}>
+  return <PageLayout className="customers-workspace">
+    <PageHeader title="Klijenti" description={<>Pronađite klijenta, otvorite istoriju ili pokrenite sesiju. Ovlašćeni korisnici mogu dodati interne beleške i oznake.</>} icon={<NavigationIcon to="/customers" />} actions={<>{canCreate && <Button ref={createOpener} type="button" className="customers-pink-button" onClick={() => setCreateOpen(true)}>
         <span aria-hidden="true">+</span> Novi klijent</Button>}</>} />
-    <section className="ui-stat-grid customers-metrics" aria-label="Statistika svih klijenata">{metrics.map(metric => <StatCard key={metric.key} label={metric.label} tone={metric.tone}
+    <details className="ui-secondary-section"><summary>Statistika klijenata</summary>    <section className="ui-stat-grid customers-metrics" aria-label="Statistika svih klijenata">{metrics.map(metric => <StatCard key={metric.key} label={metric.label} tone={metric.tone}
       value={statistics.error ? '?' : statistics.data?.[metric.key]?.toLocaleString('sr-Latn-RS') ?? '?'} loading={statistics.isLoading} icon={<NavigationIcon to={metric.icon} />} />)}</section>
     {statistics.error && <div className="customers-inline-error" role="alert"><span>
       {apiErrorMessage(statistics.error, 'Statistiku klijenata nije moguće učitati.')}</span>
       <Button type="button" variant="secondary" loading={statistics.isFetching} onClick={() => void statistics.refetch()}>Pokušaj ponovo</Button></div>}
+</details>
     {error && <Alert tone="danger" role="alert">{error}</Alert>}
     <section className="ui-filter-bar customers-filter-panel" aria-label="Pretraga i filteri klijenata">
       <div className="customers-filters">
@@ -147,7 +149,7 @@ export function CustomersPage() {
     {url.state.customerId && <CustomerProfile key={url.state.customerId} customerId={url.state.customerId}
       open={!sessionCustomer && !editing && !deactivating && !createOpen} onClose={() => setUrl({ customerId: '' })}
       onEdit={edit} onDeactivate={deactivate} onStart={customer => void start(customer)} startBusy={startBusy} actionError={error} returnFocusRef={detailOpener} />}
-    {createOpen && canCreate && <CustomerFormDialog onClose={() => setCreateOpen(false)} onSaved={refreshCustomers} returnFocusRef={createOpener} />}
+    {createOpen && canCreate && <CustomerFormDialog onClose={() => setCreateOpen(false)} onSaved={refreshCustomers} onContinue={canStart ? customer => { setCreateOpen(false); setSessionCustomer(customer) } : undefined} returnFocusRef={createOpener} />}
     {editing && canEdit && <CustomerFormDialog customer={editing} onClose={() => setEditing(null)} onSaved={refreshCustomers} returnFocusRef={detailOpener} />}
     {sessionCustomer && canStart && <StartSessionDialog customer={sessionCustomer} onClose={() => setSessionCustomer(null)}
       onStarted={() => { void client.invalidateQueries({ queryKey: ['gaming-visits'] }); refreshCustomers() }} />}

@@ -1,3 +1,6 @@
+import { Tabs } from '../components/ui/Tabs'
+import { FreshnessStatus } from '../components/ui/WorkspacePatterns'
+import { gamingBoardStale } from '../gaming/freshness'
 import { useResettableState } from '../components/useResettableState'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -5,7 +8,7 @@ import { Link } from 'react-router-dom'
 import { stationApi } from '../api/stationApi'
 import { hasCapability } from '../auth/capabilities'
 import { useAuthStore } from '../auth/authStore'
-import { Badge, Button, EmptyState, ErrorState, Input, Select, Skeleton, PageHeader, PageLayout, StatCard, Card } from '../components/ui'
+import { Button, EmptyState, ErrorState, Input, Select, Skeleton, PageHeader, PageLayout, StatCard, Card } from '../components/ui'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useToast } from '../components/ui/toastContext'
 import { GamingBoardPagination } from '../gaming/GamingBoardPagination'
@@ -16,7 +19,6 @@ import { useGamingOperations } from '../gaming/useGamingOperations'
 import { useServerNow } from '../gaming/useServerNow'
 import { useListUrlState } from '../lists/useListUrlState'
 import { ResourceEmployees } from '../resources/ResourceEmployees'
-import { formatBusinessDateTime } from '../reservations/dateTime'
 import { StationAdministration, StationClientPackage } from '../stations/StationAdministration'
 import { ApplicationDialog, ApplicationProfileDialog, StationConfigurationDialog } from '../stations/StationConfigurationDialogs'
 import { StationDetails } from '../stations/StationDetails'
@@ -28,7 +30,7 @@ import { connectionStatus, problematicStation, stationError, stationStatus, type
 import type { ApplicationDefinition, ApplicationProfile, StationOverview } from '../types/station.types'
 import '../stations/stations.css'
 
-const defaults = { search: '', status: '', locationId: '', areaId: '', profileId: '', connection: '', view: 'cards', page: '1', size: '10', stationId: '' }
+const defaults = { search: '', status: '', locationId: '', areaId: '', profileId: '', connection: '', view: 'cards', page: '1', size: '10', stationId: '', section: 'stations' }
 const urlKeys = Object.keys(defaults) as Array<keyof typeof defaults>
 const connections = { CONNECTED: 'Povezan', OFFLINE: 'Bez veze', WAITING: 'Čeka prvi kontakt', MANUAL: 'Ručni režim', UNKNOWN: 'Veza nije potvrđena' }
 const pageSizes = [10, 20, 50, 100]
@@ -38,16 +40,17 @@ export function StationsPage() {
   const canRead = hasCapability(user, 'STATION_READ'), canOperate = canRead && hasCapability(user, 'GAMING_SESSION_READ')
   const manage = hasCapability(user, 'APPLICATION_PROFILE_MANAGE'), maintain = hasCapability(user, 'STATION_MAINTENANCE')
   const machineManage = hasCapability(user, 'MACHINE_IDENTITY_MANAGE'), resourceManage = hasCapability(user, 'RESOURCE_MANAGE')
-  const operations = useGamingOperations(canOperate), board = operations.board
+  const url = useListUrlState(defaults, urlKeys), state = url.state
+  const section = ['applications','profiles','package'].includes(state.section) ? state.section : 'stations'
+  const operations = useGamingOperations(canOperate && section === 'stations'), board = operations.board
   const now = useServerNow(canOperate ? board.data?.serverTime : undefined)
   const stations = useQuery({ queryKey: ['stations', 'overview', user?.id], queryFn: stationApi.overview, enabled: canRead,
     refetchInterval: operations.visible && (!canOperate || board.isError) ? 15000 : false, refetchIntervalInBackground: false })
   const definitions = useQuery({ queryKey: ['stations', 'applications', user?.id], queryFn: stationApi.definitions, enabled: canRead })
   const profiles = useQuery({ queryKey: ['stations', 'profiles', user?.id], queryFn: stationApi.profiles, enabled: canRead })
-  const clientPackage = useQuery({ queryKey: ['stations', 'client-package', user?.id], queryFn: stationApi.clientPackage, enabled: canRead })
+  const clientPackage = useQuery({ queryKey: ['stations', 'client-package', user?.id], queryFn: stationApi.clientPackage, enabled: canRead && section === 'package' })
   // The existing board owns SSE and polling. Its fresh snapshots also refresh station configuration/heartbeat metadata.
   useEffect(() => { if (canOperate && board.dataUpdatedAt) void client.invalidateQueries({ queryKey: ['stations', 'overview'] }) }, [canOperate, board.dataUpdatedAt, client])
-  const url = useListUrlState(defaults, urlKeys), state = url.state
   const [search, setSearch] = useResettableState(() => state.search, state.search), [moreFilters, setMoreFilters] = useState(Boolean(state.profileId || state.connection))
   const [stationEdit, setStationEdit] = useState<StationOverview | null>(null), [machineStation, setMachineStation] = useState<StationOverview | null>(null)
   const [resourceEmployees, setResourceEmployees] = useState<StationOverview | null>(null)
@@ -96,7 +99,7 @@ const setUrl = url.set
   const operationalStations = allStations.filter(value => value.live)
   const operationalReady = canOperate && Boolean(board.data) && Boolean(stations.data), applicationLoading = definitions.isLoading || profiles.isLoading
   const applicationError = definitions.error ?? profiles.error
-  const boardTooOld = canOperate && Boolean(board.data) && now - Date.parse(board.data!.serverTime) > 30000
+  const boardTooOld = canOperate && gamingBoardStale(board.data?.serverTime, now)
   const stale = stations.isError || (canOperate && (board.isError || boardTooOld || !operations.visible || !board.data))
   const configurationUnavailable = stations.isError || profiles.isLoading || profiles.isError
   const refresh = () => { void client.invalidateQueries({ queryKey: ['stations'] }); if (canOperate) void client.invalidateQueries({ queryKey: ['gaming-operations'] }) }
@@ -106,6 +109,7 @@ const setUrl = url.set
   const resourceQuery = new URLSearchParams()
   if (state.locationId) resourceQuery.set('locationId', state.locationId)
   if (state.areaId) resourceQuery.set('areaId', state.areaId)
+  resourceQuery.set('create','true')
   const resourceUrl = `/resources${resourceQuery.size ? `?${resourceQuery}` : ''}`
   const handlers: StationViewHandlers = {
     configurationDisabled: configurationUnavailable,
@@ -144,8 +148,14 @@ const setUrl = url.set
 
   return <PageLayout className="gm-stations">
     {confirmationDialog}
-    <PageHeader title="Gaming stanice" description={<>Pregled i upravljanje gaming stanicama, njihovim stanjem i konfiguracijom.</>} icon={<StationIcon />} titleRef={titleRef} actions={<><div className="gm-stations-heading-actions"><Button type="button" variant="secondary" loading={stations.isFetching || canOperate && board.isFetching} onClick={refresh}><StationIcon kind="refresh" />Osveži</Button>
+    <PageHeader title={resourceManage?'PC konfiguracija':'Informacije o stanicama'} description="Podešavanja, aplikacije i povezivanje klijenta. Za start, produženje i završetak sesije otvorite Radni ekran." icon={<StationIcon />} titleRef={titleRef} actions={<><div className="gm-stations-heading-actions"><Button type="button" variant="secondary" loading={stations.isFetching || canOperate && board.isFetching} onClick={refresh}><StationIcon kind="refresh" />Osveži</Button>
         {resourceManage && <Link className="ui-button ui-button--primary ui-button--medium" to={resourceUrl} title="Otvara postojeće upravljanje resursima za kreiranje gaming računara">+ Nova stanica</Link>}</div></>} />
+    <Tabs label="PC konfiguracija" idPrefix="pc-config" value={section} onChange={section => setUrl({section})} items={[
+      {id:'stations',label:'Stanice'},{id:'applications',label:'Aplikacije'},{id:'profiles',label:'Profili'},{id:'package',label:'Client paket'},
+    ]}/>
+    <section id={'pc-config-panel-'+section} role="tabpanel" aria-labelledby={'pc-config-tab-'+section} tabIndex={0}>
+    {section==='stations'&&<>
+    <details className="ui-secondary-section"><summary>Statistika stanica</summary>
     <div className="ui-stat-grid gm-stations-kpis" aria-label="Statistika gaming stanica">
       <StatCard label={<>Ukupno stanica</>} value={<>{stations.data ? allStations.length : '—'}</>} icon={<StationIcon />} description={<>Sve gaming PC stanice u pregledu</>} />
       <StatCard label={<>U upotrebi</>} value={<>{operationalReady ? operationalStations.filter(value => value.live?.sessionId).length : '—'}</>} icon={<StationIcon />} description={<>Stvarna aktivna gaming sesija</>} tone={"success"} />
@@ -155,6 +165,7 @@ const setUrl = url.set
     <p className="gm-stations-stat-scope">Ukupan broj obuhvata sve stanice u pregledu. {operationalReady
       ? `Operativni pokazatelji obuhvataju ${operationalStations.length} stanica u vašem Gaming Operations opsegu, bez uticaja filtera i paginacije.`
       : 'Operativni pokazatelji zahtevaju dozvolu i dostupan pregled Gaming operative.'} Problematične uključuju i isteklu sesiju, nepotvrđeno zaključavanje, komandu bez potvrde i nedovršenu konfiguraciju.</p>
+    </details>
     <Card className="gm-stations-section gm-stations-filters" aria-label="Pretraga i filteri stanica">
       <div className="gm-stations-filter-main"><label className="gm-stations-search"><span>Pretraga stanica</span><div><StationIcon kind="search" /><Input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Pretraži po nazivu, kodu ili klijentu..." /></div></label>
         <label>Status<Select aria-label={"Status"} value={state.status} onChange={event => filter({ status: event.target.value })}><option value="">Svi statusi</option>{Object.entries(stationLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></label>
@@ -171,8 +182,7 @@ const setUrl = url.set
     </Card>
     <section className="gm-stations-results" aria-labelledby="station-results-title">
       <header className="gm-stations-results-heading"><div><h2 id="station-results-title">Pregled stanica <span>{filtered.length}</span></h2>
-        <div className="gm-stations-live-status">{canOperate ? <><Badge tone={stale ? 'warning' : operations.connection === 'connected' ? 'success' : 'warning'}>{!operations.visible ? 'Osvežavanje pauzirano' : board.isError || boardTooOld ? 'Podaci mogu biti zastareli' : operations.connection === 'connected' ? 'Povezano' : operations.connection === 'reconnecting' ? 'Ponovno povezivanje' : 'Povezivanje'}</Badge>
-          {board.data && <small>Podaci od {formatBusinessDateTime(board.data.serverTime, false, 'sr-Latn-RS')}</small>}</> : <small>Pregled konfiguracije · automatsko osvežavanje</small>}</div></div>
+        <div className="gm-stations-live-status">{canOperate ? <FreshnessStatus time={board.data?.serverTime} error={board.isError} stale={boardTooOld} connected={operations.connection==='connected'} paused={!operations.visible}/> : <small>Pregled konfiguracije · automatsko osvežavanje</small>}</div></div>
         <div className="gm-stations-view-switch" role="group" aria-label="Način prikaza stanica"><Button variant="ghost" type="button" aria-pressed={state.view !== 'table'} onClick={() => setUrl({ view: 'cards' })}><StationIcon kind="grid" />Kartice</Button>
           <Button variant="ghost" type="button" aria-pressed={state.view === 'table'} onClick={() => setUrl({ view: 'table' })}><StationIcon kind="table" />Tabela</Button></div></header>
       {canOperate && (board.isError || boardTooOld || operations.connection === 'reconnecting') && <div className="gm-stations-warning" role="status">{board.isError ? stationError(board.error, 'Operativno stanje trenutno nije dostupno.') : 'Ponovno povezivanje ili kašnjenje operativnih podataka.'} Podaci mogu biti zastareli. Automatsko osvežavanje će pokušati ponovo.</div>}
@@ -186,11 +196,14 @@ const setUrl = url.set
       {Boolean(allStations.length) && <GamingBoardPagination page={page} pageSize={pageSize} total={filtered.length} label="Stranice gaming stanica" loading={stale}
         onChange={next => setUrl({ page: String(next + 1) })} onSizeChange={size => setUrl({ size: String(size), page: '1' })} />}
     </section>
-    <StationClientPackage data={clientPackage.data} loading={clientPackage.isLoading} error={clientPackage.error} onRefresh={refresh} />
-    <StationAdministration definitions={definitions.data ?? []} profiles={profiles.data ?? []} loadingDefinitions={definitions.isLoading} loadingProfiles={profiles.isLoading}
+    </>}
+    {section==='package'&&<>    <StationClientPackage data={clientPackage.data} loading={clientPackage.isLoading} error={clientPackage.error} onRefresh={refresh} />
+</>}
+    {(['applications','profiles'] as string[]).includes(section)&&<StationAdministration section={section as 'applications'|'profiles'} definitions={definitions.data ?? []} profiles={profiles.data ?? []} loadingDefinitions={definitions.isLoading} loadingProfiles={profiles.isLoading}
       definitionsError={definitions.error} profilesError={profiles.error} manage={manage} busy={deleting || definitions.isFetching || profiles.isFetching}
       onDefinition={value => { if (manage) setDefinitionEdit(value) }} onProfile={value => { if (manage && !applicationLoading && !applicationError) setProfileEdit(value) }}
-      deleteDefinition={value => deleteItem('application', value)} deleteProfile={value => deleteItem('profile', value)} onRefresh={refresh} />
+      deleteDefinition={value => deleteItem('application', value)} deleteProfile={value => deleteItem('profile', value)} onRefresh={refresh} />}
+    </section>
     {selected && <StationDetails station={selected} user={user} now={now} initialTab={detailTab} profiles={profiles.data ?? []} definitions={definitions.data ?? []}
       applicationLoading={applicationLoading} applicationError={applicationError} stale={stale} returnFocusRef={detailOpener} handlers={handlers} onClose={closeDetails} onRefresh={refresh} />}
     {state.stationId && !selected && stations.data && !stations.isError && <div className="gm-stations-warning" role="status">Izabrana stanica više nije dostupna u ovom pregledu.<Button type="button" variant="secondary" onClick={closeDetails}>Zatvori selekciju</Button></div>}

@@ -11,7 +11,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         <p className="gm-auth-wordmark">G-MANAGER</p>
         <span className="gm-auth-brand-line" aria-hidden="true" />
         <p className="gm-auth-description">
-          Gaming Control Center za upravljanje igraonicom, rezervacijama, sesijama i operativom.
+          Vaši termini, ponuda i rad igraonice.
         </p>
       </div>
     </section>

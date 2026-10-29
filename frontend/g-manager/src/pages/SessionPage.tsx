@@ -57,7 +57,7 @@ function SessionWorkspace({ actorId, canChangePassword }: { actorId: string; can
 
   return <PageLayout className="gm-session">
     <SessionHeading fetching={dashboard.fetching} disabled={dashboard.pendingId !== null} onRefresh={refresh} />
-    <SessionKpis sessions={dashboard.sessions} events={dashboard.events} />
+    <details className="ui-secondary-section"><summary>Pregled prijava i bezbednosti</summary><SessionKpis sessions={dashboard.sessions} events={dashboard.events} /></details>
     {tokenReuse && <Card className="gm-session-risk">
       <SessionIcon kind="alert" />
       <div><h2>Proverite bezbednost naloga</h2>
@@ -68,7 +68,7 @@ function SessionWorkspace({ actorId, canChangePassword }: { actorId: string; can
     <ActiveDevices resource={dashboard.sessions} busy={busy} pendingId={dashboard.pendingId} headingRef={devicesHeading}
       onRetry={refresh} onRevoke={session => openConfirmation({ kind: 'session', session })}
       onRevokeAll={() => openConfirmation({ kind: 'all' })} />
-    <SecurityHistory resource={dashboard.events} filter={filter} busy={busy} onFilter={setFilter} onRetry={refresh} />
+    <details className="ui-secondary-section"><summary>Bezbednosna istorija</summary><SecurityHistory resource={dashboard.events} filter={filter} busy={busy} onFilter={setFilter} onRetry={refresh} /></details>
     <p className="gm-session-timezone"><SessionIcon kind="info" />Datumi i vremena prikazani su za Europe/Belgrade.</p>
     <ConfirmDialog open={selection !== null} className="gm-session-dialog" variant="danger"
       title={selection?.kind === 'all' ? 'Odjavi sve sesije' : 'Odjavi uređaj'}

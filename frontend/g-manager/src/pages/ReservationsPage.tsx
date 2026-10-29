@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { resourceApi } from '../api/resourceApi'
 import { userApi } from '../api/userApi'
+import { hasCapability } from '../auth/capabilities'
+import { StartSessionDialog } from '../gaming/StartSessionDialog'
 import { useAuthStore } from '../auth/authStore'
 import { CustomerPicker } from '../reservations/CustomerPicker'
 import { StaffReservationForm } from '../reservations/StaffReservationForm'
@@ -40,6 +42,9 @@ export function ReservationsPage() {
   const url = useListUrlState(defaults, allowed)
   const setUrl = url.set
   const scope: ReservationScope = url.state.scope === 'MANAGEABLE' ? 'MANAGEABLE' : 'ALL'
+  const [sessionReservation, setSessionReservation] = useState<Reservation | null>(null)
+  const [search, setSearch] = useState(url.state.search)
+  useEffect(() => { const timer = window.setTimeout(() => setSearch(url.state.search.trim()), 300); return () => window.clearTimeout(timer) }, [url.state.search])
   const [createOpen, setCreateOpen] = useState(false)
   const [moreFilters, setMoreFilters] = useState(() => Boolean(url.state.employeeId || url.state.customerId || url.state.sort !== 'startTime' || url.state.direction !== 'ASC'))
   const [selected, setSelected] = useResettableState<Set<string>>(() => new Set(), JSON.stringify(Object.entries(url.state).filter(([key]) => !['focus', 'reservationId', 'eventId', 'create'].includes(key))))
@@ -63,15 +68,15 @@ export function ReservationsPage() {
     scope, resourceId: url.state.resourceId || undefined, locationId: url.state.locationId || undefined,
     customerId: url.state.customerId || undefined, page, size,
     status: statuses.find(status => status === url.state.status), employeeId: url.state.employeeId || undefined,
-    from: url.state.from || undefined, to: url.state.to || undefined, search: url.state.search.trim() || undefined,
+    from: url.state.from || undefined, to: url.state.to || undefined, search: search || undefined,
     sort: (['startTime', 'endTime', 'status', 'createdAt'].includes(url.state.sort) ? url.state.sort : 'startTime') as ReservationFilters['sort'],
     direction: url.state.direction === 'DESC' ? 'DESC' : 'ASC',
-  }), [url.state, scope, page, size])
+  }), [url.state, scope, page, size, search])
   const filterKey = JSON.stringify(filters)
   const summaryFilters = { scope, resourceId: filters.resourceId, locationId: filters.locationId, employeeId: filters.employeeId,
     customerId: filters.customerId, from: filters.from, to: filters.to, search: filters.search }
   const result = useQuery({ queryKey: queryKeys.reservations(`${actor?.id}:${filterKey}`),
-    queryFn: () => reservationApi.list(filters), refetchInterval: 15000, refetchOnWindowFocus: true })
+    queryFn: () => reservationApi.list(filters), enabled: search === url.state.search.trim(), refetchInterval: 15000, refetchOnWindowFocus: true })
   const summary = useQuery({ queryKey: ['reservations', 'summary', actor?.id, summaryFilters],
     queryFn: () => reservationApi.summary(summaryFilters), refetchInterval: 15000, refetchOnWindowFocus: true })
   const refresh = () => client.invalidateQueries({ queryKey: ['reservations'] })
@@ -136,6 +141,7 @@ export function ReservationsPage() {
 
   return <PageLayout className="reservations-page">
     <PageHeader title="Rezervacije" description={<>Upravljanje terminima, rezervacijama i dostupnošću resursa.</>} icon={<ReservationIcon />} actions={<><Button className="reservations-create-button" onClick={() => setCreateOpen(true)}><span aria-hidden="true">+</span> Nova rezervacija</Button></>} />
+    <details className="ui-advanced-filters"><summary>Statistika rezervacija</summary>
     <section className="ui-stat-grid reservations-kpis" aria-label="Statistika rezervacija" aria-busy={summary.isFetching}>
       {kpis.map(kpi => <StatCard label={<>{kpi.label}</>} value={summary.isLoading ? <Skeleton lines={1} label={`Učitavanje: ${kpi.label}`} /> : <>{kpi.value?.toLocaleString('sr-Latn-RS') ?? '—'}</>} icon={<ReservationIcon kind={kpi.icon} />} description={<>{kpi.hint}</>} tone={kpi.tone} key={kpi.label} />)}
     </section>
@@ -143,6 +149,7 @@ export function ReservationsPage() {
       {metrics && ` Poslovna vremenska zona: ${metrics.timezone}.`}</p>
     {summary.error && <ErrorState message={apiErrorMessage(summary.error, 'Statistiku nije moguće učitati.')}
       action={<Button variant="secondary" onClick={() => summary.refetch()}>Pokušaj ponovo</Button>} />}
+    </details>
     <section className="ui-filter-bar reservations-filter-panel" aria-label="Filteri rezervacija">
       <div className="reservations-filter-heading"><h2><ReservationIcon kind="filter" />Filteri i pretraga</h2>
         <Button type="button" variant="secondary" disabled={bulk.isPending} onClick={() => { setSelected(new Set()); url.apply({ scope }) }}>Resetuj filtere</Button></div>
@@ -230,13 +237,19 @@ export function ReservationsPage() {
               <td role="cell" className="reservations-location-cell">{reservation.locationName ?? 'Bez dodeljene lokacije'}</td>
               <td role="cell" className="reservations-duration-cell">{minutes} min</td>
               <td role="cell" className="reservations-status-cell"><Badge tone={reservationTones[reservation.status]}>{reservationLabels[reservation.status]}</Badge></td>
-              <td role="cell" className="reservations-actions-cell"><ReservationRowActions reservation={reservation} disabled={bulk.isPending || !!result.error} onAction={openDetails} /></td>
+              <td role="cell" className="reservations-actions-cell">{hasCapability(actor, 'GAMING_SESSION_START') && !reservation.readOnly && reservation.customerId && reservation.resourceId
+                && ['PENDING', 'CONFIRMED'].includes(reservation.status) && resources.data?.some(resource => resource.id === reservation.resourceId && resource.type === 'GAMING_PC') &&
+                <Button variant="secondary" onClick={() => setSessionReservation(reservation)}>Pokreni sesiju</Button>}<ReservationRowActions reservation={reservation} disabled={bulk.isPending || !!result.error} onAction={openDetails} /></td>
             </tr>
           })}</tbody>
         </table></TableShell>}
       {result.data && !result.error && <Pagination numbered page={page} pageSize={size} totalPages={result.data.totalPages} totalElements={result.data.totalElements}
         loading={result.isFetching || bulk.isPending} onPageChange={nextPage => { setUrl({ page: String(nextPage) }) }} />}
     </Card>
+    {sessionReservation?.customerId && sessionReservation.resourceId && <StartSessionDialog
+      customer={{ id: sessionReservation.customerId, name: sessionReservation.customerName ?? 'Klijent' }}
+      reservation={{ id: sessionReservation.id, resourceId: sessionReservation.resourceId, durationMinutes: Math.round((Date.parse(sessionReservation.endTime) - Date.parse(sessionReservation.startTime)) / 60000) }}
+      onClose={() => setSessionReservation(null)} onStarted={() => void refresh()} />}
     {(createOpen || url.state.create === 'true') && <StaffReservationForm onClose={() => { setCreateOpen(false); setUrl({ create: '' }) }}
       onCreated={(id, notice) => { setCreateOpen(false); setBulkSummary(notice ?? 'Rezervacija je kreirana.'); setDetailAction(null); setUrl({ create: '', reservationId: id }) }} />}
     <ReservationDetailsDrawer reservationId={url.state.reservationId || null} appearance="operations" returnFocusRef={returnFocus}

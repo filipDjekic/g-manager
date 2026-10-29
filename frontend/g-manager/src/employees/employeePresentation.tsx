@@ -1,11 +1,9 @@
 import { useObjectUrl } from '../components/useObjectUrl'
 import { useResettableState } from '../components/useResettableState'
 import { employeeDate, type EmployeeAction } from './employeePresentation.model'
-import { Pagination, Input, TableShell, Button, StatCard, Badge, Skeleton } from '../components/ui'
+import { ActionMenu, Pagination, Input, TableShell, Button, StatCard, Badge, Skeleton } from '../components/ui'
 import { useQuery } from '@tanstack/react-query'
 
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 
 import { userApi } from '../api/userApi'
 import { useAuthStore } from '../auth/authStore'
@@ -64,46 +62,10 @@ export function EmployeeActionsMenu({ employee, canDeactivate, canDelete, disabl
   employee: UserResponse; canDeactivate: boolean; canDelete: boolean; disabled: boolean
   onAction: (employee: UserResponse, action: EmployeeAction, opener: HTMLButtonElement | null) => void
 }) {
-  const [open, setOpen] = useState(false), [position, setPosition] = useState({ top: 0, left: 0, maxHeight: 300 })
-  const trigger = useRef<HTMLButtonElement>(null), menu = useRef<HTMLDivElement>(null), id = useId()
-  useLayoutEffect(() => {
-    if (!open) return
-    const locate = () => {
-      const rect = trigger.current?.getBoundingClientRect(); if (!rect) return
-      const height = Math.min(menu.current?.scrollHeight ?? 200, window.innerHeight - 24)
-      setPosition({ left: Math.max(12, Math.min(rect.right - 224, window.innerWidth - 236)),
-        top: window.innerHeight - rect.bottom - 12 >= height ? rect.bottom + 6 : Math.max(12, rect.top - height - 6), maxHeight: height })
-    }
-    locate(); window.addEventListener('resize', locate)
-    return () => window.removeEventListener('resize', locate)
-  }, [open])
-  useEffect(() => {
-    if (!open) return
-    menu.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus()
-    const outside = (event: PointerEvent) => { if (!menu.current?.contains(event.target as Node) && !trigger.current?.contains(event.target as Node)) setOpen(false) }
-    const scroll = (event: Event) => { if (!menu.current?.contains(event.target as Node)) setOpen(false) }
-    document.addEventListener('pointerdown', outside); window.addEventListener('scroll', scroll, true)
-    return () => { document.removeEventListener('pointerdown', outside); window.removeEventListener('scroll', scroll, true) }
-  }, [open])
-  const choose = (action: EmployeeAction) => { setOpen(false); onAction(employee, action, trigger.current) }
-  return <><Button size="small" iconOnly ref={trigger} type="button" variant="ghost" className="gm-employee-menu-trigger" disabled={disabled}
-    aria-label={`Akcije za ${employee.name}`} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? id : undefined}
-    onClick={() => setOpen(value => !value)}>⋯</Button>
-    {open && createPortal(<div ref={menu} id={id} className="ui-menu gm-employee-menu" role="menu" aria-label={`Akcije za ${employee.name}`} style={position}
-      onKeyDown={event => {
-        const items = Array.from(menu.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [])
-        const index = items.indexOf(document.activeElement as HTMLButtonElement)
-        if (event.key === 'Escape') { event.preventDefault(); setOpen(false); trigger.current?.focus() }
-        if (event.key === 'Tab') { setOpen(false); trigger.current?.focus() }
-        if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
-          event.preventDefault(); items[event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
-            : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus()
-        }
-      }}>
-      <button type="button" role="menuitem" onClick={() => choose('profile')}><EmployeeIcon kind="profile" />Prikaži profil</button>
-      {canDeactivate && <button type="button" role="menuitem" onClick={() => choose('deactivate')}><EmployeeIcon kind="lock" />Deaktiviraj nalog</button>}
-      {canDelete && <button type="button" role="menuitem" className="is-danger" onClick={() => choose('delete')}><EmployeeIcon kind="delete" />Obriši nalog</button>}
-    </div>, document.body)}</>
+  const actions: { label: string; action: EmployeeAction; danger?: boolean }[] = [{ label: 'Prikaži profil', action: 'profile' }]
+  if (canDeactivate) actions.push({ label: 'Deaktiviraj nalog', action: 'deactivate' })
+  if (canDelete) actions.push({ label: 'Obriši nalog', action: 'delete', danger: true })
+  return <ActionMenu label={'Akcije za ' + employee.name} disabled={disabled} actions={actions.map(item => ({ ...item, onClick: trigger => onAction(employee, item.action, trigger) }))} />
 }
 
 export function EmployeesTable({ employees, actorId, focus, selected, canDeactivate, canDelete, busy, onToggle, onAction }: {

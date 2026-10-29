@@ -61,7 +61,7 @@ export function LoginPage() {
           await featureApi.bootstrap().then(useFeatureStore.getState().apply)
             .catch(() => useFeatureStore.getState().reset())
           const from = (location.state as LoginLocationState | null)?.from
-          navigate(from && from !== '/login' && from !== '/' ? from : homeForUser(response.user, useFeatureStore.getState().flags), { replace: true })
+          navigate(from?.startsWith('/') && !from.startsWith('//') && !from.startsWith('/login') && from !== '/' ? from : homeForUser(response.user, useFeatureStore.getState().flags), { replace: true })
         } catch (error) {
           applyApiFieldErrors(error, form.setError, form.setFocus)
           setServerError(apiErrorMessage(error, 'Prijava trenutno nije dostupna.'))

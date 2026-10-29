@@ -31,7 +31,7 @@ export function WaitlistEntryDialog({ entry, serverTime, returnFocusRef, onClose
   const [uncertain, setUncertain] = useState(false), [conflict, setConflict] = useState(false)
   const keys = useRef(new IdempotencyKeyManager()), pending = useRef<ManageWaitlistInput | null>(null), submitting = useRef(false)
   const dirty = JSON.stringify(initial) !== JSON.stringify(form) || uncertain
-  useDirtyGuard(dirty)
+  const releaseNavigation = useDirtyGuard(dirty || busy, { pending: busy || uncertain })
   const { confirm, confirmationDialog } = useConfirmDialog()
   const change = (values: Partial<typeof form>) => { if (!busy && !uncertain) { setForm(old => ({ ...old, ...values })); setError('') } }
   const close = () => {
@@ -102,9 +102,11 @@ export function WaitlistEntryDialog({ entry, serverTime, returnFocusRef, onClose
     try {
       const value = entry ? await waitlistApi.updateManaged(entry.id, input) : await waitlistApi.createManaged(input, keys.current.begin())
       pending.current = null; keys.current.succeeded(); setUncertain(false)
-      await onSaved(value)
+      releaseNavigation(); await onSaved(value)
     } catch (cause) {
-      const unknown = isAxiosError(cause) && (!cause.response || cause.response.status === 425 || cause.response.status >= 500)
+      keys.current.failed(cause)
+      const unknown = isAxiosError(cause) && (!cause.response || cause.response.status === 425 || cause.response.status >= 500
+        || uncertain && [401,403].includes(cause.response.status) || cause.response.status===409 && /idempotency[- ]?key/i.test(String(cause.response.data?.message??'')))
       setUncertain(unknown)
       if (!unknown) { keys.current.failed(cause); pending.current = null }
       setError(unknown ? 'Ishod zahteva nije potvrđen. Ponovite isti zahtev; podaci su zaključani dok se ishod ne razjasni.' : waitlistError(cause))

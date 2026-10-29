@@ -1,13 +1,12 @@
 import { waitlistLabels, waitlistCalendar } from './waitlistPresentation.model'
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
+import type { ReactNode } from 'react'
 
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 
 
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Badge, Button, type StatusTone } from '../components/ui'
+import { ActionMenu, type MenuAction, Badge, type StatusTone } from '../components/ui'
 
 
 
@@ -45,48 +44,11 @@ export function WaitlistMenu({ entry, disabled, onDetails, onEdit, onCancel }: {
   entry: WaitlistOperationalEntry; disabled: boolean; onDetails: (opener: HTMLButtonElement | null) => void
   onEdit: (opener: HTMLButtonElement | null) => void; onCancel: () => void
 }) {
-  const canManage = hasCapability(useAuthStore(state => state.user), 'WAITLIST_MANAGE')
-  const trigger = useRef<HTMLButtonElement>(null), menu = useRef<HTMLDivElement>(null), id = useId()
-  const [open, setOpen] = useState(false), [position, setPosition] = useState({ left: 0, top: 0, maxHeight: 300 })
-  useLayoutEffect(() => {
-    if (!open) return
-    const locate = () => {
-      const rect = trigger.current?.getBoundingClientRect(); if (!rect) return
-      const height = Math.min(menu.current?.scrollHeight ?? 230, window.innerHeight - 24)
-      setPosition({ left: Math.max(12, Math.min(rect.right - 228, window.innerWidth - 240)),
-        top: window.innerHeight - rect.bottom >= height + 12 ? rect.bottom + 6 : Math.max(12, rect.top - height - 6), maxHeight: height })
-    }
-    locate(); window.addEventListener('resize', locate)
-    return () => window.removeEventListener('resize', locate)
-  }, [open])
-  useEffect(() => {
-    if (!open) return
-    menu.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus()
-    const outside = (event: PointerEvent) => { if (!menu.current?.contains(event.target as Node) && !trigger.current?.contains(event.target as Node)) setOpen(false) }
-    const scroll = (event: Event) => { if (!menu.current?.contains(event.target as Node)) setOpen(false) }
-    document.addEventListener('pointerdown', outside); window.addEventListener('scroll', scroll, true)
-    return () => { document.removeEventListener('pointerdown', outside); window.removeEventListener('scroll', scroll, true) }
-  }, [open])
-  const choose = (callback: () => void) => { setOpen(false); trigger.current?.focus(); callback() }
-  return <span className="gm-waitlist-menu-wrap" onClick={event => event.stopPropagation()}>
-    <Button size="small" iconOnly ref={trigger} type="button" variant="ghost" className="gm-waitlist-menu-trigger" disabled={disabled} aria-label={`Akcije za ${entry.customerName}`}
-      aria-haspopup="menu" aria-expanded={open} aria-controls={open ? id : undefined} onClick={() => setOpen(value => !value)}>⋯</Button>
-    {open && createPortal(<div id={id} ref={menu} style={position} className="ui-menu gm-waitlist-menu" role="menu" aria-label="Akcije prijave"
-      onClick={event => event.stopPropagation()} onKeyDown={event => {
-        const items = Array.from(menu.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])
-        const index = items.indexOf(document.activeElement as HTMLElement)
-        if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); choose(() => undefined) }
-        if (event.key === 'Tab') { setOpen(false); trigger.current?.focus() }
-        if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
-          event.preventDefault(); items[event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
-            : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus()
-        }
-      }}>
-      <button type="button" role="menuitem" onClick={() => choose(() => onDetails(trigger.current))}><WaitlistIcon kind="list" />Detalji</button>
-      {canManage && entry.allowedActions.includes('EDIT') && <button type="button" role="menuitem" onClick={() => choose(() => onEdit(trigger.current))}><WaitlistIcon kind="edit" />Izmeni prijavu</button>}
-      {canManage && entry.allowedActions.includes('CANCEL') && <button type="button" role="menuitem" className="is-danger" onClick={() => choose(onCancel)}><WaitlistIcon kind="cancel" />Otkaži prijavu</button>}
-      {entry.allowedActions.includes('CALENDAR') && <Link role="menuitem" to={waitlistCalendar(entry)} onClick={() => setOpen(false)}><WaitlistIcon kind="calendar" />Proveri kalendar</Link>}
-      {entry.allowedActions.includes('CUSTOMER') && <Link role="menuitem" to={`/customers?customerId=${entry.customerId}`} onClick={() => setOpen(false)}><WaitlistIcon kind="customer" />Pogledaj klijenta</Link>}
-    </div>, document.body)}
-  </span>
+  const canManage = hasCapability(useAuthStore(state => state.user), 'WAITLIST_MANAGE'), navigate = useNavigate()
+  const actions: MenuAction[] = [{ label: 'Detalji', onClick: onDetails }]
+  if (canManage && entry.allowedActions.includes('EDIT')) actions.push({ label: 'Izmeni prijavu', onClick: onEdit })
+  if (canManage && entry.allowedActions.includes('CANCEL')) actions.push({ label: 'Otkaži prijavu', danger: true, onClick: onCancel })
+  if (entry.allowedActions.includes('CALENDAR')) actions.push({ label: 'Proveri kalendar', onClick: () => navigate(waitlistCalendar(entry)) })
+  if (entry.allowedActions.includes('CUSTOMER')) actions.push({ label: 'Pogledaj klijenta', onClick: () => navigate('/customers?customerId=' + entry.customerId) })
+  return <span onClick={event => event.stopPropagation()}><ActionMenu label={'Akcije za ' + entry.customerName} disabled={disabled} actions={actions} /></span>
 }

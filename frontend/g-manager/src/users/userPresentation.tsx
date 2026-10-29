@@ -1,7 +1,5 @@
 import { type IconKind, userDate, allowedUserActions, type UserAction, type ActionHandler } from './userPresentation.model'
-import { Pagination, Input, TableShell, Button, StatCard, Badge, Skeleton } from '../components/ui'
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { ActionMenu, Pagination, Input, TableShell, Button, StatCard, Badge, Skeleton } from '../components/ui'
 
 
 import { roleLabels } from '../components/ui/statusPresentation'
@@ -32,46 +30,14 @@ export function UserKpi({ title, value, kind, tone, loading }: {
   return <StatCard label={<>{title}</>} value={loading ? <Skeleton lines={1} label={`Učitavanje: ${title}`} /> : <>{value === undefined ? '—' : new Intl.NumberFormat('sr-Latn-RS').format(value)}</>} icon={<UserIcon kind={kind} />} tone={tone} aria-label={title} />
 }
 function UserRowMenu({ user, actor, busy, onAction }: { user: UserResponse; actor: AuthUser; busy: boolean; onAction: ActionHandler }) {
-  const permissions = allowedUserActions(actor, user), id = useId(), trigger = useRef<HTMLButtonElement>(null), menu = useRef<HTMLDivElement>(null)
-  const [open, setOpen] = useState(false), [position, setPosition] = useState({ left: 0, top: 0, maxHeight: 300 })
-  useLayoutEffect(() => {
-    if (!open) return
-    const locate = () => {
-      const rect = trigger.current?.getBoundingClientRect(); if (!rect) return
-      const height = Math.min(menu.current?.scrollHeight ?? 220, window.innerHeight - 24)
-      setPosition({ left: Math.max(12, Math.min(rect.right - 224, window.innerWidth - 236)),
-        top: window.innerHeight - rect.bottom - 12 >= height ? rect.bottom + 6 : Math.max(12, rect.top - height - 6), maxHeight: height })
-    }
-    locate(); window.addEventListener('resize', locate)
-    return () => window.removeEventListener('resize', locate)
-  }, [open])
-  useEffect(() => {
-    if (!open) return
-    menu.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus()
-    const outside = (event: PointerEvent) => { if (!menu.current?.contains(event.target as Node) && !trigger.current?.contains(event.target as Node)) setOpen(false) }
-    const scroll = (event: Event) => { if (!menu.current?.contains(event.target as Node)) setOpen(false) }
-    document.addEventListener('pointerdown', outside); window.addEventListener('scroll', scroll, true)
-    return () => { document.removeEventListener('pointerdown', outside); window.removeEventListener('scroll', scroll, true) }
-  }, [open])
-  const choose = (action: UserAction) => { setOpen(false); onAction(user, action, trigger.current) }
-  return <><Button size="small" iconOnly ref={trigger} type="button" variant="ghost" className="gm-user-menu-trigger" disabled={busy} aria-label={`Akcije za ${user.name}`}
-    aria-haspopup="menu" aria-expanded={open} aria-controls={open ? id : undefined} onClick={() => setOpen(value => !value)}>⋯</Button>
-    {open && createPortal(<div ref={menu} id={id} className="ui-menu gm-user-menu" style={position} role="menu" aria-label={`Akcije za ${user.name}`} onKeyDown={event => {
-      const buttons = Array.from(menu.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [])
-      const index = buttons.indexOf(document.activeElement as HTMLButtonElement)
-      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setOpen(false); trigger.current?.focus() }
-      if (event.key === 'Tab') { setOpen(false); trigger.current?.focus() }
-      if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
-        event.preventDefault(); buttons[event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1
-          : (index + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length]?.focus()
-      }
-    }}>
-      <button type="button" role="menuitem" onClick={() => choose('details')}><UserIcon kind="profile" />Prikaži detalje</button>
-      {permissions.deactivate && <button type="button" role="menuitem" onClick={() => choose('deactivate')}><UserIcon kind="lock" />Deaktiviraj nalog</button>}
-      {permissions.remove && <button type="button" role="menuitem" className="is-danger" onClick={() => choose('delete')}><UserIcon kind="delete" />Obriši nalog</button>}
-      {permissions.restore && <button type="button" role="menuitem" onClick={() => choose('restore')}><UserIcon kind="restore" />Vrati nalog</button>}
-    </div>, document.body)}</>
+  const permissions = allowedUserActions(actor, user)
+  const actions: { label: string; action: UserAction; danger?: boolean }[] = [{ label: 'Prikaži detalje', action: 'details' }]
+  if (permissions.deactivate) actions.push({ label: 'Deaktiviraj nalog', action: 'deactivate' })
+  if (permissions.remove) actions.push({ label: 'Obriši nalog', action: 'delete', danger: true })
+  if (permissions.restore) actions.push({ label: 'Vrati nalog', action: 'restore' })
+  return <ActionMenu label={'Akcije za ' + user.name} disabled={busy} actions={actions.map(item => ({ ...item, onClick: trigger => onAction(user, item.action, trigger) }))} />
 }
+
 export function UsersTable({ users, actor, selected, focus, busy, onToggle, onAction }: {
   users: UserResponse[]; actor: AuthUser; selected: Set<string>; focus: string; busy: boolean; onToggle: (id: string) => void; onAction: ActionHandler
 }) {

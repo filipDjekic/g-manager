@@ -2,6 +2,7 @@ import axios from 'axios'
 
 export class IdempotencyKeyManager {
   private key: string | null = null
+  private uncertain = false
   private readonly generate: () => string
 
   constructor(generate: () => string = () => crypto.randomUUID()) {
@@ -13,11 +14,14 @@ export class IdempotencyKeyManager {
     return this.key
   }
 
-  succeeded(): void { this.key = null }
+  succeeded(): void { this.key = null; this.uncertain = false }
 
   failed(error: unknown): void {
-    const retainForRetry = axios.isAxiosError(error)
-      && (!error.response || error.response.status === 425)
+    const status = axios.isAxiosError(error) ? error.response?.status : undefined
+    const retainForRetry = axios.isAxiosError(error) && (!error.response || status === 425 || (status ?? 0) >= 500
+      || status === 409 && /idempotency[- ]?key/i.test(String(error.response?.data?.message ?? ''))
+      || this.uncertain && (status === 401 || status === 403))
+    this.uncertain = retainForRetry
     if (!retainForRetry) this.key = null
   }
 

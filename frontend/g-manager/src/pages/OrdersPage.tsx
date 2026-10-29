@@ -7,8 +7,9 @@ import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
 import { SavedViewBar } from '../components/lists/SavedViewBar'
 import { SelectionBar } from '../components/lists/SelectionBar'
-import { Button, EmptyState, ErrorState, Input, Select, Skeleton, PageHeader, PageLayout, StatCard } from '../components/ui'
+import { Button, EmptyState, ErrorState, Input, Select, Skeleton, PageHeader, PageLayout, StatCard, SegmentedControl } from '../components/ui'
 import { orderLabels } from '../components/ui/statusPresentation'
+import { useOrderActionConfirmation } from '../order/useOrderActionConfirmation'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useToast } from '../components/ui/toastContext'
 import { useListUrlState } from '../lists/useListUrlState'
@@ -17,12 +18,12 @@ import type { OrderAction } from '../order/OrderActionsMenu'
 import { OrdersPagination } from '../order/OrdersPagination'
 import { OrdersTable } from '../order/OrdersTable'
 import { OrderIcon } from '../order/orderPresentation'
-import { canChangeOrder, currentPeriod, orderActionLabels, orderErrorMessage, orderMoney, periodDates, periodLabel, periodOptions, shortOrderId, validOrderDate } from '../order/orderPresentation.model'
+import { canChangeOrder, currentPeriod, orderErrorMessage, periodDates, periodLabel, periodOptions, shortOrderId, validOrderDate } from '../order/orderPresentation.model'
 import type { BulkItem, BulkOperationResponse } from '../types/bulk.types'
 import type { ManagedOrder, OrderStatus } from '../types/order.types'
 import '../order/orders.css'
 
-const defaults = { page: '0', size: '10', status: '', handledBy: '', from: '', to: '', search: '',
+const defaults = { page: '0', size: '10', status: 'CREATED', handledBy: '', from: '', to: '', search: '',
   sort: 'createdAt', direction: 'DESC', focus: '' }
 const allowed = ['page', 'size', 'status', 'handledBy', 'from', 'to', 'search', 'sort', 'direction', 'focus'] as const
 const sorts = { createdAt: 'Datum kreiranja', updatedAt: 'Poslednja izmena', status: 'Status', totalPrice: 'Ukupan iznos' }
@@ -42,6 +43,7 @@ export function OrdersPage() {
   const url = useListUrlState(defaults, allowed), client = useQueryClient(), toast = useToast()
   const setUrl = url.set
   const { confirm, confirmationDialog } = useConfirmDialog()
+  const orderConfirmation = useOrderActionConfirmation()
   const [selected, setSelected] = useResettableState<Set<string>>(() => new Set(), JSON.stringify(Object.entries(url.state).filter(([key]) => !['focus', 'reservationId', 'eventId', 'create'].includes(key))))
   const [bulkResult, setBulkResult] = useState<BulkOperationResponse | null>(null)
   const [moreFilters, setMoreFilters] = useState(Boolean(url.state.handledBy) || url.state.sort !== defaults.sort || url.state.direction !== defaults.direction)
@@ -142,20 +144,13 @@ export function OrdersPage() {
   }
   function clearFilters() {
     setCustomPeriod(false); setMoreFilters(false)
-    setFilter({ status: '', handledBy: '', from: '', to: '', search: '', sort: 'createdAt', direction: 'DESC' })
+    setFilter({ status: 'ALL', handledBy: '', from: '', to: '', search: '', sort: 'createdAt', direction: 'DESC' })
   }
   function retry() { transition.reset(); bulk.reset(); void refresh() }
   function statusAction(order: ManagedOrder, next: OrderStatus) {
     if (busy || !canChangeOrder(order, next, user)) return
     transition.reset()
-    confirm({ title: orderActionLabels[next] ?? 'Promeni status narudžbine', variant: next === 'CANCELLED' ? 'danger' : 'default',
-      confirmLabel: orderActionLabels[next], errorMessage: 'Promenu statusa nije moguće izvršiti.',
-      formatError: cause => orderErrorMessage(cause, 'Promena statusa nije potvrđena. Osvežite podatke pre ponovnog pokušaja.'),
-      description: <><strong>{shortOrderId(order.id)} · {orderMoney.format(order.totalPrice)}</strong><p>
-        {next === 'CANCELLED' ? 'Narudžbina će biti otkazana. Dalja obrada neće biti moguća.' : `${orderLabels[order.status]} → ${orderLabels[next]}.`}
-        {next === 'COMPLETED' && ' Narudžbina će biti završena i više se neće moći menjati.'}</p></>,
-      onConfirm: () => transition.mutateAsync({ order, next }),
-    })
+    orderConfirmation.request(order, next, () => transition.mutateAsync({ order, next }))
   }
   function rowAction(order: ManagedOrder, action: OrderAction, trigger: HTMLButtonElement) {
     if (action !== 'DETAILS') { statusAction(order, action); return }
@@ -183,10 +178,10 @@ export function OrdersPage() {
 
   if (!canRead) return <PageLayout className="gm-orders"><ErrorState title="Pristup nije dostupan" message="Nemate dozvolu za pregled narudžbina." /></PageLayout>
   return <PageLayout className="gm-orders">
-    {confirmationDialog}
+    {confirmationDialog}{orderConfirmation.confirmationDialog}
     <PageHeader title="Narudžbine" description={<>Pregled i upravljanje narudžbinama proizvoda.</>} icon={<OrderIcon />} titleRef={heading} actions={<><Button ref={refreshButton} type="button" variant="secondary" disabled={busy || Boolean(filterError) || searchPending}
         loading={result.isFetching || statistics.isFetching || detail.isFetching} onClick={retry}><OrderIcon kind="refresh" />Osveži</Button></>} />
-    <section className="gm-orders-statistics" aria-label="Statistika narudžbina">
+    <details className="ui-secondary-section"><summary>Statistika narudžbina za period</summary>    <section className="gm-orders-statistics" aria-label="Statistika narudžbina">
       <p className="gm-orders-statistics-scope">Statistika: {!dateError ? periodLabel(statistics.data?.from ?? filters.from, statistics.data?.to ?? filters.to) : 'Neispravan period'}
         {filters.handledBy ? ` · Obrađuje: ${handler}` : ' · Sve dostupne narudžbine'} · Nezavisno od pretrage i status filtera</p>
       <div className="ui-stat-grid gm-orders-kpis">{kpis.map(kpi => <StatCard label={<>{kpi.label}</>} value={statistics.isLoading ? <Skeleton lines={1} label={`Učitavanje: ${kpi.label}`} />
@@ -194,13 +189,17 @@ export function OrdersPage() {
       {statistics.isError && <ErrorState title="Statistika nije dostupna" message={orderErrorMessage(statistics.error, 'Statistiku nije moguće učitati.')}
         action={<Button type="button" variant="secondary" onClick={() => statistics.refetch()}>Pokušaj ponovo</Button>} />}
     </section>
+</details>
+    <SegmentedControl label="Brzi filteri narudžbina" value={filters.status==='CREATED'?'unclaimed':filters.status==='IN_PROGRESS'&&filters.handledBy===user?.id?'mine':filters.status==='READY'?'ready':!filters.status?'all':'custom'}
+      options={[{value:'unclaimed',label:'Nepreuzete'},{value:'mine',label:'Moje u obradi'},{value:'ready',label:'Spremne'},{value:'all',label:'Sve'}]}
+      onChange={value=>setFilter({status:value==='unclaimed'?'CREATED':value==='mine'?'IN_PROGRESS':value==='ready'?'READY':'ALL',handledBy:value==='mine'?user?.id??'':''})}/>
     <section className="ui-filter-bar gm-orders-filters" aria-label="Filteri narudžbina">
       <div className="gm-orders-filter-main">
         <label className="gm-orders-search"><span>Pretraga</span><div><OrderIcon kind="search" /><Input type="search" maxLength={200}
           placeholder="Pretraži narudžbine, klijente ili proizvode..." value={url.state.search} disabled={busy}
           onChange={event => setFilter({ search: event.target.value })} /></div></label>
-        <label>Status<Select aria-label={"Status"} value={filters.status ?? ''} disabled={busy} onChange={event => setFilter({ status: event.target.value })}>
-          <option value="">Svi statusi</option>{Object.entries(orderLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        <label>Status<Select aria-label={"Status"} value={filters.status ?? 'ALL'} disabled={busy} onChange={event => setFilter({ status: event.target.value })}>
+          <option value="ALL">Svi statusi</option>{Object.entries(orderLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </Select></label>
         <label>Period<Select aria-label={"Period"} value={period} disabled={busy} onChange={event => {
           setCustomPeriod(event.target.value === 'CUSTOM')

@@ -5,10 +5,6 @@ small { color: var(--color-text-muted); }
 .section-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .section-heading h2 { margin: 0; }
 .notification-bell span { position: absolute; inset-block-start: -.25rem; inset-inline-end: -.2rem; min-width: 1.15rem; padding: .05rem .25rem; border: 2px solid var(--color-topbar); border-radius: 999px; background: var(--color-secondary); font-size: var(--font-size-xs); color: var(--color-on-primary); }
-.form-grid { display: grid; gap: var(--space-4); }
-.editor-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: var(--space-3); }
-.resource-map-panel { margin-block: var(--space-4); }
-.form-grid fieldset { min-width: 0; margin: 0; padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
 .live-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-block: var(--space-4); color: var(--color-text-muted); font-size: var(--font-size-sm); }
 .live-status time { margin-inline-end: auto; font-variant-numeric: tabular-nums; }
 .operations-metrics { margin-block: var(--space-4); }

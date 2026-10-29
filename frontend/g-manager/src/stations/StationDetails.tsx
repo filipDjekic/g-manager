@@ -1,3 +1,4 @@
+import { StationSetupSteps } from './StationSetupSteps'
 import { useResettableState } from '../components/useResettableState'
 import { useQuery } from '@tanstack/react-query'
 import { useId, type RefObject } from 'react'
@@ -51,6 +52,7 @@ export function StationDetails({ station, user, now, initialTab, profiles, defin
             } }}>{label}</button>)}</div>
         <section id={`${id}-panel`} role="tabpanel" aria-labelledby={`${id}-${tab}`} tabIndex={0}>
           {tab === 'OVERVIEW' && <>
+            {(!station.stationProfileId || !station.applicationProfileId || !station.lastHeartbeatAt)&&<StationSetupSteps station={station} user={user} handlers={handlers}/>}
             <StationIllustration />
             <dl className="gm-stations-detail-fields">
               <div><dt>Naziv</dt><dd>{station.resourceName}</dd></div><div><dt>Kod</dt><dd>{station.resourceCode}</dd></div>
@@ -78,6 +80,7 @@ export function StationDetails({ station, user, now, initialTab, profiles, defin
             </div> : <p className="gm-stations-form-note">{station.activeSessionId ? 'Stanica ima aktivnu sesiju. Detalji nisu dostupni u vašem operativnom opsegu.' : 'Nema aktivne sesije.'}</p>}
           </>}
           {tab === 'CONFIGURATION' && <>
+            <StationSetupSteps station={station} user={user} handlers={handlers}/>
             <dl className="gm-stations-detail-fields"><div><dt>Operativno stanje</dt><dd>{operationalLabels[station.operationalStatus]}</dd></div>
               <div><dt>Profil aplikacija</dt><dd>{station.applicationProfileName || 'Nije dodeljen'}</dd></div>
               <div><dt>Gaming Client integracija</dt><dd>{station.clientEnabled ? 'Uključena' : 'Isključena · ručni režim'}</dd></div>

@@ -18,7 +18,7 @@
 .gaming-ops-page .ops-filter-options { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); }
 .gaming-ops-page .ops-filter-options > .ui-button { margin-inline-start: auto; }
 .gaming-ops-page .ops-focused-filter { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); color: var(--color-text-secondary); font-size: var(--font-size-sm); }
-.gaming-ops-page .ops-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(16rem, 19rem); align-items: start; gap: var(--space-5); }
+.gaming-ops-page .ops-workspace { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: var(--space-5); }
 .gaming-ops-page .ops-stations { display: grid; gap: var(--space-4); min-width: 0; container-type: inline-size; }
 .gaming-ops-page .ops-section-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .gaming-ops-page .ops-section-heading h2 { margin: 0; font-size: var(--font-size-md); font-weight: var(--font-weight-semibold); }
@@ -112,3 +112,15 @@
 @media (max-width: 380px) {
   .gaming-ops-page .ops-primary-filters > button { flex: 1 1 auto; }
 }
+
+.gaming-ops-page .ops-workspace.has-selection { grid-template-columns:minmax(0,1fr) minmax(20rem,24rem); }
+.gaming-ops-page .ops-primary-filters { display:flex; flex-wrap:wrap; gap:var(--space-3); align-items:end; }
+.gaming-ops-page .ops-primary-filters > label { flex:1 1 12rem; }
+.gaming-ops-page .ops-primary-filters > .ops-search { flex:2 1 17rem; }
+.ops-day-summary { display:grid; gap:var(--space-4); }
+.ops-day-summary header { display:flex; justify-content:space-between; flex-wrap:wrap; gap:var(--space-3); }
+.ops-day-columns { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr)); gap:var(--space-4); }
+.ops-day-columns article { padding:var(--space-3); border-bottom:1px solid var(--color-border); display:grid; gap:var(--space-2); }
+.ops-day-columns h3 { margin:0; font-size:var(--font-size-md); }
+.ops-day-columns small { color:var(--color-text-muted); }
+.ui-drawer .ops-detail-panel { position:static; padding:0; border:0; box-shadow:none; }

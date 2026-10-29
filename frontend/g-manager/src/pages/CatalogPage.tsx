@@ -1,3 +1,4 @@
+import { Tabs } from '../components/ui/Tabs'
 import { useResettableState } from '../components/useResettableState'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState } from 'react'
@@ -143,26 +144,21 @@ export function CatalogPage() {
     { label: 'Dostupni proizvodi', value: stats.data?.productCount, type: 'PRODUCT' as const, tone: 'purple' },
   ]
   return <PageLayout className="gm-catalog-page">
-    <PageHeader title="Usluge i proizvodi" description={<>Upravljanje katalogom usluga, gaming paketa i proizvoda.</>} icon={<CatalogIcon />} actions={<><div className="gm-catalog-header-actions">
+    <PageHeader title={permissions.manage?'Ponuda i cene':'Ponuda'} description={permissions.manage?'Uredite usluge, proizvode, cene i dostupnost.':'Izaberite uslugu za rezervaciju ili proizvod za naručivanje.'} icon={<CatalogIcon />} actions={<><div className="gm-catalog-header-actions">
         {permissions.restore && <Button type="button" variant="secondary" aria-pressed={showDeleted} disabled={busy}
           onClick={() => applyFilter({ deleted: showDeleted ? '' : 'true' })}>{showDeleted ? 'Vrati se u katalog' : 'Obrisane stavke'}</Button>}
         {permissions.manage && <Button type="button" className="gm-catalog-pink-button" disabled={busy} onClick={event => {
           formOpener.current = event.currentTarget; setForm({})
         }}><span aria-hidden="true">＋</span> Nova stavka</Button>}
       </div></>} />
-    <section className={`ui-stat-grid gm-catalog-kpis${metrics.length === 2 ? ' gm-catalog-kpis--public' : ''}`} aria-label="Statistika kataloga">
+    {permissions.manage && <details className="ui-secondary-section"><summary>Statistika ponude</summary>    <section className={`ui-stat-grid gm-catalog-kpis${metrics.length === 2 ? ' gm-catalog-kpis--public' : ''}`} aria-label="Statistika kataloga">
       {metrics.map(metric => <StatCard label={<>{metric.label}</>} value={stats.isLoading ? <Skeleton lines={1} label={`Učitavanje: ${metric.label}`} /> : <>{metric.value == null ? '—' : metric.value.toLocaleString('sr-Latn-RS')}</>} icon={<CatalogIcon type={metric.type} />} tone={metric.tone} key={metric.label} />)}
     </section>
     {stats.error && <div className="gm-catalog-inline-error" role="alert"><span>{apiErrorMessage(stats.error, 'Statistiku nije moguće učitati.')}</span>
       <Button type="button" variant="secondary" onClick={() => void stats.refetch()}>Pokušaj ponovo</Button></div>}
+</details>}
     <section className="gm-catalog-content">
-      <div className="gm-catalog-list-heading"><div className="ui-tab-list gm-catalog-tabs" role="tablist" aria-label="Tip kataloga">
-        {(['SERVICE', 'PRODUCT'] as const).map(value => <button type="button" key={value} role="tab" id={`${id}-${value}`} aria-selected={type === value}
-          aria-controls={`${id}-results`} tabIndex={type === value ? 0 : -1} onClick={() => applyFilter({ type: value })}
-          onKeyDown={event => { if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
-            event.preventDefault(); const next = event.key === 'Home' ? 'SERVICE' : event.key === 'End' ? 'PRODUCT' : value === 'SERVICE' ? 'PRODUCT' : 'SERVICE'
-            applyFilter({ type: next }); document.getElementById(`${id}-${next}`)?.focus()
-          } }}><CatalogIcon type={value} />{value === 'SERVICE' ? 'Usluge' : 'Proizvodi'}</button>)}
+      <div className="gm-catalog-list-heading"><div className="gm-catalog-tabs"><Tabs idPrefix={id} label="Tip ponude" value={type} onChange={type=>applyFilter({type})} items={[{id:'SERVICE',label:'Usluge'},{id:'PRODUCT',label:'Proizvodi'}]}/>
       </div>{showDeleted && <span className="gm-catalog-deleted-label">Pregled obrisanih stavki</span>}</div>
       <form className="ui-form-grid gm-catalog-filters" onSubmit={event => event.preventDefault()}>
         <label className="gm-catalog-search" htmlFor={`${id}-search`}><span>Pretraga</span><div><CatalogIcon search />
@@ -173,12 +169,9 @@ export function CatalogPage() {
         <label>Cena<Select aria-label={"Cena"} value={priceOpen || min !== undefined || max !== undefined ? 'range' : 'all'} onChange={event => {
           setPriceOpen(event.target.value === 'range'); if (event.target.value === 'all') applyFilter({ minPrice: '', maxPrice: '' })
         }}><option value="all">Sve cene</option><option value="range">Raspon cena</option></Select></label>
-        <label>Sortiranje<Select aria-label={"Sortiranje"} value={sort} onChange={event => applyFilter({ sort: event.target.value,
-          direction: event.target.value === 'createdAt' ? 'DESC' : 'ASC' })}>
-          <option value="name">Naziv</option><option value="price">Cena</option><option value="createdAt">Najnovije</option>
-          {sort === 'type' && <option value="type">Tip</option>}</Select></label>
-        <label>Smer<Select aria-label={"Smer"} value={direction} onChange={event => applyFilter({ direction: event.target.value })}>
-          <option value="ASC">{sort === 'createdAt' ? 'Najstarije prvo' : 'Rastuće'}</option><option value="DESC">{sort === 'createdAt' ? 'Najnovije prvo' : 'Opadajuće'}</option></Select></label>
+        <label>Sortiranje<Select aria-label="Sortiranje" value={sort+':'+direction} onChange={event => { const [sort,direction]=event.target.value.split(':'); applyFilter({sort,direction}) }}>
+          <option value="name:ASC">Naziv A–Ž</option><option value="name:DESC">Naziv Ž–A</option><option value="price:ASC">Cena rastuće</option><option value="price:DESC">Cena opadajuće</option>
+          <option value="createdAt:DESC">Najnovije</option><option value="createdAt:ASC">Najstarije</option>{sort==='type'&&<><option value="type:ASC">Tip rastuće</option><option value="type:DESC">Tip opadajuće</option></>}</Select></label>
         {(priceOpen || min !== undefined || max !== undefined) && <div className="gm-catalog-price-filters">
           <label>Minimalna cena (RSD)<Input aria-label={"Minimalna cena (RSD)"} type="number" min="0" step="0.01" value={url.state.minPrice}
             aria-invalid={Boolean(priceError)} aria-describedby={priceError ? `${id}-price-error` : undefined}
@@ -205,7 +198,7 @@ export function CatalogPage() {
         {bulkFailures.map(failure => <li key={failure.id}><strong>{failure.name}</strong>: {failure.message}</li>)}</ul></div>}
       {(list.error || bulk.error) && <ErrorState message={apiErrorMessage(list.error || bulk.error, 'Katalog nije moguće učitati.')}
         action={<Button type="button" variant="secondary" onClick={() => { bulk.reset(); void refresh() }}>Pokušaj ponovo</Button>} />}
-      <section id={`${id}-results`} role="tabpanel" aria-labelledby={`${id}-${type}`} aria-busy={list.isFetching || searchPending}>
+      <section id={`${id}-panel-${type}`} role="tabpanel" aria-labelledby={`${id}-tab-${type}`} aria-busy={list.isFetching || searchPending}>
         {(list.isLoading || searchPending) && !priceError && <div className="gm-catalog-grid gm-catalog-loading" aria-label="Učitavanje kataloga">
           {Array.from({ length: Math.min(size, 9) }, (_, index) => <Card as="div" padding="none" className="gm-catalog-card gm-catalog-card-skeleton" key={index}>
             <div className="gm-catalog-skeleton-media" /><Skeleton lines={3} label="Učitavanje stavke" /></Card>)}

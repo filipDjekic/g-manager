@@ -25,7 +25,7 @@ export function SavedViewBar({ resource, query, apply }: {
   }, onSuccess: async () => { setSelectedId(''); await refresh(); toast('Sačuvani prikaz je obrisan.', 'success') } })
   const selected = views.data?.find(({ id }) => id === selectedId)
 
-  return <div className="saved-view-bar" aria-label="Sačuvani prikazi">
+  return <details className="ui-advanced-filters"><summary>Sačuvani prikazi</summary><div className="saved-view-bar" aria-label="Sačuvani prikazi">
     {confirmationDialog}
     <label>Sačuvani prikaz<Select aria-label={"Sačuvani prikaz"} value={selectedId} onChange={(event) => {
       setSelectedId(event.target.value)
@@ -40,5 +40,5 @@ export function SavedViewBar({ resource, query, apply }: {
       onClick={() => confirm({ title: 'Obriši sačuvani prikaz', description: `Uklonite prikaz “${selected.name}”.`,
         confirmLabel: 'Obriši prikaz', variant: 'danger', onConfirm: () => remove.mutateAsync() })}>Obriši prikaz</Button>}
     {views.error && <p className="field-error" role="alert">{apiErrorMessage(views.error, 'Sačuvani prikazi nisu dostupni.')}</p>}
-  </div>
+  </div></details>
 }

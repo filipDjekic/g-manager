@@ -1,4 +1,7 @@
 const paths: Record<string, string> = {
+  '/equipment': 'M3 4h18v12H3z M8 21h8 M12 16v5 M7 8h10',
+  '/management': 'M4 6h16 M4 12h16 M4 18h16 M8 3v6 M16 9v6 M10 15v6',
+  '/tools': 'M7 3h10v5l4 5-4 8H7l-4-8 4-5z M9 8h6 M9 13h6 M9 17h6',
   '/dashboard': 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
   '/home': 'M3 11 12 3l9 8 M5 10v11h5v-7h4v7h5V10',
   '/gaming-sessions': 'M3 4h18v12H3z M8 21h8 M12 16v5 M8 8h8',

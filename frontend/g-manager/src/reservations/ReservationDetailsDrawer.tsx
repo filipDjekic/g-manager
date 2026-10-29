@@ -1,3 +1,4 @@
+import { useDirtyGuard } from '../forms/useDirtyGuard'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { apiErrorMessage } from '../api/client'
@@ -30,14 +31,13 @@ export function ReservationDetailsDrawer(props: ReservationDetailsProps) {
 }
 function ReservationDetailsContent({ reservationId, onClose, onChanged, initialAction, appearance, areaNames, returnFocusRef }: ReservationDetailsProps) {
   const isCalendar = appearance === 'calendar'
-  const isCustomer = appearance === 'customer', isModal = isCalendar || isCustomer
+  const isCustomer = appearance === 'customer', isModal = isCustomer
   const errorMessage = isCustomer ? customerReservationError : apiErrorMessage
   const formatBusinessDateTime = (instant: string) => formatDateTime(instant, false, appearance ? 'sr-Latn-RS' : 'sr-RS')
   const client = useQueryClient()
   const [action, setAction] = useState<ReservationStatus | null>(null)
   const [editId,setEditId]=useState<string|null>(null)
   const [editBusy,setEditBusy]=useState(false)
-  const [expanded,setExpanded]=useState(false)
   const [requestedAction, setRequestedAction] = useState(initialAction)
   const assignment = useRef<HTMLElement>(null)
   const editSection = useRef<HTMLDivElement>(null)
@@ -97,11 +97,12 @@ function ReservationDetailsContent({ reservationId, onClose, onChanged, initialA
   })
   const title = value ? `${value.serviceName} · ${formatBusinessDateTime(value.startTime)}` : 'Detalji rezervacije'
   const busy = transition.isPending || assign.isPending || editBusy
+  useDirtyGuard(busy, { pending: busy })
   const content = <>
       {detail.isLoading && <Skeleton lines={7} label="Učitavanje detalja rezervacije" />}
       {detail.error && <ErrorState message={errorMessage(detail.error, 'Detalje rezervacije nije moguće učitati.')}
         action={<Button variant="secondary" onClick={() => detail.refetch()}>Pokušaj ponovo</Button>} />}
-      {isModal && transition.error && <ErrorState message={errorMessage(transition.error, 'Status rezervacije nije moguće promeniti.')}/>}
+      {transition.error && <ErrorState message={errorMessage(transition.error, 'Status rezervacije nije moguće promeniti.')}/>}
       {value && <div className={`reservation-detail${isCalendar ? ` gm-calendar-status-${value.status.toLowerCase()}` : ''}`}>
         {isCustomer && <ReservationServiceMedia serviceId={value.serviceId} eager />}
         <Badge tone={reservationTones[value.status]}>{labels[value.status]}</Badge>
@@ -128,7 +129,7 @@ function ReservationDetailsContent({ reservationId, onClose, onChanged, initialA
           <div><dt>Kraj</dt><dd>{isModal ? formatBusinessIntervalEnd(value.startTime,value.endTime,'sr-Latn-RS') : formatBusinessDateTime(value.endTime)}</dd></div>
           <div><dt>Trajanje</dt><dd>{value.durationMinutes ?? Math.round((Date.parse(value.endTime) - Date.parse(value.startTime)) / 60000)} min</dd></div>
           {!value.readOnly&&<div><dt>Napomena</dt><dd>{value.note || 'Nema napomene'}</dd></div>}
-          {(!isCalendar || expanded) && <><div><dt>Kreirano</dt><dd>{formatBusinessDateTime(value.createdAt)}</dd></div>
+          {<><div><dt>Kreirano</dt><dd>{formatBusinessDateTime(value.createdAt)}</dd></div>
           <div><dt>Izmenjeno</dt><dd>{formatBusinessDateTime(value.updatedAt)}</dd></div></>}
         </dl>
         {value.resourceRequired && !value.resourceId && <section ref={assignment} tabIndex={-1} className="reservation-resource-assignment">
@@ -151,30 +152,30 @@ function ReservationDetailsContent({ reservationId, onClose, onChanged, initialA
             {assign.error && <Alert tone="danger" role="alert">{errorMessage(assign.error, 'Resurs nije moguće dodeliti.')}</Alert>}
           </>}
         </section>}
-        {value.canEdit&&!value.readOnly&&<>
+        {value.canEdit&&!isCustomer&&!value.readOnly&&<>
           {editId===value.id?<div ref={editSection}><ReservationEditForm key={`${value.id}:${value.version}`} value={value} locale={appearance ? 'sr-Latn-RS' : 'sr-RS'} onBusyChange={setEditBusy} onClose={()=>setEditId(null)} onChanged={async()=>{
             await Promise.all([client.invalidateQueries({queryKey:['reservations']}),detail.refetch(),Promise.resolve(onChanged?.())])
           }}/></div>:!isModal && <Button variant="secondary" onClick={()=>setEditId(value.id)}>Izmeni vreme ili stanicu</Button>}
         </>}
-        {value.history.length > 0 && (!isCalendar || expanded) && <section><h3>Istorija</h3><ol className="reservation-history">
+        {value.history.length > 0 && <details className="ui-secondary-section"><summary>Istorija rezervacije</summary><ol className="reservation-history">
           {value.history.map((item) => <li key={`${item.fromStatus}-${item.toStatus}-${item.occurredAt}`}>
             {labels[item.fromStatus]} → {labels[item.toStatus]} · {formatBusinessDateTime(item.occurredAt)}
             {item.reason && <span> · Razlog: {item.reason}</span>}</li>)}
-        </ol></section>}
-        {!isCustomer && value.allowedActions.length > 0 && (!isCalendar || expanded) && <div className="ui-actions card-actions">
+        </ol></details>}
+        {!isCustomer && value.allowedActions.length > 0 && <div className="ui-actions card-actions">
           {value.allowedActions.map((next) => <Button type="button" key={next}
             disabled={transition.isPending || assign.isPending || editBusy}
             variant={next === 'REJECTED' || next === 'CANCELLED' ? 'danger' : 'primary'}
-            onClick={() => setAction(next)}>{actionLabels[next]}</Button>)}
+            onClick={() => next === 'CONFIRMED' ? transition.mutate({ next }) : setAction(next)}>{actionLabels[next]}</Button>)}
         </div>}
       </div>}
     </>
   return <>
     {isModal ? <Modal size="wide" open={Boolean(reservationId)} title={isCustomer ? value?.serviceName ?? 'Detalji rezervacije' : 'Pregled rezervacije'} titleIcon={isCustomer ? <CalendarClock /> : <ReservationIcon/>} className={isCustomer ? 'gm-my-reservation-detail' : 'gm-calendar-detail'}
       onClose={onClose} returnFocusRef={returnFocusRef} closeDisabled={busy} footer={value && <div className={`dialog-actions ${isCustomer ? 'gm-my-detail-actions' : 'gm-calendar-detail-actions'}`}>
-        {value.canEdit && !value.readOnly && <Button type="button" variant="secondary" disabled={busy || detail.isFetching || editId===value.id} onClick={()=>setEditId(value.id)}>{isCustomer ? 'Izmeni termin' : 'Izmeni'}</Button>}
+        {value.canEdit && !isCustomer && !value.readOnly && <Button type="button" variant="secondary" disabled={busy || detail.isFetching || editId===value.id} onClick={()=>setEditId(value.id)}>{isCustomer ? 'Izmeni termin' : 'Izmeni'}</Button>}
         {!value.readOnly && value.allowedActions.includes('CANCELLED') && <Button type="button" variant="danger" disabled={busy || detail.isFetching} onClick={()=>setAction('CANCELLED')}>Otkaži</Button>}
-        {isCustomer ? <Button type="button" variant="secondary" disabled={busy} onClick={onClose}>Zatvori</Button> : <Button type="button" variant="secondary" disabled={busy} aria-expanded={expanded} onClick={()=>setExpanded(current=>!current)}>{expanded?'Sažeti pregled':'Pogledaj detalje'}</Button>}
+        <Button type="button" variant="secondary" disabled={busy} onClick={onClose}>Zatvori</Button>
       </div>}>{content}</Modal> : <Drawer size="wide" open={Boolean(reservationId)} title={title} onClose={onClose} returnFocusRef={returnFocusRef}
       className={appearance === 'operations' ? 'reservation-detail-drawer' : ''} closeDisabled={busy}>{content}</Drawer>}
     <ActionDialog open={Boolean(action)} disabled={!action || !value?.allowedActions.includes(action)} title={`${action ? actionLabels[action] : ''} rezervaciju`}
@@ -186,7 +187,6 @@ function ReservationDetailsContent({ reservationId, onClose, onChanged, initialA
       onClose={() => setAction(null)} onConfirm={async (note) => {
         if (action && value?.allowedActions.includes(action)) await transition.mutateAsync({ next: action, note })
       }} />
-    {!isModal && transition.error && <Alert tone="danger" role="alert">
-      {apiErrorMessage(transition.error, 'Status rezervacije nije moguće promeniti.')}</Alert>}
+
   </>
 }

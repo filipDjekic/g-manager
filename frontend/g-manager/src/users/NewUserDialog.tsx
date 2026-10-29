@@ -1,8 +1,9 @@
+import { StaffAccountFields } from '../users/StaffAccountFields'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { userApi } from '../api/userApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Badge, Button, FormField, Input, Modal, Alert } from '../components/ui'
+import { Badge, Button, Modal, Alert } from '../components/ui'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useDirtyGuard } from '../forms/useDirtyGuard'
 import type { AuthUser } from '../types/auth.types'
@@ -15,11 +16,11 @@ export function NewUserDialog({ actor, onClose, onCreated, returnFocusRef }: {
 }) {
   const id = useId(), { confirm, confirmationDialog } = useConfirmDialog()
   const [name, setName] = useState(''), [email, setEmail] = useState(''), [password, setPassword] = useState('')
-  const [role, setRole] = useState<CreateUserRequest['role']>('EMPLOYEE'), [visible, setVisible] = useState(false)
+  const [role, setRole] = useState<CreateUserRequest['role']>('EMPLOYEE')
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [nameError, setNameError] = useState('')
   const inFlight = useRef(false), mounted = useRef(false), firstField = useRef<HTMLInputElement>(null)
   const dirty = Boolean(name || email || password || role !== 'EMPLOYEE')
-  useDirtyGuard(dirty)
+  const releaseNavigation = useDirtyGuard(dirty || busy, { pending: busy })
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   function close() {
     if (inFlight.current) return
@@ -40,8 +41,8 @@ export function NewUserDialog({ actor, onClose, onCreated, returnFocusRef }: {
     try {
       const created = await userApi.create({ name: name.trim(), email: email.trim(), password, role: requestedRole })
       if (!mounted.current || useAuthStore.getState().user?.id !== actor.id) return
-      setName(''); setEmail(''); setPassword(''); setRole('EMPLOYEE'); setVisible(false)
-      onCreated(created)
+      setName(''); setEmail(''); setPassword(''); setRole('EMPLOYEE')
+      releaseNavigation(); onCreated(created)
     } catch (cause) { if (mounted.current) setError(userError(cause, 'Nalog nije moguće kreirati. Proverite podatke i pokušajte ponovo.')) }
     finally { inFlight.current = false; if (mounted.current) setBusy(false) }
   }
@@ -51,14 +52,8 @@ export function NewUserDialog({ actor, onClose, onCreated, returnFocusRef }: {
       <Button type="submit" form={`${id}-form`} className="gm-user-primary" loading={busy}>Kreiraj korisnika</Button></div>}>
     <p id={`${id}-description`} className="gm-user-note">Kreirajte administratorski nalog ili nalog zaposlenog.</p>
     <form id={`${id}-form`} className="ui-form-grid gm-user-create-form" onSubmit={event => void submit(event)}>
-      <FormField htmlFor={`${id}-name`} label="Ime i prezime" error={nameError}><Input ref={firstField} id={`${id}-name`} required minLength={2} maxLength={120}
-        autoComplete="off" disabled={busy} value={name} onChange={event => { setName(event.target.value); setNameError(''); setError('') }} /></FormField>
-      <FormField htmlFor={`${id}-email`} label="Email adresa"><Input id={`${id}-email`} type="email" required maxLength={180} autoComplete="off"
-        disabled={busy} value={email} onChange={event => { setEmail(event.target.value); setError('') }} /></FormField>
-      <div className="gm-user-password-field"><FormField htmlFor={`${id}-password`} label="Početna lozinka" hint="Od 8 do 100 karaktera."><Input id={`${id}-password`}
-        type={visible ? 'text' : 'password'} required minLength={8} maxLength={100} autoComplete="new-password" disabled={busy} value={password} onChange={event => { setPassword(event.target.value); setError('') }} /></FormField>
-        <Button iconOnly type="button" variant="secondary" disabled={busy} aria-controls={`${id}-password`} aria-pressed={visible} aria-label={visible ? 'Sakrij lozinku' : 'Prikaži lozinku'}
-          onClick={() => setVisible(value => !value)}><UserIcon kind={visible ? 'eye-off' : 'eye'} /></Button></div>
+      <StaffAccountFields name={name} email={email} password={password} busy={busy} nameError={nameError} firstField={firstField}
+        onName={value => { setName(value); setNameError(''); setError('') }} onEmail={value => { setEmail(value); setError('') }} onPassword={value => { setPassword(value); setError('') }} />
       {actor.role === 'OWNER' ? <fieldset className="gm-user-role-field"><legend>Uloga</legend><div>
         {(['ADMIN', 'EMPLOYEE'] as const).map(value => <label className={`gm-user-role-choice${role === value ? ' is-selected' : ''}`} key={value}>
           <Input type="radio" name={`${id}-role`} value={value} checked={role === value} disabled={busy} onChange={() => setRole(value)} /><UserRoleBadge role={value} /></label>)}

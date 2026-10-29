@@ -119,3 +119,5 @@
   .gm-profile-avatar-preview { width: min(11rem, 100%); }
 .gm-profile-dialog-actions .ui-button { flex: 1 1 8rem; }
 }
+
+.gm-profile.ui-page-layout { max-width:calc(72rem + var(--page-padding-inline) * 2); margin-inline:auto; }

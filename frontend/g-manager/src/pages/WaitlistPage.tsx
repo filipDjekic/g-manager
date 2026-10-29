@@ -1,3 +1,4 @@
+import { MasterDetailLayout, useContentWidth } from '../components/ui/WorkspacePatterns'
 import { useResettableState } from '../components/useResettableState'
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -5,7 +6,7 @@ import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
 import { waitlistApi } from '../api/waitlistApi'
 import { resourceApi } from '../api/resourceApi'
-import { Button, Drawer, Pagination, EmptyState, ErrorState, Input, Select, Skeleton, TableShell, PageHeader, PageLayout, StatCard, Card } from '../components/ui'
+import { Button, Pagination, EmptyState, ErrorState, Input, Select, Skeleton, TableShell, PageHeader, PageLayout, StatCard, Card } from '../components/ui'
 import { useToast } from '../components/ui/toastContext'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useListUrlState } from '../lists/useListUrlState'
@@ -24,10 +25,10 @@ const allowed = Object.keys(defaults) as (keyof typeof defaults)[]
 const sortLabels: Record<WaitlistSort, string> = { FIFO: 'Najstarije prijave prvo', NEWEST: 'Najnovije prijave', START_ASC: 'Najbliži željeni termin', START_DESC: 'Najdalji željeni termin' }
 export function WaitlistPage() {
   const actor = useAuthStore(state => state.user), client = useQueryClient(), toast = useToast()
-  const url = useListUrlState(defaults, allowed), root = useRef<HTMLElement>(null), heading = useRef<HTMLHeadingElement>(null)
+  const url = useListUrlState(defaults, allowed), rootWidth = useContentWidth(), heading = useRef<HTMLHeadingElement>(null)
   const setUrl = url.set
   const newButton = useRef<HTMLButtonElement>(null), opener = useRef<HTMLElement | null>(null), formOpener = useRef<HTMLElement | null>(null)
-  const [wide, setWide] = useState(false), [search, setSearch] = useResettableState(() => url.state.search, url.state.search)
+  const [search, setSearch] = useResettableState(() => url.state.search, url.state.search)
   const [dialog, setDialog] = useState<{ entry?: WaitlistOperationalEntry } | null>(null), [opening, setOpening] = useState(false)
   const { confirm, confirmationDialog } = useConfirmDialog()
   const canManage = hasCapability(actor, 'WAITLIST_MANAGE'), canRead = hasCapability(actor, 'RESERVATION_READ_ALL')
@@ -40,15 +41,7 @@ useEffect(() => {
     const timer = window.setTimeout(() => setUrl({ search: search.trim(), page: '0' }, true), 300)
     return () => window.clearTimeout(timer)
   }, [search, url.state.search, setUrl])
-  useEffect(() => {
-    if (!root.current) return
-    const element = root.current
-    const measure = () => setWide(element.getBoundingClientRect().width >= 1088)
-    measure()
-    if (typeof ResizeObserver === 'undefined') { window.addEventListener('resize', measure); return () => window.removeEventListener('resize', measure) }
-    const observer = new ResizeObserver(measure); observer.observe(element)
-    return () => observer.disconnect()
-  }, [])
+
   const filters = useQuery({ queryKey: ['resources', 'waitlist-filters', actor?.id], queryFn: resourceApi.reservationResources, enabled: canRead })
   const services = useQuery({ queryKey: ['catalog', 'waitlist-filter-services'], queryFn: waitlistFilterServices, enabled: canRead })
   const areas = useQuery({ queryKey: ['resources', 'areas', url.state.locationId], queryFn: () => resourceApi.areas(url.state.locationId), enabled: canRead && !!url.state.locationId })
@@ -65,6 +58,7 @@ useEffect(() => {
   const locations = [...new Map(resourceOptions.map(item => [item.locationId, item.locationName])).entries()]
   const visibleResources = resourceOptions.filter(item => (!url.state.serviceId || item.serviceId === url.state.serviceId)
     && (!url.state.locationId || item.locationId === url.state.locationId) && (!url.state.areaId || item.areaId === url.state.areaId))
+  const { ref: root, wide } = rootWidth
   useEffect(() => {
     if (queue.data && !queue.isFetching && page >= Math.max(1, queue.data.totalPages)) setUrl({ page: String(Math.max(0, queue.data.totalPages - 1)) }, true)
   }, [queue.data, queue.isFetching, page, setUrl])
@@ -119,17 +113,20 @@ useEffect(() => {
       <Button type="button" variant="secondary" loading={queue.isFetching || statistics.isFetching} onClick={() => void refresh()}><WaitlistIcon kind="refresh" />Osveži</Button>
       {canManage && <Button ref={newButton} type="button" className="gm-waitlist-primary" onClick={newEntry}><WaitlistIcon kind="plus" />Dodaj na listu čekanja</Button>}</div></>} />
     {!canRead ? <ErrorState message="Nemate dozvolu za pregled operativne liste čekanja." /> : <>
+      <details className="ui-advanced-filters"><summary>Statistika liste čekanja</summary>
       <div className="ui-stat-grid gm-waitlist-kpis">{kpis.map(kpi => <StatCard label={<>{kpi.title}</>} value={statistics.isLoading ? <Skeleton lines={1} label={`Učitavanje: ${kpi.title}`} />
           : <>{statistics.isError || !statistics.data ? '—' : new Intl.NumberFormat('sr-Latn-RS').format(statistics.data[kpi.key])}</>} icon={<WaitlistIcon kind={kpi.icon} />} description={<>{kpi.hint}</>} tone={kpi.tone} key={kpi.key} aria-label={kpi.title} />)}</div>
       {statistics.error && <ErrorState message="Statistiku nije moguće učitati." action={<Button variant="secondary" onClick={() => void statistics.refetch()}>Pokušaj ponovo</Button>} />}
       {statistics.data && <p className="gm-waitlist-period">Prihvaćene i otkazane prijave: {new Intl.DateTimeFormat('sr-Latn-RS', {timeZone: 'Europe/Belgrade', month: 'long', year: 'numeric'}).format(new Date(statistics.data.periodStart))}.
         {statistics.data.expiredOffers > 0 && <span> Istekle poslednje ponude: {statistics.data.expiredOffers}. Otkazivanje prijave je zasebno stanje.</span>}</p>}
+      </details>
       <section className="gm-waitlist-filters" aria-label="Filteri liste čekanja">
         <label className="gm-waitlist-search"><span className="sr-only">Pretraga liste čekanja</span><WaitlistIcon kind="search" /><Input type="search" value={search} maxLength={100}
           placeholder="Pretraži po klijentu, usluzi ili resursu..." onChange={event => setSearch(event.target.value)} /></label>
-        <div className="gm-waitlist-filter-grid">
-          <label>Status<Select aria-label={"Status"} value={status ?? ''} onChange={event => changeFilters({ status: event.target.value })}><option value="">Sve aktivne prijave</option>
-            {Object.entries(waitlistLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}<option value="ALL">Svi statusi</option></Select></label>
+        <div className="ui-list-toolbar-main">          <label>Status<Select aria-label={"Status"} value={status ?? ''} onChange={event => changeFilters({ status: event.target.value })}><option value="">Sve aktivne prijave</option>
+            {Object.entries(waitlistLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}<option value="ALL">Svi statusi</option></Select></label>          <label>Željeni datum<Input aria-label={"Željeni datum"} type="date" value={url.state.date} onChange={event => changeFilters({ date: event.target.value })} /></label></div>
+        <details className="ui-advanced-filters"><summary>Filteri prijava i redosled</summary><div className="gm-waitlist-filter-grid">
+
           <label>Usluga<Select aria-label={"Usluga"} value={url.state.serviceId} disabled={services.isLoading} onChange={event => changeFilters({ serviceId: event.target.value, resourceId: '' })}><option value="">Sve usluge</option>
             {services.data?.map(service => <option key={service.id} value={service.id}>{service.name}</option>)}</Select></label>
           <label>Lokal<Select aria-label={"Lokal"} value={url.state.locationId} disabled={filters.isLoading} onChange={event => changeFilters({ locationId: event.target.value, areaId: '', resourceId: '' })}><option value="">Svi lokali</option>
@@ -138,14 +135,14 @@ useEffect(() => {
             {areas.data?.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}</Select></label>
           <label>Resurs<Select aria-label={"Resurs"} value={url.state.resourceId} disabled={filters.isLoading} onChange={event => changeFilters({ resourceId: event.target.value })}><option value="">Svi resursi</option>
             {visibleResources.map(resource => <option key={resource.id} value={resource.id}>{resource.code} · {resource.name}</option>)}</Select></label>
-          <label>Željeni datum<Input aria-label={"Željeni datum"} type="date" value={url.state.date} onChange={event => changeFilters({ date: event.target.value })} /></label>
+
           {hasCapability(actor, 'CUSTOMER_READ') && <CustomerPicker value={url.state.customerId} onChange={customerId => changeFilters({ customerId })} />}
           <label>Redosled čekanja<Select aria-label={"Redosled čekanja"} value={sort} onChange={event => changeFilters({ sort: event.target.value })}>{Object.entries(sortLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></label>
         </div>
-        <div className="gm-waitlist-filter-footer"><small>Sortiranje pregleda ne menja automatski FIFO redosled.</small><Button type="button" variant="secondary" onClick={() => { setSearch(''); url.apply({}) }}>Poništi filtere</Button></div>
+        </details><div className="gm-waitlist-filter-footer"><small>Sortiranje pregleda ne menja automatski FIFO redosled.</small><Button type="button" variant="secondary" onClick={() => { setSearch(''); url.apply({}) }}>Poništi filtere</Button></div>
       </section>
       {(filters.error || services.error || areas.error) && <ErrorState message="Deo filtera nije moguće učitati." action={<Button variant="secondary" onClick={() => { void filters.refetch(); void services.refetch(); if (url.state.locationId) void areas.refetch() }}>Pokušaj ponovo</Button>} />}
-      <div className={`gm-waitlist-layout${selected && wide ? ' has-details' : ''}`}><section className="gm-waitlist-list">
+      <MasterDetailLayout inline={wide} open={!!selected} title="Detalji prijave" detail={detailsPanel} onClose={closeDetail} panelClassName="gm-waitlist-panel" drawerClassName="gm-waitlist-drawer" returnFocusRef={opener}><section className="gm-waitlist-list">
         <div className="gm-waitlist-list-heading"><h2>Prijave na listi čekanja <span>{total}</span></h2>{queue.isFetching && !queue.isLoading && <small role="status">Osvežavanje…</small>}</div>
         {queue.isLoading ? <Skeleton lines={8} label="Učitavanje prijava na listi čekanja" />
           : queue.error ? <ErrorState message={waitlistError(queue.error, 'Lista čekanja nije dostupna.')} action={<Button variant="secondary" onClick={() => void queue.refetch()}>Pokušaj ponovo</Button>} />
@@ -178,8 +175,7 @@ useEffect(() => {
         {queue.data && !queue.isError && <Pagination numbered page={page} pageSize={size} totalPages={pages}
           totalElements={total} loading={queue.isFetching} label="Stranice liste čekanja"
           onPageChange={page => setUrl({ page: String(page) })} onPageSizeChange={size => changeFilters({ size: String(size) })} />}
-      </section>{selected && wide && <aside className="gm-waitlist-panel">{detailsPanel}</aside>}</div>
-      <Drawer open={!!selected && !wide} title="Detalji prijave" className="gm-waitlist-drawer" size="wide" returnFocusRef={opener} onClose={closeDetail}>{selected && !wide && detailsPanel}</Drawer>
+      </section></MasterDetailLayout>
     </>}
     {dialog && <WaitlistEntryDialog entry={dialog.entry} serverTime={statistics.data?.serverTime} returnFocusRef={formOpener} onClose={() => setDialog(null)} onSaved={saved} onConflict={refresh} />}
     {confirmationDialog}

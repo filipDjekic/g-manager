@@ -1,5 +1,6 @@
 import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { apiErrorMessage } from '../../api/client'
+import { useDirtyGuard } from '../../forms/useDirtyGuard'
 import { Button, FormField, Input, Modal, Textarea, Alert } from './index'
 
 export interface ConfirmDialogProps {
@@ -40,6 +41,7 @@ function Confirmation({ title, description, confirmLabel = 'Potvrdi', cancelLabe
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const id = useId(), formId = `${id}-form`, descriptionId = `${id}-description`
   const busy = loading || pending
+  useDirtyGuard(busy, { pending: busy })
   const showReason = Boolean(reasonLabel || reasonRequired)
   const invalid = reasonRequired && !reason.trim()
   const close = () => { if (!busy && !submitting.current) (onCancel ?? onClose)() }

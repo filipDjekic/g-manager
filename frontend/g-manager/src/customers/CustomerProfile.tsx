@@ -1,3 +1,4 @@
+import { Tabs } from '../components/ui/Tabs'
 import { useQuery } from '@tanstack/react-query'
 import { useId, useState, type RefObject } from 'react'
 import { Link } from 'react-router-dom'
@@ -58,20 +59,8 @@ export function CustomerProfile({ customerId, open, onClose, onEdit, onDeactivat
           </div>
         </header>
         {actionError && <Alert tone="danger" role="alert">{actionError}</Alert>}
-        <div className="ui-tab-list customers-profile-tabs" role="tablist" aria-label="Podaci o klijentu" onKeyDown={event => {
-          if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(event.key)) return
-          event.preventDefault()
-          const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'))
-          const current = buttons.indexOf(document.activeElement as HTMLButtonElement)
-          const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1
-            : (current + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length
-          buttons[next]?.focus(); buttons[next]?.click()
-        }}>
-          {tabs.map(item => <Button key={item.key} type="button" variant="secondary" role="tab"
-            id={`${id}-${item.key}`} aria-selected={activeTab === item.key} aria-controls={`${id}-content`}
-            tabIndex={activeTab === item.key ? 0 : -1} onClick={() => setTab(item.key)}>{item.label}</Button>)}
-        </div>
-        <div id={`${id}-content`} role="tabpanel" aria-labelledby={`${id}-${activeTab}`} tabIndex={0} className="customers-profile-content">
+        <div className="customers-profile-tabs"><Tabs idPrefix={id} label="Podaci o klijentu" value={activeTab} onChange={value=>setTab(value as ProfileTab)} items={tabs.map(item=>({id:item.key,label:item.label}))}/></div>
+        <div id={`${id}-panel-${activeTab}`} role="tabpanel" aria-labelledby={`${id}-tab-${activeTab}`} tabIndex={0} className="customers-profile-content">
           {activeTab === 'overview' && <>
             <section className="customers-profile-section">
               <div className="customers-section-heading"><h3>Osnovne informacije</h3>

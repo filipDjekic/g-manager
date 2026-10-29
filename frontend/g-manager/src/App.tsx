@@ -1,6 +1,7 @@
-import { PageLayout } from './components/ui'
+import { RouteStatePage } from './pages/RouteStatePage'
 import { lazy, Suspense, useEffect, type ComponentType } from 'react'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { createBrowserRouter, Navigate, Route, Routes, RouterProvider } from 'react-router-dom'
+import { NavigationSafety } from './forms/NavigationSafety'
 import { initializeSession } from './api/client'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { CapabilityGuard } from './auth/CapabilityGuard'
@@ -40,6 +41,7 @@ const StationsPage = lazyPage(() => import('./pages/StationsPage'), 'StationsPag
 const GamingSessionsPage = lazyPage(() => import('./pages/GamingSessionsPage'), 'GamingSessionsPage')
 const CustomerHomePage = lazyPage(() => import('./pages/CustomerHomePage'), 'CustomerHomePage')
 const WaitlistPage = lazyPage(() => import('./pages/WaitlistPage'), 'WaitlistPage')
+const WorkspaceHubPage = lazyPage(() => import('./pages/WorkspaceHubPage'), 'WorkspaceHubPage')
 
 function RouteLoading() {
   return <p className="screen-message" role="status">Učitavanje stranice…</p>
@@ -51,23 +53,33 @@ function HomeRedirect() {
   return <Navigate to={user ? homeForUser(user, flags) : '/login'} replace />
 }
 
-function App() {
+function AppRoutes() {
   const reportsEnabled = useFeatureStore((state) => state.flags.REPORTS)
   useEffect(() => {
     void initializeSession()
   }, [])
 
   return (
-    <BrowserRouter>
+    <>
+      <NavigationSafety />
       <RouteAccessibility />
       <Suspense fallback={<RouteLoading />}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/activate" element={<ActivatePage />} />
-          <Route path="/unauthorized" element={<PageLayout className="screen-message">Nemate dozvolu za ovu stranicu.</PageLayout>} />
+          <Route path="/unauthorized" element={<RouteStatePage kind="unauthorized" />} />
           <Route element={<ProtectedRoute />}>
             <Route element={<AppShell />}>
               <Route index element={<HomeRedirect />} />
+              <Route element={<CapabilityGuard anyOf={['USER_LIST', 'CATALOG_MANAGE', 'WORKING_HOURS_MANAGE', 'REPORT_READ', 'AUDIT_READ']} />}>
+                <Route path="management" element={<WorkspaceHubPage kind="management" />} />
+              </Route>
+              <Route element={<CapabilityGuard anyOf={['RESOURCE_READ']} />}>
+                <Route path="equipment" element={<WorkspaceHubPage kind="equipment" />} />
+              </Route>
+              <Route element={<CapabilityGuard anyOf={['CATALOG_READ', 'RESOURCE_READ', 'STATION_READ', 'REPORT_READ']} />}>
+                <Route path="tools" element={<WorkspaceHubPage kind="tools" />} />
+              </Route>
               <Route element={<CapabilityGuard anyOf={['PROFILE_READ']} />}>
                 <Route path="sessions" element={<SessionPage />} />
                 <Route path="profile" element={<ProfilePage />} />
@@ -125,11 +137,12 @@ function App() {
               <Route element={<CapabilityGuard anyOf={['REPORT_READ']} />}><Route path="reports" element={reportsEnabled ? <ReportsPage /> : <FeatureUnavailable />} /></Route>
             </Route>
           </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<RouteStatePage kind="missing" />} />
         </Routes>
       </Suspense>
-    </BrowserRouter>
+    </>
   )
 }
 
-export default App
+const router = createBrowserRouter([{ path: '*', element: <AppRoutes /> }])
+export default function App() { return <RouterProvider router={router} /> }

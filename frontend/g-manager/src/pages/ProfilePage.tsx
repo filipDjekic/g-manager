@@ -1,10 +1,8 @@
-import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { userApi } from '../api/userApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
 import { Button, ErrorState, Skeleton, PageHeader, PageLayout, Card } from '../components/ui'
-import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useDirtyGuard } from '../forms/useDirtyGuard'
 import type { AuthUser } from '../types/auth.types'
 import type { UserResponse } from '../types/user.types'
@@ -30,8 +28,7 @@ function ProfileWorkspace({ actor }: { actor: AuthUser }) {
   const [profile, setProfile] = useState<UserResponse | null>(null), [fetching, setFetching] = useState(true)
   const [error, setError] = useState(''), [loadAttempt, setLoadAttempt] = useState(0)
   const [personalDirty, setPersonalDirty] = useState(false), [passwordDirty, setPasswordDirty] = useState(false)
-  const profileRef = useRef<UserResponse | null>(null), mounted = useRef(true), navigate = useNavigate()
-  const { confirm, confirmationDialog } = useConfirmDialog()
+  const profileRef = useRef<UserResponse | null>(null), mounted = useRef(true)
   const canUpdate = hasCapability(actor, 'PROFILE_UPDATE')
   useDirtyGuard(personalDirty || passwordDirty)
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
@@ -51,14 +48,7 @@ function ProfileWorkspace({ actor }: { actor: AuthUser }) {
     return () => { active = false }
   }, [synchronize, loadAttempt])
   const reload = useCallback(() => setLoadAttempt(value => value + 1), [])
-  function openSessions(event: MouseEvent<HTMLAnchorElement>) {
-    if (!personalDirty && !passwordDirty || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
-    event.preventDefault()
-    confirm({ title: 'Napusti profil?', description: 'Imate nesačuvane unose. Ako nastavite, ti unosi neće ostati u ovoj formi.',
-      confirmLabel: 'Upravljaj sesijama', cancelLabel: 'Ostani na profilu', variant: 'warning',
-      className: 'gm-profile-leave-dialog', titleIcon: <ProfileIcon kind="shield" />, onConfirm: () => { navigate('/sessions') } })
-  }
-  return <PageLayout className="gm-profile"><ProfileHeading />{confirmationDialog}
+  return <PageLayout className="gm-profile"><ProfileHeading />
     {!profile ? fetching ? <div className="gm-profile-layout gm-profile-loading" aria-busy="true">
       <Card className="gm-profile-card gm-profile-personal"><Skeleton lines={2} label="Učitavanje ličnih podataka" /><div className="gm-profile-avatar-placeholder" aria-hidden="true" /><Skeleton lines={6} label="Učitavanje podataka profila" /></Card>
       <div className="gm-profile-right"><Card className="gm-profile-card gm-profile-password"><Skeleton lines={7} label="Učitavanje bezbednosnih opcija" /></Card>
@@ -70,7 +60,7 @@ function ProfileWorkspace({ actor }: { actor: AuthUser }) {
           action={<Button type="button" variant="secondary" loading={fetching} onClick={reload}>Pokušaj ponovo</Button>} />}
         <div className="gm-profile-layout"><ProfilePersonalCard profile={profile} canUpdate={canUpdate} onSaved={synchronize} onDirty={setPersonalDirty} />
           <div className="gm-profile-right"><ProfilePasswordCard canUpdate={canUpdate} onChanged={reload} onDirty={setPasswordDirty} />
-            <ProfileAccountCard profile={profile} canRead={hasCapability(actor, 'PROFILE_READ')} onSessions={openSessions} />
+            <ProfileAccountCard profile={profile} canRead={hasCapability(actor, 'PROFILE_READ')} />
           </div>
         </div>
       </>}

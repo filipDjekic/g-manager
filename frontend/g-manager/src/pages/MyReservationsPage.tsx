@@ -1,3 +1,4 @@
+import { useDirtyGuard } from '../forms/useDirtyGuard'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -20,7 +21,6 @@ import type { Reservation, ReservationDetailAction, ReservationStatus } from '..
 import type { WaitlistEntry } from '../types/waitlist.types'
 import '../reservations/customer/customerReservations.css'
 
-const statusTabs = [['ALL', 'Svi'], ['UPCOMING', 'Predstojeći'], ['PENDING', 'Na čekanju'], ['COMPLETED', 'Završeni'], ['CANCELLED', 'Otkazani']] as const
 const validFilters = new Set(['ALL', 'UPCOMING', 'PENDING', 'COMPLETED', 'CANCELLED', 'REJECTED', 'CONFIRMED'])
 function catalogSelection() { try { return sessionStorage.getItem('gmanager.catalog-selection') ?? '' } catch { return '' } }
 export function MyReservationsPage() {
@@ -34,7 +34,8 @@ export function MyReservationsPage() {
   const [booking, setBooking] = useState<BookingPrefill | null>(() => params.get('serviceId') || params.get('resourceId') || params.get('booking') === 'new' || initialSelection
     ? { serviceId: params.get('serviceId') ?? initialSelection, resourceId: params.get('resourceId') ?? '', locationId: params.get('locationId') ?? '', areaId: params.get('areaId') ?? '' } : null)
   const [detailAction, setDetailAction] = useState<ReservationDetailAction | undefined>(), [waitlistPending, setWaitlistPending] = useState(''), [actionError, setActionError] = useState('')
-  const rawFilter = params.get('filter') ?? params.get('status') ?? 'ALL', filter = validFilters.has(rawFilter) ? rawFilter : 'ALL'
+  const releaseNavigation = useDirtyGuard(!!waitlistPending, { pending: !!waitlistPending })
+  const rawFilter = params.get('filter') ?? params.get('status') ?? 'UPCOMING', filter = validFilters.has(rawFilter) ? rawFilter : 'ALL'
   const listDate = /^\d{4}-\d{2}-\d{2}$/.test(params.get('date') ?? '') ? params.get('date')! : ''
   const rawPage = Number(params.get('page') ?? '1'), page = Number.isSafeInteger(rawPage) && rawPage > 0 ? rawPage - 1 : 0
   const size = [10, 20, 50, 100].includes(Number(params.get('size'))) ? Number(params.get('size')) : 10
@@ -103,7 +104,7 @@ export function MyReservationsPage() {
       const accepted = await waitlistApi.accept(entry.offerId)
       if (accepted.status !== 'ACCEPTED' || !accepted.reservationId) throw new Error('Rezervacija nije potvrđena.')
       detailTrigger.current = titleRef.current
-      setDetailAction(undefined); changeParams({ reservationId: accepted.reservationId, filter: undefined, status: undefined, page: undefined, date: undefined, section: 'reservations', waitlistOffer: undefined })
+      releaseNavigation(); setDetailAction(undefined); changeParams({ reservationId: accepted.reservationId, filter: undefined, status: undefined, page: undefined, date: undefined, section: 'reservations', waitlistOffer: undefined })
       toast('Ponuda je prihvaćena i rezervacija je kreirana.', 'success'); await refresh()
     } catch (cause) { setActionError(customerReservationError(cause, 'Ponuda je istekla ili je termin zauzet. Rezervacija nije potvrđena.')); await waitlistQuery.refetch() }
     finally { actionRef.current = false; setWaitlistPending('') }
@@ -118,7 +119,8 @@ export function MyReservationsPage() {
   if (!canRead) return <PageLayout className="gm-my-reservations"><EmptyState title="Moji termini nisu dostupni" description="Ovaj pregled je dostupan klijentima sa dozvolom za sopstvene rezervacije." /></PageLayout>
   const emptyFiltered = filter !== 'ALL' || Boolean(listDate), reservations = list.data?.content ?? []
   return <PageLayout className="gm-my-reservations">
-    <PageHeader icon={<CalendarClock />}  title="Moji termini" description={<>Pregled, izmena i otkazivanje rezervacija.</>} titleRef={titleRef} actions={<>{canCreate && <Button type="button" className="gm-my-new-reservation" onClick={event => openBooking({}, event.currentTarget)}>+ Nova rezervacija</Button>}</>} />
+    <PageHeader icon={<CalendarClock />}  title="Moji termini" description={<>Vaši termini, novi zahtevi i dozvoljeno otkazivanje.</>} titleRef={titleRef} actions={<>{canCreate && <Button type="button" className="gm-my-new-reservation" onClick={event => openBooking({}, event.currentTarget)}>+ Nova rezervacija</Button>}</>} />
+    <details className="ui-advanced-filters"><summary>Pregled mojih termina</summary>
     <section className="ui-stat-grid gm-my-reservation-kpis" aria-label="Statistika mojih termina" aria-busy={summary.isLoading}>
       <StatCard icon={<CalendarClock />} label="Predstojeći" value={summary.data ? summary.data.upcomingReservations : '—'} description="Budući termini na čekanju ili potvrđeni" />
       <StatCard label={<>Danas</>} value={<>{summary.data ? summary.data.todayReservations : '—'}</>} icon={<CustomerReservationIcon kind="clock" />} description={<>Današnji termini na čekanju ili potvrđeni</>} />
@@ -126,17 +128,17 @@ export function MyReservationsPage() {
     </section>
     {summary.isError && <ErrorState message={customerReservationError(summary.error, 'Statistiku termina nije moguće osvežiti.')} action={<Button variant="secondary" type="button" onClick={() => summary.refetch()}>Pokušaj ponovo</Button>} />}
     {summary.isError && summary.data && <p className="gm-my-booking-note" role="status">Statistika prikazuje poslednje uspešno učitane podatke.</p>}
+    </details>
     <div className="gm-my-section-tabs" role="group" aria-label="Pregledi mojih termina"><Button variant="ghost" type="button" aria-pressed={section === 'reservations'} onClick={() => changeParams({ section: 'reservations' })}>Moji termini</Button>
       <Button variant="ghost" type="button" aria-pressed={section === 'waitlist'} onClick={() => changeParams({ section: 'waitlist' })}>Lista čekanja{activeOffers > 0 && <Badge tone="success">{activeOffers} {activeOffers === 1 ? 'ponuda' : 'ponude'}</Badge>}</Button></div>
     {activeOffers > 0 && section === 'reservations' && <div className="gm-my-offer-notice" role="status"><span>Imate {activeOffers} {activeOffers === 1 ? 'ponudu' : 'ponude'} oslobođenih termina. Proverite rok za prihvatanje.</span><Button type="button" variant="secondary" onClick={() => changeParams({ section: 'waitlist' })}>Pogledaj ponude</Button></div>}
     {actionError && <Alert tone="danger" role="alert">{actionError}</Alert>}
     {section === 'reservations' ? <section className="gm-my-reservations-content" aria-label="Moje rezervacije">
-      <div className="gm-my-reservation-filters"><div className="gm-my-status-tabs" role="group" aria-label="Status rezervacija">{statusTabs.map(([value, label]) => <Button variant="ghost" key={value} type="button" aria-pressed={filter === value} onClick={() => changeParams({ filter: value === 'ALL' ? undefined : value, status: undefined, page: undefined })}>{label}</Button>)}</div>
-        <div className="ui-filter-bar gm-my-filter-controls"><label>Izaberi datum<Input aria-label={"Izaberi datum"} type="date" value={listDate} onChange={event => changeParams({ date: event.target.value, page: undefined })} /></label>
-          {listDate && <Button type="button" variant="secondary" onClick={() => changeParams({ date: undefined, page: undefined })}>Resetuj datum</Button>}
-          <label>Dodatni status<Select aria-label={"Dodatni status"} value={filter === 'REJECTED' || filter === 'CONFIRMED' ? filter : ''} onChange={event => changeParams({ filter: event.target.value || undefined, status: undefined, page: undefined })}><option value="">Svi / izabrani tab</option><option value="CONFIRMED">{reservationLabels.CONFIRMED}</option><option value="REJECTED">{reservationLabels.REJECTED}</option></Select></label>
-          <label>Sortiranje<Select aria-label={"Sortiranje"} value={direction === 'DESC' ? 'latest' : 'nearest'} onChange={event => changeParams({ sort: event.target.value === 'latest' ? 'latest' : undefined, page: undefined })}><option value="nearest">Najraniji termini</option><option value="latest">Najnoviji termini</option></Select></label>
-        </div></div>
+      <div className="ui-list-toolbar-main"><label>Prikaz termina<Select value={filter} onChange={event => changeParams({ filter: event.target.value, status: undefined, page: undefined })}>
+        <option value="UPCOMING">Predstojeći</option><option value="ALL">Svi termini i istorija</option>{Object.entries(reservationLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></label>
+        <details className="ui-advanced-filters"><summary>Datum i redosled</summary><label>Datum<Input type="date" value={listDate} onChange={event => changeParams({ date: event.target.value, page: undefined })} /></label>
+          {listDate && <Button variant="ghost" onClick={() => changeParams({ date: undefined, page: undefined })}>Poništi datum</Button>}
+          <label>Redosled<Select value={direction} onChange={event => changeParams({ sort: event.target.value === 'DESC' ? 'latest' : undefined, page: undefined })}><option value="ASC">Najraniji prvo</option><option value="DESC">Najnoviji prvo</option></Select></label></details></div>
       <div className="gm-my-list-caption"><span>{list.data ? `${list.data.totalElements} rezervacija` : 'Učitavanje rezervacija…'}</span><Button type="button" variant="secondary" loading={list.isFetching} onClick={() => void refresh()}><CustomerReservationIcon kind="refresh" />Osveži</Button></div>
       {list.isError && <ErrorState message={customerReservationError(list.error, 'Rezervacije nije moguće učitati.')} action={<Button variant="secondary" type="button" onClick={() => list.refetch()}>Pokušaj ponovo</Button>} />}
       {list.isLoading ? <div className="gm-my-reservation-grid">{[0, 1, 2].map(index => <Card as="div" padding="none" className="gm-my-reservation-card" key={index}>
