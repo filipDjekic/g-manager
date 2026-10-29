@@ -6,14 +6,14 @@ import { StationIcon } from './stationPresentation'
 import { applicationTypeLabels, stationError } from './stationPresentation.model'
 import { downloadClientPackage, useClientPackageAvailability } from './clientPackageDistribution'
 
-export function StationAdministration({ definitions, profiles, loadingDefinitions, loadingProfiles, definitionsError, profilesError, manage, busy, onDefinition, onProfile, deleteDefinition, deleteProfile, onRefresh }: {
-  definitions: ApplicationDefinition[]; profiles: ApplicationProfile[]; loadingDefinitions: boolean; loadingProfiles: boolean
+export function StationAdministration({ section = 'applications', definitions, profiles, loadingDefinitions, loadingProfiles, definitionsError, profilesError, manage, busy, onDefinition, onProfile, deleteDefinition, deleteProfile, onRefresh }: {
+  section?: 'applications' | 'profiles'; definitions: ApplicationDefinition[]; profiles: ApplicationProfile[]; loadingDefinitions: boolean; loadingProfiles: boolean
   definitionsError: unknown; profilesError: unknown; manage: boolean; busy: boolean
   onDefinition: (value: ApplicationDefinition | null) => void; onProfile: (value: ApplicationProfile | null) => void
   deleteDefinition: (value: ApplicationDefinition) => void; deleteProfile: (value: ApplicationProfile) => void; onRefresh: () => void
 }) {
   return <div className="gm-stations-administration">
-    <Card className="gm-stations-section" aria-labelledby="station-applications-title">
+    {section === 'applications' && <Card className="gm-stations-section" aria-labelledby="station-applications-title">
       <header className="gm-stations-section-heading"><div><h2 id="station-applications-title"><StationIcon kind="apps" />Dozvoljene aplikacije</h2><p>Katalog aplikacija i pravila provere njihovog identiteta.</p></div>
         {manage && <Button type="button" disabled={busy || loadingDefinitions || Boolean(definitionsError)} onClick={() => onDefinition(null)}>+ Nova aplikacija</Button>}</header>
       {loadingDefinitions ? <Skeleton lines={4} label="Učitavanje dozvoljenih aplikacija" /> : definitionsError
@@ -31,8 +31,8 @@ export function StationAdministration({ definitions, profiles, loadingDefinition
             {manage && <footer><Button type="button" variant="secondary" disabled={busy} onClick={() => onDefinition(definition)}>Izmeni</Button>
               <Button type="button" variant="danger" disabled={busy} onClick={() => deleteDefinition(definition)}>Obriši</Button></footer>}
           </article>)}</div>}
-    </Card>
-    <Card className="gm-stations-section" aria-labelledby="station-profiles-title">
+    </Card>}
+    {section === 'profiles' && <Card className="gm-stations-section" aria-labelledby="station-profiles-title">
       <header className="gm-stations-section-heading"><div><h2 id="station-profiles-title"><StationIcon kind="settings" />Profili aplikacija</h2><p>Dozvoljene aplikacije, redosled pokretanja i zavisnosti.</p></div>
         {manage && <Button type="button" disabled={busy || loadingProfiles || loadingDefinitions || Boolean(profilesError || definitionsError)} onClick={() => onProfile(null)}>+ Novi profil</Button>}</header>
       {loadingProfiles ? <Skeleton lines={4} label="Učitavanje profila aplikacija" /> : profilesError
@@ -45,7 +45,7 @@ export function StationAdministration({ definitions, profiles, loadingDefinition
               <small>{applicationTypeLabels[entry.applicationType]} · Redosled {entry.launchOrder}{entry.autoStart ? ' · Automatsko pokretanje' : ''}{entry.requiredProcess ? ' · Obavezan proces' : ''}{entry.dependencyGroup ? ` · Grupa: ${entry.dependencyGroup}` : ''}</small></li>)}</ul>
             {manage && <footer><Button type="button" variant="secondary" disabled={busy || loadingDefinitions || Boolean(definitionsError)} onClick={() => onProfile(profile)}>Izmeni</Button>
               <Button type="button" variant="danger" disabled={busy} onClick={() => deleteProfile(profile)}>Obriši</Button></footer>}</article>)}</div>}
-    </Card>
+    </Card>}
   </div>
 }
 

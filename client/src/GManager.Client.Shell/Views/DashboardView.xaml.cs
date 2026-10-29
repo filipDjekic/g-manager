@@ -34,7 +34,7 @@ public partial class DashboardView : UserControl, INotifyPropertyChanged
     string sessionStatus = "Sesija je aktivna", connectionLabel = "Provera veze", connectionDetail = "Povezivanje sa servisom…";
     string localTime = "", localDate = "", timerMessage = "Vreme prema aktivnoj sesiji", toast = "";
     string preferencesStatus = "Podešavanja se čuvaju lokalno za tvoj nalog.";
-    bool onlyFavorites, canInteract;
+    bool onlyFavorites, canInteract, showInformationPanel;
     Brush connectionBrush = Brushes.Transparent, toastBrush = Brushes.Transparent;
     int applicationColumns = 4;
     double tileHeight = 232, timerFontSize = 70, welcomeFontSize = 34;
@@ -70,6 +70,7 @@ public partial class DashboardView : UserControl, INotifyPropertyChanged
     public string Toast { get => toast; private set { if (Set(ref toast, value)) Changed(nameof(HasToast)); } }
     public bool HasToast => Toast.Length > 0;
     public Brush ToastBrush { get => toastBrush; private set => Set(ref toastBrush, value); }
+    public bool ShowInformationPanel { get => showInformationPanel; set { if (Set(ref showInformationPanel, value)) UpdateInformationPanel(); } }
     public bool OnlyFavorites { get => onlyFavorites; set { if (Set(ref onlyFavorites, value)) RefreshFilter(); } }
     public string Search { get => search; set { if (Set(ref search, value)) RefreshFilter(); } }
     public bool NoResults => ApplicationView.IsEmpty;
@@ -138,7 +139,7 @@ public partial class DashboardView : UserControl, INotifyPropertyChanged
         if (timerLevel != level)
         {
             timerLevel = level;
-            Resources["TimerAccent"] = FindResource(level >= 2 ? "Danger" : level == 1 ? "Secondary" : "Primary");
+            Resources["TimerAccent"] = FindResource(level >= 2 ? "Danger" : level == 1 ? "Warning" : "Primary");
         }
         SessionStatus = level switch { 3 => "Sesija je istekla", 2 => "Poslednji minuti", 1 => "Vreme uskoro ističe", _ => "Sesija je aktivna" };
         TimerMessage = level switch
@@ -377,8 +378,8 @@ public partial class DashboardView : UserControl, INotifyPropertyChanged
     {
         if (AmbientLight is null) return;
         double intensity = Preferences.NeonTheme ? Preferences.NeonIntensity / 100 : 0;
-        AmbientLight.Opacity = intensity;
-        TimerGlow.Opacity = intensity * 0.5;
+        AmbientLight.Opacity = intensity * 0.5;
+        TimerGlow.Opacity = intensity * 0.2;
         Resources["DashboardSurface"] = new SolidColorBrush(Preferences.NeonTheme ? Color.FromArgb(235, 18, 21, 28) : Color.FromRgb(18, 21, 28));
         Resources["DashboardBorder"] = new SolidColorBrush(Preferences.NeonTheme ? Color.FromArgb((byte)(65 + intensity * 80), 54, 64, 80) : Color.FromArgb(90, 54, 64, 80));
         if (!Preferences.Animations)
@@ -392,14 +393,22 @@ public partial class DashboardView : UserControl, INotifyPropertyChanged
         double width = ActualWidth;
         bool compact = width < 1500;
         SidebarColumn.Width = new GridLength(Math.Clamp(width * 0.15, 176, 320));
-        InformationColumn.Width = new GridLength(width >= 1150 ? Math.Clamp(width * 0.23, 270, 560) : 0);
-        RightPanel.Visibility = width >= 1150 ? Visibility.Visible : Visibility.Collapsed;
+        UpdateInformationPanel();
+        DetailsToggle.Visibility = width >= 1150 ? Visibility.Visible : Visibility.Collapsed;
         SidebarLayout.Margin = compact ? new Thickness(14, 24, 14, 18) : new Thickness(24, 30, 24, 24);
         SidebarBrand.FontSize = compact ? 14 : 19;
         CentralContent.Margin = compact ? new Thickness(20, 22, 8, 20) : new Thickness(32, 28, 20, 24);
         RightPanel.Margin = compact ? new Thickness(0, 22, 18, 20) : new Thickness(0, 28, 28, 24);
         WelcomeFontSize = compact ? 27 : 34;
         UpdateDensity();
+    }
+
+    void UpdateInformationPanel()
+    {
+        if (InformationColumn is null || RightPanel is null) return;
+        bool visible = ShowInformationPanel && ActualWidth >= 1150;
+        InformationColumn.Width = new GridLength(visible ? Math.Clamp(ActualWidth * 0.23, 270, 400) : 0);
+        RightPanel.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
     }
 
     void CentralContent_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateDensity();

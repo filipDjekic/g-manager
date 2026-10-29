@@ -49,9 +49,9 @@ export function SettingsPage() {
       client.invalidateQueries({ queryKey: ['users', 'employee-statistics'] }), refreshAvailability()])
   }
   return <PageLayout className="gm-settings">
-    <PageHeader title="Podešavanja" description={<>Konfiguracija igraonice, radnog vremena, zaposlenih i sistema.</>} icon={<SettingsIcon />} actions={<><Badge tone="info"><SettingsIcon kind="clock" />Europe/Belgrade</Badge></>} />
+    <PageHeader title="Rad igraonice" description="Radno vreme prostora, izuzeci i dostupnost zaposlenih." icon={<SettingsIcon />} actions={<><Badge tone="info"><SettingsIcon kind="clock" />Europe/Belgrade</Badge></>} />
     <div className="gm-settings-tabs"><Tabs idPrefix="settings" label="Oblasti podešavanja" value={section} onChange={openSection} items={[
-      { id: 'overview', label: 'Pregled' }, { id: 'hours', label: 'Radno vreme' }, { id: 'exceptions', label: 'Izuzeci' }, { id: 'timeoff', label: 'Odsustva zaposlenih' },
+      { id: 'overview', label: 'Pregled' }, { id: 'hours', label: 'Rad igraonice' }, { id: 'exceptions', label: 'Izuzeci' }, { id: 'timeoff', label: 'Odsustva zaposlenih' },
     ]} /></div>
     {dirtyCount > 0 && <aside className="gm-settings-dirty" role="status"><span><SettingsIcon kind="edit" />Nesačuvane izmene radnog vremena: {dirtyCount} {dirtyCount === 1 ? 'dan' : 'dana'}. Izmene ostaju sačuvane pri promeni taba.</span>
       {section !== 'hours' && <Button type="button" variant="secondary" onClick={() => openSection('hours')}>Vrati se na radno vreme</Button>}</aside>}

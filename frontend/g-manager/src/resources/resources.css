@@ -106,3 +106,5 @@
 .resource-details-grid { grid-template-columns: 1fr; }
 .resource-details-actions .ui-button { width: 100%; }
 }
+
+.editor-columns { display:grid; grid-template-columns:repeat(auto-fit,minmax(8rem,1fr)); gap:var(--space-3); }

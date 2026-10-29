@@ -1,12 +1,13 @@
+import { MasterDetailLayout, useContentWidth } from '../components/ui/WorkspacePatterns'
 import { useResettableState } from '../components/useResettableState'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { userApi } from '../api/userApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
 import { SavedViewBar } from '../components/lists/SavedViewBar'
 import { SelectionBar } from '../components/lists/SelectionBar'
-import { Badge, Button, Drawer, EmptyState, ErrorState, Input, Select, Skeleton, PageHeader, PageLayout, Card } from '../components/ui'
+import { Badge, Button, EmptyState, ErrorState, Input, Select, Skeleton, PageHeader, PageLayout, Card } from '../components/ui'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useToast } from '../components/ui/toastContext'
 import { useListUrlState } from '../lists/useListUrlState'
@@ -52,21 +53,14 @@ function UserWorkspace({ actor }: { actor: AuthUser }) {
   const directions = url.state.direction.split(',').map(value => value.trim().toUpperCase())
   const direction = (directions.length === 1 || directions.length === sort.split(',').length) && directions.every(value => ['ASC', 'DESC'].includes(value)) ? directions.join(',') : 'DESC'
   const [search, setSearch] = useResettableState(() => url.state.search, url.state.search), [selected, setSelected] = useResettableState<Set<string>>(() => new Set(), JSON.stringify(Object.entries(url.state).filter(([key]) => !['focus', 'reservationId', 'eventId', 'create'].includes(key))))
-  const [createOpen, setCreateOpen] = useState(false), [wide, setWide] = useState(false), [busy, setBusy] = useState('')
+  const [createOpen, setCreateOpen] = useState(false), [busy, setBusy] = useState('')
   const [bulkResult, setBulkResult] = useState<BulkOperationResponse | null>(null)
-  const root = useRef<HTMLElement>(null), detailsRegion = useRef<HTMLElement>(null), searchInput = useRef<HTMLInputElement>(null)
+  const rootWidth = useContentWidth(), detailsRegion = useRef<HTMLElement>(null), searchInput = useRef<HTMLInputElement>(null)
   const createOpener = useRef<HTMLElement | null>(null), detailsOpener = useRef<HTMLElement | null>(null)
   const mounted = useRef(false), inFlight = useRef(false)
+  const { ref: root, wide } = rootWidth
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
-  useLayoutEffect(() => {
-    const element = root.current; if (!element) return
-    const measure = (width: number) => setWide(width >= (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16) * 60)
-    const resize = () => { const css = getComputedStyle(element); measure(element.clientWidth - parseFloat(css.paddingLeft) - parseFloat(css.paddingRight)) }
-    resize()
-    if (typeof ResizeObserver === 'undefined') { window.addEventListener('resize', resize); return () => window.removeEventListener('resize', resize) }
-    const observer = new ResizeObserver(entries => { if (entries[0]) measure(entries[0].contentRect.width) })
-    observer.observe(element); return () => observer.disconnect()
-  }, [])
+
 useEffect(() => {
     if (search === url.state.search) return
     const timer = window.setTimeout(() => { setSelected(new Set()); setUrl({ search: search.trim(), page: '0' }, true) }, 300)
@@ -174,7 +168,7 @@ useEffect(() => {
   return <PageLayout ref={root} className="gm-users">
     {confirmationDialog}
     <PageHeader title="Korisnici i uloge" description={<>Upravljanje nalozima, statusima i korisničkim ulogama.</>} icon={<UserIcon />} actions={<>{canCreate && <Button type="button" className="gm-user-primary" aria-haspopup="dialog" aria-expanded={createOpen} onClick={event => openCreate(event.currentTarget)}><UserIcon kind="add" />+ Novi korisnik</Button>}</>} />
-    <div className="ui-stat-grid gm-user-kpis">
+    <details className="ui-secondary-section"><summary>Statistika naloga</summary>    <div className="ui-stat-grid gm-user-kpis">
       <UserKpi title="Ukupno korisnika" kind="users" tone="blue" value={statistics.isError ? undefined : statistics.data?.total} loading={statistics.isLoading} />
       <UserKpi title="Aktivni nalozi" kind="check" tone="green" value={statistics.isError ? undefined : statistics.data?.active} loading={statistics.isLoading} />
       <UserKpi title="Administratori" kind="shield" tone="purple" value={statistics.isError ? undefined : statistics.data?.administrators} loading={statistics.isLoading} />
@@ -183,7 +177,8 @@ useEffect(() => {
     <p className="gm-user-note">Statistika uključuje naloge koje smete da vidite i koji nisu obrisani.</p>
     {statistics.isError && <ErrorState message={userError(statistics.error, 'Statistiku korisnika nije moguće učitati.')}
       action={<Button type="button" variant="secondary" onClick={() => void statistics.refetch()}>Ponovo učitaj statistiku</Button>} />}
-    <div className={`gm-users-layout${wide && url.state.focus ? ' has-details' : ''}`}>
+</details>
+    <MasterDetailLayout inline={wide} open={!!url.state.focus} title="Detalji korisnika" detail={detailBody} onClose={closeDetails} panelRef={detailsRegion} returnFocusRef={detailsOpener} panelClassName="ui-card gm-user-details-panel" drawerClassName="gm-user-details-drawer" closeDisabled={Boolean(busy)}>
       <Card className="ui-card gm-users-list" aria-labelledby="gm-users-list-title">
         <header className="gm-users-list-heading"><h2 id="gm-users-list-title">{deleted ? 'Obrisani korisnici' : 'Pregled korisnika'}</h2>
           {canRestore && <Button type="button" variant="secondary" disabled={Boolean(busy)} onClick={() => { setSelected(new Set()); setUrl({ deleted: deleted ? '' : 'true', page: '0', focus: '' }) }}>
@@ -219,11 +214,7 @@ useEffect(() => {
         {users.isSuccess && <UserPagination page={page} size={size} totalPages={users.data.totalPages} totalElements={users.data.totalElements} busy={users.isFetching || Boolean(busy)}
           onPage={next => setUrl({ page: String(next) })} onSize={next => setUrl({ size: String(next), page: '0' })} />}
       </Card>
-      {wide && url.state.focus && <aside ref={detailsRegion} tabIndex={-1} className="ui-card gm-user-details-panel" aria-label="Detalji izabranog korisnika">
-        {(!detail.data || detail.isError) && <header className="gm-user-details-heading"><span>Detalji korisnika</span><Button iconOnly type="button" variant="secondary" className="gm-user-inline-close" aria-label="Zatvori detalje korisnika" onClick={closeDetails}>×</Button></header>}{detailBody}
-      </aside>}
-    </div>
-    <Drawer open={!wide && Boolean(url.state.focus)} title="Detalji korisnika" className="gm-user-details-drawer" size="wide" returnFocusRef={detailsOpener} closeDisabled={Boolean(busy)} onClose={closeDetails}>{detailBody}</Drawer>
+    </MasterDetailLayout>
     {createOpen && canCreate && <NewUserDialog actor={actor} returnFocusRef={createOpener} onClose={() => setCreateOpen(false)} onCreated={user => {
       setCreateOpen(false); setSearch(''); setSelected(new Set())
       setUrl({ page: '0', deleted: '', role: '', active: '', search: '', sort: 'createdAt', direction: 'DESC', focus: user.id })

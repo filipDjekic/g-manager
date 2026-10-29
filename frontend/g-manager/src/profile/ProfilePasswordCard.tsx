@@ -3,7 +3,7 @@ import { isAxiosError } from 'axios'
 import { userApi } from '../api/userApi'
 import { Button, Input, Card } from '../components/ui'
 import { useToast } from '../components/ui/toastContext'
-import { focusFirstInvalid } from '../forms/useDirtyGuard'
+import { focusFirstInvalid, useDirtyGuard } from '../forms/useDirtyGuard'
 import { ProfileIcon } from './profilePresentation'
 import { passwordErrors, passwordStrength, profileError } from './profilePresentation.model'
 
@@ -33,6 +33,7 @@ export function ProfilePasswordCard({ canUpdate, onChanged, onDirty }: {
   const inFlight = useRef(false), mounted = useRef(true), id = useId(), toast = useToast()
   const errors = passwordErrors(current, next, confirmation), strength = passwordStrength(next)
   const dirty = !!(current || next || confirmation), valid = !Object.values(errors).some(Boolean)
+  useDirtyGuard(busy, { pending: busy })
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   useEffect(() => { onDirty(dirty) }, [dirty, onDirty])
   function clear() {

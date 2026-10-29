@@ -1,3 +1,4 @@
+import { useDirtyGuard } from '../forms/useDirtyGuard'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { stationApi } from '../api/stationApi'
@@ -43,11 +44,17 @@ export function StationIdentityDialog({ station, onClose }: { station: StationOv
     try { await navigator.clipboard.writeText(enrollment.enrollmentToken); toast('Kod je kopiran.', 'success') }
     catch { toast('Kopiranje nije dostupno. Ručno kopirajte prikazani kod.', 'error') }
   }
+  useDirtyGuard(busy || !!enrollment, { pending: busy, retainedResult: !!enrollment })
+  function close() {
+    if (busy) return
+    if (!enrollment) { onClose(); return }
+    confirm({ title:'Zatvori jednokratni kod?', description:'Kod za upis ili rotaciju prikazuje se samo u ovom prozoru. Sačuvajte ga ili iskoristite pre zatvaranja.', variant:'warning', confirmLabel:'Kod je preuzet — zatvori', onConfirm:onClose })
+  }
   const hasActive = identities.data?.some(identity => identity.status === 'ACTIVE')
   const invalid = identities.isLoading || identities.isFetching || identities.isError || !identities.data
   return <Modal size="wide" open className="gm-stations-dialog gm-stations-identity-dialog" title={`Identitet klijenta · ${station.resourceName}`}
-    titleIcon={<StationIcon kind="shield" />} closeDisabled={busy} onClose={onClose}
-    footer={<div className="ui-actions dialog-actions"><Button type="button" variant="secondary" disabled={busy} onClick={onClose}>Zatvori</Button></div>}>
+    titleIcon={<StationIcon kind="shield" />} closeDisabled={busy} onClose={close}
+    footer={<div className="ui-actions dialog-actions"><Button type="button" variant="secondary" disabled={busy} onClick={close}>Zatvori</Button></div>}>
     {confirmationDialog}
     <div className="gm-stations-identity-content">
       <p className="gm-stations-form-note">{station.resourceCode} · {connectionStatus(station).label}{station.lastHeartbeatAt && ` · poslednji kontakt ${formatBusinessDateTime(station.lastHeartbeatAt, false, 'sr-Latn-RS')}`}</p>

@@ -19,8 +19,8 @@
   --color-primary-bg: rgb(0 217 255 / 8%); --color-secondary-bg: rgb(255 45 170 / 7%);
   --color-control-border: color-mix(in srgb, var(--color-text-muted) 50%, var(--color-border));
   --color-row-hover: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface));
-  --navigation-active-bg: linear-gradient(90deg, color-mix(in srgb, var(--color-primary) 12%, var(--color-sidebar)), color-mix(in srgb, var(--color-secondary) 7%, var(--color-sidebar)));
-  --navigation-active-border: linear-gradient(120deg, color-mix(in srgb, var(--color-primary) 50%, var(--color-border)), color-mix(in srgb, var(--color-secondary) 35%, var(--color-border)));
+  --navigation-active-bg: linear-gradient(var(--color-primary-bg), var(--color-primary-bg));
+  --navigation-active-border: linear-gradient(var(--color-primary), var(--color-primary));
   --color-danger: #ff9095; --color-danger-bg: rgb(239 68 68 / 14%);
   --color-success: #6ee7a8; --color-success-bg: rgb(34 197 94 / 12%);
   --color-warning: #f6cd72; --color-warning-bg: rgb(245 158 11 / 12%);

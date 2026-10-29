@@ -8,6 +8,7 @@
     <SolidColorBrush x:Key="Secondary" Color="#F587D1"/>
     <SolidColorBrush x:Key="PrimaryText" Color="#F1F4FA"/>
     <SolidColorBrush x:Key="MutedText" Color="#BCC5D4"/>
+    <SolidColorBrush x:Key="Warning" Color="#F6CD72"/>
     <SolidColorBrush x:Key="Danger" Color="#FF9095"/>
     <!-- Green is reserved for the explicitly confirmed connection status. -->
     <SolidColorBrush x:Key="Connected" Color="#8CDDB0"/>

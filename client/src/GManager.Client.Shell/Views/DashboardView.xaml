@@ -37,7 +37,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="SidebarColumn" Width="280"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition x:Name="InformationColumn" Width="420"/>
+                <ColumnDefinition x:Name="InformationColumn" Width="0"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions><RowDefinition Height="88"/><RowDefinition Height="*"/></Grid.RowDefinitions>
             <Grid Grid.Column="1" Grid.ColumnSpan="2" Grid.RowSpan="2" IsHitTestVisible="False" ClipToBounds="True">
@@ -90,7 +90,7 @@
 
             <Border Grid.Column="1" Grid.ColumnSpan="2" Background="#B512151C" BorderBrush="{StaticResource SubtleBorder}" BorderThickness="0,0,0,1" Padding="28,16">
                 <Grid>
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
                         <Path Data="{StaticResource ComputerGeometry}" Style="{StaticResource FieldIcon}" Stroke="{StaticResource Primary}" Margin="0,0,12,0"/>
                         <StackPanel><TextBlock Text="{Binding StationName}" FontWeight="SemiBold" MaxWidth="240" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/><TextBlock Text="Windows stanica" FontSize="10" Foreground="{StaticResource MutedText}" Margin="0,4,0,0"/></StackPanel>
@@ -98,7 +98,8 @@
                     <Border Grid.Column="1" Style="{StaticResource StatusBadge}" VerticalAlignment="Center" Margin="0,0,24,0">
                         <StackPanel Orientation="Horizontal"><Ellipse Width="6" Height="6" Fill="{Binding ConnectionBrush}" Margin="0,0,8,0"/><TextBlock Text="{Binding ConnectionLabel}" FontSize="12" ToolTip="{Binding ConnectionDetail}"/></StackPanel>
                     </Border>
-                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                    <CheckBox x:Name="DetailsToggle" Grid.Column="2" Content="Detalji" IsChecked="{Binding ShowInformationPanel}" Style="{StaticResource SettingToggle}" Margin="0,0,20,0" VerticalAlignment="Center" AutomationProperties.Name="Prikaži dodatne informacije"/>
+                    <StackPanel Grid.Column="3" VerticalAlignment="Center">
                         <TextBlock Text="{Binding LocalTime}" FontSize="18" FontWeight="SemiBold" TextAlignment="Right"/>
                         <TextBlock Text="{Binding LocalDate}" FontSize="11" Foreground="{StaticResource MutedText}" TextAlignment="Right" Margin="0,3,0,0"/>
                     </StackPanel>
@@ -108,9 +109,8 @@
             <Grid x:Name="CentralContent" Grid.Column="1" Grid.Row="1" Margin="32,28,20,24" SizeChanged="CentralContent_SizeChanged">
                 <ScrollViewer x:Name="ApplicationsPage" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly" Focusable="False">
                     <StackPanel>
-                        <TextBlock Text="TVOJA SLEDEĆA POBEDA POČINJE OVDE" Style="{StaticResource Eyebrow}" Foreground="{StaticResource Primary}" FontSize="10" Margin="0,0,0,12"/>
                         <TextBlock Text="{Binding WelcomeText}" FontSize="{Binding WelcomeFontSize}" FontWeight="Bold"/>
-                        <TextBlock Text="Uživaj u svojoj gaming sesiji." FontSize="15" Foreground="{StaticResource MutedText}" Margin="0,9,0,24"/>
+                        <TextBlock Text="Pronađi aplikaciju i izaberi Pokreni." FontSize="15" Foreground="{StaticResource MutedText}" Margin="0,6,0,16"/>
                         <Grid Margin="0,0,12,0">
                             <Border x:Name="TimerGlow" CornerRadius="18" Background="#1055C8FF" IsHitTestVisible="False"><Border.Effect><DropShadowEffect Color="#55C8FF" BlurRadius="30" ShadowDepth="0" Opacity="0.5"/></Border.Effect></Border>
                             <Border Style="{StaticResource DashboardCard}" BorderBrush="{DynamicResource TimerAccent}" Padding="26,22">
@@ -120,7 +120,7 @@
                                         <StackPanel Orientation="Horizontal"><Path Data="{StaticResource ClockGeometry}" Style="{StaticResource FieldIcon}" Stroke="{DynamicResource TimerAccent}" Width="16" Height="16" Margin="0,0,10,0"/><TextBlock Text="PREOSTALO VREME" Style="{StaticResource Eyebrow}" FontSize="11" VerticalAlignment="Center"/></StackPanel>
                                         <TextBlock Text="{Binding RemainingText}" FontFamily="Consolas" FontSize="{Binding TimerFontSize}" FontWeight="Bold" Foreground="{DynamicResource TimerAccent}" Margin="-3,6,0,4" AutomationProperties.Name="Preostalo vreme gaming sesije"/>
                                         <TextBlock Text="{Binding TimerMessage}" FontSize="12" Foreground="{StaticResource MutedText}" Margin="0,0,0,16"/>
-                                        <ProgressBar Style="{StaticResource SessionProgress}" AutomationProperties.Name="Ukupno trajanje sesije nije dostupno" ToolTip="Ukupno trajanje sesije nije dostupno; procenat se ne prikazuje."/>
+                                        <TextBlock Text="Za produženje vremena obrati se osoblju." Foreground="{StaticResource MutedText}" FontSize="12"/>
                                     </StackPanel>
                                     <Border Grid.Column="1" Background="#1055C8FF" CornerRadius="10" Padding="12,8" VerticalAlignment="Top" Margin="12,0,0,0">
                                         <TextBlock Text="{Binding SessionStatus}" FontSize="11" Foreground="{DynamicResource TimerAccent}"/>
@@ -128,6 +128,13 @@
                                 </Grid>
                             </Border>
                         </Grid>
+                        <Expander Header="Obaveštenja i stanje veze" Margin="0,18,12,0" IsExpanded="False">
+                            <StackPanel Margin="0,12,0,0"><TextBlock Text="{Binding ConnectionDetail}" Foreground="{StaticResource MutedText}"/>
+                                <ItemsControl ItemsSource="{Binding Notifications}"><ItemsControl.ItemTemplate><DataTemplate>
+                                    <StackPanel Margin="0,10,0,0"><TextBlock Text="{Binding Message}" TextWrapping="Wrap"/><TextBlock Text="{Binding Time}" Foreground="{StaticResource MutedText}" FontSize="11"/></StackPanel>
+                                </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                            </StackPanel>
+                        </Expander>
                         <TextBlock Text="Tvoje aplikacije" Style="{StaticResource SectionTitle}" Margin="0,28,0,7"/>
                         <TextBlock Text="Pokreni dozvoljene aplikacije za ovu stanicu." FontSize="13" Foreground="{StaticResource MutedText}" Margin="0,0,0,18"/>
                         <Grid Margin="0,0,12,20">
@@ -154,7 +161,7 @@
                                 <TextBlock Text="Korisnik" Style="{StaticResource DetailLabel}"/><TextBlock Text="{Binding CustomerName}" Style="{StaticResource DetailValue}"/>
                                 <TextBlock Text="Stanica / naziv Windows računara" Style="{StaticResource DetailLabel}"/><TextBlock Text="{Binding StationName}" Style="{StaticResource DetailValue}"/>
                                 <TextBlock Text="Status sesije" Style="{StaticResource DetailLabel}"/><TextBlock Text="{Binding SessionStatus}" Style="{StaticResource DetailValue}"/>
-                                <TextBlock Text="Početak sesije" Style="{StaticResource DetailLabel}"/><TextBlock Text="Servis ne dostavlja početak sesije." Style="{StaticResource DetailValue}"/>
+                                <TextBlock Text="Početak sesije" Style="{StaticResource DetailLabel}"/><TextBlock Text="Podatak nije dostupan — servis ne dostavlja početak sesije." Style="{StaticResource DetailValue}"/>
                                 <TextBlock Text="Planirani završetak" Style="{StaticResource DetailLabel}"/><TextBlock Text="{Binding EndsText}" Style="{StaticResource DetailValue}"/>
                                 <TextBlock Text="Preostalo vreme" Style="{StaticResource DetailLabel}"/><TextBlock Text="{Binding RemainingText}" Style="{StaticResource DetailValue}" Foreground="{DynamicResource TimerAccent}"/>
                                 <TextBlock Text="Veza sa serverom — stanje iz servisa" Style="{StaticResource DetailLabel}"/><TextBlock Text="{Binding ConnectionDetail}" Style="{StaticResource DetailValue}"/>
@@ -171,12 +178,14 @@
                         <Border Style="{StaticResource DashboardCard}" Margin="0,0,0,18"><StackPanel>
                             <TextBlock Text="Izgled" Style="{StaticResource SectionTitle}" Margin="0,0,0,20"/>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,22">
-                                <RadioButton Content="Dark" GroupName="Appearance" Style="{StaticResource ThemeChoice}" IsChecked="{Binding Preferences.DarkTheme}"/>
-                                <RadioButton Content="Neon Dark" GroupName="Appearance" Style="{StaticResource ThemeChoice}" IsChecked="{Binding Preferences.NeonTheme}"/>
+                                <RadioButton Content="Tamna" GroupName="Appearance" Style="{StaticResource ThemeChoice}" IsChecked="{Binding Preferences.DarkTheme}"/>
+                                <RadioButton Content="Tamna sa neon efektima" GroupName="Appearance" Style="{StaticResource ThemeChoice}" IsChecked="{Binding Preferences.NeonTheme}"/>
                             </StackPanel>
+                            <Expander Header="Napredni izgled" IsExpanded="False"><StackPanel Margin="0,14,0,0">
                             <TextBlock Text="Intenzitet neon efekata" Style="{StaticResource DetailLabel}"/>
                             <Slider Style="{StaticResource NeonSlider}" Value="{Binding Preferences.NeonIntensity}" IsEnabled="{Binding Preferences.NeonTheme}" AutomationProperties.Name="Intenzitet neon efekata" Margin="0,3,0,18"/>
                             <CheckBox Content="Animacije pri navigaciji" Style="{StaticResource SettingToggle}" IsChecked="{Binding Preferences.Animations}" Margin="0"/>
+                            </StackPanel></Expander>
                         </StackPanel></Border>
                         <Border Style="{StaticResource DashboardCard}" Margin="0,0,0,18"><StackPanel>
                             <TextBlock Text="Obaveštenja i zvuk" Style="{StaticResource SectionTitle}" Margin="0,0,0,20"/>
@@ -187,7 +196,7 @@
                         <Border Style="{StaticResource DashboardCard}" Margin="0,0,0,18"><StackPanel>
                             <TextBlock Text="Prikaz" Style="{StaticResource SectionTitle}" Margin="0,0,0,20"/>
                             <CheckBox Content="Kompaktne kartice aplikacija" Style="{StaticResource SettingToggle}" IsChecked="{Binding Preferences.CompactApplications}"/>
-                            <CheckBox Content="Veliki countdown" Style="{StaticResource SettingToggle}" IsChecked="{Binding Preferences.LargeCountdown}" Margin="0"/>
+                            <CheckBox Content="Veliki prikaz preostalog vremena" Style="{StaticResource SettingToggle}" IsChecked="{Binding Preferences.LargeCountdown}" Margin="0"/>
                         </StackPanel></Border>
                         <TextBlock Text="{Binding PreferencesStatus}" Foreground="{StaticResource MutedText}" FontSize="12" Margin="0,0,0,16"/>
                     </StackPanel>
@@ -227,9 +236,8 @@
                     </Border>
                     <Border Style="{StaticResource DashboardCard}" Margin="0,0,0,18"><StackPanel>
                         <TextBlock Text="Informacije o sesiji" Style="{StaticResource SectionTitle}" FontSize="18" Margin="0,0,0,22"/>
-                        <TextBlock Text="Početak sesije" Style="{StaticResource DetailLabel}"/><TextBlock Text="Podatak nije dostupan" Style="{StaticResource DetailValue}" FontSize="13"/>
                         <TextBlock Text="Planirani završetak" Style="{StaticResource DetailLabel}"/><TextBlock Text="{Binding EndsText}" Style="{StaticResource DetailValue}" FontSize="13"/>
-                        <TextBlock Text="Preostalo vreme" Style="{StaticResource DetailLabel}"/><TextBlock Text="{Binding RemainingText}" FontFamily="Consolas" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource TimerAccent}"/>
+                        <TextBlock Text="Za produženje vremena obrati se osoblju." Foreground="{StaticResource MutedText}" FontSize="12"/>
                     </StackPanel></Border>
                     <Border Style="{StaticResource DashboardCard}"><StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,18"><Path Data="{StaticResource BellGeometry}" Style="{StaticResource FieldIcon}" Stroke="{StaticResource Secondary}" Margin="0,0,10,0"/><TextBlock Text="Obaveštenja" FontSize="18" FontWeight="SemiBold"/></StackPanel>
@@ -256,7 +264,7 @@
                 <StackPanel>
                     <Path Data="{StaticResource LogoutGeometry}" Style="{StaticResource FieldIcon}" Stroke="{StaticResource Secondary}" Width="30" Height="30" HorizontalAlignment="Left" Margin="0,0,0,22"/>
                     <TextBlock Text="Da li želite da se odjavite?" FontSize="24" FontWeight="Bold"/>
-                    <TextBlock Text="Sačuvajte svoj napredak pre odjave. Stanica će biti zaključana kroz Client Service." Foreground="{StaticResource MutedText}" Margin="0,12,0,26"/>
+                    <TextBlock Text="Sačuvajte svoj napredak pre odjave. Zahtev za odjavu šalje se servisu, koji upravlja zaključavanjem stanice." Foreground="{StaticResource MutedText}" Margin="0,12,0,26"/>
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="14"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <Button x:Name="CancelLogout" Content="Otkaži" Click="CancelLogout_Click" IsCancel="False"/>
                         <Button Grid.Column="2" Content="Odjavi se" Style="{StaticResource DashboardPrimaryButton}" Click="ConfirmLogout_Click"/>

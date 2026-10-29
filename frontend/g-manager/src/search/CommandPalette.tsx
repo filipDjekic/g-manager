@@ -17,6 +17,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false)
+  const [actionError, setActionError] = useState('')
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -42,15 +43,22 @@ export function CommandPalette() {
     document.addEventListener('keydown', shortcut)
     return () => document.removeEventListener('keydown', shortcut)
   }, [])
+  useEffect(()=>{
+    if (!open || !items[active]) return
+    document.getElementById('search-result-'+items[active].type+'-'+items[active].id)?.scrollIntoView({block:'nearest'})
+  },[open,active,items])
   async function choose(item: SearchResult) {
-    await searchApi.remember(item, false)
+    if (!/^\/(?!\/)/.test(item.action.url)) { setActionError('Veza ovog rezultata nije dostupna.'); return }
+    void searchApi.remember(item, false).catch(() => undefined)
     setOpen(false); setQuery('')
     navigate(item.action.url, { state: { searchReturnTo: location.pathname + location.search } })
   }
   async function toggleFavorite(item: SearchResult) {
-    if (item.favorite) await searchApi.removeFavorite(item)
-    else await searchApi.remember(item, true)
-    setQuery('')
+    try {
+      if (item.favorite) await searchApi.removeFavorite(item)
+      else await searchApi.remember(item, true)
+      setQuery(''); search.reload(); setActive(0); setActionError('')
+    } catch { setActionError('Omiljenu stavku nije moguće sačuvati. Pokušajte ponovo.') }
   }
 
   return <>
@@ -65,29 +73,31 @@ export function CommandPalette() {
     <Modal open={open} title="Globalna pretraga" onClose={() => { setOpen(false); setQuery('') }} initialFocusRef={inputRef}>
       <div className="command-palette">
         <Input ref={inputRef} role="combobox" aria-label="Pretraži G-Manager" aria-expanded="true"
-          aria-controls="global-search-results" aria-autocomplete="list"
+          aria-controls="global-search-results" aria-autocomplete="list" aria-haspopup="grid"
           aria-activedescendant={items[active] ? `search-result-${items[active].type}-${items[active].id}` : undefined}
           value={query} onChange={(event) => { setQuery(event.target.value); setActive(0) }} placeholder="Naziv, email, status ili ID…"
           onKeyDown={(event) => {
-            if (event.key === 'ArrowDown') { event.preventDefault(); setActive((value) => Math.min(value + 1, items.length - 1)) }
+            if (event.key === 'ArrowDown') { event.preventDefault(); setActive((value) => Math.max(0, Math.min(value + 1, items.length - 1))) }
             if (event.key === 'ArrowUp') { event.preventDefault(); setActive((value) => Math.max(value - 1, 0)) }
             if (event.key === 'Enter' && items[active]) { event.preventDefault(); void choose(items[active]) }
           }} />
         <p className="search-help">Najmanje 2 znaka · ↑↓ izbor · Enter otvara · Esc zatvara</p>
         {search.loading && <Skeleton lines={3} label="Pretraživanje" />}
+        {actionError && <Alert tone="danger">{actionError}</Alert>}
         {search.error && <Alert tone="danger" role="alert">{search.error}</Alert>}
         {!search.loading && !search.error && !items.length && <p className="empty-state">
           {query.trim().length >= 2 ? 'Nema dozvoljenih rezultata.' : 'Nema nedavnih ili omiljenih stavki.'}</p>}
-        <div id="global-search-results" role="region" aria-label="Rezultati pretrage">
-          {Object.entries(groups).map(([type, grouped]) => <section aria-labelledby={`search-group-${type}`} key={type}>
+        <div id="global-search-results" role="grid" aria-label="Rezultati pretrage">
+          {Object.entries(groups).map(([type, grouped]) => <section role="rowgroup" aria-labelledby={`search-group-${type}`} key={type}>
             <h3 id={`search-group-${type}`}>{labels[type as SearchResourceType]}</h3>{grouped.map((item) => {
               const index = items.indexOf(item)
-              return <div key={`${item.type}-${item.id}`} className="search-result">
-                <Button variant="ghost" id={`search-result-${item.type}-${item.id}`} aria-current={index === active ? 'true' : undefined}
+              return <div key={`${item.type}-${item.id}`} className="search-result" role="row" id={`search-result-${item.type}-${item.id}`} aria-selected={index === active}>
+                <div role="gridcell">
+                <Button variant="ghost" aria-current={index === active ? 'true' : undefined}
                   type="button" onClick={() => void choose(item)} onMouseEnter={() => setActive(index)}>
-                  <strong><Highlight text={item.title} query={query.trim()} /></strong><span>{item.subtitle}</span><span>{item.action.label}</span></Button>
-                <Button iconOnly variant="ghost" type="button" className="favorite-button" aria-label={item.favorite ? `Ukloni ${item.title} iz omiljenih` : `Dodaj ${item.title} u omiljene`}
-                  aria-pressed={item.favorite} onClick={() => void toggleFavorite(item)}>{item.favorite ? '★' : '☆'}</Button>
+                  <strong><Highlight text={item.title} query={query.trim()} /></strong><span>{item.subtitle}</span><span>{item.action.label}</span></Button></div>
+                <div role="gridcell"><Button iconOnly variant="ghost" type="button" className="favorite-button" aria-label={item.favorite ? `Ukloni ${item.title} iz omiljenih` : `Dodaj ${item.title} u omiljene`}
+                  aria-pressed={item.favorite} onClick={() => void toggleFavorite(item)}>{item.favorite ? '★' : '☆'}</Button></div>
               </div>
             })}
           </section>)}

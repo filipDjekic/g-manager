@@ -1,7 +1,7 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { createPortal } from 'react-dom'
+import { ProductCard } from './ProductCard'
+import { useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { Badge, Button, Input, Card } from '../components/ui'
+import { ActionMenu, Badge, Button, Input, Card } from '../components/ui'
 import type { CatalogItem } from '../types/catalog.types'
 import { CatalogImage } from './CatalogImage'
 import { CatalogIcon } from './CatalogPresentation'
@@ -12,8 +12,7 @@ export interface CatalogPermissions { manage: boolean; remove: boolean; restore:
 
 export function CatalogOrderLink({ item }: { item: CatalogItem }) {
   return <Link className="ui-button ui-button--secondary ui-button--medium gm-catalog-order-link"
-    to={item.type === 'PRODUCT' ? '/my-orders' : '/my-reservations'}
-    onClick={() => sessionStorage.setItem('gmanager.catalog-selection', item.id)}>
+    to={item.type === 'PRODUCT' ? '/my-orders?productId=' + item.id : '/my-reservations?booking=new&serviceId=' + item.id}>
     {item.type === 'PRODUCT' ? 'Dodaj u korpu' : 'Zakaži termin'}</Link>
 }
 
@@ -21,9 +20,6 @@ function CatalogActionMenu({ item, permissions, disabled, onAction }: {
   item: CatalogItem; permissions: CatalogPermissions; disabled: boolean
   onAction: (action: CatalogAction, trigger: HTMLButtonElement) => void
 }) {
-  const [open, setOpen] = useState(false), [position, setPosition] = useState({ top: 0, left: 0 })
-  const trigger = useRef<HTMLButtonElement>(null), menu = useRef<HTMLDivElement>(null)
-  const id = useId()
   const actions: { action: CatalogAction; label: string; danger?: boolean }[] = [{ action: 'DETAILS', label: 'Detalji' }]
   if (item.deletedAt) {
     if (permissions.restore) actions.push({ action: 'RESTORE', label: 'Vrati stavku' })
@@ -32,48 +28,7 @@ function CatalogActionMenu({ item, permissions, disabled, onAction }: {
       { action: item.active ? 'DEACTIVATE' : 'ACTIVATE', label: item.active ? 'Deaktiviraj' : 'Aktiviraj' })
     if (permissions.remove) actions.push({ action: 'DELETE', label: 'Obriši', danger: true })
   }
-  useLayoutEffect(() => {
-    if (!open || !trigger.current || !menu.current) return
-    const rect = trigger.current.getBoundingClientRect(), height = menu.current.offsetHeight
-    setPosition({ left: Math.max(8, Math.min(rect.right - 208, window.innerWidth - 216)),
-      top: Math.max(8, rect.bottom + height + 8 > window.innerHeight ? rect.top - height - 6 : rect.bottom + 6) })
-    menu.current.querySelector<HTMLButtonElement>('button')?.focus()
-  }, [open])
-  useEffect(() => {
-    if (!open) return
-    const outside = (event: PointerEvent) => {
-      if (!menu.current?.contains(event.target as Node) && !trigger.current?.contains(event.target as Node)) setOpen(false)
-    }
-    const scroll = (event: Event) => { if (!menu.current?.contains(event.target as Node)) setOpen(false) }
-    const resize = () => setOpen(false)
-    document.addEventListener('pointerdown', outside)
-    document.addEventListener('scroll', scroll, true)
-    window.addEventListener('resize', resize)
-    return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('scroll', scroll, true); window.removeEventListener('resize', resize) }
-  }, [open])
-  const keyboard = (event: KeyboardEvent<HTMLDivElement>) => {
-    const items = Array.from(menu.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])
-    const index = items.indexOf(document.activeElement as HTMLButtonElement)
-    if (event.key === 'Escape') { event.preventDefault(); setOpen(false); trigger.current?.focus(); return }
-    if (event.key === 'Tab') { setOpen(false); trigger.current?.focus(); return }
-    const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
-      : event.key === 'ArrowDown' ? (index + 1) % items.length : event.key === 'ArrowUp' ? (index + items.length - 1) % items.length : null
-    if (next !== null) { event.preventDefault(); items[next]?.focus() }
-  }
-  return <>
-    <Button size="small" iconOnly ref={trigger} type="button" variant="ghost" className="gm-catalog-menu-trigger" disabled={disabled}
-      aria-label={`Akcije za ${item.name}`} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? id : undefined}
-      onClick={() => setOpen(!open)} onKeyDown={event => {
-        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setOpen(true) }
-      }}>⋯</Button>
-    {open && createPortal(<div ref={menu} id={id} role="menu" aria-label={`Akcije za ${item.name}`}
-      className="ui-menu gm-catalog-action-menu" style={position} onKeyDown={keyboard}>
-      {actions.map(({ action, label, danger }) => <button key={action} type="button" role="menuitem" disabled={disabled}
-        className={danger ? 'gm-catalog-menu-danger' : ''} onClick={() => {
-          setOpen(false); trigger.current?.focus(); if (trigger.current) onAction(action, trigger.current)
-        }}>{label}</button>)}
-    </div>, document.body)}
-  </>
+  return <ActionMenu label={'Akcije za ' + item.name} disabled={disabled} actions={actions.map(({ action, label, danger }) => ({ label, danger, onClick: trigger => onAction(action, trigger) }))} />
 }
 
 export function CatalogCard({ item, permissions, selected, highlighted, busy, onSelect, onAction }: {
@@ -81,14 +36,17 @@ export function CatalogCard({ item, permissions, selected, highlighted, busy, on
   onSelect: () => void; onAction: (item: CatalogItem, action: CatalogAction, trigger: HTMLButtonElement) => void
 }) {
   const title = useRef<HTMLButtonElement>(null)
+  if (!permissions.manage && item.type === 'PRODUCT') return <ProductCard product={item} highlighted={highlighted}
+    title={<Button variant="ghost" onClick={event => onAction(item,'DETAILS',event.currentTarget)}>{item.name}</Button>}
+    actions={<>{permissions.order && item.active && !item.deletedAt && <CatalogOrderLink item={item}/>}<Button variant="secondary" onClick={event => onAction(item,'DETAILS',event.currentTarget)}>Detalji</Button></>}/>
   return <Card as="article" padding="none" className={`gm-catalog-card${highlighted ? ' is-highlighted' : ''}${selected ? ' is-selected' : ''}`}
     onClick={event => {
       if (!(event.target as HTMLElement).closest('button, a, input, label') && title.current) onAction(item, 'DETAILS', title.current)
     }}>
     <div className="gm-catalog-card-media">
       <CatalogImage key={item.imageUrl} item={item} />
-      <div className="gm-catalog-card-status"><Badge tone={item.deletedAt ? 'danger' : item.active ? 'success' : 'neutral'}>
-        {item.deletedAt ? 'Obrisano' : item.active ? 'Aktivno' : 'Neaktivno'}</Badge></div>
+      {permissions.manage && <div className="gm-catalog-card-status"><Badge tone={item.deletedAt ? 'danger' : item.active ? 'success' : 'neutral'}>
+        {item.deletedAt ? 'Obrisano' : item.active ? 'Aktivno' : 'Neaktivno'}</Badge></div>}
       {permissions.manage && !item.deletedAt && <label className="gm-catalog-card-selector">
         <Input type="checkbox" checked={selected} disabled={busy} onChange={onSelect} aria-label={`Izaberi stavku ${item.name}`} />
       </label>}

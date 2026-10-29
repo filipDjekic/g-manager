@@ -1,3 +1,5 @@
+import { Tabs } from '../components/ui/Tabs'
+import { useDirtyGuard } from '../forms/useDirtyGuard'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -44,6 +46,7 @@ function CustomerOrdersWorkspace({ user }: { user: AuthUser }) {
   const rawPage = Number(params.get('page') ?? '1'), page = Number.isSafeInteger(rawPage) && rawPage > 0 ? rawPage - 1 : 0
   const requestedSize = Number(params.get('size') ?? '10'), historySize = [10, 20, 50, 100].includes(requestedSize) ? requestedSize : 10
   const selectedId = params.get('orderId')
+  const section = params.get('section') === 'shop' ? 'shop' : params.get('section') === 'history' || selectedId || params.has('status') ? 'history' : 'shop'
   const [search, setSearch] = useState(''), [minPrice, setMinPrice] = useState(''), [maxPrice, setMaxPrice] = useState('')
   const [sort, setSort] = useState<keyof typeof productSorts>('NAME_ASC')
   const [filters, setFilters] = useState<Pick<CatalogFilters, 'search' | 'minPrice' | 'maxPrice' | 'sort' | 'direction'>>(emptyFilters)
@@ -62,6 +65,7 @@ function CustomerOrdersWorkspace({ user }: { user: AuthUser }) {
     && (!minPrice || !maxPrice || Number(minPrice) <= Number(maxPrice))
   const quantityCount = Object.values(cart.quantities).reduce((sum, quantity) => sum + quantity, 0)
   const cartLocked = Boolean(checkout) || cart.submitting
+  const releaseNavigation = useDirtyGuard(Boolean(checkout) || cart.submitting || !!cart.attempt, { pending: cart.submitting || !!cart.attempt })
   const changeParams = useCallback((changes: Record<string, string | undefined>, replace = false) => setParams(current => {
     const next = new URLSearchParams(current)
     Object.entries(changes).forEach(([key, value]) => { if (value) next.set(key, value); else next.delete(key) })
@@ -92,8 +96,8 @@ function CustomerOrdersWorkspace({ user }: { user: AuthUser }) {
     staleTime: 30000, retry: false })
 
   useEffect(() => {
-    if (orders.isSuccess && !selectedId && orders.data.content[0]) changeParams({ orderId: orders.data.content[0].id }, true)
-  }, [orders.isSuccess, orders.data, selectedId, changeParams])
+    if (section === 'history' && orders.isSuccess && !selectedId && orders.data.content[0]) changeParams({ orderId: orders.data.content[0].id }, true)
+  }, [section, orders.isSuccess, orders.data, selectedId, changeParams])
   useEffect(() => {
     if (!canCreate || !canCatalog || !cart.ready || cart.attempt || !linkedProduct || !selection.isSuccess || consumedSelection.current === linkedProduct) return
     const product = selection.data
@@ -115,15 +119,16 @@ function CustomerOrdersWorkspace({ user }: { user: AuthUser }) {
 
   const canCancel = (order: Order) => order.customerId === user.id && order.status === 'CREATED' && hasCapability(user, 'ORDER_CHANGE_STATUS')
   function browse() {
+    changeParams({section:'shop'})
     setCartOpen(false)
     window.requestAnimationFrame(() => { catalogRef.current?.scrollIntoView({ block: 'start' }); searchRef.current?.focus({ preventScroll: true }) })
   }
   function resetFilters() { setSearch(''); setMinPrice(''); setMaxPrice(''); setSort('NAME_ASC'); setFilters(emptyFilters); setProductPage(0) }
   function openCheckout(element: HTMLElement) {
     if (!canCreate || !cart.ready || cart.submitting || !cart.ids.length || !cart.attempt && cart.unresolved.length) return
-    checkoutOpener.current = element; setCheckoutError(''); setCheckout([...cart.cart])
+    checkoutOpener.current = cartOpen ? cartOpener.current : element; setCartOpen(false); setCheckoutError(''); setCheckout([...cart.cart])
   }
-  function closeCheckout() { if (!cart.submitting) { setCheckout(null); setCheckoutError('') } }
+  function closeCheckout() { if (!cart.submitting && !cart.attempt) { setCheckout(null); setCheckoutError('') } }
   async function refreshOrders() {
     await Promise.all([client.invalidateQueries({ queryKey: ['orders', 'mine'] }), client.invalidateQueries({ queryKey: ['orders', 'mine-detail', user.id] })])
   }
@@ -134,7 +139,8 @@ function CustomerOrdersWorkspace({ user }: { user: AuthUser }) {
       if (!created || useAuthStore.getState().user?.id !== user.id) return
       setMessage(`Narudžbina je uspešno poslata. Potvrđeno ukupno: ${orderMoney.format(created.totalPrice)}.`)
       setCheckout(null); setCartOpen(false); setCheckoutError('')
-      changeParams({ orderId: created.id, status: undefined, page: undefined })
+      releaseNavigation()
+      changeParams({ section: 'history', orderId: created.id, status: undefined, page: undefined })
       void refreshOrders()
       window.requestAnimationFrame(() => titleRef.current?.focus({ preventScroll: true }))
     } catch (cause) { setCheckoutError(orderErrorMessage(cause, 'Narudžbinu nije moguće poslati.')) }
@@ -177,7 +183,7 @@ function CustomerOrdersWorkspace({ user }: { user: AuthUser }) {
 
   return <PageLayout className="gm-my-orders">
     {confirmationDialog}
-    <PageHeader title="Moje narudžbine" description={<>Katalog proizvoda, korpa i praćenje statusa porudžbina.</>} icon={<ShoppingBagIcon />} titleRef={titleRef} actions={<><Button type="button" variant="secondary" onClick={() => { void orders.refetch(); if (selectedId) void detail.refetch(); if (canCatalog && pricesValid) void catalog.refetch(); void cart.retryProducts() }}>
+    <PageHeader title="Proizvodi i narudžbine" description="Poručite proizvode ili pratite svoje narudžbine." icon={<ShoppingBagIcon />} titleRef={titleRef} actions={<><Button type="button" variant="secondary" onClick={() => { void orders.refetch(); if (selectedId) void detail.refetch(); if (canCatalog && pricesValid) void catalog.refetch(); void cart.retryProducts() }}>
       <OrderIcon kind="refresh" />Osveži pregled</Button></>} />
     {message && <Alert tone="success" className="gm-my-order-message" role="status">{message}<Button iconOnly type="button" variant="secondary" onClick={() => setMessage('')} aria-label="Zatvori potvrdu">×</Button></Alert>}
     {cart.warning && cart.ready && <Alert tone="warning" role="status">{cart.warning}</Alert>}
@@ -186,7 +192,9 @@ function CustomerOrdersWorkspace({ user }: { user: AuthUser }) {
     {selection.isError && canCreate && canCatalog && linkedProduct && <ErrorState message={orderErrorMessage(selection.error, 'Izabrani proizvod nije moguće učitati.')}
       action={<Button type="button" variant="secondary" onClick={() => void selection.refetch()}>Pokušaj ponovo</Button>} />}
 
-    <div className="gm-my-shop-grid">
+    <Tabs label="Proizvodi i narudžbine" idPrefix="customer-orders" value={section} onChange={section => changeParams({section})} items={[{id:'shop',label:'Poruči'},{id:'history',label:'Moje narudžbine'}]} />
+    <section role="tabpanel" id={'customer-orders-panel-'+section} aria-labelledby={'customer-orders-tab-'+section} tabIndex={0}>
+    {section==='shop'&&<><div className="gm-my-shop-grid">
       <CustomerOrderPanel title="Katalog proizvoda" icon={<ShoppingBagIcon />} className="gm-my-catalog-panel"
         actions={<Badge tone="info">Svi proizvodi</Badge>}>
         <div className="ui-filter-bar gm-my-product-filters">
@@ -195,8 +203,9 @@ function CustomerOrdersWorkspace({ user }: { user: AuthUser }) {
           <label><span>Sortiranje</span><Select value={sort} disabled={!canCatalog} onChange={event => setSort(event.target.value as keyof typeof productSorts)}>
             <option value="NAME_ASC">Naziv: A–Ž</option><option value="NAME_DESC">Naziv: Ž–A</option>
             <option value="PRICE_ASC">Cena: rastuće</option><option value="PRICE_DESC">Cena: opadajuće</option></Select></label>
-          <label><span>Cena od (RSD)</span><Input type="number" inputMode="decimal" min={0} step="0.01" value={minPrice} disabled={!canCatalog} onChange={event => setMinPrice(event.target.value)} aria-invalid={!pricesValid || undefined} /></label>
+          <details className="ui-advanced-filters"><summary>Raspon cena</summary><div className="ui-form-grid">          <label><span>Cena od (RSD)</span><Input type="number" inputMode="decimal" min={0} step="0.01" value={minPrice} disabled={!canCatalog} onChange={event => setMinPrice(event.target.value)} aria-invalid={!pricesValid || undefined} /></label>
           <label><span>Cena do (RSD)</span><Input type="number" inputMode="decimal" min={0} step="0.01" value={maxPrice} disabled={!canCatalog} onChange={event => setMaxPrice(event.target.value)} aria-invalid={!pricesValid || undefined} /></label>
+</div></details>
         </div>
         <h3 ref={catalogRef} tabIndex={-1} className="sr-only">Dostupni proizvodi</h3>
         {!canCatalog ? <EmptyState title="Katalog nije dostupan" description="Pregled proizvoda zahteva odgovarajuću dozvolu." />
@@ -220,7 +229,8 @@ function CustomerOrdersWorkspace({ user }: { user: AuthUser }) {
       <OrderIcon /><span>Korpa <strong>{cart.ready ? quantityCount : '—'}</strong></span><strong>{cart.ready && cart.estimatedTotal !== null ? orderMoney.format(cart.estimatedTotal) : '—'}</strong>
     </Button>
 
-    <div className="gm-my-orders-lower-grid">
+    </>}
+    {section==='history'&&<div className="gm-my-orders-lower-grid">
       <CustomerOrderPanel title="Pregled mojih narudžbina" icon={<OrderIcon />} className="gm-my-history-panel">
         <div className="gm-my-order-status-filters" role="group" aria-label="Filter statusa narudžbina">
           {[{ value: '', label: 'Sve narudžbine' }, ...statuses.map(value => ({ value, label: value === 'READY' ? 'Spremne' : value === 'CREATED' ? 'Primljene'
@@ -246,14 +256,15 @@ function CustomerOrdersWorkspace({ user }: { user: AuthUser }) {
                 onCancel={() => { if (detail.data) cancel(detail.data) }} onRefresh={() => void detail.refetch()} />}
         </CustomerOrderPanel>
       </div>
-    </div>
+    </div>}
+    </section>
 
     <Drawer open={cartOpen} title="Korpa" size="wide" className="gm-my-cart-drawer" closeDisabled={cart.submitting} returnFocusRef={cartOpener} onClose={() => setCartOpen(false)}>
       {cartContents}
     </Drawer>
     <Modal open={Boolean(checkout)} title={cart.attempt ? 'Provera prethodnog slanja' : 'Potvrda narudžbine'} titleIcon={<ShoppingBagIcon />} className="gm-my-order-dialog gm-my-checkout-dialog"
-      returnFocusRef={checkoutOpener} initialFocusRef={checkoutCancel} onClose={closeCheckout} closeDisabled={cart.submitting}
-      footer={<div className="ui-actions dialog-actions"><Button ref={checkoutCancel} type="button" variant="secondary" disabled={cart.submitting} onClick={closeCheckout}>Zatvori</Button>
+      returnFocusRef={checkoutOpener} initialFocusRef={checkoutCancel} onClose={closeCheckout} closeDisabled={cart.submitting || !!cart.attempt}
+      footer={<div className="ui-actions dialog-actions"><Button ref={checkoutCancel} type="button" variant="secondary" disabled={cart.submitting || !!cart.attempt} onClick={closeCheckout}>Zatvori</Button>
         <Button type="button" className="gm-my-submit-order" disabled={!canCreate || !checkoutItems.length} loading={cart.submitting} onClick={() => void submit()}>
           {cart.attempt ? 'Ponovi isti zahtev' : 'Potvrdi slanje'}</Button></div>}>
       <p className="gm-my-order-note">{cart.attempt ? 'Ponovni pokušaj proverava iste proizvode i količine uz zaštitu od duplog slanja.' : 'Pregledajte proizvode i količine pre slanja.'}</p>

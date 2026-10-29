@@ -1,3 +1,5 @@
+import { useDirtyGuard } from '../forms/useDirtyGuard'
+import { useFormClose } from '../forms/useFormClose'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { stationApi } from '../api/stationApi'
@@ -14,6 +16,7 @@ function useStationSave(save: () => Promise<unknown>, onSaved: () => void, messa
     toast(message, 'success'); onSaved()
   }, onError: () => { void client.invalidateQueries({ queryKey: ['stations'] }); void client.invalidateQueries({ queryKey: ['gaming-operations'] }) },
   onSettled: () => { inFlight.current = false } })
+  useDirtyGuard(mutation.isPending, { pending: true })
   return { ...mutation, submit: () => { if (!inFlight.current) { inFlight.current = true; mutation.mutate() } } }
 }
 function SaveFooter({ id, busy, disabled, onClose, label = 'Sačuvaj' }: { id: string; busy: boolean; disabled?: boolean; onClose: () => void; label?: string }) {
@@ -27,8 +30,11 @@ export function StationConfigurationDialog({ station, profiles, onClose }: { sta
   const save = useStationSave(() => stationApi.saveStation(station.resourceId, { operationalStatus: status, applicationProfileId: profile || undefined,
     clientEnabled: enabled, heartbeatIntervalSeconds: heartbeat, offlineGraceSeconds: grace, version: station.version }), onClose, 'Podešavanja stanice su sačuvana.')
   const busy = save.isPending
-  return <Modal size="wide" open title={`Podesi stanicu · ${station.resourceName}`} className="gm-stations-dialog" titleIcon={<StationIcon kind="settings" />}
-    closeDisabled={busy} onClose={onClose} footer={<SaveFooter id={id} busy={busy} disabled={timingError} onClose={onClose} />}>
+  const dirty = status!==station.operationalStatus || profile!==(station.applicationProfileId??'') || enabled!==station.clientEnabled || heartbeat!==station.heartbeatIntervalSeconds || grace!==station.offlineGraceSeconds
+  useDirtyGuard(dirty)
+  const dismiss = useFormClose(dirty,busy,onClose)
+  return <>{dismiss.confirmationDialog}<Modal size="wide" open title={`Podesi stanicu · ${station.resourceName}`} className="gm-stations-dialog" titleIcon={<StationIcon kind="settings" />}
+    closeDisabled={busy} onClose={dismiss.close} footer={<SaveFooter id={id} busy={busy} disabled={timingError} onClose={dismiss.close} />}>
     <form id={id} className="ui-form-grid gm-stations-form" onSubmit={event => { event.preventDefault(); if (!busy && !timingError) save.submit() }}>
       {save.isError && <Alert tone="danger" className="gm-stations-full" role="alert">{stationError(save.error, 'Podešavanja stanice nije moguće sačuvati.')}</Alert>}
       <p className="gm-stations-form-note gm-stations-full">{station.resourceCode} · Konfiguracija v{station.configurationVersion}. Promena podešavanja ne potvrđuje lokalno zaključavanje računara.</p>
@@ -43,7 +49,7 @@ export function StationConfigurationDialog({ station, profiles, onClose }: { sta
       {timingError && <p id={`${id}-timing`} className="gm-stations-field-error gm-stations-full" role="alert">Tolerancija prekida veze mora biti najmanje jednaka intervalu heartbeat-a.</p>}
       <label className="gm-stations-toggle gm-stations-full"><Input aria-label={"Gaming Client integracija uključena"} type="checkbox" checked={enabled} disabled={busy} onChange={event => setEnabled(event.target.checked)} />Gaming Client integracija uključena</label>
     </form>
-  </Modal>
+  </Modal></>
 }
 const emptyDefinition: ApplicationDefinitionInput = { code: '', name: '', type: 'GAME', executablePath: '', publisher: '', publisherCertificateThumbprint: '', executableSha256: '', minimumFileVersion: '', defaultArguments: '', active: true }
 export function ApplicationDialog({ value, onClose }: { value: ApplicationDefinition | null; onClose: () => void }) {
@@ -58,9 +64,13 @@ export function ApplicationDialog({ value, onClose }: { value: ApplicationDefini
     return value ? stationApi.updateDefinition(value.id, request) : stationApi.createDefinition(request)
   }, onClose, 'Aplikacija je sačuvana.')
   const busy = save.isPending, update = <K extends keyof ApplicationDefinitionInput>(key: K, input: ApplicationDefinitionInput[K]) => setForm(current => ({ ...current, [key]: input }))
+  const [baseline] = useState(()=>JSON.stringify(form))
+  const dirty = JSON.stringify(form)!==baseline
+  useDirtyGuard(dirty)
+  const dismiss = useFormClose(dirty,busy,onClose)
   const identityMissing = !form.publisher?.trim() && !form.publisherCertificateThumbprint?.trim() && !form.executableSha256?.trim()
-  return <Modal size="wide" open title={value ? 'Izmeni aplikaciju' : 'Nova aplikacija'} className="gm-stations-dialog" titleIcon={<StationIcon kind="apps" />}
-    closeDisabled={busy} onClose={onClose} footer={<SaveFooter id={id} busy={busy} disabled={identityMissing} onClose={onClose} />}>
+  return <>{dismiss.confirmationDialog}<Modal size="wide" open title={value ? 'Izmeni aplikaciju' : 'Nova aplikacija'} className="gm-stations-dialog" titleIcon={<StationIcon kind="apps" />}
+    closeDisabled={busy} onClose={dismiss.close} footer={<SaveFooter id={id} busy={busy} disabled={identityMissing} onClose={dismiss.close} />}>
     <form id={id} className="ui-form-grid gm-stations-form" onSubmit={(event: FormEvent) => { event.preventDefault(); if (!busy && !identityMissing) save.submit() }}>
       {save.isError && <Alert tone="danger" className="gm-stations-full" role="alert">{stationError(save.error, 'Aplikaciju nije moguće sačuvati.')}</Alert>}
       <label>Kod<Input aria-label={"Kod"} required maxLength={60} value={form.code} disabled={busy} onChange={event => update('code', event.target.value)} /></label>
@@ -75,7 +85,7 @@ export function ApplicationDialog({ value, onClose }: { value: ApplicationDefini
       <label>Argumenti<Input aria-label={"Argumenti"} maxLength={1000} value={form.defaultArguments ?? ''} disabled={busy} onChange={event => update('defaultArguments', event.target.value)} /></label>
       <label className="gm-stations-toggle gm-stations-full"><Input aria-label={"Aplikacija aktivna"} type="checkbox" checked={form.active} disabled={busy} onChange={event => update('active', event.target.checked)} />Aplikacija aktivna</label>
     </form>
-  </Modal>
+  </Modal></>
 }
 type ProfileEntry = ApplicationProfileInput['entries'][number]
 export function ApplicationProfileDialog({ value, definitions, onClose }: { value: ApplicationProfile | null; definitions: ApplicationDefinition[]; onClose: () => void }) {
@@ -91,13 +101,17 @@ export function ApplicationProfileDialog({ value, definitions, onClose }: { valu
     return value ? stationApi.updateProfile(value.id, request) : stationApi.createProfile(request)
   }, onClose, 'Profil aplikacija je sačuvan.')
   const busy = save.isPending
+  const [baseline] = useState(()=>JSON.stringify({code,name,description,active,entries}))
+  const dirty = JSON.stringify({code,name,description,active,entries})!==baseline
+  useDirtyGuard(dirty)
+  const dismiss = useFormClose(dirty,busy,onClose)
   function toggle(definition: ApplicationDefinition, checked: boolean) {
     setEntries(current => checked ? [...current, { applicationDefinitionId: definition.id, requiredProcess: definition.type !== 'GAME', autoStart: definition.type !== 'GAME',
       launchOrder: current.reduce((max, entry) => Math.max(max, entry.launchOrder + 1), 0) }] : current.filter(entry => entry.applicationDefinitionId !== definition.id))
   }
   function updateEntry(id: string, changes: Partial<ProfileEntry>) { setEntries(current => current.map(entry => entry.applicationDefinitionId === id ? { ...entry, ...changes } : entry)) }
-  return <Modal size="wide" open title={value ? 'Izmeni profil' : 'Novi profil'} className="gm-stations-dialog gm-stations-profile-dialog" titleIcon={<StationIcon kind="apps" />}
-    closeDisabled={busy} onClose={onClose} footer={<SaveFooter id={id} busy={busy} disabled={!hasGame || unavailable} onClose={onClose} label="Sačuvaj profil" />}>
+  return <>{dismiss.confirmationDialog}<Modal size="wide" open title={value ? 'Izmeni profil' : 'Novi profil'} className="gm-stations-dialog gm-stations-profile-dialog" titleIcon={<StationIcon kind="apps" />}
+    closeDisabled={busy} onClose={dismiss.close} footer={<SaveFooter id={id} busy={busy} disabled={!hasGame || unavailable} onClose={dismiss.close} label="Sačuvaj profil" />}>
     <form id={id} className="ui-form-grid gm-stations-form" onSubmit={event => { event.preventDefault(); if (!busy && hasGame && !unavailable) save.submit() }}>
       {save.isError && <Alert tone="danger" className="gm-stations-full" role="alert">{stationError(save.error, 'Profil nije moguće sačuvati.')}</Alert>}
       <label>Kod<Input aria-label={"Kod"} required maxLength={60} value={code} disabled={busy} onChange={event => setCode(event.target.value)} /></label>
@@ -125,5 +139,5 @@ export function ApplicationProfileDialog({ value, definitions, onClose }: { valu
         {unavailable && <p className="gm-stations-field-error" role="alert">Uklonite neaktivne ili nedostupne aplikacije pre čuvanja profila.</p>}
       </fieldset>
     </form>
-  </Modal>
+  </Modal></>
 }

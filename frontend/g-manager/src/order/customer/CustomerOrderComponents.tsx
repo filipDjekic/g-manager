@@ -1,7 +1,7 @@
+import { ProductCard, ItemMedia } from '../../catalog/ProductCard'
 import { useId, type ReactNode } from 'react'
 import { Badge, Button, EmptyState, ErrorState, Input, Skeleton, TableShell, Card, Alert } from '../../components/ui'
 import { orderLabels, orderTones } from '../../components/ui/statusPresentation'
-import { CatalogImage } from '../../catalog/CatalogImage'
 import { formatBusinessDateTime } from '../../reservations/dateTime'
 import type { CatalogItem } from '../../types/catalog.types'
 import type { CustomerOrderDetail, Order, OrderStatus } from '../../types/order.types'
@@ -16,9 +16,7 @@ export function ShoppingBagIcon() {
 export function CustomerProductImage({ name, imageUrl, thumbnail = false }: {
   name: string; imageUrl: string | null; thumbnail?: boolean
 }) {
-  return <div className={thumbnail ? 'gm-my-product-thumbnail' : 'gm-my-product-image'}>
-    <CatalogImage key={imageUrl} item={{ type: 'PRODUCT', imageUrl }} authenticatedPreview alt={name} />
-  </div>
+  return <ItemMedia name={name} imageUrl={imageUrl} className={thumbnail ? 'gm-my-product-thumbnail' : 'gm-my-product-image'} authenticatedPreview />
 }
 
 export function CustomerOrderPanel({ title, icon, actions, children, className = '' }: {
@@ -34,15 +32,9 @@ export function CustomerOrderPanel({ title, icon, actions, children, className =
 export function CustomerProductCard({ product, count, disabled, onAdd }: {
   product: CatalogItem; count: number; disabled: boolean; onAdd: () => void
 }) {
-  return <Card as="article" padding="none" className="gm-my-product-card">
-    <CustomerProductImage name={product.name} imageUrl={product.imageUrl} />
-    <div className="gm-my-product-content"><h3>{product.name}</h3>
-      <p className="gm-my-product-description">{product.description || 'Opis proizvoda nije dostupan.'}</p>
-      <strong className="gm-my-product-price">{orderMoney.format(product.price)}</strong>
-      <Button type="button" disabled={disabled || count >= 999} aria-label={`Dodaj ${product.name} u korpu`} onClick={onAdd}>+ Dodaj</Button>
-      {count > 0 && <small>{count} u korpi{count >= 999 && ' · dostignut maksimum'}</small>}
-    </div>
-  </Card>
+  return <ProductCard product={product} actions={<Button type="button" disabled={disabled || count >= 999} aria-label={'Dodaj ' + product.name + ' u korpu'} onClick={onAdd}>+ Dodaj</Button>}
+    notice={count > 0 ? count + ' u korpi' + (count >= 999 ? ' · dostignut maksimum' : '') : undefined}/>
+
 }
 
 export function CustomerCartContents({ cart, canCreate, locked, onClear, onCheckout, onBrowse }: {

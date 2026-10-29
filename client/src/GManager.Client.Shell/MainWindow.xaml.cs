@@ -259,11 +259,11 @@ public partial class MainWindow : Window
         };
         PanelEyebrow.Text = mode switch
         {
-            ClientMode.Active => "SVE JE SPREMNO ZA IGRU",
-            ClientMode.Locked => "TVOJE MESTO TE ČEKA",
+            ClientMode.Active => "AKTIVNA SESIJA",
+            ClientMode.Locked => "ČEKA AKTIVACIJU",
             ClientMode.Offline => "PROVERA KONEKCIJE",
             ClientMode.Maintenance => "G-MANAGER PODRŠKA",
-            _ => "DOBRO DOŠAO U IGRU"
+            _ => "PRIJAVA NA STANICU"
         };
         Subtitle.Text = mode switch
         {
@@ -284,7 +284,7 @@ public partial class MainWindow : Window
         {
             ClientMode.Offline => "Povezivanje je u toku…",
             ClientMode.Maintenance => "Pripremamo stanicu za igru.",
-            _ => sessionExpired ? "Vreme je isteklo." : "Tvoja sesija počinje ovde."
+            _ => sessionExpired ? "Vreme je isteklo." : "Obrati se osoblju za početak."
         };
         StateDescription.Text = mode switch
         {
@@ -371,12 +371,14 @@ public partial class MainWindow : Window
         double width = LayoutRoot.ActualWidth, height = LayoutRoot.ActualHeight;
         bool compact = width < 1500 || height < 850;
         bool narrow = width < 1100;
-        BrandColumn.Width = new GridLength(narrow ? 1 : 3, GridUnitType.Star);
+        BrandColumn.Width = narrow ? new GridLength(0) : new GridLength(3, GridUnitType.Star);
+        Branding.Visibility = narrow ? Visibility.Collapsed : Visibility.Visible;
         PanelColumn.Width = new GridLength(narrow ? 1 : 2, GridUnitType.Star);
         BrandContent.Margin = compact ? new Thickness(40, 34, 24, 30) : new Thickness(72, 60, 48, 46);
         PanelHost.Margin = compact ? new Thickness(16, 24, 32, 24) : new Thickness(28, 42, 64, 42);
         SessionCard.Padding = new Thickness(compact ? 28 : 40);
-        Slogan.FontSize = narrow ? 44 : compact ? 64 : width >= 2300 ? 104 : 92;
+        Slogan.FontSize = compact ? 48 : width >= 2300 ? 84 : 72;
+        Tagline.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
         Slogan.LineHeight = Slogan.FontSize * 1.09;
         Tagline.FontSize = compact ? 16 : 19;
         Heading.FontSize = compact ? 32 : 38;

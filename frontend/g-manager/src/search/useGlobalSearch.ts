@@ -7,6 +7,7 @@ export function useGlobalSearch(open: boolean, query: string) {
   const [recents, setRecents] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [revision, setRevision] = useState(0)
 
   useEffect(() => {
     if (!open) return
@@ -29,7 +30,7 @@ export function useGlobalSearch(open: boolean, query: string) {
         .finally(() => setLoading(false))
     }, 250)
     return () => { window.clearTimeout(timer); controller.abort() }
-  }, [open, query])
+  }, [open, query, revision])
 
-  return { results, favorites, recents, loading, error }
+  return { results, favorites, recents, loading, error, reload: () => setRevision(value => value + 1) }
 }

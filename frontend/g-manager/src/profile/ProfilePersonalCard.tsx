@@ -3,7 +3,7 @@ import { userApi } from '../api/userApi'
 import { Badge, Button, Input, Card } from '../components/ui'
 import { roleLabels } from '../components/ui/statusPresentation'
 import { useToast } from '../components/ui/toastContext'
-import { focusFirstInvalid } from '../forms/useDirtyGuard'
+import { focusFirstInvalid, useDirtyGuard } from '../forms/useDirtyGuard'
 import type { UserResponse } from '../types/user.types'
 import { ProfileAvatarEditor } from './ProfileAvatarEditor'
 import { ProfileIcon } from './profilePresentation'
@@ -16,6 +16,7 @@ export function ProfilePersonalCard({ profile, canUpdate, onSaved, onDirty }: {
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [touched, setTouched] = useState(false)
   const previousName = useRef(profile.name), inFlight = useRef(false), mounted = useRef(true), id = useId(), toast = useToast()
   const dirty = name.trim() !== profile.name.trim(), invalid = nameError(name)
+  useDirtyGuard(busy, { pending: busy })
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   useEffect(() => {
     const previous = previousName.current

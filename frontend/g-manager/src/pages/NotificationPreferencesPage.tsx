@@ -31,14 +31,14 @@ function PreferencesWorkspace({ actorId }: { actorId: string }) {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [failures, setFailures] = useState<Partial<Record<NotificationType, string>>>({})
-  const inFlight = useRef(false), mounted = useRef(true), allowLink = useRef(false)
+  const inFlight = useRef(false), mounted = useRef(true)
   const toast = useToast(), navigate = useNavigate()
   const { confirm, confirmationDialog } = useConfirmDialog()
   const changes = changedPreferences(saved, draft)
   const dirty = changes.length > 0
   const changedTypes = new Set(changes.map(value => value.type))
 
-  useDirtyGuard(dirty || saving)
+  useDirtyGuard(dirty || saving, { pending: saving })
   useEffect(() => {
     mounted.current = true
     return () => { mounted.current = false }
@@ -58,39 +58,6 @@ function PreferencesWorkspace({ actorId }: { actorId: string }) {
     }).finally(() => { if (current()) setLoading(false) })
     return () => { active = false }
   }, [actorId, loadAttempt])
-
-  // Guard ordinary navigation links while this form has an unsaved draft.
-  // Replaying the link preserves its existing router state and menu handlers.
-  useEffect(() => {
-    if (!dirty && !saving) return
-    const guardLink = (event: MouseEvent) => {
-      if (allowLink.current || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
-      const anchor = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('a[href]') : null
-      if (!anchor || anchor.hasAttribute('download') || (anchor.target && anchor.target !== '_self')) return
-      const destination = new URL(anchor.href, window.location.href)
-      if (destination.origin !== window.location.origin || destination.pathname === window.location.pathname) return
-      event.preventDefault(); event.stopPropagation()
-      if (inFlight.current) {
-        toast('Sačekajte da se završi čuvanje podešavanja.', 'info')
-        return
-      }
-      confirm({
-        title: 'Napusti podešavanja obaveštenja?',
-        description: 'Imate nesačuvane izmene. Ako nastavite, te izmene će biti odbačene.',
-        confirmLabel: 'Napusti stranicu', cancelLabel: 'Ostani na stranici', variant: 'warning',
-        titleIcon: <NotificationIcon kind="bell" />,
-        onConfirm: () => {
-          allowLink.current = true
-          try {
-            if (anchor.isConnected) anchor.click()
-            else navigate(destination.pathname + destination.search + destination.hash)
-          } finally { allowLink.current = false }
-        },
-      })
-    }
-    document.addEventListener('click', guardLink, true)
-    return () => document.removeEventListener('click', guardLink, true)
-  }, [dirty, saving, confirm, navigate, toast])
 
   function update(type: NotificationType, channel: NotificationChannel, value: boolean) {
     if (inFlight.current) return
@@ -151,21 +118,10 @@ function PreferencesWorkspace({ actorId }: { actorId: string }) {
     })
   }
 
-  function back() {
-    if (inFlight.current) return
-    if (!dirty) { navigate(-1); return }
-    confirm({
-      title: 'Napusti podešavanja obaveštenja?', description: 'Imate nesačuvane izmene. Ako nastavite, te izmene će biti odbačene.',
-      confirmLabel: 'Napusti stranicu', cancelLabel: 'Ostani na stranici', variant: 'warning',
-      titleIcon: <NotificationIcon kind="bell" />, onConfirm: () => { navigate(-1) },
-    })
-  }
+  function back() { if (!inFlight.current) navigate(-1) }
 
   return <PageLayout className="gm-notification-preferences">
-    <NotificationPreferencesHeading actions={<Button type="button" className="gm-notification-save"
-      loading={saving} disabled={loading || !dirty} onClick={() => void save()}>
-      <NotificationIcon kind="save" />Sačuvaj promene
-    </Button>} />
+    <NotificationPreferencesHeading />
     <div className="gm-notification-draft-status" role="status" aria-live="polite" data-dirty={dirty}>
       <span>{saving ? 'Čuvanje podešavanja…' : dirty ? `Nesačuvane izmene: ${changes.length}.`
         : loading ? 'Učitavanje podešavanja…' : loadError ? 'Podešavanja nisu dostupna.' : 'Nema nesačuvanih izmena.'}</span>

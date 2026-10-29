@@ -1,3 +1,4 @@
+import { useDirtyGuard } from '../forms/useDirtyGuard'
 import { useObjectUrl } from '../components/useObjectUrl'
 import { useResettableState } from '../components/useResettableState'
 import { useEffect, useId, useRef, useState } from 'react'
@@ -19,6 +20,7 @@ export function ProfileAvatarEditor({ profile, canUpdate, onSaved, onDirty }: {
   const preview = useObjectUrl(file)
   const [previewReady, setPreviewReady] = useResettableState(() => false, preview), [busy, setBusy] = useState(false)
   const [error, setError] = useState(''), [avatarStatus, setAvatarStatus] = useState<AvatarStatus>('empty'), [reload, setReload] = useState(0)
+  useDirtyGuard(busy, { pending: busy })
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   useEffect(() => { onDirty(file !== null) }, [file, onDirty])
   function pick(trigger: HTMLButtonElement) {

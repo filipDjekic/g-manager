@@ -1,11 +1,12 @@
+import { MasterDetailLayout, useContentWidth } from '../components/ui/WorkspacePatterns'
 import { useResettableState } from '../components/useResettableState'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { userApi } from '../api/userApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
 import { SelectionBar } from '../components/lists/SelectionBar'
-import { Badge, Button, Drawer, EmptyState, ErrorState, Input, Select, Skeleton, PageHeader, PageLayout, Card } from '../components/ui'
+import { Badge, Button, EmptyState, ErrorState, Input, Select, Skeleton, PageHeader, PageLayout, Card } from '../components/ui'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useToast } from '../components/ui/toastContext'
 import { EmployeeLocationDialog } from '../employees/EmployeeLocationDialog'
@@ -47,23 +48,13 @@ function EmployeeWorkspace({ actor }: { actor: AuthUser }) {
   const [search, setSearch] = useResettableState(() => url.state.search, url.state.search), [selected, setSelected] = useResettableState<Set<string>>(() => new Set(), JSON.stringify(Object.entries(url.state).filter(([key]) => !['focus', 'reservationId', 'eventId', 'create'].includes(key))))
   const [createOpen, setCreateOpen] = useState(false), [assignEmployee, setAssignEmployee] = useState<UserResponse | null>(null)
   const [createdEmployee, setCreatedEmployee] = useState<UserResponse | null>(null), [busy, setBusy] = useState('')
-  const [bulkResult, setBulkResult] = useState<BulkOperationResponse | null>(null), [wide, setWide] = useState(false)
-  const inFlight = useRef(false), mounted = useRef(false), root = useRef<HTMLElement>(null)
+  const [bulkResult, setBulkResult] = useState<BulkOperationResponse | null>(null)
+  const inFlight = useRef(false), mounted = useRef(false), rootWidth = useContentWidth()
   const createOpener = useRef<HTMLElement | null>(null), searchInput = useRef<HTMLInputElement>(null)
   const profileOpener = useRef<HTMLElement | null>(null), profileRegion = useRef<HTMLElement>(null)
+  const { ref: root, wide } = rootWidth
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
-  useLayoutEffect(() => {
-    const element = root.current; if (!element) return
-    const measure = (width: number) => setWide(width >= (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16) * 60)
-    const style = getComputedStyle(element)
-    measure(element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight))
-    if (typeof ResizeObserver === 'undefined') {
-      const resize = () => { const css = getComputedStyle(element); measure(element.clientWidth - parseFloat(css.paddingLeft) - parseFloat(css.paddingRight)) }
-      window.addEventListener('resize', resize); return () => window.removeEventListener('resize', resize)
-    }
-    const observer = new ResizeObserver(entries => { if (entries[0]) measure(entries[0].contentRect.width) })
-    observer.observe(element); return () => observer.disconnect()
-  }, [])
+
 useEffect(() => {
     if (search === url.state.search) return
     const timer = window.setTimeout(() => { setSelected(new Set()); setUrl({ search: search.trim(), page: '0' }, true) }, 300)
@@ -179,7 +170,7 @@ useEffect(() => {
     {confirmationDialog}
     <PageHeader title="Zaposleni" description={<>Pregled zaposlenih, njihovih naloga i dostupnosti.</>} icon={<EmployeeIcon />} actions={<>{canCreate && <Button type="button" className="gm-employee-primary" aria-haspopup="dialog" aria-expanded={createOpen}
         onClick={event => { createOpener.current = event.currentTarget; setCreateOpen(true) }}><EmployeeIcon kind="add" />+ Novi zaposleni</Button>}</>} />
-    <div className="ui-stat-grid gm-employee-kpis">
+    <details className="ui-secondary-section"><summary>Statistika naloga</summary>    <div className="ui-stat-grid gm-employee-kpis">
       <EmployeeKpi title="Ukupno zaposlenih" kind="users" tone="blue" value={statistics.isError ? undefined : statistics.data?.total} loading={statistics.isLoading} description="Nalozi koji nisu obrisani" />
       <EmployeeKpi title="Aktivni nalozi" kind="check" tone="green" value={statistics.isError ? undefined : statistics.data?.active} loading={statistics.isLoading} description="Omogućen pristup aplikaciji" />
       <EmployeeKpi title="Novi ovog meseca" kind="calendar" tone="purple" value={statistics.isError ? undefined : statistics.data?.newThisMonth} loading={statistics.isLoading} description="Kreirani u poslovnom mesecu" />
@@ -189,10 +180,11 @@ useEffect(() => {
     </div>
     {statistics.isError && <ErrorState message={employeeError(statistics.error, 'Statistiku zaposlenih nije moguće učitati.')}
       action={<Button type="button" variant="secondary" onClick={() => void statistics.refetch()}>Ponovo učitaj statistiku</Button>} />}
-    {createdEmployee && <div className="gm-employee-created-banner" role="status"><div><strong>Zaposleni je uspešno kreiran.</strong><p>{createdEmployee.name}{canChooseLocation && ' · Želite li da mu dodelite pristup lokaciji?'}</p></div>
-      {canChooseLocation && <Button type="button" variant="secondary" onClick={() => setAssignEmployee(createdEmployee)}><EmployeeIcon kind="location" />Dodeli lokaciju</Button>}
+</details>
+    {createdEmployee && <div className="gm-employee-created-banner" role="status"><div><strong>Zaposleni je uspešno kreiran.</strong><p>{createdEmployee.name}{canChooseLocation && ' · Dodelite postojeće resurse preko lokacije, zatim proverite konkretne dodele. Novi resursi se ne dodeljuju automatski.'}</p></div>
+      {canChooseLocation && <Button type="button" variant="secondary" onClick={() => setAssignEmployee(createdEmployee)}><EmployeeIcon kind="location" />Dodeli pristup resursima</Button>}
       <Button type="button" variant="secondary" onClick={() => setCreatedEmployee(null)}>{canChooseLocation ? 'Kasnije' : 'Zatvori'}</Button></div>}
-    <div className={`gm-employees-layout${wide && url.state.focus ? ' has-profile' : ''}`}>
+    <MasterDetailLayout inline={wide} open={!!url.state.focus} title="Profil zaposlenog" detail={profileBody} onClose={closeProfile} panelRef={profileRegion} returnFocusRef={profileOpener} panelClassName="ui-card gm-employee-profile-panel" drawerClassName="gm-employee-profile-drawer" closeDisabled={Boolean(busy)}>
       <Card className="ui-card gm-employees-list" aria-labelledby="gm-employees-list-title"><header className="gm-employees-list-heading"><h2 id="gm-employees-list-title">Pregled zaposlenih</h2>
         <Badge tone="info">Zaposleni</Badge><Button type="button" variant="secondary" disabled={Boolean(busy)} onClick={() => { void employees.refetch(); void statistics.refetch() }}><EmployeeIcon kind="refresh" />Osveži</Button></header>
         <div className="ui-filter-bar gm-employee-filters"><label className="gm-employee-search"><span>Pretraga</span><div><EmployeeIcon kind="search" /><Input ref={searchInput} type="search" value={search} maxLength={200}
@@ -225,13 +217,7 @@ useEffect(() => {
         {employees.isSuccess && <EmployeePagination page={page} size={size} totalPages={employees.data.totalPages} totalElements={employees.data.totalElements}
           busy={employees.isFetching || Boolean(busy)} onPage={next => { setUrl({ page: String(next) }) }} onSize={next => setUrl({ size: String(next), page: '0' })} />}
       </Card>
-      {wide && url.state.focus && <aside ref={profileRegion} tabIndex={-1} className="ui-card gm-employee-profile-panel" aria-label="Profil izabranog zaposlenog">
-        {(!profile.data || profile.isError) && <header className="gm-employee-profile-heading"><span>Profil zaposlenog</span>
-          <Button iconOnly type="button" variant="secondary" className="gm-employee-inline-close" onClick={closeProfile} aria-label="Zatvori profil zaposlenog">×</Button></header>}{profileBody}
-      </aside>}
-    </div>
-    <Drawer open={!wide && Boolean(url.state.focus)} title="Profil zaposlenog" size="wide" className="gm-employee-profile-drawer"
-      returnFocusRef={profileOpener} closeDisabled={Boolean(busy)} onClose={closeProfile}>{profileBody}</Drawer>
+    </MasterDetailLayout>
     {createOpen && canCreate && <NewEmployeeDialog actorId={actor.id} returnFocusRef={createOpener} onClose={() => setCreateOpen(false)} onCreated={employee => {
       setCreateOpen(false); setCreatedEmployee(employee); setUrl({ page: '0', focus: employee.id })
       toast('Zaposleni je uspešno kreiran.', 'success'); void refresh()

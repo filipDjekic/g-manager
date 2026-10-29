@@ -8,7 +8,7 @@ import type { SessionResource } from './useSessionDashboard'
 export function SessionHeading({ fetching = false, disabled = false, onRefresh }: {
   fetching?: boolean; disabled?: boolean; onRefresh?: () => void
 }) {
-  return <PageHeader title="Aktivne sesije" description={<>Pregledajte svoje uređaje, bezbednosnu istoriju i aktivne prijave.</>} icon={<SessionIcon kind="shield" />} actions={<>{onRefresh && <Button type="button" variant="secondary" className="gm-session-refresh" loading={fetching}
+  return <PageHeader title="Prijavljeni uređaji" description={<>Pregledajte svoje uređaje, bezbednosnu istoriju i aktivne prijave.</>} icon={<SessionIcon kind="shield" />} actions={<>{onRefresh && <Button type="button" variant="secondary" className="gm-session-refresh" loading={fetching}
       disabled={disabled} onClick={onRefresh}><SessionIcon kind="refresh" />Osveži</Button>}</>} />
 }
 
@@ -17,10 +17,8 @@ export function SessionKpis({ sessions, events }: {
 }) {
   const login = latestLogin(events.data ?? [])
   const metrics = [
-    { title: 'Aktivne sesije', icon: 'monitor' as const, tone: 'blue', source: sessions,
+    { title: 'Prijavljeni uređaji', icon: 'monitor' as const, tone: 'blue', source: sessions,
       value: sessions.data?.length ?? '—', description: 'Sesije u trenutno učitanoj listi.' },
-    { title: 'Prijavljene sesije', icon: 'phone' as const, tone: 'pink', source: sessions,
-      value: sessions.data?.length ?? '—', description: 'Broj prijava, a ne fizičkih uređaja.' },
     { title: 'Poslednja prijava', icon: 'clock' as const, tone: 'purple', source: events,
       value: events.data === null ? '—' : login ? <SessionTime value={login.occurredAt} /> : 'Nema dostupnog podatka',
       description: 'Najnovija uspešna prijava u dostupnoj istoriji.' },
@@ -66,7 +64,7 @@ export function ActiveDevices({ resource, busy, pendingId, headingRef, onRetry, 
           <thead role="rowgroup"><tr role="row">
             {['Uređaj', 'Pregledač / sistem', 'Prijavljen', 'Poslednja aktivnost', 'Ističe', 'Status', 'Akcije'].map(label => <th scope="col" role="columnheader" key={label}>{label}</th>)}
           </tr></thead>
-          <tbody role="rowgroup">{resource.data.map(session => <tr key={session.id} role="row" className={session.current ? 'is-current' : ''}>
+          <tbody role="rowgroup">{[...resource.data].sort((a,b)=>Number(b.current)-Number(a.current)).map(session => <tr key={session.id} role="row" className={session.current ? 'is-current' : ''}>
             <th scope="row" role="rowheader" className="gm-session-device-cell"><div className="gm-session-device-identity">
               <span className="gm-session-device-icon"><SessionIcon kind={deviceIcon(session)} /></span>
               <strong>{session.deviceLabel || 'Nepoznat uređaj'}</strong>

@@ -31,7 +31,7 @@ export function CatalogFormDialog({ item, initialType, imageOnly = false, maxIma
   const id = useId(), formId = `${id}-form`
   const dirty = Boolean(image) || !persisted && JSON.stringify(form) !== JSON.stringify(initial)
   const frozen = busy || Boolean(persisted)
-  useDirtyGuard(dirty || busy)
+  useDirtyGuard(dirty || busy, { pending: busy })
   const close = () => {
     if (inFlight.current) return
     if (!dirty) { onClose(); return }

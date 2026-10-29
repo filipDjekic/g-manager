@@ -10,9 +10,11 @@ import { hasCapability } from '../auth/capabilities'
 import { Badge, Button, EmptyState, ErrorState, Input, Select, Skeleton, PageLayout, Card, Alert } from '../components/ui'
 import { Tabs } from '../components/ui/Tabs'
 import { useToast } from '../components/ui/toastContext'
+import { GamingOperationsWorkspace } from '../gaming/GamingOperationsWorkspace'
 import { GamingOverview } from '../gaming/GamingOverview'
 import { ActionDialog } from '../components/ui/ActionDialog'
-import { useConfirmDialog } from '../components/ui/useConfirmDialog'
+import { useOrderActionConfirmation } from '../order/useOrderActionConfirmation'
+import { useDirtyGuard } from '../forms/useDirtyGuard'
 import { currentBusinessMonth } from '../dashboard/dateRange'
 import { DashboardHeader, DashboardMetricCard, DashboardQuickActions, DashboardSection } from '../dashboard/DashboardComponents'
 import { DashboardStatusChart, DashboardTrendChart, DashboardWorkloadChart } from '../dashboard/DashboardAnalytics'
@@ -42,6 +44,11 @@ function Change({ value }: { value: number | null }) {
 }
 
 export function DashboardPage() {
+  const user = useAuthStore(state => state.user)
+  return user?.role === 'EMPLOYEE' && hasCapability(user, 'GAMING_SESSION_READ')
+    ? <GamingOperationsWorkspace workday /> : <ManagementDashboardPage />
+}
+function ManagementDashboardPage() {
   const user = useAuthStore((state) => state.user)
   const management = hasCapability(user, 'DASHBOARD_SUMMARY')
   const operational = hasCapability(user, 'DASHBOARD_OPERATIONAL')
@@ -49,8 +56,9 @@ export function DashboardPage() {
   const [view, setView] = useState('operations')
   const [actionBusy, setActionBusy] = useState(false)
   const actionInFlight = useRef(false)
-  const { confirm, confirmationDialog } = useConfirmDialog()
+  const orderConfirmation = useOrderActionConfirmation()
   const [savingPreferences, setSavingPreferences] = useState(false)
+  useDirtyGuard(actionBusy || savingPreferences, { pending: actionBusy || savingPreferences })
   const toast = useToast()
   const operationalDate = todayInBusinessZone()
   const dailyReservations = useQuery({ queryKey: ['dashboard', 'reservation-count', operationalDate],
@@ -77,10 +85,12 @@ export function DashboardPage() {
     setLoading(true); setError('')
     let active = true
     const request = management
-      ? Promise.all([dashboardApi.attention(), dashboardApi.trends(initial.from, initial.to), dashboardApi.workload(initial.from, initial.to), dashboardApi.preferences()])
-        .then(([nextAttention, nextTrends, nextWorkload, stored]) => { if (!active) return; setAttention(nextAttention); setTrends(nextTrends); setWorkload(nextWorkload); setEmployeeOptions(nextWorkload.employees); setPreferences(normalizePreferences(stored)) })
-      : dashboardApi.today().then((data) => { if (active) setToday(data) })
-    void request.catch((cause) => { if (active) setError(apiErrorMessage(cause, 'Dashboard nije moguće učitati.')) }).finally(() => { if (active) setLoading(false) })
+      ? dashboardApi.attention().then(data => { if (active) setAttention(data) })
+      : dashboardApi.today().then(data => { if (active) setToday(data) })
+    void request.catch(cause => { if (active) setError(apiErrorMessage(cause, 'Pregled nije dostupan.')) }).finally(() => { if (active) setLoading(false) })
+    if (management) {
+      void dashboardApi.trends(initial.from, initial.to).then(data => { if (active) setTrends(data) }).catch(cause => { if (active) setError(apiErrorMessage(cause, 'Analitika nije dostupna. Operativni pregled ostaje dostupan.')) })
+    }
     return () => { active = false }
   }, [initial.from, initial.to, management, operational])
 
@@ -96,15 +106,21 @@ export function DashboardPage() {
     return () => { active = false; window.clearInterval(timer) }
   }, [management, operational])
 
+  useEffect(() => {
+    if (!management || view !== 'analytics') return
+    let active = true
+    void dashboardApi.workload(initial.from, initial.to).then(data => { if (active) { setWorkload(data); setEmployeeOptions(data.employees) } }).catch(cause => { if (active) setError(apiErrorMessage(cause,'Opterećenje nije dostupno. Ostali pregledi ostaju dostupni.')) })
+    void dashboardApi.preferences().then(data => { if (active) setPreferences(normalizePreferences(data)) }).catch(() => {})
+    return () => { active = false }
+  }, [management, view, initial.from, initial.to])
+
   async function retryInitial() {
     setLoading(true); setError('')
     try {
       if (management) {
-        const [a, t, w, stored] = await Promise.all([dashboardApi.attention(), dashboardApi.trends(from, to),
-          dashboardApi.workload(from, to, employeeId || undefined), trends ? Promise.resolve(null) : dashboardApi.preferences()])
-        setAttention(a); setTrends(t); setWorkload(w)
-        if (!employeeId) setEmployeeOptions(w.employees)
-        if (stored) setPreferences(normalizePreferences(stored))
+        setAttention(await dashboardApi.attention())
+        void dashboardApi.trends(from, to).then(setTrends).catch(cause => setError(apiErrorMessage(cause,'Analitika nije osvežena.')))
+        if (view === 'analytics') void dashboardApi.workload(from, to, employeeId || undefined).then(data => { setWorkload(data); if (!employeeId) setEmployeeOptions(data.employees) }).catch(cause => setError(apiErrorMessage(cause,'Opterećenje nije osveženo.')))
         if (hasCapability(user, 'RESERVATION_READ_ALL')) void dailyReservations.refetch()
       } else if (operational) setToday(await dashboardApi.today())
     } catch (cause) { setError(apiErrorMessage(cause, 'Dashboard nije moguće učitati.')) }
@@ -116,11 +132,13 @@ export function DashboardPage() {
     if (from > to) { setError('Početni datum ne sme biti posle završnog.'); return }
     setLoading(true); setError('')
     try {
-      const [nextTrends, nextWorkload] = await Promise.all([
+      const [trendResult, workloadResult] = await Promise.allSettled([
         dashboardApi.trends(from, to), dashboardApi.workload(from, to, employeeId || undefined),
       ])
-      setTrends(nextTrends); setWorkload(nextWorkload)
-      if (!employeeId) setEmployeeOptions(nextWorkload.employees)
+      if (trendResult.status === 'fulfilled') setTrends(trendResult.value)
+      else setError(apiErrorMessage(trendResult.reason,'Poslovni rezultati nisu osveženi.'))
+      if (workloadResult.status === 'fulfilled') { setWorkload(workloadResult.value); if (!employeeId) setEmployeeOptions(workloadResult.value.employees) }
+      else setError(apiErrorMessage(workloadResult.reason,'Opterećenje nije osveženo.'))
     } catch (cause) { setError(apiErrorMessage(cause, 'Dashboard nije moguće učitati.')) }
     finally { setLoading(false) }
   }
@@ -176,20 +194,17 @@ export function DashboardPage() {
     finally { actionInFlight.current = false; setActionBusy(false) }
   }
 
-  function orderAction(id: string, version: number, status: OrderStatus) {
-    if (status === 'CANCELLED') confirm({ title: 'Otkaži narudžbinu',
-      description: 'Narudžbina će dobiti status Otkazano.', variant: 'danger', confirmLabel: 'Otkaži narudžbinu',
-      onConfirm: () => changeOrder(id, version, status) })
-    else void changeOrder(id, version, status).catch(() => {})
+  function orderAction(order: DashboardToday['assignedOrders'][number], status: OrderStatus) {
+    orderConfirmation.request(order, status, () => changeOrder(order.id, order.version, status))
   }
 
-  const headerTitle = management ? 'Dashboard' : 'Moj radni dan'
-  const headerEyebrow = management ? adminPriority ? 'Operations Dashboard' : 'Business & Gaming Control Center' : 'Dnevna operativa'
+  const headerTitle = management ? 'Pregled' : 'Moj radni dan'
+  const headerEyebrow = management ? adminPriority ? 'Današnja operativa' : 'Stanje igraonice' : 'Dnevna operativa'
   const headerDescription = management
     ? adminPriority ? 'Stanje igraonice, rezervacije i narudžbine koje zahtevaju vašu pažnju.'
       : 'Poslovni rezultati i gaming operativa na jednom mestu.'
     : 'Termini, narudžbine i zadaci koji su danas pred vama.'
-  const hasDashboardData = management ? Boolean(trends) : Boolean(today)
+  const hasDashboardData = management ? Boolean(attention) : Boolean(today)
 
   if (!management && !operational) return <PageLayout className="g-dashboard">
     <ErrorState title="Dashboard nije dostupan" message="Nemate dozvolu za ovaj pregled." />
@@ -216,8 +231,8 @@ export function DashboardPage() {
     onAppointmentAction={(item, action) => action === 'CANCELLED' || action === 'REJECTED'
       ? setReservationAction({ id: item.id, version: item.version, status: action })
       : void changeAppointment(item.id, item.version, action).catch(() => {})}
-    onOrderAction={(order, action) => orderAction(order.id, order.version, action)}>
-    {confirmationDialog}
+    onOrderAction={(order, action) => orderAction(order, action)}>
+    {orderConfirmation.confirmationDialog}
     <ActionDialog open={Boolean(reservationAction)}
       title={`${reservationAction ? dashboardActionLabels[reservationAction.status] : ''} termin`}
       description="Promena će odmah biti sačuvana i evidentirana."
@@ -265,7 +280,7 @@ export function DashboardPage() {
   </DashboardMetricCard>
 
   return <PageLayout className={`g-dashboard ${adminPriority ? 'dashboard-admin' : 'dashboard-owner'}`} aria-busy={loading || undefined}>
-    <DashboardHeader title="Dashboard" eyebrow={headerEyebrow} description={headerDescription}
+    <DashboardHeader title="Pregled" eyebrow={headerEyebrow} description={headerDescription}
       date={attention?.date ?? operationalDate} timezone={attention?.timezone ?? trends?.timezone}
       loading={loading} onRefresh={() => void retryInitial()} />
     {error && <Alert tone="danger" role="alert">{error}</Alert>}
@@ -285,12 +300,7 @@ export function DashboardPage() {
           value={attention?.items.find((item) => item.key === 'orders-in-progress')?.count ?? '—'} detail="Sve trenutno aktivne narudžbine">
           <Link to="/orders?status=IN_PROGRESS">Pregled narudžbina →</Link>
         </DashboardMetricCard>}
-      </div> : <>
-        <p className="dashboard-period-label">Izabrani period: {trends && `${formatDashboardDate(trends.from)} – ${formatDashboardDate(trends.to)}`}</p>
-        <div className="ui-stat-grid dashboard-kpis dashboard-kpis--owner" aria-label="Poslovanje i današnja operativa">
-          {businessMetrics}{dailyCard}{unclaimedCard}
-        </div>
-      </>}
+      </div> : <div className="ui-stat-grid dashboard-kpis dashboard-kpis--compact" aria-label="Današnja operativa">{dailyCard}{unclaimedCard}</div>}
       {hasCapability(user, 'GAMING_SESSION_READ') && <div className="dashboard-gaming"><GamingOverview /></div>}
       <DashboardSection title={adminPriority ? 'Zahteva pažnju · današnja operativa' : 'Zahteva pažnju'} icon="/notification-preferences"
         description={attention && `Pregled za ${formatDashboardDate(attention.date)} · ${attention.timezone}. Narudžbine obuhvataju sve aktivne stavke.`}>
@@ -304,11 +314,11 @@ export function DashboardPage() {
           </article>)}</div>}
       </DashboardSection>
       <DashboardQuickActions />
-      {adminPriority && <section className="dashboard-business-preview" aria-labelledby="dashboard-business-title">
-        <div className="section-heading"><h2 id="dashboard-business-title">Poslovni pregled</h2>
+      <section className="dashboard-business-preview" aria-labelledby="dashboard-business-title">
+        <div className="section-heading"><h2 id="dashboard-business-title">Rezultati za period</h2>
           <span className="dashboard-period-label">{trends && `${formatDashboardDate(trends.from)} – ${formatDashboardDate(trends.to)}`}</span></div>
         <div className="ui-stat-grid dashboard-kpis dashboard-kpis--business">{businessMetrics}</div>
-      </section>}
+      </section>
     </div>
 
     <div className="dashboard-tab-panel" role="tabpanel" id="dashboard-panel-analytics"

@@ -95,7 +95,7 @@ export const StationTile = memo(function StationTile({ station, seconds, selecte
         title={connectivity.label} aria-label={`Gaming Client: ${connectivity.label}`}><span aria-hidden="true">●</span>{connectionLabel}</span>
     </div>
     {station.sessionId && <div className="ops-station-session">
-      <strong className="ops-station-customer">{station.customerDisplayName ?? 'Klijent'}</strong>
+      <strong className="ops-station-customer">{station.customerDisplayName ?? (station.sessionId ? 'Klijent' : 'Bez sesije')}</strong>
       <strong className="ops-timer" aria-label={`Preostalo vreme ${remaining(seconds)}`}>{stationTimer(seconds)}</strong>
     </div>}
     <StationWarnings station={station} compact />
@@ -118,8 +118,8 @@ export function StationDetailsPanel({ station, now, disabled, handlers, unavaila
       {station.sessionId ? <div className="ops-detail-countdown"><span className="ops-timer-label">Preostalo vreme</span>
         <strong className={`ops-timer${seconds <= 600 ? ' ops-timer--warning' : ''}`} aria-label={`Preostalo vreme ${remaining(seconds)}`}>{stationTimer(seconds)}</strong></div> :
         <p className={`ops-station-message${station.status === 'LOCK_PENDING' || station.status === 'EXPIRED' ? ' ops-text-warning' : station.status === 'OFFLINE' ? ' ops-text-danger' : ''}`}>{stationMessage(station)}</p>}
-      <dl className="ops-detail-list">
-        {station.sessionId && <><div><dt>Klijent</dt><dd>{station.customerDisplayName ?? 'Klijent'}</dd></div>
+      <details className="ui-advanced-filters"><summary>Tehnički podaci i istorija komande</summary><dl className="ops-detail-list">
+        {station.sessionId && <><div><dt>Klijent</dt><dd>{station.customerDisplayName ?? (station.sessionId ? 'Klijent' : 'Bez sesije')}</dd></div>
           <div><dt>Početak</dt><dd>{station.startedAt ? <time dateTime={station.startedAt}>{formatBusinessDateTime(station.startedAt)}</time> : '—'}</dd></div>
           <div><dt>Planirani kraj</dt><dd>{station.endsAt ? <time dateTime={station.endsAt}>{formatBusinessDateTime(station.endsAt)}</time> : '—'}</dd></div></>}
         <div><dt>Lokacija</dt><dd>{station.locationName ?? '—'}{station.areaName && ` / ${station.areaName}`}</dd></div>
@@ -131,7 +131,7 @@ export function StationDetailsPanel({ station, now, disabled, handlers, unavaila
         <div><dt>Poslednji lock ACK</dt><dd>{station.lastLockAckAt ? formatBusinessDateTime(station.lastLockAckAt) : 'Nema potvrde'}</dd></div>
         <div><dt>Poslednja komanda</dt><dd>{station.commandType ?? 'Nema komandi'}{station.commandSequence ? ` #${station.commandSequence}` : ''}
           {station.commandSequence ? station.commandAcknowledgedAt ? ' · Potvrđena' : ' · Čeka potvrdu' : ''}</dd></div>
-      </dl>
+      </dl></details>
       <StationWarnings station={station} />
       <div className="ops-detail-actions"><StationActions station={station} disabled={disabled} handlers={handlers} /></div>
     </>}
@@ -142,8 +142,8 @@ export function GamingSessionsTable({ stations, selectedId, now, disabled, onSel
   stations: GamingStationCard[]; selectedId: string; now: number; disabled: boolean
   onSelect: (station: GamingStationCard) => void; handlers: StationActionHandlers
 }) {
-  return <TableShell label="Aktivne sesije na dostupnim stanicama"><table className="ui-data-table ops-session-table">
-    <caption className="ops-sr-only">Trenutne sesije iz Gaming Operations Board-a</caption>
+  return <TableShell label="Računari i sesije"><table className="ui-data-table ops-session-table">
+    <caption className="ops-sr-only">Trenutno operativno stanje računara</caption>
     <thead><tr><th scope="col">Računar</th><th scope="col">Klijent</th><th scope="col">Lokacija</th><th scope="col">Početak</th>
       <th scope="col">Planirani kraj</th><th scope="col">Preostalo</th><th scope="col">Status</th><th scope="col">Akcije</th></tr></thead>
     <tbody>{stations.map((station) => {
@@ -151,10 +151,10 @@ export function GamingSessionsTable({ stations, selectedId, now, disabled, onSel
       return <tr key={station.resourceId} className={selectedId === station.resourceId ? 'ops-session-row--selected' : undefined}>
         <th scope="row"><Button variant="ghost" type="button" className="ops-table-select" aria-pressed={selectedId === station.resourceId}
           aria-label={`Pregled stanice ${station.resourceName}`} onClick={() => onSelect(station)}><GamingOperationsIcon /><span>{station.resourceName}<small>{station.resourceCode}</small></span></Button></th>
-        <td>{station.customerDisplayName ?? 'Klijent'}</td><td>{station.locationName ?? '—'}</td>
+        <td>{station.customerDisplayName ?? (station.sessionId ? 'Klijent' : 'Bez sesije')}</td><td>{station.locationName ?? '—'}</td>
         <td>{station.startedAt ? <time dateTime={station.startedAt}>{formatBusinessDateTime(station.startedAt)}</time> : '—'}</td>
         <td>{station.endsAt ? <time dateTime={station.endsAt}>{formatBusinessDateTime(station.endsAt)}</time> : '—'}</td>
-        <td><strong className={`ops-table-timer${seconds <= 600 ? ' ops-timer--warning' : ''}`}>{stationTimer(seconds)}</strong></td>
+        <td><strong className={`ops-table-timer${seconds <= 600 ? ' ops-timer--warning' : ''}`}>{station.sessionId ? stationTimer(seconds) : '—'}</strong></td>
         <td><Badge tone={stationTones[station.status]}>{stationLabels[station.status]}</Badge>
           {!!station.commandSequence && !station.commandAcknowledgedAt && <small>Komanda čeka potvrdu</small>}
           {station.staleHeartbeat && <small className="ops-text-danger">Heartbeat zastareo</small>}</td>

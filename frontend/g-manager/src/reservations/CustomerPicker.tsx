@@ -1,11 +1,12 @@
+import { CustomerSearch } from '../customers/CustomerSearch'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { customerApi } from '../api/customerApi'
 import { Badge, Button, EmptyState, ErrorState, Modal, Pagination, Skeleton, TableShell, Input, Alert } from '../components/ui'
 import './reservations.css'
 
-export function CustomerPicker({ value, onChange, required = false, disabled = false }: {
-  value: string; onChange: (id: string, name?: string) => void; required?: boolean; disabled?: boolean
+export function CustomerPicker({ value, onChange, required = false, disabled = false, inline = false }: {
+  value: string; onChange: (id: string, name?: string) => void; required?: boolean; disabled?: boolean; inline?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState(''), [debounced, setDebounced] = useState(''), [page, setPage] = useState(0)
@@ -25,6 +26,8 @@ export function CustomerPicker({ value, onChange, required = false, disabled = f
   const choose = (id: string, label?: string) => {
     setChosen(id ? {id, name: label ?? 'Izabrani klijent'} : null); onChange(id, label); setOpen(false)
   }
+  if (inline) return <CustomerSearch selected={value ? { id: value, name: name ?? 'Izabrani klijent' } : null}
+    onSelect={customer => choose(customer.id, customer.name)} disabled={disabled} activeOnly={required} />
   return <div className="reservation-customer-picker reservation-customer-picker--dialog">
     <span>Klijent{required ? ' *' : ''}</span>
     <Button ref={trigger} type="button" variant="secondary" disabled={disabled} aria-haspopup="dialog"

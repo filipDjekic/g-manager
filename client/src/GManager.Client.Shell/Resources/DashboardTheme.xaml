@@ -52,6 +52,7 @@
                 </Border>
                 <ControlTemplate.Triggers>
                     <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="NavSurface" Property="Background" Value="#701A1F29"/></Trigger>
+                    <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="NavSurface" Property="BorderBrush" Value="{StaticResource Primary}"/></Trigger>
                     <Trigger Property="IsChecked" Value="True">
                         <Setter TargetName="NavSurface" Property="Background" Value="{StaticResource NavigationHighlight}"/>
                         <Setter TargetName="NavSurface" Property="BorderBrush" Value="#6055C8FF"/>
