@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { userApi } from '../api/userApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Button, ErrorState, Skeleton } from '../components/ui'
+import { Button, ErrorState, Skeleton, PageHeader, PageLayout, Card } from '../components/ui'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useDirtyGuard } from '../forms/useDirtyGuard'
 import type { AuthUser } from '../types/auth.types'
@@ -16,14 +16,13 @@ import { profileError } from '../profile/profilePresentation.model'
 import '../profile/profile.css'
 
 function ProfileHeading() {
-  return <header className="gm-profile-header"><span className="gm-profile-header-icon"><ProfileIcon kind="user" /></span>
-    <div><h1>Moj profil</h1><p>Lični podaci, avatar i bezbednost naloga.</p></div></header>
+  return <PageHeader title="Moj profil" description={<>Lični podaci, avatar i bezbednost naloga.</>} icon={<ProfileIcon kind="user" />} />
 }
 
 export function ProfilePage() {
   const actor = useAuthStore(state => state.user)
-  if (!actor || !hasCapability(actor, 'PROFILE_READ')) return <main className="workspace workspace--reading gm-profile"><ProfileHeading />
-    <ErrorState title="Pristup nije dozvoljen" message="Nemate dozvolu za pregled profila." /></main>
+  if (!actor || !hasCapability(actor, 'PROFILE_READ')) return <PageLayout className="gm-profile"><ProfileHeading />
+    <ErrorState title="Pristup nije dozvoljen" message="Nemate dozvolu za pregled profila." /></PageLayout>
   return <ProfileWorkspace key={actor.id} actor={actor} />
 }
 
@@ -59,13 +58,13 @@ function ProfileWorkspace({ actor }: { actor: AuthUser }) {
       confirmLabel: 'Upravljaj sesijama', cancelLabel: 'Ostani na profilu', variant: 'warning',
       className: 'gm-profile-leave-dialog', titleIcon: <ProfileIcon kind="shield" />, onConfirm: () => { navigate('/sessions') } })
   }
-  return <main className="workspace workspace--reading gm-profile"><ProfileHeading />{confirmationDialog}
+  return <PageLayout className="gm-profile"><ProfileHeading />{confirmationDialog}
     {!profile ? fetching ? <div className="gm-profile-layout gm-profile-loading" aria-busy="true">
-      <section className="gm-profile-card gm-profile-personal"><Skeleton lines={2} label="Učitavanje ličnih podataka" /><div className="gm-profile-avatar-placeholder" aria-hidden="true" /><Skeleton lines={6} label="Učitavanje podataka profila" /></section>
-      <div className="gm-profile-right"><section className="gm-profile-card gm-profile-password"><Skeleton lines={7} label="Učitavanje bezbednosnih opcija" /></section>
-        <section className="gm-profile-card"><Skeleton lines={4} label="Učitavanje informacija o nalogu" /></section></div>
+      <Card className="gm-profile-card gm-profile-personal"><Skeleton lines={2} label="Učitavanje ličnih podataka" /><div className="gm-profile-avatar-placeholder" aria-hidden="true" /><Skeleton lines={6} label="Učitavanje podataka profila" /></Card>
+      <div className="gm-profile-right"><Card className="gm-profile-card gm-profile-password"><Skeleton lines={7} label="Učitavanje bezbednosnih opcija" /></Card>
+        <Card className="gm-profile-card"><Skeleton lines={4} label="Učitavanje informacija o nalogu" /></Card></div>
     </div> : <ErrorState title="Profil nije dostupan" message={error || 'Podatke naloga trenutno nije moguće prikazati.'}
-      action={<Button type="button" onClick={reload}>Pokušaj ponovo</Button>} />
+      action={<Button variant="secondary" type="button" onClick={reload}>Pokušaj ponovo</Button>} />
       : <>
         {error && <ErrorState title="Podaci o nalogu nisu osveženi" message={error}
           action={<Button type="button" variant="secondary" loading={fetching} onClick={reload}>Pokušaj ponovo</Button>} />}
@@ -75,5 +74,5 @@ function ProfileWorkspace({ actor }: { actor: AuthUser }) {
           </div>
         </div>
       </>}
-  </main>
+  </PageLayout>
 }

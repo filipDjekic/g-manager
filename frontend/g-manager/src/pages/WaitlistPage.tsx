@@ -5,7 +5,7 @@ import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
 import { waitlistApi } from '../api/waitlistApi'
 import { resourceApi } from '../api/resourceApi'
-import { Button, Drawer, Pagination, EmptyState, ErrorState, Input, Select, Skeleton, TableShell } from '../components/ui'
+import { Button, Drawer, Pagination, EmptyState, ErrorState, Input, Select, Skeleton, TableShell, PageHeader, PageLayout, StatCard, Card } from '../components/ui'
 import { useToast } from '../components/ui/toastContext'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useListUrlState } from '../lists/useListUrlState'
@@ -114,15 +114,13 @@ useEffect(() => {
     { key: 'accepted', title: 'Prihvaćeno', icon: 'check', tone: 'green', hint: 'U tekućem mesecu' },
     { key: 'cancelled', title: 'Otkazano', icon: 'cancel', tone: 'pink', hint: 'U tekućem mesecu' },
   ] as const
-  return <main ref={root} className="workspace gm-waitlist">
-    <header className="gm-waitlist-heading"><div><span className="gm-waitlist-heading-icon"><WaitlistIcon /></span><div><h1 ref={heading} tabIndex={-1}>Lista čekanja</h1>
-      <p>Pregled i upravljanje prijavama, slobodnim terminima i ponudama.</p></div></div><div className="gm-waitlist-heading-actions">
+  return <PageLayout ref={root} className="gm-waitlist">
+    <PageHeader title="Lista čekanja" description={<>Pregled i upravljanje prijavama, slobodnim terminima i ponudama.</>} icon={<WaitlistIcon />} titleRef={heading} actions={<><div className="gm-waitlist-heading-actions">
       <Button type="button" variant="secondary" loading={queue.isFetching || statistics.isFetching} onClick={() => void refresh()}><WaitlistIcon kind="refresh" />Osveži</Button>
-      {canManage && <Button ref={newButton} type="button" className="gm-waitlist-primary" onClick={newEntry}><WaitlistIcon kind="plus" />Dodaj na listu čekanja</Button>}</div></header>
+      {canManage && <Button ref={newButton} type="button" className="gm-waitlist-primary" onClick={newEntry}><WaitlistIcon kind="plus" />Dodaj na listu čekanja</Button>}</div></>} />
     {!canRead ? <ErrorState message="Nemate dozvolu za pregled operativne liste čekanja." /> : <>
-      <div className="gm-waitlist-kpis">{kpis.map(kpi => <section key={kpi.key} className={`gm-waitlist-kpi gm-waitlist-kpi--${kpi.tone}`} aria-label={kpi.title}>
-        <span className="gm-waitlist-kpi-icon"><WaitlistIcon kind={kpi.icon} /></span><h2>{kpi.title}</h2>{statistics.isLoading ? <Skeleton lines={1} label={`Učitavanje: ${kpi.title}`} />
-          : <strong>{statistics.isError || !statistics.data ? '—' : new Intl.NumberFormat('sr-Latn-RS').format(statistics.data[kpi.key])}</strong>}<small>{kpi.hint}</small></section>)}</div>
+      <div className="ui-stat-grid gm-waitlist-kpis">{kpis.map(kpi => <StatCard label={<>{kpi.title}</>} value={statistics.isLoading ? <Skeleton lines={1} label={`Učitavanje: ${kpi.title}`} />
+          : <>{statistics.isError || !statistics.data ? '—' : new Intl.NumberFormat('sr-Latn-RS').format(statistics.data[kpi.key])}</>} icon={<WaitlistIcon kind={kpi.icon} />} description={<>{kpi.hint}</>} tone={kpi.tone} key={kpi.key} aria-label={kpi.title} />)}</div>
       {statistics.error && <ErrorState message="Statistiku nije moguće učitati." action={<Button variant="secondary" onClick={() => void statistics.refetch()}>Pokušaj ponovo</Button>} />}
       {statistics.data && <p className="gm-waitlist-period">Prihvaćene i otkazane prijave: {new Intl.DateTimeFormat('sr-Latn-RS', {timeZone: 'Europe/Belgrade', month: 'long', year: 'numeric'}).format(new Date(statistics.data.periodStart))}.
         {statistics.data.expiredOffers > 0 && <span> Istekle poslednje ponude: {statistics.data.expiredOffers}. Otkazivanje prijave je zasebno stanje.</span>}</p>}
@@ -150,18 +148,18 @@ useEffect(() => {
       <div className={`gm-waitlist-layout${selected && wide ? ' has-details' : ''}`}><section className="gm-waitlist-list">
         <div className="gm-waitlist-list-heading"><h2>Prijave na listi čekanja <span>{total}</span></h2>{queue.isFetching && !queue.isLoading && <small role="status">Osvežavanje…</small>}</div>
         {queue.isLoading ? <Skeleton lines={8} label="Učitavanje prijava na listi čekanja" />
-          : queue.error ? <ErrorState message={waitlistError(queue.error, 'Lista čekanja nije dostupna.')} action={<Button onClick={() => void queue.refetch()}>Pokušaj ponovo</Button>} />
+          : queue.error ? <ErrorState message={waitlistError(queue.error, 'Lista čekanja nije dostupna.')} action={<Button variant="secondary" onClick={() => void queue.refetch()}>Pokušaj ponovo</Button>} />
           : !rows.length ? <EmptyState title={hasFilters ? 'Nema prijava koje odgovaraju filterima.' : 'Nema prijava na listi čekanja.'}
             description={hasFilters ? 'Promenite pretragu ili poništite filtere.' : 'Dodajte prijavu za zauzet termin ili sačekajte prijavu klijenta.'}
             action={hasFilters ? <Button variant="secondary" onClick={() => { setSearch(''); url.apply({}) }}>Poništi filtere</Button> : canManage ? <Button className="gm-waitlist-primary" onClick={newEntry}>Dodaj na listu čekanja</Button> : undefined} />
           : <>
-            <div className="gm-waitlist-desktop"><TableShell label="Prijave na listi čekanja"><table className="gm-waitlist-table"><thead><tr>
+            <TableShell label="Prijave na listi čekanja" className="gm-waitlist-desktop"><table className="ui-data-table gm-waitlist-table"><thead><tr>
               <th scope="col">Klijent</th><th scope="col">Usluga</th><th scope="col">Željeni termin</th><th scope="col">Lokal / zona / resurs</th><th scope="col">Status</th><th scope="col">Datum prijave</th><th scope="col">Akcije</th>
             </tr></thead><tbody>{rows.map(entry => <tr key={entry.id} className={selected === entry.id ? 'is-selected' : ''} onClick={event => {
               if ((event.target as Element).closest('button,a,input')) return
               showDetails(entry, event.currentTarget.querySelector('button'))
             }}>
-              <td><div className="gm-waitlist-customer"><WaitlistAvatar name={entry.customerName} /><div><button type="button" className="gm-waitlist-name" onClick={event => showDetails(entry, event.currentTarget)}>{entry.customerName}</button>
+              <td><div className="gm-waitlist-customer"><WaitlistAvatar name={entry.customerName} /><div><Button variant="ghost" type="button" className="gm-waitlist-name" onClick={event => showDetails(entry, event.currentTarget)}>{entry.customerName}</Button>
                 {entry.customerEmail && <small>{entry.customerEmail}</small>}</div></div></td>
               <td><strong>{entry.serviceName}</strong><small>{entry.durationMinutes} min{entry.resourceType ? ' · ' + (resourceLabels[entry.resourceType] ?? entry.resourceType) : ''}</small></td>
               <td><strong>{new Intl.DateTimeFormat('sr-Latn-RS', {timeZone: 'Europe/Belgrade', dateStyle: 'medium'}).format(new Date(entry.desiredStart))}</strong><small>{formatBusinessTime(entry.desiredStart)} – {entry.desiredEnd ? formatBusinessTime(entry.desiredEnd) : '—'}</small></td>
@@ -169,13 +167,13 @@ useEffect(() => {
               <td><WaitlistStatusBadge entry={entry} now={now} /></td>
               <td><small>{waitlistDate(entry.createdAt)}</small></td>
               <td><WaitlistMenu entry={entry} disabled={actionDisabled} onDetails={trigger => showDetails(entry, trigger)} onEdit={trigger => void edit(entry, trigger)} onCancel={() => cancel(entry)} /></td>
-            </tr>)}</tbody></table></TableShell></div>
-            <div className="gm-waitlist-mobile">{rows.map(entry => <article key={entry.id} className={`gm-waitlist-entry-card${selected === entry.id ? ' is-selected' : ''}`}>
+            </tr>)}</tbody></table></TableShell>
+            <div className="gm-waitlist-mobile">{rows.map(entry => <Card as="article" key={entry.id} className={`gm-waitlist-entry-card${selected === entry.id ? ' is-selected' : ''}`}>
               <header><div className="gm-waitlist-customer"><WaitlistAvatar name={entry.customerName} /><div><h3>{entry.customerName}</h3>{entry.customerEmail && <small>{entry.customerEmail}</small>}</div></div>
                 <WaitlistMenu entry={entry} disabled={actionDisabled} onDetails={trigger => showDetails(entry, trigger)} onEdit={trigger => void edit(entry, trigger)} onCancel={() => cancel(entry)} /></header>
               <strong>{entry.serviceName} <small>· {entry.durationMinutes} min</small></strong><p>{waitlistDate(entry.desiredStart)}{entry.desiredEnd ? ' – ' + formatBusinessTime(entry.desiredEnd) : ''}</p>
               <small>{[entry.locationName, entry.areaName, entry.resourceName].filter(Boolean).join(' · ') || 'Bez određenog resursa'}</small><WaitlistStatusBadge entry={entry} now={now} />
-              <Button type="button" variant="secondary" onClick={event => showDetails(entry, event.currentTarget)}>Detalji</Button></article>)}</div>
+              <Button type="button" variant="secondary" onClick={event => showDetails(entry, event.currentTarget)}>Detalji</Button></Card>)}</div>
           </>}
         {queue.data && !queue.isError && <Pagination numbered page={page} pageSize={size} totalPages={pages}
           totalElements={total} loading={queue.isFetching} label="Stranice liste čekanja"
@@ -185,5 +183,5 @@ useEffect(() => {
     </>}
     {dialog && <WaitlistEntryDialog entry={dialog.entry} serverTime={statistics.data?.serverTime} returnFocusRef={formOpener} onClose={() => setDialog(null)} onSaved={saved} onConflict={refresh} />}
     {confirmationDialog}
-  </main>
+  </PageLayout>
 }

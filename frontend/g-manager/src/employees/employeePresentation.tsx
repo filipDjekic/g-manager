@@ -1,7 +1,7 @@
 import { useObjectUrl } from '../components/useObjectUrl'
 import { useResettableState } from '../components/useResettableState'
 import { employeeDate, type EmployeeAction } from './employeePresentation.model'
-import { Pagination } from '../components/ui'
+import { Pagination, Input, TableShell, Button, StatCard, Badge, Skeleton } from '../components/ui'
 import { useQuery } from '@tanstack/react-query'
 
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
@@ -10,7 +10,7 @@ import { createPortal } from 'react-dom'
 import { userApi } from '../api/userApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Badge, Button, Skeleton } from '../components/ui'
+
 import { roleLabels } from '../components/ui/statusPresentation'
 
 import type { UserResponse } from '../types/user.types'
@@ -58,11 +58,7 @@ export function EmployeeKpi({ title, value, kind, tone, description, loading }: 
   title: string; value: number | undefined; kind: Parameters<typeof EmployeeIcon>[0]['kind']
   tone: 'blue' | 'green' | 'purple' | 'pink'; description: string; loading: boolean
 }) {
-  return <section className={`ui-card gm-employee-kpi gm-employee-kpi--${tone}`} aria-label={title}>
-    <span className="gm-employee-kpi-icon"><EmployeeIcon kind={kind} /></span><div><h2>{title}</h2>
-      {loading ? <Skeleton lines={1} label={`Učitavanje: ${title}`} /> : <strong>{value === undefined ? '—' : new Intl.NumberFormat('sr-Latn-RS').format(value)}</strong>}
-      <p>{description}</p></div>
-  </section>
+  return <StatCard label={<>{title}</>} value={loading ? <Skeleton lines={1} label={`Učitavanje: ${title}`} /> : <>{value === undefined ? '—' : new Intl.NumberFormat('sr-Latn-RS').format(value)}</>} icon={<EmployeeIcon kind={kind} />} description={<>{description}</>} tone={tone} aria-label={title} />
 }
 export function EmployeeActionsMenu({ employee, canDeactivate, canDelete, disabled, onAction }: {
   employee: UserResponse; canDeactivate: boolean; canDelete: boolean; disabled: boolean
@@ -90,10 +86,10 @@ export function EmployeeActionsMenu({ employee, canDeactivate, canDelete, disabl
     return () => { document.removeEventListener('pointerdown', outside); window.removeEventListener('scroll', scroll, true) }
   }, [open])
   const choose = (action: EmployeeAction) => { setOpen(false); onAction(employee, action, trigger.current) }
-  return <><Button ref={trigger} type="button" variant="secondary" className="gm-employee-menu-trigger" disabled={disabled}
+  return <><Button size="small" iconOnly ref={trigger} type="button" variant="ghost" className="gm-employee-menu-trigger" disabled={disabled}
     aria-label={`Akcije za ${employee.name}`} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? id : undefined}
     onClick={() => setOpen(value => !value)}>⋯</Button>
-    {open && createPortal(<div ref={menu} id={id} className="gm-employee-menu" role="menu" aria-label={`Akcije za ${employee.name}`} style={position}
+    {open && createPortal(<div ref={menu} id={id} className="ui-menu gm-employee-menu" role="menu" aria-label={`Akcije za ${employee.name}`} style={position}
       onKeyDown={event => {
         const items = Array.from(menu.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [])
         const index = items.indexOf(document.activeElement as HTMLButtonElement)
@@ -114,15 +110,15 @@ export function EmployeesTable({ employees, actorId, focus, selected, canDeactiv
   employees: UserResponse[]; actorId: string; focus: string; selected: Set<string>; canDeactivate: boolean; canDelete: boolean; busy: boolean
   onToggle: (id: string) => void; onAction: (employee: UserResponse, action: EmployeeAction, opener: HTMLButtonElement | null) => void
 }) {
-  return <div className="gm-employees-table-shell"><table className="gm-employees-table" role="table"><thead><tr>
+  return <TableShell label="Tabelarni pregled" className="gm-employees-table-shell"><table className="ui-data-table gm-employees-table" role="table"><thead><tr>
     {canDeactivate && <th scope="col" className="gm-employee-selection-col"><span className="sr-only">Izbor</span></th>}
     {['Zaposleni', 'Uloga', 'Kontakt', 'Status', 'Datum registracije', 'Akcije'].map(label => <th scope="col" key={label}>{label}</th>)}
   </tr></thead><tbody>{employees.map(employee => <tr key={employee.id} className={focus === employee.id ? 'is-selected' : undefined}>
-    {canDeactivate && <td className="gm-employee-selection-col" data-label="Izbor"><input type="checkbox" checked={selected.has(employee.id)}
+    {canDeactivate && <td className="gm-employee-selection-col" data-label="Izbor"><Input type="checkbox" checked={selected.has(employee.id)}
       disabled={busy || !employee.active || employee.id === actorId} aria-label={`Izaberi zaposlenog ${employee.name}`} onChange={() => onToggle(employee.id)} /></td>}
-    <td data-label="Zaposleni"><button type="button" className="gm-employee-name-button" aria-pressed={focus === employee.id}
+    <td data-label="Zaposleni"><Button variant="ghost" type="button" className="gm-employee-name-button" aria-pressed={focus === employee.id}
       onClick={event => onAction(employee, 'profile', event.currentTarget)}><EmployeeAvatar employee={employee} />
-      <span><strong>{employee.name}</strong><small>Profil zaposlenog</small></span></button></td>
+      <span><strong>{employee.name}</strong><small>Profil zaposlenog</small></span></Button></td>
     <td data-label="Uloga"><Badge tone="info">{roleLabels[employee.role]}</Badge></td>
     <td data-label="Kontakt"><a href={`mailto:${employee.email}`}>{employee.email}</a></td>
     <td data-label="Status"><Badge tone={employee.active ? 'success' : 'neutral'}>{employee.active ? 'Aktivan' : 'Neaktivan'}</Badge></td>
@@ -131,7 +127,7 @@ export function EmployeesTable({ employees, actorId, focus, selected, canDeactiv
       onClick={event => onAction(employee, 'profile', event.currentTarget)}>Detalji</Button>
       <EmployeeActionsMenu employee={employee} disabled={busy} canDeactivate={canDeactivate && employee.active && employee.id !== actorId}
         canDelete={canDelete && employee.id !== actorId} onAction={onAction} /></div></td>
-  </tr>)}</tbody></table></div>
+  </tr>)}</tbody></table></TableShell>
 }
 
 export function EmployeePagination({ page, size, totalPages, totalElements, busy, onPage, onSize }: {

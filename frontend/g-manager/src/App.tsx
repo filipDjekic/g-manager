@@ -1,3 +1,4 @@
+import { PageLayout } from './components/ui'
 import { lazy, Suspense, useEffect, type ComponentType } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { initializeSession } from './api/client'
@@ -63,7 +64,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/activate" element={<ActivatePage />} />
-          <Route path="/unauthorized" element={<main className="screen-message">Nemate dozvolu za ovu stranicu.</main>} />
+          <Route path="/unauthorized" element={<PageLayout className="screen-message">Nemate dozvolu za ovu stranicu.</PageLayout>} />
           <Route element={<ProtectedRoute />}>
             <Route element={<AppShell />}>
               <Route index element={<HomeRedirect />} />

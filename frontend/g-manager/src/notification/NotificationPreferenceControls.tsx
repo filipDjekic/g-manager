@@ -1,5 +1,5 @@
 import { useId, type ReactNode } from 'react'
-import { Badge, Card, Skeleton } from '../components/ui'
+import { Badge, Card, Skeleton, PageHeader, TableShell } from '../components/ui'
 import type { NotificationPreference, NotificationType } from '../types/notification.types'
 import { channelState, notificationDefinitions, notificationGroups, type NotificationChannel, type NotificationIconKind } from './notificationPreferences'
 
@@ -41,13 +41,7 @@ function PreferenceSwitch({ label, value, disabled, locked = false, describedBy,
 }
 
 export function NotificationPreferencesHeading({ actions }: { actions?: ReactNode }) {
-  return <header className="gm-notification-header">
-    <div className="gm-notification-heading">
-      <span className="gm-notification-heading-icon"><NotificationIcon kind="bell" /></span>
-      <div><h1>Obaveštenja</h1><p>Podesite kako i kada želite da primate obaveštenja.</p></div>
-    </div>
-    {actions && <div className="gm-notification-header-actions">{actions}</div>}
-  </header>
+  return <PageHeader title="Obaveštenja" description={<>Podesite kako i kada želite da primate obaveštenja.</>} icon={<NotificationIcon kind="bell" />} actions={<>{actions && <div className="gm-notification-header-actions">{actions}</div>}</>} />
 }
 
 export function NotificationChannels({ items, saving, onChange }: {
@@ -84,8 +78,8 @@ export function NotificationTypes({ items, changed, failures, saving, onChange }
   return <Card className="gm-notification-card gm-notification-types">
     <div className="gm-notification-section-heading"><h2 id={`${id}-title`}>Vrste obaveštenja</h2>
       <p>Izaberite za koje događaje želite da primate obaveštenja i preko kojih kanala.</p></div>
-    <div className="gm-notification-table-wrap">
-      <table className="gm-notification-table" role="table" aria-labelledby={`${id}-title`}>
+    <TableShell label="Tabelarni pregled" className="gm-notification-table-wrap">
+      <table className="ui-data-table gm-notification-table" role="table" aria-labelledby={`${id}-title`}>
         <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Vrsta obaveštenja</th>
           <th scope="col" role="columnheader">U aplikaciji</th><th scope="col" role="columnheader">Email</th></tr></thead>
         {notificationGroups.map(group => {
@@ -121,7 +115,7 @@ export function NotificationTypes({ items, changed, failures, saving, onChange }
           </tbody>
         })}
       </table>
-    </div>
+    </TableShell>
   </Card>
 }
 

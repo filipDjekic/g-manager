@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { apiErrorMessage } from '../api/client'
 import { connectNotificationStream, notificationApi } from '../api/notificationApi'
-import { Button, EmptyState, Modal, Skeleton } from '../components/ui'
+import { Button, EmptyState, Modal, Skeleton, Alert } from '../components/ui'
 import { NavigationIcon } from '../layout/NavigationIcon'
 import type { AppNotification } from '../types/notification.types'
 
@@ -39,18 +39,18 @@ export function NotificationCenter() {
   async function readAll() { const previous = items; const previousUnread = unread; setItems((current) => current.map((item) => ({ ...item, read: true }))); setUnread(0)
     try { await notificationApi.readAll() } catch (cause) { setItems(previous); setUnread(previousUnread); setError(apiErrorMessage(cause, 'Obaveštenja nisu označena kao pročitana.')) } }
 
-  return <><Button type="button" variant="secondary" className="notification-bell" onClick={() => setOpen(true)}
+  return <><Button iconOnly type="button" variant="secondary" className="notification-bell" onClick={() => setOpen(true)}
     aria-label={`Obaveštenja, ${unread} nepročitanih`}><NavigationIcon to="/notification-preferences" />{unread > 0 && <span aria-hidden="true">{unread > 99 ? '99+' : unread}</span>}</Button>
     <span className="sr-only" aria-live="polite">{announcement}</span>
     <Modal open={open} title="Obaveštenja" onClose={() => setOpen(false)}>
       <div className="notification-center"><div className="notification-toolbar"><span className={`connection-state ${connection}`}>{connection === 'connected' ? 'Uživo' : connection === 'offline' ? 'Bez veze · periodično osvežavanje' : 'Ponovno povezivanje · periodično osvežavanje'}</span>
         <Button type="button" variant="secondary" disabled={!unread} onClick={() => void readAll()}>Pročitaj sve</Button></div>
-        {error && <p role="alert" className="error-banner">{error}</p>}{loading && <Skeleton lines={4} label="Učitavanje obaveštenja" />}
+        {error && <Alert tone="danger" role="alert">{error}</Alert>}{loading && <Skeleton lines={4} label="Učitavanje obaveštenja" />}
         {!loading && !items.length && <EmptyState title="Nema obaveštenja" description="Nova obaveštenja će se pojaviti ovde." />}
         {items.length > 0 && <div className="notification-list">{Object.entries(groups).map(([day, values]) => <Fragment key={day}><h3>{day}</h3>{values.map((item) =>
-          <article className={`notification-item ${item.read ? '' : 'unread'}`} key={item.id}>{item.action ? <button type="button" aria-label={`${item.action.label}: ${item.title}`} onClick={() => void openItem(item)}>
+          <article className={`notification-item ${item.read ? '' : 'unread'}`} key={item.id}>{item.action ? <Button variant="ghost" type="button" aria-label={`${item.action.label}: ${item.title}`} onClick={() => void openItem(item)}>
             <span className={`priority ${item.priority.toLowerCase()}`}>{{ HIGH: 'Visok prioritet', NORMAL: 'Obaveštenje', LOW: 'Informacija' }[item.priority]}</span><strong>{item.title}</strong><p>{item.body}</p>
-            <time dateTime={item.createdAt} title={new Intl.DateTimeFormat('sr-RS', { timeZone: 'Europe/Belgrade', dateStyle: 'full', timeStyle: 'medium' }).format(new Date(item.createdAt))}>{relative(item.createdAt)}</time></button> : <div><span className={`priority ${item.priority.toLowerCase()}`}>{{ HIGH: 'Visok prioritet', NORMAL: 'Obaveštenje', LOW: 'Informacija' }[item.priority]}</span><strong>{item.title}</strong><p>{item.body}</p><time dateTime={item.createdAt}>{relative(item.createdAt)}</time></div>}
+            <time dateTime={item.createdAt} title={new Intl.DateTimeFormat('sr-RS', { timeZone: 'Europe/Belgrade', dateStyle: 'full', timeStyle: 'medium' }).format(new Date(item.createdAt))}>{relative(item.createdAt)}</time></Button> : <div><span className={`priority ${item.priority.toLowerCase()}`}>{{ HIGH: 'Visok prioritet', NORMAL: 'Obaveštenje', LOW: 'Informacija' }[item.priority]}</span><strong>{item.title}</strong><p>{item.body}</p><time dateTime={item.createdAt}>{relative(item.createdAt)}</time></div>}
             {!item.read && <Button type="button" variant="secondary" onClick={() => void markRead(item)}>Označi pročitano</Button>}</article>)}</Fragment>)}</div>}
         <Link to="/notification-preferences" onClick={() => setOpen(false)}>Podešavanja obaveštenja</Link>
       </div>

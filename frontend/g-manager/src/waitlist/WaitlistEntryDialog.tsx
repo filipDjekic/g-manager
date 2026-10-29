@@ -8,7 +8,7 @@ import { availabilityApi } from '../api/availabilityApi'
 import { customerApi } from '../api/customerApi'
 import { IdempotencyKeyManager } from '../api/idempotency'
 import { useAuthStore } from '../auth/authStore'
-import { Button, ErrorState, FormField, Input, Modal, Select, Textarea } from '../components/ui'
+import { Button, ErrorState, FormField, Input, Modal, Select, Textarea, Alert } from '../components/ui'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useDirtyGuard } from '../forms/useDirtyGuard'
 import { CustomerPicker } from '../reservations/CustomerPicker'
@@ -112,14 +112,14 @@ export function WaitlistEntryDialog({ entry, serverTime, returnFocusRef, onClose
     } finally { submitting.current = false; setBusy(false) }
   }
   return <>
-    <Modal open title={entry ? 'Izmeni prijavu' : 'Dodaj na listu čekanja'} titleIcon={<WaitlistIcon kind={entry ? 'edit' : 'plus'} />}
+    <Modal size="wide" open title={entry ? 'Izmeni prijavu' : 'Dodaj na listu čekanja'} titleIcon={<WaitlistIcon kind={entry ? 'edit' : 'plus'} />}
       className="gm-waitlist-dialog" returnFocusRef={returnFocusRef} initialFocusRef={first} onClose={close} closeDisabled={busy || uncertain}
-      footer={<div className="gm-waitlist-dialog-actions"><Button type="button" variant="secondary" disabled={blocked} onClick={close}>Otkaži</Button>
+      footer={<div className="ui-actions gm-waitlist-dialog-actions"><Button type="button" variant="secondary" disabled={blocked} onClick={close}>Otkaži</Button>
         <Button type="submit" form={id} className="gm-waitlist-primary" loading={busy}
           disabled={!uncertain && (requiredDataLoading || Boolean(requiredDataError) || Boolean(sourceChanged) || free || slot?.status === 'UNAVAILABLE')}>
           {uncertain ? 'Ponovi isti zahtev' : entry ? 'Sačuvaj izmene' : 'Dodaj na listu čekanja'}</Button></div>}>
       <p className="gm-waitlist-form-help">Prijava se dodaje za zauzet termin. Ponudu automatski šalje sistem, a prihvata je klijent.</p>
-      <form id={id} className="gm-waitlist-form" onSubmit={submit}>
+      <form id={id} className="ui-form-grid gm-waitlist-form" onSubmit={submit}>
         <div className="gm-waitlist-form-wide">{entry ? <div className="gm-waitlist-fixed-customer"><strong>{entry.customerName}</strong><small>Klijent postojeće prijave se ne menja.</small></div>
           : <CustomerPicker value={form.customerId} required disabled={blocked} onChange={customerId => change({ customerId })} />}</div>
         <FormField label="Usluga *" htmlFor={id + '-service'}><Select ref={first} id={id + '-service'} required disabled={blocked || services.isLoading} value={form.serviceId}
@@ -152,17 +152,17 @@ export function WaitlistEntryDialog({ entry, serverTime, returnFocusRef, onClose
           {end && businessInstantToLocal(end).slice(0,10) !== form.date && <small> Završetak: {businessInstantToLocal(end).slice(0,10)}</small>}</span></div>
         <div className="gm-waitlist-form-wide"><FormField label="Interna napomena" htmlFor={id + '-note'} hint={`${form.note.length}/500 · vidljivo ovlašćenom osoblju`}>
           <Textarea id={id + '-note'} rows={3} maxLength={500} value={form.note} disabled={blocked} onChange={event => change({ note: event.target.value })} /></FormField></div>
-        {!entry && <label className="gm-waitlist-consent gm-waitlist-form-wide"><input type="checkbox" required checked={form.consent} disabled={blocked}
+        {!entry && <label className="gm-waitlist-consent gm-waitlist-form-wide"><Input type="checkbox" required checked={form.consent} disabled={blocked}
           onChange={event => change({ consent: event.target.checked })} /><span>Potvrđujem da je klijent tražio prijavu ili pristao na listu čekanja. *</span></label>}
         {entry && <p className="gm-waitlist-form-help gm-waitlist-form-wide">Promena usluge, zaposlenog, resursa, lokala, zone ili termina menja mesto u redu. Izmena napomene čuva redosled.</p>}
         {requiredDataError && <div className="gm-waitlist-form-wide"><ErrorState message="Podatke za izbor nije moguće učitati." action={<Button type="button" variant="secondary"
           onClick={() => { void services.refetch(); void employees.refetch(); void locations.refetch(); void scope.refetch() }}>Pokušaj ponovo</Button>} /></div>}
-        {(resources.error || areas.error) && <p className="error-banner gm-waitlist-form-wide" role="alert">Resurse ili zone nije moguće učitati. <Button type="button" variant="secondary" onClick={() => { void resources.refetch(); if (form.locationId) void areas.refetch() }}>Pokušaj ponovo</Button></p>}
+        {(resources.error || areas.error) && <Alert tone="danger" className="gm-waitlist-form-wide" role="alert">Resurse ili zone nije moguće učitati. <Button type="button" variant="secondary" onClick={() => { void resources.refetch(); if (form.locationId) void areas.refetch() }}>Pokušaj ponovo</Button></Alert>}
         {!uncertain && availability.isFetching && <p className="gm-waitlist-form-help gm-waitlist-form-wide" role="status">Provera celog termina…</p>}
-        {!uncertain && slot?.status === 'UNAVAILABLE' && <p className="warning-banner gm-waitlist-form-wide">Termin nije dostupan za izabranog zaposlenog ili resurs. Promenite izbor.</p>}
-        {free && !uncertain && <p className="gm-waitlist-form-wide warning-banner">Izabrani termin je slobodan. Možete napraviti direktnu rezervaciju. <Link to={directReservation}>Otvori rezervaciju</Link></p>}
+        {!uncertain && slot?.status === 'UNAVAILABLE' && <Alert tone="warning" className="gm-waitlist-form-wide">Termin nije dostupan za izabranog zaposlenog ili resurs. Promenite izbor.</Alert>}
+        {free && !uncertain && <Alert tone="warning" className="gm-waitlist-form-wide">Izabrani termin je slobodan. Možete napraviti direktnu rezervaciju. <Link to={directReservation}>Otvori rezervaciju</Link></Alert>}
         {availability.error && <p className="gm-waitlist-form-help gm-waitlist-form-wide">Pregled dostupnosti nije učitan. Konačnu proveru radi server prilikom čuvanja. <Button type="button" variant="secondary" onClick={() => void availability.refetch()}>Ponovi proveru</Button></p>}
-        {(error || timeError) && <p className="error-banner gm-waitlist-form-wide" role="alert">{error || timeError}</p>}
+        {(error || timeError) && <Alert tone="danger" className="gm-waitlist-form-wide" role="alert">{error || timeError}</Alert>}
         {sourceChanged && <p className="gm-waitlist-form-help gm-waitlist-form-wide">Aktuelni podaci su osveženi. Zatvorite formu i ponovo otvorite izmenu prijave.</p>}
       </form>
     </Modal>

@@ -69,9 +69,9 @@ export function WaitlistMenu({ entry, disabled, onDetails, onEdit, onCancel }: {
   }, [open])
   const choose = (callback: () => void) => { setOpen(false); trigger.current?.focus(); callback() }
   return <span className="gm-waitlist-menu-wrap" onClick={event => event.stopPropagation()}>
-    <Button ref={trigger} type="button" variant="secondary" className="gm-waitlist-menu-trigger" disabled={disabled} aria-label={`Akcije za ${entry.customerName}`}
+    <Button size="small" iconOnly ref={trigger} type="button" variant="ghost" className="gm-waitlist-menu-trigger" disabled={disabled} aria-label={`Akcije za ${entry.customerName}`}
       aria-haspopup="menu" aria-expanded={open} aria-controls={open ? id : undefined} onClick={() => setOpen(value => !value)}>⋯</Button>
-    {open && createPortal(<div id={id} ref={menu} style={position} className="gm-waitlist-menu" role="menu" aria-label="Akcije prijave"
+    {open && createPortal(<div id={id} ref={menu} style={position} className="ui-menu gm-waitlist-menu" role="menu" aria-label="Akcije prijave"
       onClick={event => event.stopPropagation()} onKeyDown={event => {
         const items = Array.from(menu.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])
         const index = items.indexOf(document.activeElement as HTMLElement)

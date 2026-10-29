@@ -5,7 +5,7 @@ export function Tabs({ items, value, onChange, label, idPrefix }: {
   label: string; idPrefix: string
 }) {
   const list = useRef<HTMLDivElement>(null)
-  return <div ref={list} className="ui-tabs" role="tablist" aria-label={label}>
+  return <div ref={list} className="ui-tab-list ui-tabs" role="tablist" aria-label={label}>
     {items.map((item, index) => <button key={item.id} type="button" role="tab" id={`${idPrefix}-tab-${item.id}`}
       aria-selected={value === item.id} aria-controls={`${idPrefix}-panel-${item.id}`} tabIndex={value === item.id ? 0 : -1}
       onClick={() => onChange(item.id)} onKeyDown={(event) => {

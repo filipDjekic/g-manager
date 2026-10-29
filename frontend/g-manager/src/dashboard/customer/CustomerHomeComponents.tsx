@@ -65,7 +65,7 @@ export function ActiveGamingVisit({ visit, now, synchronized, onOpen }: {
       <div><dt>Planirani kraj</dt><dd><time dateTime={visit.endsAt}>{formatBusinessDateTime(visit.endsAt, false, 'sr-Latn-RS')}</time></dd></div>
     </dl>
     {synchronized && Date.parse(visit.endsAt) <= now && <p className="gm-home-notice" role="status">Vreme je isteklo. Čeka se osvežavanje statusa sesije.</p>}
-    <Link className="button-link gm-home-session-link" to={sessionHref(visit.id)} onClick={event => onOpen(event.currentTarget)}>Detalji sesije<CustomerHomeIcon kind="arrow" /></Link>
+    <Link className="ui-button ui-button--primary ui-button--medium gm-home-session-link" to={sessionHref(visit.id)} onClick={event => onOpen(event.currentTarget)}>Detalji sesije<CustomerHomeIcon kind="arrow" /></Link>
     <p className="gm-home-session-help">Za produženje vremena obratite se zaposlenom.</p>
   </article>
 }
@@ -75,10 +75,10 @@ export function CustomerSessionDialog({ open, visit, now, synchronized, loading,
   returnFocusRef: RefObject<HTMLElement | null>; onClose: () => void; onRefresh: () => void
 }) {
   const status = visit ? sessionState(visit, now, synchronized) : undefined
-  return <Modal open={open} title="Detalji gaming sesije" titleIcon={<CustomerHomeIcon kind="gamepad" />}
+  return <Modal size="wide" open={open} title="Detalji gaming sesije" titleIcon={<CustomerHomeIcon kind="gamepad" />}
     className="gm-customer-session-dialog" returnFocusRef={returnFocusRef} onClose={onClose}
-    footer={<div className="dialog-actions"><Button type="button" variant="secondary" onClick={onClose}>Zatvori</Button></div>}>
-    {error ? <ErrorState message={error} action={<Button type="button" onClick={onRefresh}>Pokušaj ponovo</Button>} />
+    footer={<div className="ui-actions dialog-actions"><Button type="button" variant="secondary" onClick={onClose}>Zatvori</Button></div>}>
+    {error ? <ErrorState message={error} action={<Button variant="secondary" type="button" onClick={onRefresh}>Pokušaj ponovo</Button>} />
       : visit && status ? <div className="gm-home-session-detail">
         <div className="gm-home-session-heading"><h3>{visit.resourceName}</h3><Badge tone={status.tone}>{status.label}</Badge></div>
         {visit.status === 'ACTIVE' && <div className="gm-home-session-timer"><span>Preostalo vreme</span><strong role="timer" aria-label="Preostalo vreme sesije">{synchronized ? homeCountdown((Date.parse(visit.endsAt) - now) / 1000) : '—'}</strong></div>}

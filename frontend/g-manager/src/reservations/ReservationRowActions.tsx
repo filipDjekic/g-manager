@@ -52,10 +52,10 @@ export function ReservationRowActions({ reservation, disabled, onAction }: {
   }, [open])
   const choose = (action?: ReservationDetailAction) => { setOpen(false); onAction(reservation, action, trigger.current) }
   return <>
-    <Button ref={trigger} type="button" variant="secondary" className="reservations-row-menu-trigger" disabled={disabled}
+    <Button size="small" iconOnly ref={trigger} type="button" variant="ghost" className="reservations-row-menu-trigger" disabled={disabled}
       aria-label={`Akcije rezervacije: ${reservation.customerName ?? 'Klijent'}`} aria-haspopup="menu" aria-expanded={open}
       aria-controls={open ? id : undefined} onClick={() => setOpen(!open)}>⋯</Button>
-    {open && createPortal(<div ref={menu} id={id} className="reservations-row-menu" role="menu" aria-label="Akcije rezervacije"
+    {open && createPortal(<div ref={menu} id={id} className="ui-menu reservations-row-menu" role="menu" aria-label="Akcije rezervacije"
       style={position} onKeyDown={event => {
         if (event.key === 'Tab') { setOpen(false); trigger.current?.focus(); return }
         if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return

@@ -2,7 +2,7 @@ import { useObjectUrl } from '../components/useObjectUrl'
 import { useId, useRef, useState, type FormEvent, type RefObject } from 'react'
 import { catalogApi } from '../api/catalogApi'
 import { apiErrorMessage } from '../api/client'
-import { Button, FormField, Input, Modal, Textarea } from '../components/ui'
+import { Button, FormField, Input, Modal, Textarea, Alert } from '../components/ui'
 import { useToast } from '../components/ui/toastContext'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { focusFirstInvalid, useDirtyGuard } from '../forms/useDirtyGuard'
@@ -101,18 +101,18 @@ export function CatalogFormDialog({ item, initialType, imageOnly = false, maxIma
     finally { inFlight.current = false; setBusy(false) }
   }
   return <>
-    <Modal open className="gm-catalog-form-dialog" title={imageOnly ? 'Promeni sliku' : item ? 'Izmeni stavku' : 'Nova stavka'}
+    <Modal size="wide" open className="gm-catalog-form-dialog" title={imageOnly ? 'Promeni sliku' : item ? 'Izmeni stavku' : 'Nova stavka'}
       titleIcon={<CatalogIcon type={form.type} />} onClose={close} closeDisabled={busy}
       initialFocusRef={imageOnly ? chooseImageButton : nameInput} returnFocusRef={returnFocusRef}
-      footer={<div className="gm-catalog-dialog-actions">
+      footer={<div className="ui-actions gm-catalog-dialog-actions">
         <Button type="button" variant="secondary" disabled={busy} onClick={close}>{persisted && !imageOnly ? 'Završi' : item ? 'Odustani' : 'Otkaži'}</Button>
         {(!persisted || image || imageOnly) && <Button type="submit" form={formId} className="gm-catalog-pink-button" loading={busy}
           disabled={Boolean(errors.image) || imageOnly && !image}>
           {imageOnly || persisted && image ? imageError ? 'Ponovo pošalji sliku' : 'Sačuvaj sliku' : item ? 'Sačuvaj izmene' : 'Kreiraj stavku'}</Button>}
       </div>}>
-      <form ref={formElement} id={formId} className="gm-catalog-form" onSubmit={submit} noValidate>
+      <form ref={formElement} id={formId} className="ui-form-grid gm-catalog-form" onSubmit={submit} noValidate>
         <p className="gm-catalog-form-intro">{imageOnly ? `Slika za stavku „${item?.name ?? ''}“.` : item ? 'Ažurirajte podatke i sliku stavke.' : 'Dodajte novu uslugu ili proizvod u katalog.'}</p>
-        {error && <p className="error-banner gm-catalog-wide" role="alert">{error}</p>}
+        {error && <Alert tone="danger" className="gm-catalog-wide" role="alert">{error}</Alert>}
         {!imageOnly && <>
           <fieldset className="gm-catalog-type-control gm-catalog-wide" disabled={frozen}><legend>Tip stavke</legend>
             <div role="group" aria-label="Tip stavke">{(['SERVICE', 'PRODUCT'] as const).map(type =>
@@ -131,7 +131,7 @@ export function CatalogFormDialog({ item, initialType, imageOnly = false, maxIma
             <FormField label="Trajanje usluge (min) *" htmlFor={`${id}-duration`} error={errors.durationMinutes}>
               <Input id={`${id}-duration`} type="number" min="1" step="1" required disabled={frozen} value={form.durationMinutes ?? ''}
                 onChange={event => setForm({ ...form, durationMinutes: Number(event.target.value) || undefined })} /></FormField>
-            <label className="gm-catalog-resource-checkbox"><input aria-label={"Usluga zahteva fizički resurs"} type="checkbox" disabled={frozen} checked={form.requiresResource ?? false}
+            <label className="gm-catalog-resource-checkbox"><Input aria-label={"Usluga zahteva fizički resurs"} type="checkbox" disabled={frozen} checked={form.requiresResource ?? false}
               onChange={event => setForm({ ...form, requiresResource: event.target.checked })} />Usluga zahteva fizički resurs</label>
           </>}
           <div className="gm-catalog-wide"><FormField label="Opis" htmlFor={`${id}-description`} error={errors.description}>

@@ -5,7 +5,7 @@ import { workingHoursApi } from '../api/workingHoursApi'
 import { timeOffApi } from '../api/timeOffApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Badge, Button } from '../components/ui'
+import { Badge, Button, PageHeader, PageLayout } from '../components/ui'
 import { Tabs } from '../components/ui/Tabs'
 import { SetupOverview } from '../settings/SetupOverview'
 import { WorkingHoursSettings } from '../settings/WorkingHoursSettings'
@@ -48,10 +48,8 @@ export function SettingsPage() {
     await Promise.allSettled([client.invalidateQueries({ queryKey: ['settings', 'time-off'] }),
       client.invalidateQueries({ queryKey: ['users', 'employee-statistics'] }), refreshAvailability()])
   }
-  return <main className="workspace gm-settings">
-    <header className="gm-settings-heading"><div><span className="gm-settings-heading-icon"><SettingsIcon /></span><div><h1>Podešavanja</h1>
-      <p>Konfiguracija igraonice, radnog vremena, zaposlenih i sistema.</p></div></div>
-      <Badge tone="info"><SettingsIcon kind="clock" />Europe/Belgrade</Badge></header>
+  return <PageLayout className="gm-settings">
+    <PageHeader title="Podešavanja" description={<>Konfiguracija igraonice, radnog vremena, zaposlenih i sistema.</>} icon={<SettingsIcon />} actions={<><Badge tone="info"><SettingsIcon kind="clock" />Europe/Belgrade</Badge></>} />
     <div className="gm-settings-tabs"><Tabs idPrefix="settings" label="Oblasti podešavanja" value={section} onChange={openSection} items={[
       { id: 'overview', label: 'Pregled' }, { id: 'hours', label: 'Radno vreme' }, { id: 'exceptions', label: 'Izuzeci' }, { id: 'timeoff', label: 'Odsustva zaposlenih' },
     ]} /></div>
@@ -69,5 +67,5 @@ export function SettingsPage() {
     <div role="tabpanel" id="settings-panel-timeoff" aria-labelledby="settings-tab-timeoff" hidden={section !== 'timeoff'}>
       <EmployeeTimeOffSettings query={timeOff} employees={employees} onChanged={timeOffChanged} />
     </div>
-  </main>
+  </PageLayout>
 }

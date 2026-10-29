@@ -5,7 +5,7 @@ import { catalogApi, type CatalogFilters } from '../api/catalogApi'
 import { apiErrorMessage } from '../api/client'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Button, EmptyState, ErrorState, Input, Select, Skeleton } from '../components/ui'
+import { Button, EmptyState, ErrorState, Input, Select, Skeleton, PageHeader, PageLayout, StatCard, Card } from '../components/ui'
 import { SavedViewBar } from '../components/lists/SavedViewBar'
 import { SelectionBar } from '../components/lists/SelectionBar'
 import { useToast } from '../components/ui/toastContext'
@@ -142,27 +142,21 @@ export function CatalogPage() {
     { label: 'Dostupne usluge', value: stats.data?.serviceCount, type: 'SERVICE' as const, tone: 'blue' },
     { label: 'Dostupni proizvodi', value: stats.data?.productCount, type: 'PRODUCT' as const, tone: 'purple' },
   ]
-  return <main className="workspace gm-catalog-page">
-    <header className="gm-catalog-header"><div className="gm-catalog-header-title"><span className="gm-catalog-header-icon"><CatalogIcon /></span>
-      <div><h1>Usluge i proizvodi</h1><p>Upravljanje katalogom usluga, gaming paketa i proizvoda.</p></div></div>
-      <div className="gm-catalog-header-actions">
+  return <PageLayout className="gm-catalog-page">
+    <PageHeader title="Usluge i proizvodi" description={<>Upravljanje katalogom usluga, gaming paketa i proizvoda.</>} icon={<CatalogIcon />} actions={<><div className="gm-catalog-header-actions">
         {permissions.restore && <Button type="button" variant="secondary" aria-pressed={showDeleted} disabled={busy}
           onClick={() => applyFilter({ deleted: showDeleted ? '' : 'true' })}>{showDeleted ? 'Vrati se u katalog' : 'Obrisane stavke'}</Button>}
         {permissions.manage && <Button type="button" className="gm-catalog-pink-button" disabled={busy} onClick={event => {
           formOpener.current = event.currentTarget; setForm({})
         }}><span aria-hidden="true">＋</span> Nova stavka</Button>}
-      </div>
-    </header>
-    <section className={`gm-catalog-kpis${metrics.length === 2 ? ' gm-catalog-kpis--public' : ''}`} aria-label="Statistika kataloga">
-      {metrics.map(metric => <article key={metric.label} className={`gm-catalog-kpi gm-catalog-kpi--${metric.tone}`}>
-        <span className="gm-catalog-kpi-icon"><CatalogIcon type={metric.type} /></span><div><span>{metric.label}</span>
-          {stats.isLoading ? <Skeleton lines={1} label={`Učitavanje: ${metric.label}`} /> : <strong>{metric.value == null ? '—' : metric.value.toLocaleString('sr-Latn-RS')}</strong>}</div>
-      </article>)}
+      </div></>} />
+    <section className={`ui-stat-grid gm-catalog-kpis${metrics.length === 2 ? ' gm-catalog-kpis--public' : ''}`} aria-label="Statistika kataloga">
+      {metrics.map(metric => <StatCard label={<>{metric.label}</>} value={stats.isLoading ? <Skeleton lines={1} label={`Učitavanje: ${metric.label}`} /> : <>{metric.value == null ? '—' : metric.value.toLocaleString('sr-Latn-RS')}</>} icon={<CatalogIcon type={metric.type} />} tone={metric.tone} key={metric.label} />)}
     </section>
     {stats.error && <div className="gm-catalog-inline-error" role="alert"><span>{apiErrorMessage(stats.error, 'Statistiku nije moguće učitati.')}</span>
       <Button type="button" variant="secondary" onClick={() => void stats.refetch()}>Pokušaj ponovo</Button></div>}
     <section className="gm-catalog-content">
-      <div className="gm-catalog-list-heading"><div className="gm-catalog-tabs" role="tablist" aria-label="Tip kataloga">
+      <div className="gm-catalog-list-heading"><div className="ui-tab-list gm-catalog-tabs" role="tablist" aria-label="Tip kataloga">
         {(['SERVICE', 'PRODUCT'] as const).map(value => <button type="button" key={value} role="tab" id={`${id}-${value}`} aria-selected={type === value}
           aria-controls={`${id}-results`} tabIndex={type === value ? 0 : -1} onClick={() => applyFilter({ type: value })}
           onKeyDown={event => { if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
@@ -170,7 +164,7 @@ export function CatalogPage() {
             applyFilter({ type: next }); document.getElementById(`${id}-${next}`)?.focus()
           } }}><CatalogIcon type={value} />{value === 'SERVICE' ? 'Usluge' : 'Proizvodi'}</button>)}
       </div>{showDeleted && <span className="gm-catalog-deleted-label">Pregled obrisanih stavki</span>}</div>
-      <form className="gm-catalog-filters" onSubmit={event => event.preventDefault()}>
+      <form className="ui-form-grid gm-catalog-filters" onSubmit={event => event.preventDefault()}>
         <label className="gm-catalog-search" htmlFor={`${id}-search`}><span>Pretraga</span><div><CatalogIcon search />
           <Input id={`${id}-search`} type="search" placeholder="Pretraži po nazivu..." value={url.state.search}
             onChange={event => applyFilter({ search: event.target.value }, true)} /></div></label>
@@ -199,8 +193,8 @@ export function CatalogPage() {
         apply={query => { setPriceOpen(Boolean(query.minPrice || query.maxPrice)); url.apply({ ...query, type: query.type === 'PRODUCT' ? 'PRODUCT' : 'SERVICE', page: '0' }) }} /></div>}
       {permissions.manage && !showDeleted && <div className="gm-catalog-selection"><SelectionBar count={visibleSelected.length} summary={bulkSummary}>
         {visibleSelected.length > 0 && <>
-          <Button type="button" disabled={busy} loading={bulk.isPending} onClick={() => openBulk('ACTIVATE')}>Aktiviraj izabrane</Button>
-          <Button type="button" variant="secondary" disabled={busy} onClick={() => openBulk('DEACTIVATE')}>Deaktiviraj izabrane</Button>
+          <Button variant="success" type="button" disabled={busy} loading={bulk.isPending} onClick={() => openBulk('ACTIVATE')}>Aktiviraj izabrane</Button>
+          <Button type="button" variant="danger" disabled={busy} onClick={() => openBulk('DEACTIVATE')}>Deaktiviraj izabrane</Button>
           <Button type="button" variant="secondary" disabled={busy} onClick={() => setSelected(new Set())}>Poništi izbor</Button>
         </>}
         {bulkSummary && <Button type="button" variant="secondary" disabled={busy} onClick={() => {
@@ -213,8 +207,8 @@ export function CatalogPage() {
         action={<Button type="button" variant="secondary" onClick={() => { bulk.reset(); void refresh() }}>Pokušaj ponovo</Button>} />}
       <section id={`${id}-results`} role="tabpanel" aria-labelledby={`${id}-${type}`} aria-busy={list.isFetching || searchPending}>
         {(list.isLoading || searchPending) && !priceError && <div className="gm-catalog-grid gm-catalog-loading" aria-label="Učitavanje kataloga">
-          {Array.from({ length: Math.min(size, 9) }, (_, index) => <div className="gm-catalog-card gm-catalog-card-skeleton" key={index}>
-            <div className="gm-catalog-skeleton-media" /><Skeleton lines={3} label="Učitavanje stavke" /></div>)}
+          {Array.from({ length: Math.min(size, 9) }, (_, index) => <Card as="div" padding="none" className="gm-catalog-card gm-catalog-card-skeleton" key={index}>
+            <div className="gm-catalog-skeleton-media" /><Skeleton lines={3} label="Učitavanje stavke" /></Card>)}
         </div>}
         {result?.content.length === 0 && !list.error && <EmptyState title={showDeleted ? 'Nema obrisanih stavki' : 'Nema stavki'}
           description="Nijedna stavka ne odgovara izabranim filterima."
@@ -231,5 +225,5 @@ export function CatalogPage() {
     {form && permissions.manage && <CatalogFormDialog item={form.item} imageOnly={form.imageOnly} initialType={type}
       maxImageBytes={stats.data?.maxImageBytes} returnFocusRef={formOpener} onClose={() => setForm(null)} onSaved={remember} />}
     {confirmationDialog}
-  </main>
+  </PageLayout>
 }

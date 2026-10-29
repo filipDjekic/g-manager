@@ -32,7 +32,7 @@ function EventChanges({ event }: { event: AuditEvent }) {
       <SnapshotView snapshot={after} side="after" changes={comparison.changes} /></div>
     <div className="gm-audit-changes-heading"><h3>Promenjena polja</h3>{!comparison.limited && <span>{comparison.changes.length}</span>}</div>
     {comparison.limited ? <p className="gm-audit-muted">Zapis je prevelik ili previše duboko strukturiran za detaljno poređenje polja. Kompletna stanja prikazana su iznad.</p>
-      : comparison.changes.length ? <TableShell label="Stvarne razlike između stanja"><table className="gm-audit-diff-table">
+      : comparison.changes.length ? <TableShell label="Stvarne razlike između stanja"><table className="ui-data-table gm-audit-diff-table">
         <thead><tr><th scope="col">Polje</th><th scope="col">Pre</th><th scope="col">Posle</th></tr></thead>
         <tbody>{comparison.changes.map(change => <tr key={change.path}><th scope="row">{change.label}</th>
           <td className="gm-audit-old-value"><pre>{changeText(change.before)}</pre></td>
@@ -56,7 +56,7 @@ export function AuditDetailsPanel({ event, loading, error, retry, onClose, inlin
   }
   return <div className="gm-audit-detail-content">
     {inline && <header className="gm-audit-panel-heading"><h2><AuditIcon kind="shield" />Detalji događaja</h2>
-      {event || loading || error ? <Button type="button" variant="secondary" onClick={onClose} aria-label="Zatvori detalje događaja"><AuditIcon kind="close" /></Button> : null}</header>}
+      {event || loading || error ? <Button iconOnly type="button" variant="secondary" onClick={onClose} aria-label="Zatvori detalje događaja"><AuditIcon kind="close" /></Button> : null}</header>}
     {loading ? <Skeleton lines={7} label="Učitavanje detalja događaja" />
       : error ? <ErrorState message={error} action={retry && <Button type="button" variant="secondary" onClick={retry}>Pokušaj ponovo</Button>} />
         : !event ? <EmptyState title="Izaberite događaj" description="Otvorite detalje u vremenskoj liniji za pregled izvršioca, resursa i zabeleženih promena." />
@@ -64,7 +64,7 @@ export function AuditDetailsPanel({ event, loading, error, retry, onClose, inlin
             <div className={`gm-audit-event-summary gm-audit-tone--${actionTone(event)}`}><span className="gm-audit-action-icon"><AuditIcon kind={actionTone(event)} /></span>
               <div><p>{categoryLabels[event.category] ?? 'Događaj'}</p><h3>{event.action}</h3></div></div>
             <dl className="gm-audit-metadata">
-              <div><dt>ID događaja</dt><dd className="gm-audit-id-value"><code>{event.id}</code><Button type="button" variant="secondary" onClick={() => void copyId()} aria-label="Kopiraj ID događaja"><AuditIcon kind="copy" /></Button></dd></div>
+              <div><dt>ID događaja</dt><dd className="gm-audit-id-value"><code>{event.id}</code><Button iconOnly type="button" variant="secondary" onClick={() => void copyId()} aria-label="Kopiraj ID događaja"><AuditIcon kind="copy" /></Button></dd></div>
               <div><dt>Datum i vreme</dt><dd><time dateTime={event.occurredAt}>{formatBusinessDateTime(event.occurredAt, true, 'sr-Latn-RS')}</time><small>Europe/Belgrade · UTC: {event.occurredAt}</small></dd></div>
               <div><dt>Izvršilac</dt><dd>{roleLabels[event.actorRole]}<code>{event.actorId}</code></dd></div>
               <div><dt>Akcija</dt><dd><code>{event.action}</code></dd></div>

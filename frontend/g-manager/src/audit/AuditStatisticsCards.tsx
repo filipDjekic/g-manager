@@ -1,4 +1,4 @@
-import { Button, ErrorState, Skeleton } from '../components/ui'
+import { Button, ErrorState, Skeleton, StatCard } from '../components/ui'
 import type { AuditStatistics } from '../types/audit.types'
 import { AuditIcon } from './auditPresentation'
 import { type AuditIconKind } from './auditPresentation.model'
@@ -14,11 +14,7 @@ export function AuditStatisticsCards({ data, loading, error, period, retry }: {
 }) {
   return <section className="gm-audit-statistics" aria-label="Statistika audit događaja" aria-busy={loading}>
     <div className="gm-audit-period-note"><AuditIcon kind="clock" /><span>Izabrani period: <strong>{period}</strong> · svi dozvoljeni događaji za primenjene kriterijume</span></div>
-    <div className="gm-audit-kpis">{metrics.map(metric => <article key={metric.key} className={`gm-audit-kpi gm-audit-kpi--${metric.tone}`}>
-      <span className="gm-audit-kpi-icon"><AuditIcon kind={metric.icon} /></span><div><h2>{metric.label}</h2>
-        {loading ? <Skeleton lines={1} label={`Učitavanje: ${metric.label}`} /> : <strong>{!error && data ? new Intl.NumberFormat('sr-Latn-RS').format(data[metric.key]) : '—'}</strong>}
-        <p>{metric.key === 'total' ? 'Cela filtrirana evidencija' : 'Prema zabeleženim akcijama'}</p></div>
-    </article>)}</div>
+    <div className="ui-stat-grid gm-audit-kpis">{metrics.map(metric => <StatCard label={<>{metric.label}</>} value={loading ? <Skeleton lines={1} label={`Učitavanje: ${metric.label}`} /> : <>{!error && data ? new Intl.NumberFormat('sr-Latn-RS').format(data[metric.key]) : '—'}</>} icon={<AuditIcon kind={metric.icon} />} description={<>{metric.key === 'total' ? 'Cela filtrirana evidencija' : 'Prema zabeleženim akcijama'}</>} tone={metric.tone} key={metric.key} />)}</div>
     {error && <ErrorState title="Statistika nije dostupna" message={error} action={<Button type="button" variant="secondary" onClick={retry}>Pokušaj ponovo</Button>} />}
     {!loading && !error && data && <details className="gm-audit-stat-definition"><summary>Obuhvat pokazatelja</summary>
       <p>Ukupan broj obuhvata sve dozvoljene događaje za izabrani period, pretragu i filtere. Kategorije se računaju prema sledećim stvarnim action vrednostima; ostale akcije ulaze samo u ukupan broj.</p>

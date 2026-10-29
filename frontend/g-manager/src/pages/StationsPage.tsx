@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom'
 import { stationApi } from '../api/stationApi'
 import { hasCapability } from '../auth/capabilities'
 import { useAuthStore } from '../auth/authStore'
-import { Badge, Button, EmptyState, ErrorState, Input, Select, Skeleton } from '../components/ui'
+import { Badge, Button, EmptyState, ErrorState, Input, Select, Skeleton, PageHeader, PageLayout, StatCard, Card } from '../components/ui'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useToast } from '../components/ui/toastContext'
 import { GamingBoardPagination } from '../gaming/GamingBoardPagination'
@@ -140,24 +140,22 @@ const setUrl = url.set
         }
       } })
   }
-  if (!canRead) return <main className="workspace gm-stations"><EmptyState title="Gaming stanice nisu dostupne" description="Nemate dozvolu za pregled stanica." /></main>
+  if (!canRead) return <PageLayout className="gm-stations"><EmptyState title="Gaming stanice nisu dostupne" description="Nemate dozvolu za pregled stanica." /></PageLayout>
 
-  return <main className="workspace gm-stations">
+  return <PageLayout className="gm-stations">
     {confirmationDialog}
-    <header className="gm-stations-heading"><div className="gm-stations-heading-title"><span className="gm-stations-heading-icon"><StationIcon /></span><div>
-      <h1 ref={titleRef} tabIndex={-1}>Gaming stanice</h1><p>Pregled i upravljanje gaming stanicama, njihovim stanjem i konfiguracijom.</p></div></div>
-      <div className="gm-stations-heading-actions"><Button type="button" variant="secondary" loading={stations.isFetching || canOperate && board.isFetching} onClick={refresh}><StationIcon kind="refresh" />Osveži</Button>
-        {resourceManage && <Link className="button button-primary" to={resourceUrl} title="Otvara postojeće upravljanje resursima za kreiranje gaming računara">+ Nova stanica</Link>}</div></header>
-    <div className="gm-stations-kpis" aria-label="Statistika gaming stanica">
-      <div className="gm-stations-kpi gm-stations-kpi--total"><StationIcon /><span>Ukupno stanica</span><strong>{stations.data ? allStations.length : '—'}</strong><small>Sve gaming PC stanice u pregledu</small></div>
-      <div className="gm-stations-kpi gm-stations-kpi--active"><StationIcon /><span>U upotrebi</span><strong>{operationalReady ? operationalStations.filter(value => value.live?.sessionId).length : '—'}</strong><small>Stvarna aktivna gaming sesija</small></div>
-      <div className="gm-stations-kpi gm-stations-kpi--available"><StationIcon /><span>Slobodne stanice</span><strong>{operationalReady ? operationalStations.filter(value => permitsStationAction(user, value.live!, 'START')).length : '—'}</strong><small>Sistem dozvoljava pokretanje sesije</small></div>
-      <div className="gm-stations-kpi gm-stations-kpi--problem"><StationIcon kind="shield" /><span>Problematične stanice</span><strong>{operationalReady ? operationalStations.filter(problematicStation).length : '—'}</strong><small>Održavanje, van upotrebe, veza ili potrebna intervencija</small></div>
+    <PageHeader title="Gaming stanice" description={<>Pregled i upravljanje gaming stanicama, njihovim stanjem i konfiguracijom.</>} icon={<StationIcon />} titleRef={titleRef} actions={<><div className="gm-stations-heading-actions"><Button type="button" variant="secondary" loading={stations.isFetching || canOperate && board.isFetching} onClick={refresh}><StationIcon kind="refresh" />Osveži</Button>
+        {resourceManage && <Link className="ui-button ui-button--primary ui-button--medium" to={resourceUrl} title="Otvara postojeće upravljanje resursima za kreiranje gaming računara">+ Nova stanica</Link>}</div></>} />
+    <div className="ui-stat-grid gm-stations-kpis" aria-label="Statistika gaming stanica">
+      <StatCard label={<>Ukupno stanica</>} value={<>{stations.data ? allStations.length : '—'}</>} icon={<StationIcon />} description={<>Sve gaming PC stanice u pregledu</>} />
+      <StatCard label={<>U upotrebi</>} value={<>{operationalReady ? operationalStations.filter(value => value.live?.sessionId).length : '—'}</>} icon={<StationIcon />} description={<>Stvarna aktivna gaming sesija</>} tone={"success"} />
+      <StatCard label={<>Slobodne stanice</>} value={<>{operationalReady ? operationalStations.filter(value => permitsStationAction(user, value.live!, 'START')).length : '—'}</>} icon={<StationIcon />} description={<>Sistem dozvoljava pokretanje sesije</>} tone={"info"} />
+      <StatCard label={<>Problematične stanice</>} value={<>{operationalReady ? operationalStations.filter(problematicStation).length : '—'}</>} icon={<StationIcon kind="shield" />} description={<>Održavanje, van upotrebe, veza ili potrebna intervencija</>} tone={"warning"} />
     </div>
     <p className="gm-stations-stat-scope">Ukupan broj obuhvata sve stanice u pregledu. {operationalReady
       ? `Operativni pokazatelji obuhvataju ${operationalStations.length} stanica u vašem Gaming Operations opsegu, bez uticaja filtera i paginacije.`
       : 'Operativni pokazatelji zahtevaju dozvolu i dostupan pregled Gaming operative.'} Problematične uključuju i isteklu sesiju, nepotvrđeno zaključavanje, komandu bez potvrde i nedovršenu konfiguraciju.</p>
-    <section className="gm-stations-section gm-stations-filters" aria-label="Pretraga i filteri stanica">
+    <Card className="gm-stations-section gm-stations-filters" aria-label="Pretraga i filteri stanica">
       <div className="gm-stations-filter-main"><label className="gm-stations-search"><span>Pretraga stanica</span><div><StationIcon kind="search" /><Input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Pretraži po nazivu, kodu ili klijentu..." /></div></label>
         <label>Status<Select aria-label={"Status"} value={state.status} onChange={event => filter({ status: event.target.value })}><option value="">Svi statusi</option>{Object.entries(stationLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></label>
         <label>Lokal<Select aria-label={"Lokal"} value={state.locationId} onChange={event => filter({ locationId: event.target.value, areaId: '' })}><option value="">Svi lokali</option>{locations.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
@@ -170,18 +168,18 @@ const setUrl = url.set
         {(profiles.data ?? []).map(value => <option key={value.id} value={value.id}>{value.name}{!value.active && ' · neaktivan'}</option>)}
         {state.profileId && state.profileId !== 'none' && !profiles.data?.some(value => value.id === state.profileId) && <option value={state.profileId}>Izabrani profil nije dostupan</option>}</Select></label>
         <label>Gaming Client konekcija<Select aria-label={"Gaming Client konekcija"} value={state.connection} onChange={event => filter({ connection: event.target.value })}><option value="">Sva stanja veze</option>{Object.entries(connections).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></label></div>}
-    </section>
+    </Card>
     <section className="gm-stations-results" aria-labelledby="station-results-title">
       <header className="gm-stations-results-heading"><div><h2 id="station-results-title">Pregled stanica <span>{filtered.length}</span></h2>
         <div className="gm-stations-live-status">{canOperate ? <><Badge tone={stale ? 'warning' : operations.connection === 'connected' ? 'success' : 'warning'}>{!operations.visible ? 'Osvežavanje pauzirano' : board.isError || boardTooOld ? 'Podaci mogu biti zastareli' : operations.connection === 'connected' ? 'Povezano' : operations.connection === 'reconnecting' ? 'Ponovno povezivanje' : 'Povezivanje'}</Badge>
           {board.data && <small>Podaci od {formatBusinessDateTime(board.data.serverTime, false, 'sr-Latn-RS')}</small>}</> : <small>Pregled konfiguracije · automatsko osvežavanje</small>}</div></div>
-        <div className="gm-stations-view-switch" role="group" aria-label="Način prikaza stanica"><button type="button" aria-pressed={state.view !== 'table'} onClick={() => setUrl({ view: 'cards' })}><StationIcon kind="grid" />Kartice</button>
-          <button type="button" aria-pressed={state.view === 'table'} onClick={() => setUrl({ view: 'table' })}><StationIcon kind="table" />Tabela</button></div></header>
+        <div className="gm-stations-view-switch" role="group" aria-label="Način prikaza stanica"><Button variant="ghost" type="button" aria-pressed={state.view !== 'table'} onClick={() => setUrl({ view: 'cards' })}><StationIcon kind="grid" />Kartice</Button>
+          <Button variant="ghost" type="button" aria-pressed={state.view === 'table'} onClick={() => setUrl({ view: 'table' })}><StationIcon kind="table" />Tabela</Button></div></header>
       {canOperate && (board.isError || boardTooOld || operations.connection === 'reconnecting') && <div className="gm-stations-warning" role="status">{board.isError ? stationError(board.error, 'Operativno stanje trenutno nije dostupno.') : 'Ponovno povezivanje ili kašnjenje operativnih podataka.'} Podaci mogu biti zastareli. Automatsko osvežavanje će pokušati ponovo.</div>}
       {stations.isError && stations.data && <div className="gm-stations-warning" role="alert">{stationError(stations.error, 'Osvežavanje stanica nije uspelo.')} Prikazani podaci mogu biti zastareli.<Button type="button" variant="secondary" onClick={refresh}>Pokušaj ponovo</Button></div>}
-      {stations.isLoading ? <div className="gm-stations-grid">{[0, 1, 2].map(index => <div className="gm-stations-card" key={index}><Skeleton lines={7} label="Učitavanje stanice" /></div>)}</div>
-        : stations.isError && !stations.data ? <ErrorState message={stationError(stations.error, 'Stanice nisu dostupne.')} action={<Button type="button" onClick={refresh}>Pokušaj ponovo</Button>} />
-          : !allStations.length ? <EmptyState title="Nema gaming stanica" description="Gaming računar dodaje se kroz postojeće upravljanje fizičkim resursima." action={resourceManage ? <Link className="button button-primary" to={resourceUrl}>+ Nova stanica</Link> : undefined} />
+      {stations.isLoading ? <div className="gm-stations-grid">{[0, 1, 2].map(index => <Card as="div" className="gm-stations-card" key={index}><Skeleton lines={7} label="Učitavanje stanice" /></Card>)}</div>
+        : stations.isError && !stations.data ? <ErrorState message={stationError(stations.error, 'Stanice nisu dostupne.')} action={<Button variant="secondary" type="button" onClick={refresh}>Pokušaj ponovo</Button>} />
+          : !allStations.length ? <EmptyState title="Nema gaming stanica" description="Gaming računar dodaje se kroz postojeće upravljanje fizičkim resursima." action={resourceManage ? <Link className="ui-button ui-button--primary ui-button--medium" to={resourceUrl}>+ Nova stanica</Link> : undefined} />
             : !filtered.length ? <EmptyState title="Nema stanica za izabrane filtere" description="Promenite pretragu ili filtere da biste proširili pregled." action={<Button type="button" variant="secondary" onClick={clearFilters}>Očisti filtere</Button>} />
               : state.view === 'table' ? <StationsTable stations={current} user={user} now={now} selectedId={state.stationId} disabled={stale} handlers={handlers} />
                 : <div className="gm-stations-grid">{current.map(value => <StationCard key={value.resourceId} station={value} user={user} now={now} selected={state.stationId === value.resourceId} disabled={stale} handlers={handlers} />)}</div>}
@@ -201,5 +199,5 @@ const setUrl = url.set
     {profileEdit !== undefined && manage && <ApplicationProfileDialog value={profileEdit} definitions={definitions.data ?? []} onClose={() => setProfileEdit(undefined)} />}
     {machineStation && machineManage && <StationIdentityDialog key={machineStation.resourceId} station={machineStation} onClose={() => setMachineStation(null)} />}
     {resourceEmployees && resourceManage && <ResourceEmployees resourceId={resourceEmployees.resourceId} resourceName={resourceEmployees.resourceName} onClose={() => setResourceEmployees(null)} />}
-  </main>
+  </PageLayout>
 }

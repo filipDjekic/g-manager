@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { reservationApi } from '../api/reservationApi'
 import { apiErrorMessage } from '../api/client'
-import { Button, ErrorState, Skeleton } from '../components/ui'
+import { Button, ErrorState, Skeleton, Input, Select, Textarea, Alert } from '../components/ui'
 import { businessInstantToLocal, businessLocalToInstant, formatBusinessDateTime } from './dateTime'
 import type { ReservationDetail } from '../types/reservation.types'
 export function ReservationEditForm({value,onChanged,onClose,onBusyChange,locale='sr-RS'}:{value:ReservationDetail;onChanged:()=>Promise<void>;onClose:()=>void;onBusyChange?:(busy:boolean)=>void;locale?:string}) {
@@ -23,17 +23,17 @@ export function ReservationEditForm({value,onChanged,onClose,onBusyChange,locale
     onError:async()=>{await onChanged();await options.refetch()}})
   useEffect(()=>{onBusyChange?.(save.isPending)},[save.isPending,onBusyChange])
   useEffect(()=>()=>onBusyChange?.(false),[onBusyChange])
-  return <form className="form-grid reservation-editor panel" onSubmit={e=>{e.preventDefault();if(maySave&&!save.isPending)save.mutate()}}>
+  return <form className="ui-form-grid form-grid reservation-editor panel" onSubmit={e=>{e.preventDefault();if(maySave&&!save.isPending)save.mutate()}}>
     <h3>Izmena vremena i stanice</h3><p className="search-help">Premeštanje zahteva ovlašćenje i za izvornu i za ciljnu stanicu. Usluga, klijent i trajanje ostaju vezani za ovaj termin.</p>
-    <label>Datum i vreme (Europe/Belgrade)<input aria-label={"Datum i vreme (Europe/Belgrade)"} required type="datetime-local" disabled={save.isPending} value={start} onChange={e=>setStart(e.target.value)}/></label>
-    {options.isLoading?<Skeleton lines={2}/>:options.error?<ErrorState message={apiErrorMessage(options.error,'Slobodne stanice nisu dostupne.')} action={<Button type="button" onClick={()=>options.refetch()}>Pokušaj ponovo</Button>}/>:<label>Računar / resurs<select aria-label={"Računar / resurs"} required={!!value.resourceRequired} disabled={save.isPending} value={resourceId} onChange={e=>setResourceId(e.target.value)}>
+    <label>Datum i vreme (Europe/Belgrade)<Input aria-label={"Datum i vreme (Europe/Belgrade)"} required type="datetime-local" disabled={save.isPending} value={start} onChange={e=>setStart(e.target.value)}/></label>
+    {options.isLoading?<Skeleton lines={2}/>:options.error?<ErrorState message={apiErrorMessage(options.error,'Slobodne stanice nisu dostupne.')} action={<Button variant="secondary" type="button" onClick={()=>options.refetch()}>Pokušaj ponovo</Button>}/>:<label>Računar / resurs<Select aria-label={"Računar / resurs"} required={!!value.resourceRequired} disabled={save.isPending} value={resourceId} onChange={e=>setResourceId(e.target.value)}>
       {!value.resourceId&&<option value="">{value.resourceRequired?'Izaberite stanicu':'Bez fizičkog resursa'}</option>}
       {resourceId&&!options.data?.resources.some(r=>r.id===resourceId)&&<option value={resourceId} disabled>Trenutna stanica nije dostupna za ovaj termin</option>}
       {options.data?.resources.map(r=><option key={r.id} value={r.id} disabled={!r.available}>{r.code} · {r.name} · {r.locationName}{r.available?'':' — Zauzet ili van radnog vremena'}</option>)}
-    </select></label>}
-    <label>Napomena<textarea aria-label={"Napomena"} maxLength={500} disabled={save.isPending} value={note} onChange={e=>setNote(e.target.value)}/></label>
+    </Select></label>}
+    <label>Napomena<Textarea aria-label={"Napomena"} maxLength={500} disabled={save.isPending} value={note} onChange={e=>setNote(e.target.value)}/></label>
     <p>{resource?`${resource.locationName} · ${resource.code} · ${resource.name}`:value.locationName} · {instant&&formatBusinessDateTime(instant,false,locale)}</p>
-    {save.error&&<p role="alert" className="error-banner">{apiErrorMessage(save.error,'Izmene nije moguće sačuvati.')}</p>}
-    <div className="form-actions"><Button type="submit" disabled={!maySave} loading={save.isPending}>Sačuvaj izmene</Button><Button type="button" variant="secondary" disabled={save.isPending} onClick={onClose}>Odustani</Button></div>
+    {save.error&&<Alert tone="danger" role="alert">{apiErrorMessage(save.error,'Izmene nije moguće sačuvati.')}</Alert>}
+    <div className="ui-actions form-actions"><Button type="submit" disabled={!maySave} loading={save.isPending}>Sačuvaj izmene</Button><Button type="button" variant="secondary" disabled={save.isPending} onClick={onClose}>Odustani</Button></div>
   </form>
 }

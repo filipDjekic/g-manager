@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { Badge, Button } from '../../components/ui'
+import { Badge, Button, Card } from '../../components/ui'
 import { reservationLabels, reservationTones } from '../../components/ui/statusPresentation'
 import { formatBusinessIntervalEnd, formatBusinessTime } from '../dateTime'
 import type { CatalogItem } from '../../types/catalog.types'
@@ -15,12 +15,12 @@ export function CustomerReservationCard({ value, service, disabled, canCreate, c
   const minutes = Math.round((Date.parse(value.endTime) - Date.parse(value.startTime)) / 60000)
   const editable = value.canEdit && !value.readOnly && canChange
   const cancellable = value.allowedActions?.includes('CANCELLED') && !value.readOnly && canChange
-  return <article className={`gm-my-reservation-card gm-my-reservation-status-${value.status.toLowerCase()}`} onClick={event => {
+  return <Card as="article" padding="none" className={`gm-my-reservation-card gm-my-reservation-status-${value.status.toLowerCase()}`} onClick={event => {
     if (!(event.target as Element).closest('button, a, input, label') && titleRef.current) onDetails(value, undefined, titleRef.current)
   }}>
     <div className="gm-my-reservation-card-main"><ReservationServiceMedia serviceId={value.serviceId} item={service} /><div className="gm-my-reservation-card-content">
       <Badge tone={reservationTones[value.status]}>{reservationLabels[value.status]}</Badge>
-      <button ref={titleRef} type="button" className="gm-my-reservation-title" onClick={event => onDetails(value, undefined, event.currentTarget)}>{value.serviceName ?? service?.name ?? 'Usluga'}</button>
+      <Button variant="ghost" ref={titleRef} type="button" className="gm-my-reservation-title" onClick={event => onDetails(value, undefined, event.currentTarget)}>{value.serviceName ?? service?.name ?? 'Usluga'}</Button>
       <p className="gm-my-reservation-date">{customerDate(value.startTime)}</p>
       <p className="gm-my-reservation-time"><CustomerReservationIcon kind="clock" /><strong>{formatBusinessTime(value.startTime)} – {formatBusinessIntervalEnd(value.startTime, value.endTime, 'sr-Latn-RS')}</strong><span>{customerDuration(minutes)}</span></p>
       <p className="gm-my-reservation-place"><CustomerReservationIcon kind="pin" /><span>{value.locationName || 'Lokal nije dodeljen'}{area && <small>Zona: {area}</small>}</span></p>
@@ -32,5 +32,5 @@ export function CustomerReservationCard({ value, service, disabled, canCreate, c
       {cancellable && <Button type="button" variant="danger" disabled={disabled} onClick={event => onDetails(value, 'CANCELLED', event.currentTarget)}>Otkaži</Button>}
       {canCreate && ['COMPLETED', 'CANCELLED', 'REJECTED'].includes(value.status) && <Button type="button" disabled={disabled} onClick={event => onRebook(value, event.currentTarget)}>Rezerviši ponovo</Button>}
     </footer>
-  </article>
+  </Card>
 }

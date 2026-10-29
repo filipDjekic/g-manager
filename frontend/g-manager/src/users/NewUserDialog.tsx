@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { userApi } from '../api/userApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Badge, Button, FormField, Input, Modal } from '../components/ui'
+import { Badge, Button, FormField, Input, Modal, Alert } from '../components/ui'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useDirtyGuard } from '../forms/useDirtyGuard'
 import type { AuthUser } from '../types/auth.types'
@@ -47,24 +47,24 @@ export function NewUserDialog({ actor, onClose, onCreated, returnFocusRef }: {
   }
   return <>{confirmationDialog}<Modal open title="Novi korisnik" titleIcon={<UserIcon kind="add" />} className="gm-user-dialog gm-user-create-dialog"
     initialFocusRef={firstField} returnFocusRef={returnFocusRef} closeDisabled={busy} descriptionId={`${id}-description`} onClose={close}
-    footer={<div className="dialog-actions"><Button type="button" variant="secondary" disabled={busy} onClick={close}>Otkaži</Button>
+    footer={<div className="ui-actions dialog-actions"><Button type="button" variant="secondary" disabled={busy} onClick={close}>Otkaži</Button>
       <Button type="submit" form={`${id}-form`} className="gm-user-primary" loading={busy}>Kreiraj korisnika</Button></div>}>
     <p id={`${id}-description`} className="gm-user-note">Kreirajte administratorski nalog ili nalog zaposlenog.</p>
-    <form id={`${id}-form`} className="gm-user-create-form" onSubmit={event => void submit(event)}>
+    <form id={`${id}-form`} className="ui-form-grid gm-user-create-form" onSubmit={event => void submit(event)}>
       <FormField htmlFor={`${id}-name`} label="Ime i prezime" error={nameError}><Input ref={firstField} id={`${id}-name`} required minLength={2} maxLength={120}
         autoComplete="off" disabled={busy} value={name} onChange={event => { setName(event.target.value); setNameError(''); setError('') }} /></FormField>
       <FormField htmlFor={`${id}-email`} label="Email adresa"><Input id={`${id}-email`} type="email" required maxLength={180} autoComplete="off"
         disabled={busy} value={email} onChange={event => { setEmail(event.target.value); setError('') }} /></FormField>
       <div className="gm-user-password-field"><FormField htmlFor={`${id}-password`} label="Početna lozinka" hint="Od 8 do 100 karaktera."><Input id={`${id}-password`}
         type={visible ? 'text' : 'password'} required minLength={8} maxLength={100} autoComplete="new-password" disabled={busy} value={password} onChange={event => { setPassword(event.target.value); setError('') }} /></FormField>
-        <Button type="button" variant="secondary" disabled={busy} aria-controls={`${id}-password`} aria-pressed={visible} aria-label={visible ? 'Sakrij lozinku' : 'Prikaži lozinku'}
+        <Button iconOnly type="button" variant="secondary" disabled={busy} aria-controls={`${id}-password`} aria-pressed={visible} aria-label={visible ? 'Sakrij lozinku' : 'Prikaži lozinku'}
           onClick={() => setVisible(value => !value)}><UserIcon kind={visible ? 'eye-off' : 'eye'} /></Button></div>
       {actor.role === 'OWNER' ? <fieldset className="gm-user-role-field"><legend>Uloga</legend><div>
         {(['ADMIN', 'EMPLOYEE'] as const).map(value => <label className={`gm-user-role-choice${role === value ? ' is-selected' : ''}`} key={value}>
-          <input type="radio" name={`${id}-role`} value={value} checked={role === value} disabled={busy} onChange={() => setRole(value)} /><UserRoleBadge role={value} /></label>)}
+          <Input type="radio" name={`${id}-role`} value={value} checked={role === value} disabled={busy} onChange={() => setRole(value)} /><UserRoleBadge role={value} /></label>)}
       </div></fieldset> : <div className="gm-user-fixed-role"><span>Uloga</span><UserRoleBadge role="EMPLOYEE" /><small>Administratori mogu kreirati samo naloge zaposlenih.</small></div>}
       <p className="gm-user-note"><Badge tone="neutral">Klijenti</Badge> Nalozi klijenata kreiraju se kroz postojeći tok u odeljku Klijenti.</p>
-      {error && <p className="error-banner" role="alert">{error}</p>}
+      {error && <Alert tone="danger" role="alert">{error}</Alert>}
     </form>
   </Modal></>
 }

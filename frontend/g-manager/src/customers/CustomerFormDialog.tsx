@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type RefObject } from 'react'
 import { apiErrorMessage } from '../api/client'
 import { customerApi } from '../api/customerApi'
-import { Button, FormField, Input, Modal, Textarea } from '../components/ui'
+import { Button, FormField, Input, Modal, Textarea, Alert } from '../components/ui'
 import { NavigationIcon } from '../layout/NavigationIcon'
 import type { CustomerListItem } from '../types/customer.types'
 import { customerDate } from './CustomerTable.model'
@@ -55,10 +55,10 @@ export function CustomerFormDialog({ customer, onClose, onSaved, returnFocusRef 
     } catch { setCopyStatus('Kopiranje nije dostupno. Označite kod i kopirajte ga ručno.') }
     finally { setCopyBusy(false) }
   }
-  return <Modal open className="customers-form-dialog" closeDisabled={busy}
+  return <Modal size="wide" open className="customers-form-dialog" closeDisabled={busy}
     title={activation ? 'Klijent je uspešno kreiran' : customer ? 'Izmeni podatke klijenta' : 'Novi klijent'}
     titleIcon={<NavigationIcon to="/customers" />} initialFocusRef={firstInput} returnFocusRef={returnFocusRef} onClose={close}
-    footer={<div className="customers-dialog-actions">
+    footer={<div className="ui-actions customers-dialog-actions">
       {activation ? <Button type="button" className="customers-pink-button" onClick={close}>Zatvori</Button> : <>
         <Button type="button" variant="secondary" disabled={busy} onClick={close}>Otkaži</Button>
         <Button type="submit" form={formId} className="customers-pink-button" loading={busy} disabled={!valid}>
@@ -73,9 +73,9 @@ export function CustomerFormDialog({ customer, onClose, onSaved, returnFocusRef 
       <Button type="button" variant="secondary" loading={copyBusy} onClick={() => void copyCode()}>Kopiraj kod</Button>
       <p className="customers-copy-status" role="status">{copyStatus}</p>
       <div className="customers-activation-expiry"><span>Datum i vreme isteka</span><strong>{customerDate(activation.expiresAt)}</strong></div>
-    </div> : <form id={formId} className="customers-form" onSubmit={save}>
+    </div> : <form id={formId} className="ui-form-grid customers-form" onSubmit={save}>
       <p>{customer ? 'Ažurirajte osnovne podatke klijenta.' : 'Kreirajte nalog i predajte jednokratni aktivacioni kod klijentu.'}</p>
-      {error && <p className="error-banner" role="alert">{error}</p>}
+      {error && <Alert tone="danger" role="alert">{error}</Alert>}
       <FormField label="Ime i prezime *" htmlFor={`${id}-name`}>
         <Input ref={firstInput} id={`${id}-name`} required maxLength={120} autoComplete="name" disabled={busy}
           value={name} onChange={event => setName(event.target.value)} />

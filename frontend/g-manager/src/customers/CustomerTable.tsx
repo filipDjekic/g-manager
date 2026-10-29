@@ -1,12 +1,12 @@
 import { customerDate, type CustomerAction, type ActionHandler } from './CustomerTable.model'
-import { Pagination } from '../components/ui'
+import { Pagination, Badge, Button, TableShell } from '../components/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { gamingSessionApi } from '../api/gamingSessionApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Badge, Button, TableShell } from '../components/ui'
+
 
 import type { CustomerListItem } from '../types/customer.types'
 
@@ -70,10 +70,10 @@ function CustomerRowActions({ customer, canEdit, canStart, canDeactivate, disabl
     onAction(customer, action, trigger.current)
   }
   return <>
-    <Button ref={trigger} type="button" variant="secondary" className="customers-menu-trigger" disabled={disabled}
+    <Button size="small" iconOnly ref={trigger} type="button" variant="ghost" className="customers-menu-trigger" disabled={disabled}
       aria-label={`Akcije za klijenta ${customer.name}`} aria-haspopup="menu" aria-expanded={open}
       aria-controls={open ? id : undefined} onClick={() => setOpen(!open)}>⋯</Button>
-    {open && createPortal(<div ref={menu} id={id} className="customers-row-menu" role="menu" aria-label="Akcije klijenta"
+    {open && createPortal(<div ref={menu} id={id} className="ui-menu customers-row-menu" role="menu" aria-label="Akcije klijenta"
       style={position} onKeyDown={event => {
         if (event.key === 'Tab') { setOpen(false); trigger.current?.focus(); return }
         if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
@@ -88,7 +88,7 @@ function CustomerRowActions({ customer, canEdit, canStart, canDeactivate, disabl
       {canEdit && <Button type="button" variant="secondary" role="menuitem" onClick={() => choose('EDIT')}>Izmeni podatke</Button>}
       {canStart && customer.active && canReadGaming && visits.isFetching && <span role="status">Provera gaming sesija…</span>}
       {canStart && customer.active && (!canReadGaming || visits.data && !visits.error && !activeSession) &&
-        <Button type="button" variant="secondary" role="menuitem" disabled={visits.isFetching} onClick={() => choose('START')}>Pokreni gaming sesiju</Button>}
+        <Button type="button" variant="primary" role="menuitem" disabled={visits.isFetching} onClick={() => choose('START')}>Pokreni gaming sesiju</Button>}
       {canStart && customer.active && activeSession && <span>Gaming sesija je već aktivna.</span>}
       {canStart && customer.active && visits.error && <span role="alert">Gaming sesije nije moguće proveriti. Otvorite profil.</span>}
       {canDeactivate && customer.active && <Button type="button" variant="danger" role="menuitem" onClick={() => choose('DEACTIVATE')}>Deaktiviraj klijenta</Button>}
@@ -100,7 +100,7 @@ export function CustomerTable({ customers, selectedId, canEdit, canStart, canDea
   customers: CustomerListItem[]; selectedId: string; canEdit: boolean; canStart: boolean
   canDeactivate: boolean; disabled: boolean; onAction: ActionHandler
 }) {
-  return <TableShell label="Lista klijenata"><table className="data-table customers-table responsive-table">
+  return <TableShell label="Lista klijenata"><table className="ui-data-table data-table customers-table">
     <thead><tr>{['Klijent', 'Email', 'Broj rezervacija', 'Poslednja aktivnost', 'Status', 'Akcije'].map(label =>
       <th key={label} scope="col">{label}</th>)}</tr></thead>
     <tbody>{customers.map(customer => <tr key={customer.id} className={selectedId === customer.id ? 'is-selected' : ''}
@@ -109,7 +109,7 @@ export function CustomerTable({ customers, selectedId, canEdit, canStart, canDea
         onAction(customer, 'PROFILE', event.currentTarget.querySelector<HTMLButtonElement>('.customers-name'))
       }}>
       <td data-label="Klijent"><div className="customers-identity"><CustomerAvatar name={customer.name} />
-        <Button type="button" variant="secondary" className="customers-name" aria-label={`Prikaži profil: ${customer.name}`}
+        <Button type="button" variant="ghost" className="customers-name" aria-label={`Prikaži profil: ${customer.name}`}
           onClick={event => onAction(customer, 'PROFILE', event.currentTarget)}>{customer.name}</Button></div></td>
       <td data-label="Email"><span className="customers-email">{customer.email}</span></td>
       <td data-label="Broj rezervacija"><strong className="customers-number">{customer.reservationCount}</strong></td>

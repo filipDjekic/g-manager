@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { isAxiosError } from 'axios'
 import { userApi } from '../api/userApi'
-import { Button, Input } from '../components/ui'
+import { Button, Input, Card } from '../components/ui'
 import { useToast } from '../components/ui/toastContext'
 import { focusFirstInvalid } from '../forms/useDirtyGuard'
 import { ProfileIcon } from './profilePresentation'
@@ -17,7 +17,7 @@ function PasswordField({ id, label, visibilityLabel, value, onChange, onBlur, sh
         value={value} disabled={disabled} maxLength={fresh ? 100 : undefined} minLength={fresh ? 8 : undefined}
         autoCapitalize="none" spellCheck={false} aria-invalid={!!error || undefined} aria-describedby={[`${id}-feedback`, strengthId].filter(Boolean).join(' ')}
         onBlur={onBlur} onChange={event => onChange(event.target.value)} />
-      <Button type="button" variant="secondary" className="gm-profile-eye" disabled={disabled} aria-pressed={show}
+      <Button iconOnly type="button" variant="secondary" className="gm-profile-eye" disabled={disabled} aria-pressed={show}
         aria-label={`${show ? 'Sakrij' : 'Prikaži'} ${visibilityLabel}`} aria-controls={id} onClick={toggle}><ProfileIcon kind={show ? 'eyeOff' : 'eye'} /></Button>
     </div><p id={`${id}-feedback`} className={error ? 'gm-profile-error' : 'gm-profile-field-hint'}>{error || hint}</p>
   </div>
@@ -59,10 +59,10 @@ export function ProfilePasswordCard({ canUpdate, onChanged, onDirty }: {
   }
   const toggle = (key: keyof typeof visible) => setVisible(value => ({ ...value, [key]: !value[key] }))
   const touch = (key: keyof typeof touched) => setTouched(value => ({ ...value, [key]: true }))
-  return <section className="gm-profile-card gm-profile-password" aria-labelledby={`${id}-title`}>
+  return <Card className="gm-profile-card gm-profile-password" aria-labelledby={`${id}-title`}>
     <header className="gm-profile-card-header"><span className="gm-profile-card-icon"><ProfileIcon kind="lock" /></span>
       <div><h2 id={`${id}-title`}>Promena lozinke</h2><p>Izaberite novu, sigurnu lozinku za vaš nalog.</p></div></header>
-    <form className="gm-profile-form" onSubmit={save} noValidate>
+    <form className="ui-form-grid gm-profile-form" onSubmit={save} noValidate>
       <PasswordField id={`${id}-current`} label="Trenutna lozinka" visibilityLabel="trenutnu lozinku" value={current}
         onChange={value => { setCurrent(value); setError('') }} onBlur={() => touch('current')} show={visible.current} toggle={() => toggle('current')}
         disabled={!canUpdate || busy} error={touched.current ? errors.current : ''} />
@@ -88,5 +88,5 @@ export function ProfilePasswordCard({ canUpdate, onChanged, onDirty }: {
       {error && <div className="gm-profile-error" role="alert"><p>{error}</p><p className="gm-profile-field-hint">Polja lozinki su očišćena. Unesite ih ponovo kada budete spremni.</p></div>}
       <Button className="gm-profile-password-button" type="submit" loading={busy} disabled={!canUpdate || !valid}><ProfileIcon kind="lock" />Promeni lozinku</Button>
     </form>
-  </section>
+  </Card>
 }

@@ -5,7 +5,7 @@ import { auditApi, type AuditCriteria, type AuditFilters } from '../api/auditApi
 import { apiErrorMessage } from '../api/client'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Button, Drawer, Pagination, EmptyState, ErrorState, Input, Skeleton } from '../components/ui'
+import { Button, Drawer, Pagination, EmptyState, ErrorState, Input, Skeleton, PageHeader, PageLayout, Card } from '../components/ui'
 import { useListUrlState } from '../lists/useListUrlState'
 import { todayInBusinessZone } from '../reservations/dateTime'
 import { AuditFilterDialog } from '../audit/AuditFilterDialog'
@@ -92,10 +92,8 @@ useEffect(() => {
 
   const count = result?.totalElements ?? 0
 
-  return <main className="workspace gm-audit" ref={root}>
-    <header className="gm-audit-header"><span className="gm-audit-header-icon"><AuditIcon kind="shield" /></span>
-      <div><h1 ref={heading} tabIndex={-1}>Audit</h1><p>Pregled sistemskih događaja, korisničkih aktivnosti i istorije promena.</p></div>
-    </header>
+  return <PageLayout className="gm-audit" ref={root}>
+    <PageHeader title="Audit" description={<>Pregled sistemskih događaja, korisničkih aktivnosti i istorije promena.</>} icon={<AuditIcon kind="shield" />} titleRef={heading} />
     {!canRead ? <ErrorState title="Pristup nije dozvoljen" message="Nemate dozvolu za pregled audit evidencije." /> : <>
       <AuditStatisticsCards data={statistics.data} loading={statistics.isPending || statistics.isFetching}
         error={statistics.isError ? apiErrorMessage(statistics.error, 'Pokazatelji nisu dostupni.') : undefined}
@@ -104,9 +102,9 @@ useEffect(() => {
         <div className="gm-audit-search"><AuditIcon kind="search" />
           <Input ref={searchInput} aria-label="Pretraži audit događaje" aria-describedby="audit-search-hint" type="search"
             maxLength={160} placeholder="Pretraži događaje..." value={search} onChange={event => setSearch(event.target.value)} />
-          {search && <button type="button" className="gm-audit-search-clear" aria-label="Obriši pretragu" onClick={() => {
+          {search && <Button iconOnly variant="ghost" type="button" className="gm-audit-search-clear" aria-label="Obriši pretragu" onClick={() => {
             setSearch(''); setUrl({ search: '', page: '0', eventId: '' }, true); searchInput.current?.focus()
-          }}><AuditIcon kind="close" /></button>}
+          }}><AuditIcon kind="close" /></Button>}
         </div>
         <Button ref={filtersButton} type="button" variant="secondary" className="gm-audit-filter-button" aria-haspopup="dialog"
           aria-label={`Filteri, ${activeCount} aktivnih kriterijuma`} onClick={() => setFilterDialog(true)}><AuditIcon kind="filters" />Filteri
@@ -116,7 +114,7 @@ useEffect(() => {
         <span id="audit-search-hint" className="gm-audit-sr">Pretražite akciju, tip resursa ili pun UUID resursa ili izvršioca. Pretraga ostaje sačuvana pri poništavanju filtera.</span>
       </div>
       <div className={`gm-audit-layout${wide ? ' is-wide' : ''}`}>
-        <section className="gm-audit-timeline-panel" aria-label="Audit vremenska linija">
+        <Card padding="none" className="gm-audit-timeline-panel" aria-label="Audit vremenska linija">
           <header className="gm-audit-list-heading"><div><h2>Vremenska linija</h2><p>{sortOptions.find(option => option.sort === draft.sort && option.direction === draft.direction)?.label} · Europe/Belgrade</p></div>
             {!events.isPending && !events.isError && <span>{new Intl.NumberFormat('sr-Latn-RS').format(count)} događaja</span>}
           </header>
@@ -131,11 +129,11 @@ useEffect(() => {
           <Pagination numbered page={page} pageSize={size} totalPages={pages} totalElements={count}
             label="Stranice audit događaja" loading={events.isFetching} disabled={!result || events.isError}
             onPageChange={changePage} onPageSizeChange={size => setUrl({ size: String(size), page: '0', eventId: '' })} />
-        </section>
+        </Card>
         {wide && <aside className="gm-audit-details-panel" aria-label="Detalji izabranog događaja">{panel}</aside>}
       </div>
       <Drawer open={!!selected && !wide} title="Detalji događaja" size="wide" className="gm-audit-drawer" onClose={closeDetails} returnFocusRef={detailOpener}>{panel}</Drawer>
       {filterDialog && <AuditFilterDialog initial={draft} onApply={applyFilters} onClose={() => setFilterDialog(false)} returnFocusRef={filtersButton} />}
     </>}
-  </main>
+  </PageLayout>
 }

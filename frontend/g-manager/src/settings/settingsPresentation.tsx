@@ -4,7 +4,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } f
 import { createPortal } from 'react-dom'
 
 
-import { Button } from '../components/ui'
+import { Button, Input } from '../components/ui'
 
 
 
@@ -32,7 +32,7 @@ export function SettingsIcon({ kind = 'settings' }: { kind?: SettingsIconKind })
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">{paths[kind]}</svg>
 }
 export function SettingsSwitch({ label, ariaLabel, checked, disabled, onChange }: { label: string; ariaLabel?: string; checked: boolean; disabled?: boolean; onChange: (value: boolean) => void }) {
-  return <label className="gm-settings-switch"><input type="checkbox" role="switch" aria-label={ariaLabel ?? label} checked={checked} disabled={disabled}
+  return <label className="gm-settings-switch"><Input type="checkbox" role="switch" aria-label={ariaLabel ?? label} checked={checked} disabled={disabled}
     onChange={event => onChange(event.target.checked)} /><span className="gm-settings-switch-track" aria-hidden="true" /><span>{label}</span></label>
 }
 export function SettingsAvatar({ name }: { name: string }) {
@@ -60,9 +60,9 @@ export function SettingsActionMenu({ label, actions, disabled }: { label: string
     document.addEventListener('pointerdown', outside); window.addEventListener('scroll', scroll, true)
     return () => { document.removeEventListener('pointerdown', outside); window.removeEventListener('scroll', scroll, true) }
   }, [open])
-  return <><Button ref={trigger} type="button" variant="secondary" className="gm-settings-menu-trigger" aria-label={label} disabled={disabled}
+  return <><Button size="small" iconOnly ref={trigger} type="button" variant="ghost" className="gm-settings-menu-trigger" aria-label={label} disabled={disabled}
     aria-haspopup="menu" aria-expanded={open} aria-controls={open ? id : undefined} onClick={() => setOpen(value => !value)}>⋯</Button>
-    {open && createPortal(<div id={id} ref={menu} role="menu" className="gm-settings-menu" aria-label={label} style={position} onKeyDown={event => {
+    {open && createPortal(<div id={id} ref={menu} role="menu" className="ui-menu gm-settings-menu" aria-label={label} style={position} onKeyDown={event => {
       const items = Array.from(menu.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? []), index = items.indexOf(document.activeElement as HTMLButtonElement)
       if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setOpen(false); trigger.current?.focus() }
       if (event.key === 'Tab') { setOpen(false); trigger.current?.focus() }

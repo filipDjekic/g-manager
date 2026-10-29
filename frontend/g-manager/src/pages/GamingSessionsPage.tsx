@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom'
 import { gamingSessionApi } from '../api/gamingSessionApi'
 import { apiErrorMessage } from '../api/client'
 import { IdempotencyKeyManager } from '../api/idempotency'
-import { Badge, Button, EmptyState, ErrorState, Input, Modal, Select, Skeleton } from '../components/ui'
+import { Badge, Button, EmptyState, ErrorState, Input, Modal, Select, Skeleton, PageHeader, PageLayout, StatCard, Card, Alert } from '../components/ui'
 import { ActionDialog } from '../components/ui/ActionDialog'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { useAuthStore } from '../auth/authStore'
@@ -72,7 +72,7 @@ export function GamingSessionsPage() {
     if(request?.kind==='EXTEND')void extend(request.station,request.minutes)
     else if(request)void terminateRequest(request.station,request.reason)
   }
-  const feedback=error&&<div className="error-banner" role="alert">{error}{hasPending&&<><p>Ishod komande nije potvrđen. Ponovite isti zahtev pre sledeće akcije.</p><Button type="button" variant="secondary" disabled={busy} onClick={retryPending}>Proveri prethodnu komandu</Button></>}</div>
+  const feedback=error&&<Alert tone="danger" role="alert">{error}{hasPending&&<><p>Ishod komande nije potvrđen. Ponovite isti zahtev pre sledeće akcije.</p><Button type="button" variant="secondary" disabled={busy} onClick={retryPending}>Proveri prethodnu komandu</Button></>}</Alert>
   async function recover() {
     if (!recoveryAction || inFlight.current) return
     inFlight.current = true; setBusy(true); setError('')
@@ -141,54 +141,45 @@ export function GamingSessionsPage() {
   const primary = url.state.status || (url.state.ready === 'true' ? 'ready' : url.state.sessions === 'true' ? 'sessions' : 'all')
   const disabled = busy || hasPending || !!board.error
 
-  if (!canRead) return <main className="workspace gaming-ops-page"><ErrorState title="Gaming sesije nisu dostupne" message="Nemate dozvolu za ovaj pregled." /></main>
+  if (!canRead) return <PageLayout className="gaming-ops-page"><ErrorState title="Gaming sesije nisu dostupne" message="Nemate dozvolu za ovaj pregled." /></PageLayout>
 
-  return <main className="workspace gaming-operations gaming-ops-page" aria-busy={board.isLoading || busy || undefined}>
-    <header className="ops-page-header">
-      <div className="ops-title"><span className="ops-title-icon"><GamingOperationsIcon kind="gamepad" /></span>
-        <div><p className="eyebrow">Gaming Control Center</p><h1>Gaming sesije</h1>
-          <p>Pregled i upravljanje aktivnim sesijama na računarima.</p></div></div>
-      <div className="ops-header-actions">
+  return <PageLayout className="gaming-operations gaming-ops-page" aria-busy={board.isLoading || busy || undefined}>
+    <PageHeader title="Gaming sesije" description={<>Pregled i upravljanje aktivnim sesijama na računarima.</>} eyebrow="Gaming Control Center" icon={<GamingOperationsIcon kind="gamepad" />} actions={<><div className="ops-header-actions">
         <Button type="button" variant="secondary" loading={board.isFetching} onClick={() => void board.refetch()}>Osveži</Button>
         {canStart && <Button type="button" className="ops-new-session" disabled={disabled || !board.data || !readyCount}
           title={!readyCount ? 'Nema stanica koje dozvoljavaju novu sesiju' : undefined}
           onClick={() => { setError(''); setStartStation(null); setNewSessionOpen(true) }}><span aria-hidden="true">+</span>Nova sesija</Button>}
-      </div>
-    </header>
+      </div></>} />
     <div className="ops-live-status"><Badge tone={board.error ? 'danger' : connection === 'connected' && visible ? 'success' : 'warning'}>
       {board.error ? 'Osvežavanje nije uspelo' : !visible ? 'Osvežavanje pauzirano' : connection === 'connected' ? 'Veza uživo' : 'Periodično osvežavanje · 15 s'}</Badge>
       {board.data && <time dateTime={board.data.serverTime}>Poslednja sinhronizacija {formatBusinessTime(board.data.serverTime)}</time>}
       {hasCapability(actor, 'RESERVATION_READ_ALL') && <Link to="/waitlist">Lista čekanja</Link>}
     </div>
     {!customStation&&!endStation&&!recoveryAction&&feedback}
-    {board.error && board.data && <ErrorState title="Prikaz može biti zastareo" message="Proverite vezu i osvežite pre sledeće akcije." action={<Button onClick={() => board.refetch()}>Pokušaj ponovo</Button>} />}
-    {board.isLoading && <div className="ops-kpis" aria-label="Učitavanje pregleda">{Array.from({ length: 4 }, (_, index) => <div className="ui-card" key={index}><Skeleton lines={2} /></div>)}</div>}
+    {board.error && board.data && <ErrorState title="Prikaz može biti zastareo" message="Proverite vezu i osvežite pre sledeće akcije." action={<Button variant="secondary" onClick={() => board.refetch()}>Pokušaj ponovo</Button>} />}
+    {board.isLoading && <div className="ui-stat-grid ops-kpis" aria-label="Učitavanje pregleda">{Array.from({ length: 4 }, (_, index) => <Card as="div" className="ui-card" key={index}><Skeleton lines={2} /></Card>)}</div>}
     {board.data && <>
-      <section className="ops-kpis" aria-label="Pregled svih dostupnih stanica">
-        <button type="button" className="ops-stat ops-stat--accent" onClick={() => url.apply({})}>
-          <span>Ukupno računara</span><GamingOperationsIcon /><strong>{stations.length.toLocaleString('sr-RS')}</strong><small>Sve dostupne stanice</small></button>
-        <button type="button" className="ops-stat" onClick={() => setFilters({ search: '', locationId: '', status: '', ready: '', sessions: 'true', offline: '', attention: '', expiring: '', stationId: '' })}>
-          <span>Aktivne sesije</span><GamingOperationsIcon kind="play" /><strong>{activeCount.toLocaleString('sr-RS')}</strong><small>Pregled sesija →</small></button>
-        <button type="button" className="ops-stat ops-stat--success" onClick={() => setFilters({ search: '', locationId: '', status: '', ready: 'true', sessions: '', offline: '', attention: '', expiring: '', stationId: '' })}>
-          <span>Slobodni računari</span><GamingOperationsIcon /><strong>{readyCount.toLocaleString('sr-RS')}</strong><small>Dozvoljeno pokretanje →</small></button>
-        <button type="button" className="ops-stat ops-stat--warning" onClick={() => alertFilter('attention')}>
-          <span>Zahteva pažnju</span><GamingOperationsIcon kind="alert" /><strong>{attentionCount.toLocaleString('sr-RS')}</strong><small>Stanice za proveru →</small></button>
+      <section className="ui-stat-grid ops-kpis" aria-label="Pregled svih dostupnih stanica">
+        <StatCard label={<>Ukupno računara</>} value={<>{stations.length.toLocaleString('sr-RS')}</>} icon={<GamingOperationsIcon />} description={<>Sve dostupne stanice</>} tone={"accent"} onClick={() => url.apply({})} />
+        <StatCard label={<>Aktivne sesije</>} value={<>{activeCount.toLocaleString('sr-RS')}</>} icon={<GamingOperationsIcon kind="play" />} description={<>Pregled sesija →</>} onClick={() => setFilters({ search: '', locationId: '', status: '', ready: '', sessions: 'true', offline: '', attention: '', expiring: '', stationId: '' })} />
+        <StatCard label={<>Slobodni računari</>} value={<>{readyCount.toLocaleString('sr-RS')}</>} icon={<GamingOperationsIcon />} description={<>Dozvoljeno pokretanje →</>} tone={"success"} onClick={() => setFilters({ search: '', locationId: '', status: '', ready: 'true', sessions: '', offline: '', attention: '', expiring: '', stationId: '' })} />
+        <StatCard label={<>Zahteva pažnju</>} value={<>{attentionCount.toLocaleString('sr-RS')}</>} icon={<GamingOperationsIcon kind="alert" />} description={<>Stanice za proveru →</>} tone={"warning"} onClick={() => alertFilter('attention')} />
       </section>
       <div className="ops-alerts" role="group" aria-label="Globalna operativna upozorenja">
         <span>Za sve dostupne stanice</span>
-        <button type="button" className="ops-alert ops-alert--danger" aria-pressed={url.state.offline === 'true'} onClick={() => alertFilter('offline')}><GamingOperationsIcon kind="connection" />Bez veze <strong>{offlineCount}</strong></button>
-        <button type="button" className="ops-alert" aria-pressed={url.state.attention === 'true'} onClick={() => alertFilter('attention')}><GamingOperationsIcon kind="alert" />Potrebna intervencija <strong>{attentionCount}</strong></button>
-        <button type="button" className="ops-alert" aria-pressed={url.state.expiring === 'true'} onClick={() => alertFilter('expiring')}><GamingOperationsIcon kind="clock" />Ističe za ≤10 min <strong>{expiringCount}</strong></button>
+        <Button variant="danger" type="button" className="ops-alert ops-alert--danger" aria-pressed={url.state.offline === 'true'} onClick={() => alertFilter('offline')}><GamingOperationsIcon kind="connection" />Bez veze <strong>{offlineCount}</strong></Button>
+        <Button variant="warning" type="button" className="ops-alert" aria-pressed={url.state.attention === 'true'} onClick={() => alertFilter('attention')}><GamingOperationsIcon kind="alert" />Potrebna intervencija <strong>{attentionCount}</strong></Button>
+        <Button variant="warning" type="button" className="ops-alert" aria-pressed={url.state.expiring === 'true'} onClick={() => alertFilter('expiring')}><GamingOperationsIcon kind="clock" />Ističe za ≤10 min <strong>{expiringCount}</strong></Button>
       </div>
     </>}
-    <section className="ops-filters" aria-label="Filteri računara i sesija">
+    <section className="ui-filter-bar ops-filters" aria-label="Filteri računara i sesija">
       <div className="ops-primary-filters" role="group" aria-label="Prikaz računara">
         {[{ key: 'all', label: 'Svi računari', count: stations.length }, { key: 'sessions', label: 'Aktivne sesije', count: activeCount },
           { key: 'ready', label: 'Slobodni računari', count: readyCount },
           { key: 'MAINTENANCE', label: 'Održavanje', count: stations.filter((station) => station.status === 'MAINTENANCE').length },
           { key: 'RETIRED', label: 'Van funkcije', count: stations.filter((station) => station.status === 'RETIRED').length }].map((filter) =>
-          <button type="button" key={filter.key} aria-pressed={primary === filter.key} onClick={() => primaryFilter(filter.key)}>{filter.label}
-            {board.data && <span>{filter.count}</span>}</button>)}
+          <Button variant="ghost" type="button" key={filter.key} aria-pressed={primary === filter.key} onClick={() => primaryFilter(filter.key)}>{filter.label}
+            {board.data && <span>{filter.count}</span>}</Button>)}
       </div>
       <div className="ops-filter-fields">
         <label className="ops-search">Pretraga<Input aria-label={"Pretraga"} type="search" value={url.state.search} placeholder="Računar, klijent ili profil"
@@ -201,9 +192,9 @@ export function GamingSessionsPage() {
           <option value="attention">Prvo za proveru</option><option value="name">Naziv računara</option><option value="expiry">Najbliži kraj sesije</option></Select></label>
       </div>
       <div className="ops-filter-options">
-        <label className="inline-toggle"><input aria-label={"Zahteva pažnju"} type="checkbox" checked={url.state.attention === 'true'} onChange={(event) => setFilters({ attention: event.target.checked ? 'true' : '' })} />Zahteva pažnju</label>
-        <label className="inline-toggle"><input aria-label={"Ističe u narednih 10 min"} type="checkbox" checked={url.state.expiring === 'true'} onChange={(event) => setFilters({ expiring: event.target.checked ? 'true' : '' })} />Ističe u narednih 10 min</label>
-        <label className="inline-toggle"><input aria-label={"Bez veze"} type="checkbox" checked={url.state.offline === 'true'} onChange={(event) => setFilters({ offline: event.target.checked ? 'true' : '' })} />Bez veze</label>
+        <label className="inline-toggle"><Input aria-label={"Zahteva pažnju"} type="checkbox" checked={url.state.attention === 'true'} onChange={(event) => setFilters({ attention: event.target.checked ? 'true' : '' })} />Zahteva pažnju</label>
+        <label className="inline-toggle"><Input aria-label={"Ističe u narednih 10 min"} type="checkbox" checked={url.state.expiring === 'true'} onChange={(event) => setFilters({ expiring: event.target.checked ? 'true' : '' })} />Ističe u narednih 10 min</label>
+        <label className="inline-toggle"><Input aria-label={"Bez veze"} type="checkbox" checked={url.state.offline === 'true'} onChange={(event) => setFilters({ offline: event.target.checked ? 'true' : '' })} />Bez veze</label>
         <Button type="button" variant="secondary" onClick={() => url.apply({})}>Poništi filtere</Button>
       </div>
       {url.state.stationId && <div className="ops-focused-filter">Filter izabrane stanice je aktivan.
@@ -212,8 +203,8 @@ export function GamingSessionsPage() {
     <div className="ops-workspace">
       <section className="ops-stations" aria-labelledby="ops-stations-title">
         <div className="ops-section-heading"><h2 id="ops-stations-title">Računari</h2>{board.data && <span>{filtered.length} od {stations.length} stanica · {stationPageSize} po stranici</span>}</div>
-        {board.isLoading ? <div className="ops-station-grid">{Array.from({ length: 8 }, (_, index) => <div className="ui-card" key={index}><Skeleton lines={6} label="Učitavanje računara" /></div>)}</div> :
-          !board.data && board.error ? <ErrorState message={apiErrorMessage(board.error, 'Gaming tabla nije dostupna.')} action={<Button onClick={() => void board.refetch()}>Pokušaj ponovo</Button>} /> :
+        {board.isLoading ? <div className="ops-station-grid">{Array.from({ length: 8 }, (_, index) => <Card as="div" className="ui-card" key={index}><Skeleton lines={6} label="Učitavanje računara" /></Card>)}</div> :
+          !board.data && board.error ? <ErrorState message={apiErrorMessage(board.error, 'Gaming tabla nije dostupna.')} action={<Button variant="secondary" onClick={() => void board.refetch()}>Pokušaj ponovo</Button>} /> :
           !stations.length ? <EmptyState title="Nema dostupnih stanica" description="Proverite konfiguraciju stanica i dodelu lokacija zaposlenom."
             action={hasCapability(actor, 'STATION_READ') && <Link to="/stations">Podešavanje stanica</Link>} /> :
           !filtered.length ? <EmptyState title="Nema stanica za izabrane filtere" action={<Button onClick={() => url.apply({})}>Prikaži sve stanice</Button>} /> :
@@ -223,24 +214,24 @@ export function GamingSessionsPage() {
           loading={board.isFetching} onSizeChange={size => setUrl({ stationSize: String(size), stationPage: '1' })}
           onChange={(page) => setUrl({ stationPage: String(page + 1) })} />}
       </section>
-      {board.isLoading ? <div className="ui-card"><Skeleton lines={8} label="Učitavanje kontrolnog panela" /></div> :
+      {board.isLoading ? <Card as="div" className="ui-card"><Skeleton lines={8} label="Učitavanje kontrolnog panela" /></Card> :
         <StationDetailsPanel station={selectedStation} now={now} disabled={disabled} handlers={handlers} unavailable={!!selectedResourceId && !selectedStation}
           outsidePage={!!selectedStation && !pageStations.some((station) => station.resourceId === selectedResourceId)} />}
     </div>
-    <section className="ui-card ops-sessions-panel" aria-labelledby="ops-sessions-title">
+    <Card className="ui-card ops-sessions-panel" aria-labelledby="ops-sessions-title">
       <div className="ops-section-heading"><div><h2 id="ops-sessions-title">Aktivne sesije</h2><p>Trenutne sesije na dostupnim stanicama · primenjeni filteri · {sessionPageSize} po stranici</p></div>
         {board.data && <Badge tone="info">{sessions.length} sesija</Badge>}</div>
       {board.isLoading ? <Skeleton lines={5} label="Učitavanje aktivnih sesija" /> : !board.data && board.error ?
-        <ErrorState message="Sesije trenutno nisu dostupne." action={<Button onClick={() => void board.refetch()}>Pokušaj ponovo</Button>} /> :
+        <ErrorState message="Sesije trenutno nisu dostupne." action={<Button variant="secondary" onClick={() => void board.refetch()}>Pokušaj ponovo</Button>} /> :
         !sessions.length ? <EmptyState title="Nema aktivnih sesija za ovaj prikaz" description={activeCount ? 'Promenite filtere da biste prikazali ostale sesije.' : 'Sesije će se pojaviti nakon pokretanja na dostupnim računarima.'} /> :
         <GamingSessionsTable stations={pageSessions} selectedId={selectedResourceId} now={now} disabled={disabled} handlers={handlers} onSelect={selectStation} />}
       {board.data && <GamingBoardPagination page={sessionPage} pageSize={sessionPageSize} total={sessions.length} label="Stranice aktivnih sesija"
         loading={board.isFetching} onSizeChange={size => setUrl({ sessionSize: String(size), sessionPage: '1' })}
         onChange={(page) => setUrl({ sessionPage: String(page + 1) })} />}
-    </section>
+    </Card>
     {newSessionOpen && <StartSessionDialog station={startStation ?? undefined} onClose={() => { setNewSessionOpen(false); setStartStation(null) }} />}
-    <Modal open={!!customStation} title="Prilagođeno produženje" closeDisabled={busy} onClose={() => { if (!busy) setCustomStation(null) }}><form className="form-grid" onSubmit={(event) => { event.preventDefault(); if (customStation&&!hasPending) void extend(customStation, minutes) }}>
-      {feedback}<label>Broj minuta<input aria-label={"Broj minuta"} required type="number" min={1} max={120} disabled={busy||hasPending} value={minutes} onChange={(event) => setMinutes(Number(event.target.value))} /></label><Button type="submit" loading={busy} disabled={hasPending}>Produži sesiju</Button></form></Modal>
+    <Modal open={!!customStation} title="Prilagođeno produženje" closeDisabled={busy} onClose={() => { if (!busy) setCustomStation(null) }}><form className="ui-form-grid form-grid" onSubmit={(event) => { event.preventDefault(); if (customStation&&!hasPending) void extend(customStation, minutes) }}>
+      {feedback}<label>Broj minuta<Input aria-label={"Broj minuta"} required type="number" min={1} max={120} disabled={busy||hasPending} value={minutes} onChange={(event) => setMinutes(Number(event.target.value))} /></label><Button type="submit" loading={busy} disabled={hasPending}>Produži sesiju</Button></form></Modal>
     <ConfirmDialog open={!!endStation} title={`Završi sesiju · ${endStation?.resourceName ?? ''}`} variant="danger"
       description={<><p>Sesija će biti završena i stanica će dobiti komandu za zaključavanje.</p>{feedback}</>}
       reasonLabel="Razlog završetka" reasonRequired loading={busy} disabled={hasPending} autoClose={false}
@@ -256,10 +247,10 @@ export function GamingSessionsPage() {
         <div><dt>Client / heartbeat</dt><dd>{liveHistoryStation.clientVersion ?? 'Nije prijavljen'} · {liveHistoryStation.lastHeartbeatAt ? formatBusinessDateTime(liveHistoryStation.lastHeartbeatAt) : 'Nema heartbeat-a'}</dd></div>
         <div><dt>Lokalno zaključavanje</dt><dd>{enforcementLabels[liveHistoryStation.enforcementStatus]}{liveHistoryStation.lastLockAckAt && ` · ${formatBusinessDateTime(liveHistoryStation.lastLockAckAt)}`}</dd></div>
         <div><dt>Poslednja komanda</dt><dd>{liveHistoryStation.commandType ?? 'Nema komandi'} {liveHistoryStation.commandSequence && `#${liveHistoryStation.commandSequence}`} · {liveHistoryStation.commandAcknowledgedAt ? 'Potvrđena' : liveHistoryStation.commandSequence ? 'Čeka potvrdu' : '—'}</dd></div></dl>}
-      {history.isLoading ? <Skeleton lines={5} label="Učitavanje istorije" /> : history.error ? <ErrorState message={apiErrorMessage(history.error, 'Istorija stanice nije dostupna.')} action={<Button onClick={() => history.refetch()}>Pokušaj ponovo</Button>} /> : !history.data?.entries.length ?
+      {history.isLoading ? <Skeleton lines={5} label="Učitavanje istorije" /> : history.error ? <ErrorState message={apiErrorMessage(history.error, 'Istorija stanice nije dostupna.')} action={<Button variant="secondary" onClick={() => history.refetch()}>Pokušaj ponovo</Button>} /> : !history.data?.entries.length ?
         <EmptyState title="Nema istorije" description="Za ovu stanicu još nema komandi ili enforcement događaja." /> : <ol className="timeline-list">{history.data.entries.map((entry, index) => <li key={`${entry.occurredAt}-${entry.commandSequence ?? index}`}>
           <time dateTime={entry.occurredAt}>{formatBusinessDateTime(entry.occurredAt)}</time><strong>{entry.action}</strong><Badge tone={entry.status === 'PENDING' ? 'warning' : 'neutral'}>{entry.status}</Badge>
           {entry.commandSequence !== undefined && <small>Komanda #{entry.commandSequence}</small>}{entry.correlationId && <code>Support ID: {entry.correlationId}</code>}{entry.details && <p>{entry.details}</p>}</li>)}</ol>}
     </Modal>
-  </main>
+  </PageLayout>
 }

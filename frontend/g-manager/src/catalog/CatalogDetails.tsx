@@ -43,7 +43,7 @@ export function CatalogDetails({ item: snapshot, permissions, canReadResources, 
           <h3>{item.name}</h3><strong className="gm-catalog-details-price">{catalogMoney.format(item.price)}</strong></div>
         {detail.error && !item.deletedAt && <ErrorState title="Detalji nisu osveženi" message={apiErrorMessage(detail.error, 'Prikazani su poslednji učitani podaci.')}
           action={<Button type="button" variant="secondary" onClick={() => void detail.refetch()}>Pokušaj ponovo</Button>} />}
-        <div className="gm-catalog-details-tabs" role="tablist" aria-label="Detalji stavke">
+        <div className="ui-tab-list gm-catalog-details-tabs" role="tablist" aria-label="Detalji stavke">
           <button type="button" role="tab" id={`${id}-basic-tab`} aria-selected={activeTab === 'BASIC'} aria-controls={`${id}-panel`}
             tabIndex={activeTab === 'BASIC' ? 0 : -1} onClick={() => setTab('BASIC')}
             onKeyDown={event => { if (withResources && ['ArrowLeft', 'ArrowRight', 'End'].includes(event.key)) {
@@ -87,7 +87,7 @@ export function CatalogDetails({ item: snapshot, permissions, canReadResources, 
         </section>
       </div>
       <div className="gm-catalog-details-actions">
-        {item.deletedAt ? permissions.restore && <Button type="button" disabled={busy} onClick={event => onAction(item, 'RESTORE', event.currentTarget)}>Vrati stavku</Button> : <>
+        {item.deletedAt ? permissions.restore && <Button variant="success" type="button" disabled={busy} onClick={event => onAction(item, 'RESTORE', event.currentTarget)}>Vrati stavku</Button> : <>
           {permissions.order && item.active && <CatalogOrderLink item={item} />}
           {permissions.manage && <>
             <Button type="button" disabled={busy} onClick={event => onAction(item, 'EDIT', event.currentTarget)}>Izmeni</Button>

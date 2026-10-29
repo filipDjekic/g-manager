@@ -7,7 +7,7 @@ import { gamingSessionApi } from '../api/gamingSessionApi'
 import { waitlistApi } from '../api/waitlistApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Badge, Button, Drawer, EmptyState, ErrorState, Skeleton } from '../components/ui'
+import { Badge, Button, Drawer, EmptyState, ErrorState, Skeleton, Alert, StatCard } from '../components/ui'
 import { orderLabels, orderTones, reservationLabels, reservationTones } from '../components/ui/statusPresentation'
 import { GamingVisitList } from '../gaming/GamingVisitList'
 import { NavigationIcon } from '../layout/NavigationIcon'
@@ -50,15 +50,15 @@ export function CustomerProfile({ customerId, open, onClose, onEdit, onDeactivat
     onClose={onClose} returnFocusRef={returnFocusRef}>
     {detail.isLoading ? <Skeleton lines={7} label="Učitavanje profila klijenta" /> : detail.error ?
       <ErrorState message={apiErrorMessage(detail.error, 'Profil klijenta nije moguće učitati.')}
-        action={<Button onClick={() => void detail.refetch()}>Pokušaj ponovo</Button>} /> : customer && detail.data &&
+        action={<Button variant="secondary" onClick={() => void detail.refetch()}>Pokušaj ponovo</Button>} /> : customer && detail.data &&
       <div className="customers-profile">
         <header className="customers-profile-hero"><CustomerAvatar name={customer.name} large />
           <div><h2>{customer.name}</h2><p>{customer.email}</p>
             <Badge tone={customer.active ? 'success' : 'neutral'}>{customer.active ? 'Aktivan nalog' : 'Neaktivan nalog'}</Badge>
           </div>
         </header>
-        {actionError && <p className="error-banner" role="alert">{actionError}</p>}
-        <div className="customers-profile-tabs" role="tablist" aria-label="Podaci o klijentu" onKeyDown={event => {
+        {actionError && <Alert tone="danger" role="alert">{actionError}</Alert>}
+        <div className="ui-tab-list customers-profile-tabs" role="tablist" aria-label="Podaci o klijentu" onKeyDown={event => {
           if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(event.key)) return
           event.preventDefault()
           const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'))
@@ -86,16 +86,16 @@ export function CustomerProfile({ customerId, open, onClose, onEdit, onDeactivat
               <small>Prema najkasnijem početku rezervacije ili datumu kreiranja narudžbine.</small>
             </section>
             <section className="customers-profile-section"><h3>Statistika klijenta</h3>
-              <div className="customers-profile-kpis">
-                <article><NavigationIcon to="/reservations" /><strong>{customer.reservationCount}</strong><span>Ukupno rezervacija</span></article>
-                <article><NavigationIcon to="/calendar" /><strong>{customer.completedAppointmentCount}</strong><span>Završeni termini</span></article>
-                <article><NavigationIcon to="/orders" /><strong>{customer.completedOrderCount}</strong><span>Završene narudžbine</span></article>
-                <article><NavigationIcon to="/reports" /><strong>{customerMoney.format(customer.completedOrderRevenue)}</strong><span>Prihod završenih narudžbina</span></article>
+              <div className="ui-stat-grid customers-profile-kpis">
+                <StatCard icon={<NavigationIcon to="/reservations" />} value={customer.reservationCount} label="Ukupno rezervacija" />
+                <StatCard icon={<NavigationIcon to="/calendar" />} value={customer.completedAppointmentCount} label="Završeni termini" />
+                <StatCard icon={<NavigationIcon to="/orders" />} value={customer.completedOrderCount} label="Završene narudžbine" />
+                <StatCard icon={<NavigationIcon to="/reports" />} value={customerMoney.format(customer.completedOrderRevenue)} label="Prihod završenih narudžbina" />
               </div>
             </section>
             {hasCapability(user, 'GAMING_SESSION_START') && <div className="customers-gaming-action">
               <NavigationIcon to="/gaming-sessions" /><div><h3>Gaming sesija</h3><p>Pokrenite sesiju na dostupnoj stanici.</p></div>
-              <Button type="button" loading={startBusy} disabled={!customer.active || canReadGaming &&
+              <Button variant="primary" type="button" loading={startBusy} disabled={!customer.active || canReadGaming &&
                 (visits.isFetching || !!visits.error || !visits.data || visits.data.some(visit => visit.status === 'ACTIVE'))}
                 onClick={() => onStart(customer)}>Pokreni sesiju</Button>
               {!customer.active && <small>Pokretanje je dostupno samo aktivnim klijentima.</small>}
@@ -116,7 +116,7 @@ export function CustomerProfile({ customerId, open, onClose, onEdit, onDeactivat
             {canReadReservations && <section className="customers-waitlist"><h3>Lista čekanja</h3>
               {queue.isLoading ? <Skeleton lines={2} label="Učitavanje liste čekanja" /> : queue.error ?
                 <ErrorState message={apiErrorMessage(queue.error, 'Lista čekanja nije dostupna.')}
-                  action={<Button onClick={() => void queue.refetch()}>Pokušaj ponovo</Button>} /> : !queue.data?.content.length ?
+                  action={<Button variant="secondary" onClick={() => void queue.refetch()}>Pokušaj ponovo</Button>} /> : !queue.data?.content.length ?
                   <p>Nema aktivnih prijava na listi čekanja.</p> : <ul className="customers-history">
                     {queue.data.content.map(entry => <li key={entry.id}><div><strong>{entry.serviceName}</strong>
                       <span>{customerDate(entry.desiredStart)}</span></div><Badge tone={entry.status === 'OFFERED' ? 'success' : 'warning'}>
@@ -129,7 +129,7 @@ export function CustomerProfile({ customerId, open, onClose, onEdit, onDeactivat
           {activeTab === 'gaming' && canReadGaming && <section className="customers-profile-section"><h3>Gaming sesije</h3>
             {visits.isLoading ? <Skeleton lines={3} label="Učitavanje gaming istorije" /> : visits.error ?
               <ErrorState message={apiErrorMessage(visits.error, 'Gaming istorija nije dostupna.')}
-                action={<Button onClick={() => void visits.refetch()}>Pokušaj ponovo</Button>} /> : <GamingVisitList visits={visits.data ?? []} staff />}
+                action={<Button variant="secondary" onClick={() => void visits.refetch()}>Pokušaj ponovo</Button>} /> : <GamingVisitList visits={visits.data ?? []} staff />}
           </section>}
           {activeTab === 'orders' && <section className="customers-profile-section"><h3>Istorija narudžbina</h3>
             <p className="customers-history-hint">Prikaz poslednjih najviše 20 narudžbina.</p>

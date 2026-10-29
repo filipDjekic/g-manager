@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { searchApi, type SearchResourceType, type SearchResult } from '../api/searchApi'
-import { Button, Input, Modal, Skeleton } from '../components/ui'
+import { Button, Input, Modal, Skeleton, Alert } from '../components/ui'
 import { useGlobalSearch } from './useGlobalSearch'
 
 const labels: Record<SearchResourceType, string> = {
@@ -75,7 +75,7 @@ export function CommandPalette() {
           }} />
         <p className="search-help">Najmanje 2 znaka · ↑↓ izbor · Enter otvara · Esc zatvara</p>
         {search.loading && <Skeleton lines={3} label="Pretraživanje" />}
-        {search.error && <p role="alert" className="error-banner">{search.error}</p>}
+        {search.error && <Alert tone="danger" role="alert">{search.error}</Alert>}
         {!search.loading && !search.error && !items.length && <p className="empty-state">
           {query.trim().length >= 2 ? 'Nema dozvoljenih rezultata.' : 'Nema nedavnih ili omiljenih stavki.'}</p>}
         <div id="global-search-results" role="region" aria-label="Rezultati pretrage">
@@ -83,11 +83,11 @@ export function CommandPalette() {
             <h3 id={`search-group-${type}`}>{labels[type as SearchResourceType]}</h3>{grouped.map((item) => {
               const index = items.indexOf(item)
               return <div key={`${item.type}-${item.id}`} className="search-result">
-                <button id={`search-result-${item.type}-${item.id}`} aria-current={index === active ? 'true' : undefined}
+                <Button variant="ghost" id={`search-result-${item.type}-${item.id}`} aria-current={index === active ? 'true' : undefined}
                   type="button" onClick={() => void choose(item)} onMouseEnter={() => setActive(index)}>
-                  <strong><Highlight text={item.title} query={query.trim()} /></strong><span>{item.subtitle}</span><span>{item.action.label}</span></button>
-                <button type="button" className="favorite-button" aria-label={item.favorite ? `Ukloni ${item.title} iz omiljenih` : `Dodaj ${item.title} u omiljene`}
-                  aria-pressed={item.favorite} onClick={() => void toggleFavorite(item)}>{item.favorite ? '★' : '☆'}</button>
+                  <strong><Highlight text={item.title} query={query.trim()} /></strong><span>{item.subtitle}</span><span>{item.action.label}</span></Button>
+                <Button iconOnly variant="ghost" type="button" className="favorite-button" aria-label={item.favorite ? `Ukloni ${item.title} iz omiljenih` : `Dodaj ${item.title} u omiljene`}
+                  aria-pressed={item.favorite} onClick={() => void toggleFavorite(item)}>{item.favorite ? '★' : '☆'}</Button>
               </div>
             })}
           </section>)}

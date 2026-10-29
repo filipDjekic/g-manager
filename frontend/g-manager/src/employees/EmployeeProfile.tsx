@@ -21,7 +21,7 @@ export function EmployeeProfile({ employee, actorId, canAssignments, canAssignLo
   const leaves = useQuery({ queryKey: ['users', 'employee-leaves', actorId, employee.id],
     queryFn: () => userApi.employeeLeaves(employee.id), enabled: canLeave, staleTime: 15000, retry: false })
   return <div className="gm-employee-profile">
-    <header className="gm-employee-profile-heading"><span>Profil zaposlenog</span><Button type="button" variant="secondary" className="gm-employee-inline-close"
+    <header className="gm-employee-profile-heading"><span>Profil zaposlenog</span><Button iconOnly type="button" variant="secondary" className="gm-employee-inline-close"
       disabled={busy} aria-label="Zatvori profil zaposlenog" onClick={onClose}>×</Button></header>
     <div className="gm-employee-profile-identity"><EmployeeAvatar employee={employee} large /><h2>{employee.name}</h2>
       <div><Badge tone="info">{roleLabels[employee.role]}</Badge><Badge tone={employee.active ? 'success' : 'neutral'}>{employee.active ? 'Aktivan nalog' : 'Neaktivan nalog'}</Badge></div>
@@ -58,8 +58,8 @@ export function EmployeeProfile({ employee, actorId, canAssignments, canAssignLo
     </section>}
     <div className="gm-employee-profile-actions"><Button type="button" variant="secondary" disabled={busy} onClick={() => { onRefresh(); if (canAssignments) void assignments.refetch(); if (canLeave) void leaves.refetch() }}><EmployeeIcon kind="refresh" />Osveži profil</Button>
       {canAssignLocation && employee.active && <Button type="button" variant="secondary" disabled={busy} onClick={onAssign}><EmployeeIcon kind="location" />Dodeli lokaciju</Button>}
-      {canResourceRead && <Link className="button-link" to="/resources"><EmployeeIcon kind="resource" />Pogledaj mapu resursa</Link>}
-      {canSettings && <Link className="button-link" to="/settings"><EmployeeIcon kind="calendar" />Radno vreme i odsustva</Link>}
+      {canResourceRead && <Link className="ui-button ui-button--primary ui-button--medium" to="/resources"><EmployeeIcon kind="resource" />Pogledaj mapu resursa</Link>}
+      {canSettings && <Link className="ui-button ui-button--primary ui-button--medium" to="/settings"><EmployeeIcon kind="calendar" />Radno vreme i odsustva</Link>}
       {canDeactivate && <Button type="button" variant="danger" disabled={busy} onClick={onDeactivate}><EmployeeIcon kind="lock" />Deaktiviraj nalog</Button>}
       {canDelete && <Button type="button" variant="danger" disabled={busy} onClick={onDelete}><EmployeeIcon kind="delete" />Obriši nalog</Button>}
     </div>

@@ -28,13 +28,13 @@ export function WaitlistDetailsPanel({ detail, loading, error, fetching, inline,
   const activeOffer = entry?.status === 'OFFERED' && entry.offerStatus === 'OFFERED' && Boolean(entry.offerExpiresAt && Date.parse(entry.offerExpiresAt) > now)
   const remaining = activeOffer && entry?.offerExpiresAt ? Math.max(0, Math.ceil((Date.parse(entry.offerExpiresAt) - now) / 1000)) : 0
   return <section ref={panel} className="gm-waitlist-details" aria-label="Detalji prijave" tabIndex={inline ? -1 : undefined}>
-    {inline && <header className="gm-waitlist-panel-title"><h2>Detalji prijave</h2><Button type="button" variant="secondary" className="gm-waitlist-close" aria-label="Zatvori detalje" onClick={onClose}><WaitlistIcon kind="close" /></Button></header>}
-    {error ? <ErrorState message={waitlistError(error, 'Detalje prijave nije moguće učitati.')} action={<Button type="button" onClick={onRefresh}>Pokušaj ponovo</Button>} />
+    {inline && <header className="gm-waitlist-panel-title"><h2>Detalji prijave</h2><Button iconOnly type="button" variant="secondary" className="gm-waitlist-close" aria-label="Zatvori detalje" onClick={onClose}><WaitlistIcon kind="close" /></Button></header>}
+    {error ? <ErrorState message={waitlistError(error, 'Detalje prijave nije moguće učitati.')} action={<Button variant="secondary" type="button" onClick={onRefresh}>Pokušaj ponovo</Button>} />
       : loading || !entry ? <Skeleton lines={8} label="Učitavanje detalja prijave" /> : <>
         <header className="gm-waitlist-detail-customer"><WaitlistAvatar name={entry.customerName} /><div><h3>{entry.customerName}</h3>
           {entry.customerEmail && <p>{entry.customerEmail}</p>}<Badge tone={entry.customerActive ? 'success' : 'neutral'}>{entry.customerActive ? 'Aktivan klijent' : 'Neaktivan klijent'}</Badge></div></header>
         <WaitlistStatusBadge entry={entry} now={now} />
-        <div role="tablist" aria-label="Detalji prijave" className="gm-waitlist-tabs" onKeyDown={event => {
+        <div role="tablist" aria-label="Detalji prijave" className="ui-tab-list gm-waitlist-tabs" onKeyDown={event => {
           if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
           event.preventDefault()
           const next = event.key === 'Home' ? 'information' : event.key === 'End' ? 'history' : tab === 'information' ? 'history' : 'information'
@@ -81,8 +81,8 @@ export function WaitlistDetailsPanel({ detail, loading, error, fetching, inline,
         <footer className="gm-waitlist-detail-actions">
           {canManage && entry.allowedActions.includes('EDIT') && <Button type="button" variant="secondary" disabled={fetching} onClick={event => onEdit(entry, event.currentTarget)}><WaitlistIcon kind="edit" />Izmeni prijavu</Button>}
           {canManage && entry.allowedActions.includes('CANCEL') && <Button type="button" variant="danger" disabled={fetching} onClick={() => onCancel(entry)}><WaitlistIcon kind="cancel" />Otkaži prijavu</Button>}
-          {entry.allowedActions.includes('CALENDAR') && <Link className="ui-button ui-button--secondary" to={waitlistCalendar(entry)}><WaitlistIcon kind="calendar" />Proveri kalendar</Link>}
-          {entry.allowedActions.includes('CUSTOMER') && <Link className="ui-button ui-button--secondary" to={`/customers?customerId=${entry.customerId}`}><WaitlistIcon kind="customer" />Pogledaj klijenta</Link>}
+          {entry.allowedActions.includes('CALENDAR') && <Link className="ui-button ui-button--secondary ui-button--medium" to={waitlistCalendar(entry)}><WaitlistIcon kind="calendar" />Proveri kalendar</Link>}
+          {entry.allowedActions.includes('CUSTOMER') && <Link className="ui-button ui-button--secondary ui-button--medium" to={`/customers?customerId=${entry.customerId}`}><WaitlistIcon kind="customer" />Pogledaj klijenta</Link>}
           {(entry.readOnly || !canManage) && <p className="gm-waitlist-form-help">Prijava je dostupna samo za pregled.</p>}
           <Button type="button" variant="secondary" loading={fetching} onClick={onRefresh}><WaitlistIcon kind="refresh" />Osveži detalje</Button>
         </footer>

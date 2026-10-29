@@ -5,7 +5,7 @@ import { customerApi } from '../api/customerApi'
 import { gamingSessionApi } from '../api/gamingSessionApi'
 import { hasCapability } from '../auth/capabilities'
 import { useAuthStore } from '../auth/authStore'
-import { Button, EmptyState, ErrorState, Input, Select, Skeleton } from '../components/ui'
+import { Button, EmptyState, ErrorState, Input, Select, Skeleton, PageHeader, PageLayout, StatCard, Alert } from '../components/ui'
 import { ActionDialog } from '../components/ui/ActionDialog'
 import { SavedViewBar } from '../components/lists/SavedViewBar'
 import { CustomerFormDialog } from '../customers/CustomerFormDialog'
@@ -107,28 +107,19 @@ export function CustomersPage() {
     } catch (cause) { setDeactivationError(apiErrorMessage(cause, 'Klijenta nije moguće deaktivirati.')) }
     finally { inFlight.current = false; setBusy(false) }
   }
-  if (!canRead) return <main className="workspace customers-workspace"><EmptyState title="Pregled klijenata nije dostupan"
-    description="Nemate dozvolu za pregled klijenata." /></main>
+  if (!canRead) return <PageLayout className="customers-workspace"><EmptyState title="Pregled klijenata nije dostupan"
+    description="Nemate dozvolu za pregled klijenata." /></PageLayout>
 
-  return <main className="workspace customers-workspace">
-    <header className="customers-heading">
-      <div className="customers-heading-title"><span className="customers-title-icon"><NavigationIcon to="/customers" /></span>
-        <div><h1>Klijenti</h1><p>Upravljanje klijentima, istorija aktivnosti i lojalnost.</p></div></div>
-      {canCreate && <Button ref={createOpener} type="button" className="customers-pink-button" onClick={() => setCreateOpen(true)}>
-        <span aria-hidden="true">+</span> Novi klijent</Button>}
-    </header>
-    <section className="customers-metrics" aria-label="Statistika svih klijenata">
-      {metrics.map(metric => <article key={metric.key} className={`customers-metric customers-metric--${metric.tone}`}>
-        <div><span>{metric.label}</span>{statistics.isLoading ? <Skeleton lines={1} label={`Učitavanje: ${metric.label}`} /> :
-          <strong>{statistics.error ? '—' : statistics.data?.[metric.key]?.toLocaleString('sr-Latn-RS') ?? '—'}</strong>}</div>
-        <span className="customers-metric-icon"><NavigationIcon to={metric.icon} /></span>
-      </article>)}
-    </section>
+  return <PageLayout className="customers-">
+    <PageHeader title="Klijenti" description={<>Upravljanje klijentima, istorija aktivnosti i lojalnost.</>} icon={<NavigationIcon to="/customers" />} actions={<>{canCreate && <Button ref={createOpener} type="button" className="customers-pink-button" onClick={() => setCreateOpen(true)}>
+        <span aria-hidden="true">+</span> Novi klijent</Button>}</>} />
+    <section className="ui-stat-grid customers-metrics" aria-label="Statistika svih klijenata">{metrics.map(metric => <StatCard key={metric.key} label={metric.label} tone={metric.tone}
+      value={statistics.error ? '?' : statistics.data?.[metric.key]?.toLocaleString('sr-Latn-RS') ?? '?'} loading={statistics.isLoading} icon={<NavigationIcon to={metric.icon} />} />)}</section>
     {statistics.error && <div className="customers-inline-error" role="alert"><span>
       {apiErrorMessage(statistics.error, 'Statistiku klijenata nije moguće učitati.')}</span>
       <Button type="button" variant="secondary" loading={statistics.isFetching} onClick={() => void statistics.refetch()}>Pokušaj ponovo</Button></div>}
-    {error && <p className="error-banner" role="alert">{error}</p>}
-    <section className="customers-filter-panel" aria-label="Pretraga i filteri klijenata">
+    {error && <Alert tone="danger" role="alert">{error}</Alert>}
+    <section className="ui-filter-bar customers-filter-panel" aria-label="Pretraga i filteri klijenata">
       <div className="customers-filters">
         <label className="customers-search">Pretraga klijenata<div>
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
@@ -144,7 +135,7 @@ export function CustomersPage() {
     <section className="customers-list" aria-label="Klijenti" aria-busy={list.isFetching || searchPending}>
       {list.isLoading || searchPending ? <div className="customers-list-skeleton"><Skeleton lines={8} label="Učitavanje klijenata" /></div> : list.error ?
         <ErrorState message={apiErrorMessage(list.error, 'Klijente nije moguće učitati.')}
-          action={<Button onClick={() => void list.refetch()}>Pokušaj ponovo</Button>} /> : !list.data?.content.length ?
+          action={<Button variant="secondary" onClick={() => void list.refetch()}>Pokušaj ponovo</Button>} /> : !list.data?.content.length ?
           <EmptyState title="Nema klijenata" description={url.state.search || url.state.active ? 'Nema rezultata za izabranu pretragu i status.' : 'Kreirani klijenti će se pojaviti ovde.'}
             action={url.state.search || url.state.active ? <Button variant="secondary" onClick={() => setUrl({ search: '', active: '', page: '0' })}>Resetuj filtere</Button> : undefined} /> :
           <CustomerTable customers={list.data.content} selectedId={url.state.customerId} canEdit={canEdit}
@@ -164,5 +155,5 @@ export function CustomersPage() {
       description={<span className="customers-deactivation-description">{deactivating?.name ?? ''}: nalog će biti deaktiviran. Klijent neće moći da se prijavi dok je nalog neaktivan.</span>}
       confirmLabel="Deaktiviraj" danger loading={busy} onClose={() => { if (!inFlight.current) setDeactivating(null) }}
       error={deactivationError} onConfirm={deactivateCustomer} />
-  </main>
+  </PageLayout>
 }

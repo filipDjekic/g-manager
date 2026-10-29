@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { apiErrorMessage } from '../api/client'
 import { customerApi } from '../api/customerApi'
-import { Button, EmptyState, ErrorState, Input, Skeleton, Textarea } from '../components/ui'
+import { Button, EmptyState, ErrorState, Input, Skeleton, Textarea, Alert } from '../components/ui'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import type { CustomerCrmNote } from '../types/customer.types'
 import { customerDate } from './CustomerTable.model'
@@ -54,22 +54,22 @@ export function CustomerCrmPanel({ customerId }: { customerId: string }) {
   return <section className="customers-crm">
     {confirmationDialog}
     <div className="customers-section-heading"><h3>CRM beleške i tagovi</h3><p>Interna evidencija o klijentu.</p></div>
-    {error && <p className="error-banner" role="alert">{error}</p>}
+    {error && <Alert tone="danger" role="alert">{error}</Alert>}
     <label>Pretraži beleške i tagove<Input aria-label={"Pretraži beleške i tagove"} type="search" value={search} placeholder="Pretraži CRM…"
       onChange={event => setSearch(event.target.value)} /></label>
-    <form className="customers-tag-form" onSubmit={event => void save(event, 'TAG')}>
+    <form className="ui-form-grid customers-tag-form" onSubmit={event => void save(event, 'TAG')}>
       <label>Novi tag<Input aria-label={"Novi tag"} maxLength={60} value={tag} disabled={busy} onChange={event => setTag(event.target.value)} /></label>
       <Button type="submit" variant="secondary" disabled={!tag.trim()} loading={busy}>Dodaj tag</Button>
     </form>
     {crm.isLoading ? <Skeleton lines={3} label="Učitavanje CRM podataka" /> : crm.error ?
       <ErrorState message={apiErrorMessage(crm.error, 'CRM podaci nisu dostupni.')}
-        action={<Button onClick={() => void crm.refetch()}>Pokušaj ponovo</Button>} /> : <>
+        action={<Button variant="secondary" onClick={() => void crm.refetch()}>Pokušaj ponovo</Button>} /> : <>
         <div className="customers-tags" aria-label="Tagovi klijenta">
           {crm.data?.tags.map(value => <Button type="button" variant="secondary" key={value} disabled={busy}
             aria-label={`Ukloni tag ${value}`} onClick={() => void removeTag(value)}>{value}<span aria-hidden="true">×</span></Button>)}
           {!crm.data?.tags.length && <small>{debounced ? 'Nema tagova za ovu pretragu.' : 'Nema dodatih tagova.'}</small>}
         </div>
-        <form className="customers-note-form" onSubmit={event => void save(event, 'NOTE')}>
+        <form className="ui-form-grid customers-note-form" onSubmit={event => void save(event, 'NOTE')}>
           <label>Nova beleška<Textarea aria-label={"Nova beleška"} maxLength={1000} rows={3} value={note} disabled={busy}
             onChange={event => setNote(event.target.value)} /></label>
           <Button type="submit" disabled={!note.trim()} loading={busy}>Sačuvaj belešku</Button>

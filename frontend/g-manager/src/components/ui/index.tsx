@@ -1,12 +1,22 @@
-import { cloneElement, forwardRef, isValidElement, useEffect, useId, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
+import { cloneElement, forwardRef, isValidElement, useEffect, useId, useRef, type ButtonHTMLAttributes, type HTMLAttributes, type InputHTMLAttributes, type ReactNode, type Ref, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 import { createPortal } from 'react-dom'
+import { Link } from 'react-router-dom'
 import './ui.css'
 export { ToastProvider } from './ToastProvider'
 
+export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'success' | 'warning' | 'ghost'
+export type ControlSize = 'small' | 'medium' | 'large'
+
+export function buttonClassName({ variant = 'primary', size = 'medium', iconOnly = false, className = '' }: {
+  variant?: ButtonVariant; size?: ControlSize; iconOnly?: boolean; className?: string
+} = {}) {
+  return `ui-button ui-button--${variant} ui-button--${size}${iconOnly ? ' ui-button--icon' : ''} ${className}`.trim()
+}
+
 export const Button = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost'; loading?: boolean; iconOnly?: boolean
-}>(function Button({ variant = 'primary', loading = false, disabled, children, className = '', iconOnly = false, type = 'button', ...props }, ref) {
-  return <button ref={ref} className={`ui-button ui-button--${variant} ${className}`}
+  variant?: ButtonVariant; size?: ControlSize; loading?: boolean; iconOnly?: boolean
+}>(function Button({ variant = 'primary', size = 'medium', loading = false, disabled, children, className = '', iconOnly = false, type = 'button', ...props }, ref) {
+  return <button ref={ref} className={buttonClassName({ variant, size, iconOnly, className })}
     type={type} disabled={disabled || loading} aria-busy={loading || undefined} data-icon-only={iconOnly || undefined} {...props}>
     {loading ? <><span className="ui-spinner" aria-hidden="true" />{children}</> : children}
   </button>
@@ -46,12 +56,38 @@ export function FormField({ label, htmlFor, error, hint, children }: {
   </div>
 }
 
-export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <section className={`ui-card ${className}`}>{children}</section>
+export const PageLayout = forwardRef<HTMLElement, HTMLAttributes<HTMLElement> & { width?: 'full' | 'form' }>(
+  function PageLayout({ children, className = '', width = 'full', ...props }, ref) {
+    return <main ref={ref} className={`workspace ui-page-layout ui-page-layout--${width} ${className}`} {...props}>{children}</main>
+  })
+
+export const Card = forwardRef<HTMLElement, HTMLAttributes<HTMLElement> & { padding?: 'standard' | 'none'; as?: 'section' | 'article' | 'div' }>(
+  function Card({ children, className = '', padding = 'standard', as: Surface = 'section', ...props }, ref) {
+    return <Surface ref={ref as Ref<HTMLDivElement>} className={`ui-card ui-card--${padding} ${className}`} {...props}>{children}</Surface>
+  })
+
+export function StatCard({ label, value, icon, description, tone = 'info', loading = false, children, onClick, to, ...props }: {
+  label: ReactNode; value: ReactNode; icon?: ReactNode; description?: ReactNode; tone?: string
+  loading?: boolean; children?: ReactNode; onClick?: () => void; to?: string
+} & Omit<HTMLAttributes<HTMLElement>, 'onClick'>) {
+  const content = <><div className="ui-stat-heading"><span>{label}</span>{icon && <span className="ui-stat-icon">{icon}</span>}</div>
+    {loading ? <Skeleton lines={1} /> : <div className="ui-stat-value">{value}</div>}
+    {description && <div className="ui-stat-description">{description}</div>}{children}</>
+  const tones: Record<string, StatusTone> = { blue: 'info', pink: 'accent', purple: 'accent', green: 'success' }
+  const className = `ui-card ui-stat ui-stat--${tones[tone] ?? tone} ${props.className ?? ''}`
+  if (to) return <Link {...props as HTMLAttributes<HTMLAnchorElement>} to={to} className={className}>{content}</Link>
+  return onClick ? <button {...props as HTMLAttributes<HTMLButtonElement>} type="button" className={className} onClick={onClick}>{content}</button>
+    : <article {...props} className={className}>{content}</article>
 }
 
-export function TableShell({ label, children }: { label: string; children: ReactNode }) {
-  return <div className="ui-table-shell" role="region" aria-label={label} tabIndex={0}>{children}</div>
+export function TableShell({ label, children, className = '', ...props }: { label: string; children: ReactNode } & HTMLAttributes<HTMLDivElement>) {
+  return <div {...props} className={`ui-table-shell ${className}`} role="region" aria-label={label} tabIndex={0}>{children}</div>
+}
+
+export function Alert({ children, tone = 'info', className = '', ...props }: {
+  children: ReactNode; tone?: Exclude<StatusTone, 'accent' | 'neutral'>
+} & HTMLAttributes<HTMLDivElement>) {
+  return <div role={tone === 'danger' ? 'alert' : 'status'} {...props} className={`ui-alert ui-alert--${tone} ${className}`}>{children}</div>
 }
 
 export function Pagination({ page, totalPages = 1, onPageChange, loading = false, numbered = false,
@@ -178,25 +214,25 @@ function DialogSurface({ title, children, onClose, className = '', initialFocusR
   return <div ref={dialogRef} tabIndex={-1} className={className} role="dialog" aria-modal="true"
     aria-labelledby={titleId} aria-describedby={descriptionId} aria-busy={closeDisabled || undefined}>
     <div className="ui-dialog-heading"><h2 id={titleId}>{titleIcon}{title}</h2>
-      <Button ref={closeRef} disabled={closeDisabled} variant="secondary" type="button" onClick={onClose} aria-label="Zatvori">×</Button></div>
+      <Button ref={closeRef} disabled={closeDisabled} variant="ghost" iconOnly type="button" onClick={onClose} aria-label="Zatvori">×</Button></div>
     <div className="ui-dialog-body">{children}</div>
     {footer && <div className="ui-dialog-footer">{footer}</div>}
   </div>
 }
 
 export function Modal({ open, title, children, onClose, initialFocusRef, returnFocusRef,
-  closeDisabled = false, descriptionId, footer, className = '', titleIcon }: {
+  closeDisabled = false, descriptionId, footer, className = '', titleIcon, size = 'standard' }: {
   open: boolean; title: string; children: ReactNode; onClose: () => void
   initialFocusRef?: React.RefObject<HTMLElement | null>
   returnFocusRef?: React.RefObject<HTMLElement | null>
-  closeDisabled?: boolean; descriptionId?: string; footer?: ReactNode; className?: string; titleIcon?: ReactNode
+  closeDisabled?: boolean; descriptionId?: string; footer?: ReactNode; className?: string; titleIcon?: ReactNode; size?: 'small' | 'standard' | 'wide'
 }) {
   if (!open) return null
   // Keep fixed positioning relative to the viewport, outside filtered layout containers.
   return createPortal(<div className="ui-overlay" onMouseDown={(event) => {
     if (event.target === event.currentTarget) { event.preventDefault(); if (!closeDisabled) onClose() }
   }}>
-    <DialogSurface title={title} onClose={onClose} className={`ui-dialog ${className}`} closeDisabled={closeDisabled}
+    <DialogSurface title={title} onClose={onClose} className={`ui-dialog ui-dialog--${size} ${className}`} closeDisabled={closeDisabled}
       descriptionId={descriptionId} footer={footer} titleIcon={titleIcon} initialFocusRef={initialFocusRef} returnFocusRef={returnFocusRef}>{children}</DialogSurface>
   </div>, document.body)
 }
@@ -239,10 +275,16 @@ export function ErrorState({ title = 'Došlo je do greške', message, action }: 
   return <div className="ui-error" role="alert"><h2>{title}</h2><p>{message}</p>{action}</div>
 }
 
-export function PageHeader({ eyebrow, title, actions, breadcrumbs }: {
-  eyebrow?: string; title: string; actions?: ReactNode; breadcrumbs?: ReactNode
+export function PageHeader({ eyebrow, title, description, icon, titleRef, actions, breadcrumbs, children }: {
+  eyebrow?: string; title: string; description?: ReactNode; icon?: ReactNode; titleRef?: Ref<HTMLHeadingElement>
+  actions?: ReactNode; breadcrumbs?: ReactNode; children?: ReactNode
 }) {
-  return <header className="ui-page-header"><div>{breadcrumbs}{eyebrow && <p className="eyebrow">{eyebrow}</p>}<h1>{title}</h1></div>{actions}</header>
+  return <header className="ui-page-header"><div className="ui-page-heading">
+    {icon && <span className="ui-page-icon" aria-hidden="true">{icon}</span>}
+    <div className="ui-page-title">{breadcrumbs}{eyebrow && <p className="eyebrow">{eyebrow}</p>}
+      <h1 ref={titleRef} tabIndex={titleRef ? -1 : undefined}>{title}</h1>
+      {description && <p className="ui-page-description">{description}</p>}{children}</div>
+    </div>{actions && <div className="ui-page-actions">{actions}</div>}</header>
 }
 
 export function Breadcrumbs({ items }: { items: Array<{ label: string; href?: string }> }) {

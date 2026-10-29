@@ -4,7 +4,7 @@ import { apiErrorMessage } from '../api/client'
 import { notificationApi } from '../api/notificationApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Button, Card, EmptyState, ErrorState } from '../components/ui'
+import { Button, Card, EmptyState, ErrorState, PageLayout } from '../components/ui'
 import { useToast } from '../components/ui/toastContext'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useDirtyGuard } from '../forms/useDirtyGuard'
@@ -15,10 +15,10 @@ import '../notification/notificationPreferences.css'
 
 export function NotificationPreferencesPage() {
   const actor = useAuthStore(state => state.user)
-  if (!actor || !hasCapability(actor, 'PROFILE_READ')) return <main className="workspace workspace--reading gm-notification-preferences">
+  if (!actor || !hasCapability(actor, 'PROFILE_READ')) return <PageLayout className="gm-notification-preferences">
     <NotificationPreferencesHeading />
     <ErrorState title="Pristup nije dozvoljen" message="Nemate dozvolu za pregled podešavanja obaveštenja." />
-  </main>
+  </PageLayout>
   return <PreferencesWorkspace key={actor.id} actorId={actor.id} />
 }
 
@@ -161,7 +161,7 @@ function PreferencesWorkspace({ actorId }: { actorId: string }) {
     })
   }
 
-  return <main className="workspace workspace--reading gm-notification-preferences">
+  return <PageLayout className="gm-notification-preferences">
     <NotificationPreferencesHeading actions={<Button type="button" className="gm-notification-save"
       loading={saving} disabled={loading || !dirty} onClick={() => void save()}>
       <NotificationIcon kind="save" />Sačuvaj promene
@@ -193,5 +193,5 @@ function PreferencesWorkspace({ actorId }: { actorId: string }) {
       <Button type="button" variant="secondary" disabled={saving} onClick={back}><NotificationIcon kind="arrow" />Nazad</Button>
     </div>
     {confirmationDialog}
-  </main>
+  </PageLayout>
 }

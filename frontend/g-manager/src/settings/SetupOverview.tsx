@@ -6,7 +6,7 @@ import { hasCapability } from '../auth/capabilities'
 import { resourceApi } from '../api/resourceApi'
 import { stationApi } from '../api/stationApi'
 import { catalogApi } from '../api/catalogApi'
-import { Badge, Button } from '../components/ui'
+import { Badge, Button, Card } from '../components/ui'
 import type { WorkingHours, WorkingHoursException } from '../types/workingHours.types'
 import type { TimeOff } from '../types/timeOff.types'
 import type { UserResponse } from '../types/user.types'
@@ -72,19 +72,19 @@ export function SetupOverview({ hours, employees, exceptions, timeOff, onOpenTab
   const steps = configuration.filter(step => step.permitted)
   const complete = steps.filter(step => step.ready && !step.error).length
   const labels: Record<string, string> = { '/resources': 'Otvori lokacije', '/employees': 'Otvori zaposlene', '/catalog': 'Otvori usluge' }
-  return <section className="gm-settings-section">
+  return <Card className="gm-settings-section">
     <header className="gm-settings-section-header"><div><h2>Pregled konfiguracije</h2><p>Status najvažnijih podešavanja vaše igraonice.</p></div>
       <Badge tone="info">{complete} / {steps.length} provera</Badge></header>
-    <div className="gm-settings-overview-grid">{steps.map(step => <article key={step.label} className={`gm-settings-setup-card${step.ready && !step.error ? ' is-ready' : ''}`}>
+    <div className="gm-settings-overview-grid">{steps.map(step => <Card as="article" key={step.label} className={`gm-settings-setup-card${step.ready && !step.error ? ' is-ready' : ''}`}>
       <header><span className="gm-settings-setup-icon"><SettingsIcon kind={step.icon} /></span>
         <Badge tone={step.error ? 'danger' : !step.known ? 'neutral' : step.ready ? 'success' : 'warning'}>
           {step.error ? 'Greška pri učitavanju' : !step.known ? 'U proveri' : step.ready ? 'Podešeno' : 'Potrebna konfiguracija'}</Badge></header>
       <h3>{step.label}</h3><p>{step.description}</p><small>{step.error ? 'Podatke nije moguće potvrditi.' : step.known ? step.detail : 'Učitavanje podataka…'}</small>
       <footer>{Boolean(step.error) && <Button type="button" variant="secondary" onClick={() => void step.retry?.()}>Ponovi proveru</Button>}
         {step.tab ? <Button type="button" variant="secondary" onClick={() => onOpenTab(step.tab!)}>Otvori {step.tab === 'hours' ? 'radno vreme' : step.tab === 'exceptions' ? 'izuzetke' : 'odsustva'}</Button>
-          : <Link className="ui-button ui-button--secondary" to={step.to}>{step.label === 'Zone' ? 'Otvori zone' : step.label === 'Aplikacioni profili' ? 'Otvori profile' : step.to === '/stations' ? 'Otvori stanice' : labels[step.to]}</Link>}</footer>
-    </article>)}</div>
+          : <Link className="ui-button ui-button--secondary ui-button--medium" to={step.to}>{step.label === 'Zone' ? 'Otvori zone' : step.label === 'Aplikacioni profili' ? 'Otvori profile' : step.to === '/stations' ? 'Otvori stanice' : labels[step.to]}</Link>}</footer>
+    </Card>)}</div>
     <p className="gm-settings-note">Provere su informativne. Za svaku lokaciju proverite njene zone, profile stanica i vezu Gaming Client-a.</p>
     {hasCapability(actor, 'PROFILE_READ') && <nav className="gm-settings-related" aria-label="Povezana podešavanja naloga"><Link to="/notification-preferences">Podešavanja obaveštenja</Link><Link to="/sessions">Bezbednost naloga</Link></nav>}
-  </section>
+  </Card>
 }

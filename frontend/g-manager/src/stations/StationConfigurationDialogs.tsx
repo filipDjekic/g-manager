@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { stationApi } from '../api/stationApi'
-import { Button, Input, Modal, Select, Textarea } from '../components/ui'
+import { Button, Input, Modal, Select, Textarea, Alert } from '../components/ui'
 import { useToast } from '../components/ui/toastContext'
 import type { ApplicationDefinition, ApplicationDefinitionInput, ApplicationProfile, ApplicationProfileInput, ApplicationType, StationOperationalStatus, StationOverview } from '../types/station.types'
 import { StationIcon } from './stationPresentation'
@@ -17,7 +17,7 @@ function useStationSave(save: () => Promise<unknown>, onSaved: () => void, messa
   return { ...mutation, submit: () => { if (!inFlight.current) { inFlight.current = true; mutation.mutate() } } }
 }
 function SaveFooter({ id, busy, disabled, onClose, label = 'Sačuvaj' }: { id: string; busy: boolean; disabled?: boolean; onClose: () => void; label?: string }) {
-  return <div className="dialog-actions"><Button type="button" variant="secondary" disabled={busy} onClick={onClose}>Otkaži</Button>
+  return <div className="ui-actions dialog-actions"><Button type="button" variant="secondary" disabled={busy} onClick={onClose}>Otkaži</Button>
     <Button type="submit" form={id} loading={busy} disabled={disabled}>{label}</Button></div>
 }
 export function StationConfigurationDialog({ station, profiles, onClose }: { station: StationOverview; profiles: ApplicationProfile[]; onClose: () => void }) {
@@ -27,10 +27,10 @@ export function StationConfigurationDialog({ station, profiles, onClose }: { sta
   const save = useStationSave(() => stationApi.saveStation(station.resourceId, { operationalStatus: status, applicationProfileId: profile || undefined,
     clientEnabled: enabled, heartbeatIntervalSeconds: heartbeat, offlineGraceSeconds: grace, version: station.version }), onClose, 'Podešavanja stanice su sačuvana.')
   const busy = save.isPending
-  return <Modal open title={`Podesi stanicu · ${station.resourceName}`} className="gm-stations-dialog" titleIcon={<StationIcon kind="settings" />}
+  return <Modal size="wide" open title={`Podesi stanicu · ${station.resourceName}`} className="gm-stations-dialog" titleIcon={<StationIcon kind="settings" />}
     closeDisabled={busy} onClose={onClose} footer={<SaveFooter id={id} busy={busy} disabled={timingError} onClose={onClose} />}>
-    <form id={id} className="gm-stations-form" onSubmit={event => { event.preventDefault(); if (!busy && !timingError) save.submit() }}>
-      {save.isError && <p className="error-banner gm-stations-full" role="alert">{stationError(save.error, 'Podešavanja stanice nije moguće sačuvati.')}</p>}
+    <form id={id} className="ui-form-grid gm-stations-form" onSubmit={event => { event.preventDefault(); if (!busy && !timingError) save.submit() }}>
+      {save.isError && <Alert tone="danger" className="gm-stations-full" role="alert">{stationError(save.error, 'Podešavanja stanice nije moguće sačuvati.')}</Alert>}
       <p className="gm-stations-form-note gm-stations-full">{station.resourceCode} · Konfiguracija v{station.configurationVersion}. Promena podešavanja ne potvrđuje lokalno zaključavanje računara.</p>
       <label>Operativno stanje<Select aria-label={"Operativno stanje"} value={status} onChange={event => setStatus(event.target.value as StationOperationalStatus)} disabled={busy}>
         {Object.entries(operationalLabels).map(([value, label]) => <option key={value} value={value} disabled={station.operationalStatus === 'RETIRED' && value !== 'RETIRED'}>{label}</option>)}</Select></label>
@@ -41,7 +41,7 @@ export function StationConfigurationDialog({ station, profiles, onClose }: { sta
       <label>Interval heartbeat-a (sekunde)<Input aria-label={"Interval heartbeat-a (sekunde)"} required type="number" min={1} value={heartbeat} disabled={busy} onChange={event => setHeartbeat(Number(event.target.value))} /></label>
       <label>Offline grace period (sekunde)<Input aria-label={"Offline grace period (sekunde)"} required type="number" min={1} value={grace} disabled={busy} aria-invalid={timingError} aria-describedby={timingError ? `${id}-timing` : undefined} onChange={event => setGrace(Number(event.target.value))} /></label>
       {timingError && <p id={`${id}-timing`} className="gm-stations-field-error gm-stations-full" role="alert">Tolerancija prekida veze mora biti najmanje jednaka intervalu heartbeat-a.</p>}
-      <label className="gm-stations-toggle gm-stations-full"><input aria-label={"Gaming Client integracija uključena"} type="checkbox" checked={enabled} disabled={busy} onChange={event => setEnabled(event.target.checked)} />Gaming Client integracija uključena</label>
+      <label className="gm-stations-toggle gm-stations-full"><Input aria-label={"Gaming Client integracija uključena"} type="checkbox" checked={enabled} disabled={busy} onChange={event => setEnabled(event.target.checked)} />Gaming Client integracija uključena</label>
     </form>
   </Modal>
 }
@@ -59,10 +59,10 @@ export function ApplicationDialog({ value, onClose }: { value: ApplicationDefini
   }, onClose, 'Aplikacija je sačuvana.')
   const busy = save.isPending, update = <K extends keyof ApplicationDefinitionInput>(key: K, input: ApplicationDefinitionInput[K]) => setForm(current => ({ ...current, [key]: input }))
   const identityMissing = !form.publisher?.trim() && !form.publisherCertificateThumbprint?.trim() && !form.executableSha256?.trim()
-  return <Modal open title={value ? 'Izmeni aplikaciju' : 'Nova aplikacija'} className="gm-stations-dialog" titleIcon={<StationIcon kind="apps" />}
+  return <Modal size="wide" open title={value ? 'Izmeni aplikaciju' : 'Nova aplikacija'} className="gm-stations-dialog" titleIcon={<StationIcon kind="apps" />}
     closeDisabled={busy} onClose={onClose} footer={<SaveFooter id={id} busy={busy} disabled={identityMissing} onClose={onClose} />}>
-    <form id={id} className="gm-stations-form" onSubmit={(event: FormEvent) => { event.preventDefault(); if (!busy && !identityMissing) save.submit() }}>
-      {save.isError && <p className="error-banner gm-stations-full" role="alert">{stationError(save.error, 'Aplikaciju nije moguće sačuvati.')}</p>}
+    <form id={id} className="ui-form-grid gm-stations-form" onSubmit={(event: FormEvent) => { event.preventDefault(); if (!busy && !identityMissing) save.submit() }}>
+      {save.isError && <Alert tone="danger" className="gm-stations-full" role="alert">{stationError(save.error, 'Aplikaciju nije moguće sačuvati.')}</Alert>}
       <label>Kod<Input aria-label={"Kod"} required maxLength={60} value={form.code} disabled={busy} onChange={event => update('code', event.target.value)} /></label>
       <label>Naziv<Input aria-label={"Naziv"} required maxLength={120} value={form.name} disabled={busy} onChange={event => update('name', event.target.value)} /></label>
       <label>Tip<Select aria-label={"Tip"} value={form.type} disabled={busy} onChange={event => update('type', event.target.value as ApplicationType)}>{Object.entries(applicationTypeLabels).map(([type, label]) => <option key={type} value={type}>{label}</option>)}</Select></label>
@@ -73,7 +73,7 @@ export function ApplicationDialog({ value, onClose }: { value: ApplicationDefini
       <p className="gm-stations-form-note gm-stations-full">Obavezan je najmanje jedan podatak za proveru identiteta: izdavač, sertifikat ili SHA-256. Izvršna datoteka mora imati apsolutnu Windows .exe putanju.</p>
       <label>Minimalna verzija datoteke<Input aria-label={"Minimalna verzija datoteke"} placeholder="1.2.3.4" pattern="[0-9]+(\.[0-9]+){1,3}" value={form.minimumFileVersion ?? ''} disabled={busy} onChange={event => update('minimumFileVersion', event.target.value)} /></label>
       <label>Argumenti<Input aria-label={"Argumenti"} maxLength={1000} value={form.defaultArguments ?? ''} disabled={busy} onChange={event => update('defaultArguments', event.target.value)} /></label>
-      <label className="gm-stations-toggle gm-stations-full"><input aria-label={"Aplikacija aktivna"} type="checkbox" checked={form.active} disabled={busy} onChange={event => update('active', event.target.checked)} />Aplikacija aktivna</label>
+      <label className="gm-stations-toggle gm-stations-full"><Input aria-label={"Aplikacija aktivna"} type="checkbox" checked={form.active} disabled={busy} onChange={event => update('active', event.target.checked)} />Aplikacija aktivna</label>
     </form>
   </Modal>
 }
@@ -96,22 +96,22 @@ export function ApplicationProfileDialog({ value, definitions, onClose }: { valu
       launchOrder: current.reduce((max, entry) => Math.max(max, entry.launchOrder + 1), 0) }] : current.filter(entry => entry.applicationDefinitionId !== definition.id))
   }
   function updateEntry(id: string, changes: Partial<ProfileEntry>) { setEntries(current => current.map(entry => entry.applicationDefinitionId === id ? { ...entry, ...changes } : entry)) }
-  return <Modal open title={value ? 'Izmeni profil' : 'Novi profil'} className="gm-stations-dialog gm-stations-profile-dialog" titleIcon={<StationIcon kind="apps" />}
+  return <Modal size="wide" open title={value ? 'Izmeni profil' : 'Novi profil'} className="gm-stations-dialog gm-stations-profile-dialog" titleIcon={<StationIcon kind="apps" />}
     closeDisabled={busy} onClose={onClose} footer={<SaveFooter id={id} busy={busy} disabled={!hasGame || unavailable} onClose={onClose} label="Sačuvaj profil" />}>
-    <form id={id} className="gm-stations-form" onSubmit={event => { event.preventDefault(); if (!busy && hasGame && !unavailable) save.submit() }}>
-      {save.isError && <p className="error-banner gm-stations-full" role="alert">{stationError(save.error, 'Profil nije moguće sačuvati.')}</p>}
+    <form id={id} className="ui-form-grid gm-stations-form" onSubmit={event => { event.preventDefault(); if (!busy && hasGame && !unavailable) save.submit() }}>
+      {save.isError && <Alert tone="danger" className="gm-stations-full" role="alert">{stationError(save.error, 'Profil nije moguće sačuvati.')}</Alert>}
       <label>Kod<Input aria-label={"Kod"} required maxLength={60} value={code} disabled={busy} onChange={event => setCode(event.target.value)} /></label>
       <label>Naziv<Input aria-label={"Naziv"} required maxLength={120} value={name} disabled={busy} onChange={event => setName(event.target.value)} /></label>
       <label className="gm-stations-full">Opis<Textarea aria-label={"Opis"} maxLength={500} value={description} disabled={busy} onChange={event => setDescription(event.target.value)} /></label>
-      <label className="gm-stations-toggle gm-stations-full"><input aria-label={"Profil aktivan"} type="checkbox" checked={active} disabled={busy} onChange={event => setActive(event.target.checked)} />Profil aktivan</label>
+      <label className="gm-stations-toggle gm-stations-full"><Input aria-label={"Profil aktivan"} type="checkbox" checked={active} disabled={busy} onChange={event => setActive(event.target.checked)} />Profil aktivan</label>
       <fieldset className="gm-stations-profile-apps gm-stations-full"><legend>Aplikacije i pravila pokretanja</legend>
         <p className="gm-stations-form-note">Najmanje jedna aktivna igra. Pokretač i pripadajuća igra moraju imati istu grupu zavisnosti.</p>
         {definitions.filter(definition => definition.active || entries.some(entry => entry.applicationDefinitionId === definition.id)).map(definition => {
           const entry = entries.find(entry => entry.applicationDefinitionId === definition.id)
-          return <div key={definition.id} className="gm-stations-profile-entry"><label className="gm-stations-toggle"><input type="checkbox" checked={Boolean(entry)} disabled={busy || !definition.active && !entry}
+          return <div key={definition.id} className="gm-stations-profile-entry"><label className="gm-stations-toggle"><Input type="checkbox" checked={Boolean(entry)} disabled={busy || !definition.active && !entry}
             onChange={event => toggle(definition, event.target.checked)} /><strong>{definition.name}</strong><span>{applicationTypeLabels[definition.type]}{!definition.active && ' · neaktivna'}</span></label>
-            {entry && <div className="gm-stations-entry-fields"><label className="gm-stations-toggle"><input aria-label={"Obavezan proces"} type="checkbox" checked={entry.requiredProcess} disabled={busy} onChange={event => updateEntry(definition.id, { requiredProcess: event.target.checked })} />Obavezan proces</label>
-              <label className="gm-stations-toggle"><input aria-label={"Automatsko pokretanje"} type="checkbox" checked={entry.autoStart} disabled={busy} onChange={event => updateEntry(definition.id, { autoStart: event.target.checked })} />Automatsko pokretanje</label>
+            {entry && <div className="gm-stations-entry-fields"><label className="gm-stations-toggle"><Input aria-label={"Obavezan proces"} type="checkbox" checked={entry.requiredProcess} disabled={busy} onChange={event => updateEntry(definition.id, { requiredProcess: event.target.checked })} />Obavezan proces</label>
+              <label className="gm-stations-toggle"><Input aria-label={"Automatsko pokretanje"} type="checkbox" checked={entry.autoStart} disabled={busy} onChange={event => updateEntry(definition.id, { autoStart: event.target.checked })} />Automatsko pokretanje</label>
               <label>Redosled pokretanja<Input aria-label={"Redosled pokretanja"} type="number" required min={0} value={entry.launchOrder} disabled={busy} onChange={event => updateEntry(definition.id, { launchOrder: Number(event.target.value) })} /></label>
               <label>Grupa zavisnosti<Input aria-label={"Grupa zavisnosti"} maxLength={60} pattern="[A-Za-z0-9_\-]+" placeholder="npr. steam-cs2" value={entry.dependencyGroup ?? ''} disabled={busy} onChange={event => updateEntry(definition.id, { dependencyGroup: event.target.value })} /></label>
               <label className="gm-stations-full">Argumenti za ovaj profil<Input aria-label={"Argumenti za ovaj profil"} maxLength={1000} value={entry.argumentsOverride ?? ''} disabled={busy} onChange={event => updateEntry(definition.id, { argumentsOverride: event.target.value })} /></label>

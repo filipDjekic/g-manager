@@ -3,7 +3,7 @@ import { useRef, useState } from 'react'
 import { resourceApi } from '../api/resourceApi'
 import { userApi } from '../api/userApi'
 import { apiErrorMessage } from '../api/client'
-import { Badge, Button, EmptyState, ErrorState, Modal, Skeleton } from '../components/ui'
+import { Badge, Button, EmptyState, ErrorState, Modal, Skeleton, Alert } from '../components/ui'
 import './resources.css'
 
 export function ResourceEmployees({resourceId,resourceName,onClose}:{resourceId:string;resourceName:string;onClose:()=>void}) {
@@ -24,10 +24,10 @@ export function ResourceEmployees({resourceId,resourceName,onClose}:{resourceId:
     } catch(cause){setError(apiErrorMessage(cause,'Dodelu stanice nije moguće sačuvati.'));await access.refetch()}
     finally{inFlight.current=false;setBusy('')}
   }
-  return <Modal open className="resource-employees-dialog" closeDisabled={Boolean(busy)} title={`Zaposleni · ${resourceName}`} onClose={()=>{if(!busy)onClose()}}>
+  return <Modal size="wide" open className="resource-employees-dialog" closeDisabled={Boolean(busy)} title={`Zaposleni · ${resourceName}`} onClose={()=>{if(!busy)onClose()}}>
     <p className="search-help">Zaposleni upravlja rezervacijama i sesijama ove stanice dok je dodela aktivna. Promena odmah važi za naredne operacije.</p>
-    {error&&<p role="alert" className="error-banner">{error}</p>}
-    {employees.isLoading||access.isLoading?<Skeleton lines={4}/>:employees.error||access.error?<ErrorState message="Zaposlene i dodele nije moguće učitati." action={<Button onClick={()=>{void employees.refetch();void access.refetch()}}>Pokušaj ponovo</Button>}/>:!visibleEmployees.length?<EmptyState title="Nema aktivnih zaposlenih" description="Prvo kreirajte zaposlenog u odeljku Zaposleni."/>:<ul className="operations-attention-list">{visibleEmployees.map(employee=>{
+    {error&&<Alert tone="danger" role="alert">{error}</Alert>}
+    {employees.isLoading||access.isLoading?<Skeleton lines={4}/>:employees.error||access.error?<ErrorState message="Zaposlene i dodele nije moguće učitati." action={<Button variant="secondary" onClick={()=>{void employees.refetch();void access.refetch()}}>Pokušaj ponovo</Button>}/>:!visibleEmployees.length?<EmptyState title="Nema aktivnih zaposlenih" description="Prvo kreirajte zaposlenog u odeljku Zaposleni."/>:<ul className="operations-attention-list">{visibleEmployees.map(employee=>{
       const assigned=!!access.data?.find(value=>value.employeeId===employee.id)?.active
       return <li key={employee.id}><div><strong>{employee.name}{!employee.active&&' · neaktivan'}</strong>{employee.email&&<small>{employee.email}</small>}</div><Badge tone={assigned?'success':'neutral'}>{assigned?'Dodeljena stanica':'Nema pristup'}</Badge><Button variant="secondary" loading={busy===employee.id} disabled={!!busy||!employee.active&&!assigned} onClick={()=>void toggle(employee.id)}>{assigned?'Ukloni pristup':'Dodeli stanicu'}</Button></li>
     })}</ul>}
