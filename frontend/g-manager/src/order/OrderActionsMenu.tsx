@@ -11,7 +11,7 @@ export function OrderActionsMenu({ order, user, disabled, onAction }: {
   return <ActionMenu label={'Akcije za narudžbinu ' + shortOrderId(order.id)} disabled={disabled} actions={[
     { label: 'Detalji', onClick: trigger => onAction('DETAILS', trigger) },
     ...(['IN_PROGRESS', 'READY', 'COMPLETED', 'CANCELLED'] as const).filter(status => canChangeOrder(order, status, user)).map(status => ({
-      label: orderActionLabels[status], danger: status === 'CANCELLED', onClick: (trigger: HTMLButtonElement) => onAction(status, trigger),
+      label: orderActionLabels[status] ?? 'Promeni status', danger: status === 'CANCELLED', onClick: (trigger: HTMLButtonElement) => onAction(status, trigger),
     })),
   ]} />
 }

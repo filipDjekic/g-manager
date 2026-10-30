@@ -41,7 +41,7 @@ const StationsPage = lazyPage(() => import('./pages/StationsPage'), 'StationsPag
 const GamingSessionsPage = lazyPage(() => import('./pages/GamingSessionsPage'), 'GamingSessionsPage')
 const CustomerHomePage = lazyPage(() => import('./pages/CustomerHomePage'), 'CustomerHomePage')
 const WaitlistPage = lazyPage(() => import('./pages/WaitlistPage'), 'WaitlistPage')
-const WorkspaceHubPage = lazyPage(() => import('./pages/WorkspaceHubPage'), 'WorkspaceHubPage')
+const WorkspaceHubPage = lazy(() => import('./pages/WorkspaceHubPage').then(module => ({ default: module.WorkspaceHubPage })))
 
 function RouteLoading() {
   return <p className="screen-message" role="status">Učitavanje stranice…</p>
