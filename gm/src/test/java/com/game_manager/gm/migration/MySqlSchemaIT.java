@@ -33,9 +33,10 @@ import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@SpringBootTest
 @ActiveProfiles("test")
 @Testcontainers
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class MySqlSchemaIT {
     private static final Logger log = LoggerFactory.getLogger(MySqlSchemaIT.class);
@@ -45,7 +46,7 @@ class MySqlSchemaIT {
             .withDatabaseName("gmanager")
             .withUsername("gmanager_it")
             .withPassword("ephemeral-test-password")
-            .withEnv("TZ", "UTC");
+            .withEnv("TZ", "UTC").withUrlParam("serverTimezone", "UTC");
 
     @DynamicPropertySource
     static void databaseProperties(DynamicPropertyRegistry registry) {
@@ -59,22 +60,31 @@ class MySqlSchemaIT {
     @Autowired JdbcTemplate jdbc;
     @Autowired UserRepository users;
     @Autowired EntityManagerFactory entityManagerFactory;
+    @Autowired org.springframework.scheduling.annotation.ScheduledAnnotationBeanPostProcessor scheduler;
+
+    @org.junit.jupiter.api.BeforeEach
+    void pauseScheduledQueriesWhileRebuildingTheDisposableSchema() {
+        scheduler.getScheduledTasks().forEach(task -> task.cancel());
+    }
 
     @Test
     @Order(1)
     void upgradesPreviousVersionToLatest() {
         long startedAt = System.nanoTime();
+        List<MigrationVersion> versions = availableVersions();
+        MigrationVersion previous = versions.get(versions.size() - 2);
+        MigrationVersion latest = versions.getLast();
         cleanSchema();
         Flyway.configure()
                 .dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
-                .target(MigrationVersion.fromVersion("35"))
+                .target(previous)
                 .load()
                 .migrate();
 
-        assertThat(currentVersion()).isEqualTo("35");
+        assertThat(currentVersion()).isEqualTo(previous.getVersion());
         flyway.migrate();
 
-        assertThat(currentVersion()).isEqualTo("36");
+        assertThat(currentVersion()).isEqualTo(latest.getVersion());
         log.info("MySQL previous-release-to-latest migration completed in {} ms", elapsedMillis(startedAt));
     }
 
@@ -82,9 +92,10 @@ class MySqlSchemaIT {
     @Order(2)
     void migratesEmptySchemaAndHibernateValidatesIt() {
         long startedAt = System.nanoTime();
+        String latest = availableVersions().getLast().getVersion();
         cleanSchema();
         assertThat(flyway.migrate().success).isTrue();
-        assertThat(currentVersion()).isEqualTo("36");
+        assertThat(currentVersion()).isEqualTo(latest);
         assertThat(entityManagerFactory.getMetamodel().getEntities()).isNotEmpty();
         log.info("MySQL empty-to-latest migration completed in {} ms", elapsedMillis(startedAt));
     }
@@ -169,7 +180,9 @@ class MySqlSchemaIT {
                         + "VALUES (?,?,?,?,?,?,?,?)",
                 UUID.randomUUID().toString(), "Invalid", "PRODUCT", -1, true,
                 Timestamp.from(Instant.now()), Timestamp.from(Instant.now()), 0))
-                .isInstanceOf(DataIntegrityViolationException.class);
+                .isInstanceOf(org.springframework.dao.DataAccessException.class)
+                .hasRootCauseInstanceOf(java.sql.SQLException.class)
+                .hasMessageContaining("chk_catalog_price_positive");
 
         Instant precise = Instant.parse("2026-08-08T10:15:30.123456Z");
         String userId = UUID.randomUUID().toString();
@@ -205,7 +218,7 @@ class MySqlSchemaIT {
         User saved = users.saveAndFlush(user);
 
         assertThat(users.findByEmailIgnoreCase("MYSQL-REPOSITORY@EXAMPLE.TEST"))
-                .contains(saved);
+                .map(User::getId).contains(saved.getId());
     }
 
     @Test
@@ -227,7 +240,7 @@ class MySqlSchemaIT {
 
             secondCopy.setName("Stale writer");
             assertThatThrownBy(second.getTransaction()::commit)
-                    .hasRootCauseInstanceOf(OptimisticLockException.class);
+                    .hasCauseInstanceOf(OptimisticLockException.class);
         } finally {
             if (first.getTransaction().isActive()) first.getTransaction().rollback();
             if (second.getTransaction().isActive()) second.getTransaction().rollback();
@@ -242,6 +255,12 @@ class MySqlSchemaIT {
                 .cleanDisabled(false)
                 .load()
                 .clean();
+    }
+
+    private List<MigrationVersion> availableVersions() {
+        return java.util.Arrays.stream(flyway.info().all())
+                .map(org.flywaydb.core.api.MigrationInfo::getVersion).filter(java.util.Objects::nonNull)
+                .distinct().sorted().toList();
     }
 
     private String currentVersion() {

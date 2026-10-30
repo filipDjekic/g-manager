@@ -1,0 +1,1046 @@
+[ {
+  "route" : "/api/v1/ai/report-summaries/{reportId}",
+  "methods" : [ "POST" ],
+  "handler" : "summarize",
+  "controller" : "AiSummaryController"
+}, {
+  "route" : "/api/v1/ai/usage/{usageId}/feedback",
+  "methods" : [ "POST" ],
+  "handler" : "feedback",
+  "controller" : "AiSummaryController"
+}, {
+  "route" : "/api/v1/audit-events",
+  "methods" : [ "GET" ],
+  "handler" : "list",
+  "controller" : "AuditController"
+}, {
+  "route" : "/api/v1/audit-events/statistics",
+  "methods" : [ "GET" ],
+  "handler" : "statistics",
+  "controller" : "AuditController"
+}, {
+  "route" : "/api/v1/audit-events/{id}",
+  "methods" : [ "GET" ],
+  "handler" : "get",
+  "controller" : "AuditController"
+}, {
+  "route" : "/api/v1/auth/activate",
+  "methods" : [ "POST" ],
+  "handler" : "activate",
+  "controller" : "AuthController"
+}, {
+  "route" : "/api/v1/auth/login",
+  "methods" : [ "POST" ],
+  "handler" : "login",
+  "controller" : "AuthController"
+}, {
+  "route" : "/api/v1/auth/logout",
+  "methods" : [ "POST" ],
+  "handler" : "logout",
+  "controller" : "AuthController"
+}, {
+  "route" : "/api/v1/auth/refresh",
+  "methods" : [ "POST" ],
+  "handler" : "refresh",
+  "controller" : "AuthController"
+}, {
+  "route" : "/api/v1/auth/register",
+  "methods" : [ "POST" ],
+  "handler" : "rejectPublicRegistration",
+  "controller" : "AuthController"
+}, {
+  "route" : "/api/v1/auth/security-events",
+  "methods" : [ "GET" ],
+  "handler" : "securityEvents",
+  "controller" : "AuthController"
+}, {
+  "route" : "/api/v1/auth/sessions",
+  "methods" : [ "GET" ],
+  "handler" : "sessions",
+  "controller" : "AuthController"
+}, {
+  "route" : "/api/v1/auth/sessions",
+  "methods" : [ "DELETE" ],
+  "handler" : "revokeAllSessions",
+  "controller" : "AuthController"
+}, {
+  "route" : "/api/v1/auth/sessions/{id}",
+  "methods" : [ "DELETE" ],
+  "handler" : "revokeSession",
+  "controller" : "AuthController"
+}, {
+  "route" : "/api/v1/availability",
+  "methods" : [ "GET" ],
+  "handler" : "find",
+  "controller" : "AvailabilityController"
+}, {
+  "route" : "/api/v1/availability/overview",
+  "methods" : [ "GET" ],
+  "handler" : "overview",
+  "controller" : "AvailabilityController"
+}, {
+  "route" : "/api/v1/catalog",
+  "methods" : [ "POST" ],
+  "handler" : "create",
+  "controller" : "CatalogController"
+}, {
+  "route" : "/api/v1/catalog",
+  "methods" : [ "GET" ],
+  "handler" : "list",
+  "controller" : "CatalogController"
+}, {
+  "route" : "/api/v1/catalog/bulk/activation",
+  "methods" : [ "POST" ],
+  "handler" : "bulkActivation",
+  "controller" : "CatalogController"
+}, {
+  "route" : "/api/v1/catalog/deleted",
+  "methods" : [ "GET" ],
+  "handler" : "listDeleted",
+  "controller" : "CatalogController"
+}, {
+  "route" : "/api/v1/catalog/statistics",
+  "methods" : [ "GET" ],
+  "handler" : "statistics",
+  "controller" : "CatalogController"
+}, {
+  "route" : "/api/v1/catalog/{id}",
+  "methods" : [ "GET" ],
+  "handler" : "get",
+  "controller" : "CatalogController"
+}, {
+  "route" : "/api/v1/catalog/{id}",
+  "methods" : [ "DELETE" ],
+  "handler" : "delete",
+  "controller" : "CatalogController"
+}, {
+  "route" : "/api/v1/catalog/{id}",
+  "methods" : [ "PATCH" ],
+  "handler" : "update",
+  "controller" : "CatalogController"
+}, {
+  "route" : "/api/v1/catalog/{id}/activate",
+  "methods" : [ "PATCH" ],
+  "handler" : "activate",
+  "controller" : "CatalogController"
+}, {
+  "route" : "/api/v1/catalog/{id}/deactivate",
+  "methods" : [ "PATCH" ],
+  "handler" : "deactivate",
+  "controller" : "CatalogController"
+}, {
+  "route" : "/api/v1/catalog/{id}/image",
+  "methods" : [ "POST" ],
+  "handler" : "uploadImage",
+  "controller" : "CatalogController"
+}, {
+  "route" : "/api/v1/catalog/{id}/restore",
+  "methods" : [ "POST" ],
+  "handler" : "restore",
+  "controller" : "CatalogController"
+}, {
+  "route" : "/api/v1/customers",
+  "methods" : [ "POST" ],
+  "handler" : "create",
+  "controller" : "CustomerController"
+}, {
+  "route" : "/api/v1/customers",
+  "methods" : [ "GET" ],
+  "handler" : "list",
+  "controller" : "CustomerController"
+}, {
+  "route" : "/api/v1/customers/statistics",
+  "methods" : [ "GET" ],
+  "handler" : "statistics",
+  "controller" : "CustomerController"
+}, {
+  "route" : "/api/v1/customers/{customerId}/crm",
+  "methods" : [ "GET" ],
+  "handler" : "get",
+  "controller" : "CustomerCrmController"
+}, {
+  "route" : "/api/v1/customers/{customerId}/crm/notes",
+  "methods" : [ "POST" ],
+  "handler" : "addNote",
+  "controller" : "CustomerCrmController"
+}, {
+  "route" : "/api/v1/customers/{customerId}/crm/notes/{noteId}",
+  "methods" : [ "PUT" ],
+  "handler" : "updateNote",
+  "controller" : "CustomerCrmController"
+}, {
+  "route" : "/api/v1/customers/{customerId}/crm/notes/{noteId}",
+  "methods" : [ "DELETE" ],
+  "handler" : "deleteNote",
+  "controller" : "CustomerCrmController"
+}, {
+  "route" : "/api/v1/customers/{customerId}/crm/tags",
+  "methods" : [ "POST" ],
+  "handler" : "addTag",
+  "controller" : "CustomerCrmController"
+}, {
+  "route" : "/api/v1/customers/{customerId}/crm/tags/{name}",
+  "methods" : [ "DELETE" ],
+  "handler" : "removeTag",
+  "controller" : "CustomerCrmController"
+}, {
+  "route" : "/api/v1/customers/{id}",
+  "methods" : [ "GET" ],
+  "handler" : "detail",
+  "controller" : "CustomerController"
+}, {
+  "route" : "/api/v1/customers/{id}",
+  "methods" : [ "PATCH" ],
+  "handler" : "update",
+  "controller" : "CustomerController"
+}, {
+  "route" : "/api/v1/customers/{id}/deactivate",
+  "methods" : [ "POST" ],
+  "handler" : "deactivate",
+  "controller" : "CustomerController"
+}, {
+  "route" : "/api/v1/dashboard/attention",
+  "methods" : [ "GET" ],
+  "handler" : "attention",
+  "controller" : "DashboardController"
+}, {
+  "route" : "/api/v1/dashboard/export",
+  "methods" : [ "GET" ],
+  "handler" : "export",
+  "controller" : "DashboardController"
+}, {
+  "route" : "/api/v1/dashboard/summary",
+  "methods" : [ "GET" ],
+  "handler" : "summary",
+  "controller" : "DashboardController"
+}, {
+  "route" : "/api/v1/dashboard/today",
+  "methods" : [ "GET" ],
+  "handler" : "today",
+  "controller" : "DashboardController"
+}, {
+  "route" : "/api/v1/dashboard/trends",
+  "methods" : [ "GET" ],
+  "handler" : "trends",
+  "controller" : "DashboardController"
+}, {
+  "route" : "/api/v1/dashboard/widget-preferences",
+  "methods" : [ "GET" ],
+  "handler" : "widgetPreferences",
+  "controller" : "DashboardController"
+}, {
+  "route" : "/api/v1/dashboard/widget-preferences",
+  "methods" : [ "PUT" ],
+  "handler" : "saveWidgetPreferences",
+  "controller" : "DashboardController"
+}, {
+  "route" : "/api/v1/dashboard/workload",
+  "methods" : [ "GET" ],
+  "handler" : "workload",
+  "controller" : "DashboardController"
+}, {
+  "route" : "/api/v1/documents",
+  "methods" : [ "POST" ],
+  "handler" : "upload",
+  "controller" : "DocumentController"
+}, {
+  "route" : "/api/v1/documents",
+  "methods" : [ "GET" ],
+  "handler" : "list",
+  "controller" : "DocumentController"
+}, {
+  "route" : "/api/v1/documents/{id}",
+  "methods" : [ "DELETE" ],
+  "handler" : "delete",
+  "controller" : "DocumentController"
+}, {
+  "route" : "/api/v1/documents/{id}/content",
+  "methods" : [ "GET" ],
+  "handler" : "content",
+  "controller" : "DocumentController"
+}, {
+  "route" : "/api/v1/documents/{id}/restore",
+  "methods" : [ "POST" ],
+  "handler" : "restore",
+  "controller" : "DocumentController"
+}, {
+  "route" : "/api/v1/documents/{id}/versions",
+  "methods" : [ "POST" ],
+  "handler" : "version",
+  "controller" : "DocumentController"
+}, {
+  "route" : "/api/v1/features",
+  "methods" : [ "GET" ],
+  "handler" : "definitions",
+  "controller" : "FeatureFlagController"
+}, {
+  "route" : "/api/v1/features/bootstrap",
+  "methods" : [ "GET" ],
+  "handler" : "bootstrap",
+  "controller" : "FeatureFlagController"
+}, {
+  "route" : "/api/v1/features/{flag}",
+  "methods" : [ "PATCH" ],
+  "handler" : "update",
+  "controller" : "FeatureFlagController"
+}, {
+  "route" : "/api/v1/gaming-operations/board",
+  "methods" : [ "GET" ],
+  "handler" : "board",
+  "controller" : "GamingOperationsController"
+}, {
+  "route" : "/api/v1/gaming-operations/stations/{stationId}/confirm-locked",
+  "methods" : [ "POST" ],
+  "handler" : "confirmLocked",
+  "controller" : "GamingOperationsController"
+}, {
+  "route" : "/api/v1/gaming-operations/stations/{stationId}/force-lock",
+  "methods" : [ "POST" ],
+  "handler" : "forceLock",
+  "controller" : "GamingOperationsController"
+}, {
+  "route" : "/api/v1/gaming-operations/stations/{stationId}/history",
+  "methods" : [ "GET" ],
+  "handler" : "history",
+  "controller" : "GamingOperationsController"
+}, {
+  "route" : "/api/v1/gaming-sessions",
+  "methods" : [ "GET" ],
+  "handler" : "active",
+  "controller" : "GamingSessionController"
+}, {
+  "route" : "/api/v1/gaming-sessions",
+  "methods" : [ "POST" ],
+  "handler" : "start",
+  "controller" : "GamingSessionController"
+}, {
+  "route" : "/api/v1/gaming-sessions/customer/{customerId}",
+  "methods" : [ "GET" ],
+  "handler" : "customerVisits",
+  "controller" : "GamingSessionController"
+}, {
+  "route" : "/api/v1/gaming-sessions/me",
+  "methods" : [ "GET" ],
+  "handler" : "mine",
+  "controller" : "GamingSessionController"
+}, {
+  "route" : "/api/v1/gaming-sessions/stream",
+  "methods" : [ "GET" ],
+  "handler" : "stream",
+  "controller" : "GamingSessionController"
+}, {
+  "route" : "/api/v1/gaming-sessions/{id}",
+  "methods" : [ "GET" ],
+  "handler" : "get",
+  "controller" : "GamingSessionController"
+}, {
+  "route" : "/api/v1/gaming-sessions/{id}/extend",
+  "methods" : [ "POST" ],
+  "handler" : "extend",
+  "controller" : "GamingSessionController"
+}, {
+  "route" : "/api/v1/gaming-sessions/{id}/terminate",
+  "methods" : [ "POST" ],
+  "handler" : "terminate",
+  "controller" : "GamingSessionController"
+}, {
+  "route" : "/api/v1/machine/auth/challenge",
+  "methods" : [ "POST" ],
+  "handler" : "challenge",
+  "controller" : "MachineProtocolController"
+}, {
+  "route" : "/api/v1/machine/auth/token",
+  "methods" : [ "POST" ],
+  "handler" : "token",
+  "controller" : "MachineProtocolController"
+}, {
+  "route" : "/api/v1/machine/commands",
+  "methods" : [ "GET" ],
+  "handler" : "commands",
+  "controller" : "MachineProtocolController"
+}, {
+  "route" : "/api/v1/machine/commands/{sequence}/ack",
+  "methods" : [ "POST" ],
+  "handler" : "ack",
+  "controller" : "MachineProtocolController"
+}, {
+  "route" : "/api/v1/machine/configuration",
+  "methods" : [ "GET" ],
+  "handler" : "configuration",
+  "controller" : "MachineProtocolController"
+}, {
+  "route" : "/api/v1/machine/enforcement/lock-ack",
+  "methods" : [ "POST" ],
+  "handler" : "lockAck",
+  "controller" : "MachineProtocolController"
+}, {
+  "route" : "/api/v1/machine/enroll",
+  "methods" : [ "POST" ],
+  "handler" : "enroll",
+  "controller" : "MachineProtocolController"
+}, {
+  "route" : "/api/v1/machine/heartbeat",
+  "methods" : [ "POST" ],
+  "handler" : "heartbeat",
+  "controller" : "MachineProtocolController"
+}, {
+  "route" : "/api/v1/machine/lease",
+  "methods" : [ "GET" ],
+  "handler" : "lease",
+  "controller" : "MachineProtocolController"
+}, {
+  "route" : "/api/v1/machine/session-login",
+  "methods" : [ "POST" ],
+  "handler" : "sessionLogin",
+  "controller" : "MachineProtocolController"
+}, {
+  "route" : "/api/v1/machine/session-logout",
+  "methods" : [ "POST" ],
+  "handler" : "sessionLogout",
+  "controller" : "MachineProtocolController"
+}, {
+  "route" : "/api/v1/machine/snapshot",
+  "methods" : [ "GET" ],
+  "handler" : "snapshot",
+  "controller" : "MachineProtocolController"
+}, {
+  "route" : "/api/v1/notifications",
+  "methods" : [ "GET" ],
+  "handler" : "list",
+  "controller" : "NotificationController"
+}, {
+  "route" : "/api/v1/notifications/preferences",
+  "methods" : [ "GET" ],
+  "handler" : "preferences",
+  "controller" : "NotificationController"
+}, {
+  "route" : "/api/v1/notifications/preferences",
+  "methods" : [ "PUT" ],
+  "handler" : "preference",
+  "controller" : "NotificationController"
+}, {
+  "route" : "/api/v1/notifications/read-all",
+  "methods" : [ "PATCH" ],
+  "handler" : "readAll",
+  "controller" : "NotificationController"
+}, {
+  "route" : "/api/v1/notifications/stream",
+  "methods" : [ "GET" ],
+  "handler" : "stream",
+  "controller" : "NotificationController"
+}, {
+  "route" : "/api/v1/notifications/{id}/open",
+  "methods" : [ "GET" ],
+  "handler" : "open",
+  "controller" : "NotificationController"
+}, {
+  "route" : "/api/v1/notifications/{id}/read",
+  "methods" : [ "PATCH" ],
+  "handler" : "read",
+  "controller" : "NotificationController"
+}, {
+  "route" : "/api/v1/orders",
+  "methods" : [ "GET" ],
+  "handler" : "list",
+  "controller" : "OrderController"
+}, {
+  "route" : "/api/v1/orders",
+  "methods" : [ "POST" ],
+  "handler" : "create",
+  "controller" : "OrderController"
+}, {
+  "route" : "/api/v1/orders/bulk/status",
+  "methods" : [ "PATCH" ],
+  "handler" : "bulkStatus",
+  "controller" : "OrderController"
+}, {
+  "route" : "/api/v1/orders/me",
+  "methods" : [ "GET" ],
+  "handler" : "listMine",
+  "controller" : "OrderController"
+}, {
+  "route" : "/api/v1/orders/me/{id}",
+  "methods" : [ "GET" ],
+  "handler" : "getMine",
+  "controller" : "OrderController"
+}, {
+  "route" : "/api/v1/orders/statistics",
+  "methods" : [ "GET" ],
+  "handler" : "statistics",
+  "controller" : "OrderController"
+}, {
+  "route" : "/api/v1/orders/{id}",
+  "methods" : [ "GET" ],
+  "handler" : "get",
+  "controller" : "OrderController"
+}, {
+  "route" : "/api/v1/orders/{id}/status",
+  "methods" : [ "PATCH" ],
+  "handler" : "changeStatus",
+  "controller" : "OrderController"
+}, {
+  "route" : "/api/v1/reports",
+  "methods" : [ "POST" ],
+  "handler" : "generate",
+  "controller" : "ReportController"
+}, {
+  "route" : "/api/v1/reports",
+  "methods" : [ "GET" ],
+  "handler" : "list",
+  "controller" : "ReportController"
+}, {
+  "route" : "/api/v1/reports/definitions",
+  "methods" : [ "GET" ],
+  "handler" : "definitions",
+  "controller" : "ReportController"
+}, {
+  "route" : "/api/v1/reports/schedules",
+  "methods" : [ "POST" ],
+  "handler" : "createSchedule",
+  "controller" : "ReportController"
+}, {
+  "route" : "/api/v1/reports/schedules",
+  "methods" : [ "GET" ],
+  "handler" : "schedules",
+  "controller" : "ReportController"
+}, {
+  "route" : "/api/v1/reports/schedules/{id}",
+  "methods" : [ "DELETE" ],
+  "handler" : "deleteSchedule",
+  "controller" : "ReportController"
+}, {
+  "route" : "/api/v1/reports/schedules/{id}",
+  "methods" : [ "PUT" ],
+  "handler" : "updateSchedule",
+  "controller" : "ReportController"
+}, {
+  "route" : "/api/v1/reports/templates",
+  "methods" : [ "GET" ],
+  "handler" : "templates",
+  "controller" : "ReportController"
+}, {
+  "route" : "/api/v1/reports/templates",
+  "methods" : [ "POST" ],
+  "handler" : "createTemplate",
+  "controller" : "ReportController"
+}, {
+  "route" : "/api/v1/reports/templates/{id}",
+  "methods" : [ "DELETE" ],
+  "handler" : "deleteTemplate",
+  "controller" : "ReportController"
+}, {
+  "route" : "/api/v1/reports/{id}",
+  "methods" : [ "GET" ],
+  "handler" : "get",
+  "controller" : "ReportController"
+}, {
+  "route" : "/api/v1/reports/{id}/cancel",
+  "methods" : [ "POST" ],
+  "handler" : "cancel",
+  "controller" : "ReportController"
+}, {
+  "route" : "/api/v1/reports/{id}/download",
+  "methods" : [ "GET" ],
+  "handler" : "download",
+  "controller" : "ReportController"
+}, {
+  "route" : "/api/v1/reservations",
+  "methods" : [ "POST" ],
+  "handler" : "create",
+  "controller" : "ReservationController"
+}, {
+  "route" : "/api/v1/reservations",
+  "methods" : [ "GET" ],
+  "handler" : "list",
+  "controller" : "ReservationController"
+}, {
+  "route" : "/api/v1/reservations/booking-plan",
+  "methods" : [ "GET" ],
+  "handler" : "bookingPlan",
+  "controller" : "ReservationController"
+}, {
+  "route" : "/api/v1/reservations/bulk/status",
+  "methods" : [ "PATCH" ],
+  "handler" : "bulkStatus",
+  "controller" : "ReservationController"
+}, {
+  "route" : "/api/v1/reservations/calendar",
+  "methods" : [ "GET" ],
+  "handler" : "calendar",
+  "controller" : "ReservationController"
+}, {
+  "route" : "/api/v1/reservations/calendar-context",
+  "methods" : [ "GET" ],
+  "handler" : "calendarContext",
+  "controller" : "ReservationController"
+}, {
+  "route" : "/api/v1/reservations/me",
+  "methods" : [ "GET" ],
+  "handler" : "listMine",
+  "controller" : "ReservationController"
+}, {
+  "route" : "/api/v1/reservations/me/summary",
+  "methods" : [ "GET" ],
+  "handler" : "mineSummary",
+  "controller" : "ReservationController"
+}, {
+  "route" : "/api/v1/reservations/recurrence",
+  "methods" : [ "POST" ],
+  "handler" : "createRecurrence",
+  "controller" : "ReservationController"
+}, {
+  "route" : "/api/v1/reservations/recurrence/preview",
+  "methods" : [ "POST" ],
+  "handler" : "previewRecurrence",
+  "controller" : "ReservationController"
+}, {
+  "route" : "/api/v1/reservations/summary",
+  "methods" : [ "GET" ],
+  "handler" : "summary",
+  "controller" : "ReservationController"
+}, {
+  "route" : "/api/v1/reservations/{id}",
+  "methods" : [ "GET" ],
+  "handler" : "get",
+  "controller" : "ReservationController"
+}, {
+  "route" : "/api/v1/reservations/{id}",
+  "methods" : [ "PATCH" ],
+  "handler" : "update",
+  "controller" : "ReservationController"
+}, {
+  "route" : "/api/v1/reservations/{id}/resource",
+  "methods" : [ "PATCH" ],
+  "handler" : "assignResource",
+  "controller" : "ReservationController"
+}, {
+  "route" : "/api/v1/reservations/{id}/resources",
+  "methods" : [ "GET" ],
+  "handler" : "resourceOptions",
+  "controller" : "ReservationController"
+}, {
+  "route" : "/api/v1/reservations/{id}/status",
+  "methods" : [ "PATCH" ],
+  "handler" : "changeStatus",
+  "controller" : "ReservationController"
+}, {
+  "route" : "/api/v1/resources/areas/{id}",
+  "methods" : [ "POST" ],
+  "handler" : "createResource",
+  "controller" : "ResourceController"
+}, {
+  "route" : "/api/v1/resources/areas/{id}",
+  "methods" : [ "PUT" ],
+  "handler" : "updateArea",
+  "controller" : "ResourceController"
+}, {
+  "route" : "/api/v1/resources/areas/{id}",
+  "methods" : [ "GET" ],
+  "handler" : "resources",
+  "controller" : "ResourceController"
+}, {
+  "route" : "/api/v1/resources/areas/{id}/availability",
+  "methods" : [ "GET" ],
+  "handler" : "availability",
+  "controller" : "ResourceController"
+}, {
+  "route" : "/api/v1/resources/booking-options",
+  "methods" : [ "GET" ],
+  "handler" : "bookingOptions",
+  "controller" : "ResourceController"
+}, {
+  "route" : "/api/v1/resources/catalog-services/{serviceId}",
+  "methods" : [ "GET" ],
+  "handler" : "catalogResources",
+  "controller" : "ResourceController"
+}, {
+  "route" : "/api/v1/resources/locations",
+  "methods" : [ "POST" ],
+  "handler" : "createLocation",
+  "controller" : "ResourceController"
+}, {
+  "route" : "/api/v1/resources/locations",
+  "methods" : [ "GET" ],
+  "handler" : "locations",
+  "controller" : "ResourceController"
+}, {
+  "route" : "/api/v1/resources/locations/{id}",
+  "methods" : [ "PUT" ],
+  "handler" : "updateLocation",
+  "controller" : "ResourceController"
+}, {
+  "route" : "/api/v1/resources/locations/{id}/areas",
+  "methods" : [ "POST" ],
+  "handler" : "createArea",
+  "controller" : "ResourceController"
+}, {
+  "route" : "/api/v1/resources/locations/{id}/areas",
+  "methods" : [ "GET" ],
+  "handler" : "areas",
+  "controller" : "ResourceController"
+}, {
+  "route" : "/api/v1/resources/locations/{id}/employees",
+  "methods" : [ "GET" ],
+  "handler" : "employeeAccess",
+  "controller" : "ResourceController"
+}, {
+  "route" : "/api/v1/resources/locations/{id}/employees/{employeeId}",
+  "methods" : [ "PUT" ],
+  "handler" : "employeeAccess",
+  "controller" : "ResourceController"
+}, {
+  "route" : "/api/v1/resources/locations/{locationId}/floor-plan",
+  "methods" : [ "GET" ],
+  "handler" : "load",
+  "controller" : "LocationFloorPlanController"
+}, {
+  "route" : "/api/v1/resources/locations/{locationId}/floor-plan",
+  "methods" : [ "PUT" ],
+  "handler" : "save",
+  "controller" : "LocationFloorPlanController"
+}, {
+  "route" : "/api/v1/resources/management-scope",
+  "methods" : [ "GET" ],
+  "handler" : "managementScope",
+  "controller" : "ResourceController"
+}, {
+  "route" : "/api/v1/resources/reservation-filters",
+  "methods" : [ "GET" ],
+  "handler" : "reservationResources",
+  "controller" : "ResourceController"
+}, {
+  "route" : "/api/v1/resources/{id}",
+  "methods" : [ "PUT" ],
+  "handler" : "updateResource",
+  "controller" : "ResourceController"
+}, {
+  "route" : "/api/v1/resources/{id}/employees",
+  "methods" : [ "GET" ],
+  "handler" : "resourceEmployees",
+  "controller" : "ResourceController"
+}, {
+  "route" : "/api/v1/resources/{id}/employees/{employeeId}",
+  "methods" : [ "PUT" ],
+  "handler" : "resourceEmployees",
+  "controller" : "ResourceController"
+}, {
+  "route" : "/api/v1/saved-views",
+  "methods" : [ "GET" ],
+  "handler" : "list",
+  "controller" : "SavedViewController"
+}, {
+  "route" : "/api/v1/saved-views",
+  "methods" : [ "POST" ],
+  "handler" : "create",
+  "controller" : "SavedViewController"
+}, {
+  "route" : "/api/v1/saved-views/{id}",
+  "methods" : [ "DELETE" ],
+  "handler" : "delete",
+  "controller" : "SavedViewController"
+}, {
+  "route" : "/api/v1/saved-views/{id}",
+  "methods" : [ "PATCH" ],
+  "handler" : "update",
+  "controller" : "SavedViewController"
+}, {
+  "route" : "/api/v1/search",
+  "methods" : [ "GET" ],
+  "handler" : "search",
+  "controller" : "SearchController"
+}, {
+  "route" : "/api/v1/search/preferences",
+  "methods" : [ "DELETE" ],
+  "handler" : "removeFavorite",
+  "controller" : "SearchController"
+}, {
+  "route" : "/api/v1/search/preferences",
+  "methods" : [ "POST" ],
+  "handler" : "remember",
+  "controller" : "SearchController"
+}, {
+  "route" : "/api/v1/search/preferences",
+  "methods" : [ "GET" ],
+  "handler" : "preferences",
+  "controller" : "SearchController"
+}, {
+  "route" : "/api/v1/stations",
+  "methods" : [ "GET" ],
+  "handler" : "overview",
+  "controller" : "StationController"
+}, {
+  "route" : "/api/v1/stations/application-profiles",
+  "methods" : [ "POST" ],
+  "handler" : "createProfile",
+  "controller" : "StationController"
+}, {
+  "route" : "/api/v1/stations/application-profiles",
+  "methods" : [ "GET" ],
+  "handler" : "profiles",
+  "controller" : "StationController"
+}, {
+  "route" : "/api/v1/stations/application-profiles/{id}",
+  "methods" : [ "DELETE" ],
+  "handler" : "deleteProfile",
+  "controller" : "StationController"
+}, {
+  "route" : "/api/v1/stations/application-profiles/{id}",
+  "methods" : [ "PUT" ],
+  "handler" : "updateProfile",
+  "controller" : "StationController"
+}, {
+  "route" : "/api/v1/stations/applications",
+  "methods" : [ "POST" ],
+  "handler" : "createDefinition",
+  "controller" : "StationController"
+}, {
+  "route" : "/api/v1/stations/applications",
+  "methods" : [ "GET" ],
+  "handler" : "definitions",
+  "controller" : "StationController"
+}, {
+  "route" : "/api/v1/stations/applications/{id}",
+  "methods" : [ "DELETE" ],
+  "handler" : "deleteDefinition",
+  "controller" : "StationController"
+}, {
+  "route" : "/api/v1/stations/applications/{id}",
+  "methods" : [ "PUT" ],
+  "handler" : "updateDefinition",
+  "controller" : "StationController"
+}, {
+  "route" : "/api/v1/stations/client-package",
+  "methods" : [ "GET" ],
+  "handler" : "packageInfo",
+  "controller" : "GamingClientDistributionController"
+}, {
+  "route" : "/api/v1/stations/client-package/availability",
+  "methods" : [ "GET" ],
+  "handler" : "availability",
+  "controller" : "GamingClientDistributionController"
+}, {
+  "route" : "/api/v1/stations/client-package/download",
+  "methods" : [ "GET" ],
+  "handler" : "download",
+  "controller" : "GamingClientDistributionController"
+}, {
+  "route" : "/api/v1/stations/{resourceId}/client-status",
+  "methods" : [ "GET" ],
+  "handler" : "clientStatus",
+  "controller" : "StationController"
+}, {
+  "route" : "/api/v1/stations/{resourceId}/profile",
+  "methods" : [ "PUT" ],
+  "handler" : "saveStation",
+  "controller" : "StationController"
+}, {
+  "route" : "/api/v1/stations/{stationId}/machine-identity",
+  "methods" : [ "GET" ],
+  "handler" : "identities",
+  "controller" : "MachineIdentityAdminController"
+}, {
+  "route" : "/api/v1/stations/{stationId}/machine-identity/enrollment-token",
+  "methods" : [ "POST" ],
+  "handler" : "enrollment",
+  "controller" : "MachineIdentityAdminController"
+}, {
+  "route" : "/api/v1/stations/{stationId}/machine-identity/revoke",
+  "methods" : [ "POST" ],
+  "handler" : "revoke",
+  "controller" : "MachineIdentityAdminController"
+}, {
+  "route" : "/api/v1/stations/{stationId}/machine-identity/rotation-token",
+  "methods" : [ "POST" ],
+  "handler" : "rotation",
+  "controller" : "MachineIdentityAdminController"
+}, {
+  "route" : "/api/v1/time-off",
+  "methods" : [ "POST" ],
+  "handler" : "create",
+  "controller" : "EmployeeTimeOffController"
+}, {
+  "route" : "/api/v1/time-off",
+  "methods" : [ "GET" ],
+  "handler" : "list",
+  "controller" : "EmployeeTimeOffController"
+}, {
+  "route" : "/api/v1/time-off/{id}/status",
+  "methods" : [ "PATCH" ],
+  "handler" : "decide",
+  "controller" : "EmployeeTimeOffController"
+}, {
+  "route" : "/api/v1/users",
+  "methods" : [ "POST" ],
+  "handler" : "createUser",
+  "controller" : "UserController"
+}, {
+  "route" : "/api/v1/users",
+  "methods" : [ "GET" ],
+  "handler" : "listUsers",
+  "controller" : "UserController"
+}, {
+  "route" : "/api/v1/users/bulk/deactivate",
+  "methods" : [ "POST" ],
+  "handler" : "bulkDeactivate",
+  "controller" : "UserController"
+}, {
+  "route" : "/api/v1/users/deleted",
+  "methods" : [ "GET" ],
+  "handler" : "listDeletedUsers",
+  "controller" : "UserController"
+}, {
+  "route" : "/api/v1/users/employees",
+  "methods" : [ "GET" ],
+  "handler" : "listActiveEmployees",
+  "controller" : "UserController"
+}, {
+  "route" : "/api/v1/users/employees/statistics",
+  "methods" : [ "GET" ],
+  "handler" : "statistics",
+  "controller" : "EmployeeOverviewController"
+}, {
+  "route" : "/api/v1/users/employees/{id}",
+  "methods" : [ "GET" ],
+  "handler" : "employee",
+  "controller" : "EmployeeOverviewController"
+}, {
+  "route" : "/api/v1/users/employees/{id}/assignments",
+  "methods" : [ "GET" ],
+  "handler" : "assignments",
+  "controller" : "EmployeeOverviewController"
+}, {
+  "route" : "/api/v1/users/employees/{id}/time-off",
+  "methods" : [ "GET" ],
+  "handler" : "leaves",
+  "controller" : "EmployeeOverviewController"
+}, {
+  "route" : "/api/v1/users/me",
+  "methods" : [ "GET" ],
+  "handler" : "getCurrentUser",
+  "controller" : "UserController"
+}, {
+  "route" : "/api/v1/users/me",
+  "methods" : [ "PATCH" ],
+  "handler" : "updateCurrentUser",
+  "controller" : "UserController"
+}, {
+  "route" : "/api/v1/users/me/avatar",
+  "methods" : [ "POST" ],
+  "handler" : "uploadAvatar",
+  "controller" : "UserController"
+}, {
+  "route" : "/api/v1/users/me/password",
+  "methods" : [ "PATCH" ],
+  "handler" : "changePassword",
+  "controller" : "UserController"
+}, {
+  "route" : "/api/v1/users/statistics",
+  "methods" : [ "GET" ],
+  "handler" : "statistics",
+  "controller" : "UserController"
+}, {
+  "route" : "/api/v1/users/{id}",
+  "methods" : [ "GET" ],
+  "handler" : "getUser",
+  "controller" : "UserController"
+}, {
+  "route" : "/api/v1/users/{id}",
+  "methods" : [ "DELETE" ],
+  "handler" : "deleteUser",
+  "controller" : "UserController"
+}, {
+  "route" : "/api/v1/users/{id}/deactivate",
+  "methods" : [ "PATCH" ],
+  "handler" : "deactivateUser",
+  "controller" : "UserController"
+}, {
+  "route" : "/api/v1/users/{id}/restore",
+  "methods" : [ "POST" ],
+  "handler" : "restoreUser",
+  "controller" : "UserController"
+}, {
+  "route" : "/api/v1/waitlist",
+  "methods" : [ "GET" ],
+  "handler" : "operational",
+  "controller" : "WaitlistController"
+}, {
+  "route" : "/api/v1/waitlist",
+  "methods" : [ "POST" ],
+  "handler" : "join",
+  "controller" : "WaitlistController"
+}, {
+  "route" : "/api/v1/waitlist/management",
+  "methods" : [ "POST" ],
+  "handler" : "create",
+  "controller" : "WaitlistController"
+}, {
+  "route" : "/api/v1/waitlist/management-scope",
+  "methods" : [ "GET" ],
+  "handler" : "scope",
+  "controller" : "WaitlistController"
+}, {
+  "route" : "/api/v1/waitlist/management/{id}",
+  "methods" : [ "DELETE" ],
+  "handler" : "cancelManaged",
+  "controller" : "WaitlistController"
+}, {
+  "route" : "/api/v1/waitlist/management/{id}",
+  "methods" : [ "PATCH" ],
+  "handler" : "update",
+  "controller" : "WaitlistController"
+}, {
+  "route" : "/api/v1/waitlist/management/{id}",
+  "methods" : [ "GET" ],
+  "handler" : "detail",
+  "controller" : "WaitlistController"
+}, {
+  "route" : "/api/v1/waitlist/me",
+  "methods" : [ "GET" ],
+  "handler" : "mine",
+  "controller" : "WaitlistController"
+}, {
+  "route" : "/api/v1/waitlist/offers/{id}/accept",
+  "methods" : [ "POST" ],
+  "handler" : "accept",
+  "controller" : "WaitlistController"
+}, {
+  "route" : "/api/v1/waitlist/statistics",
+  "methods" : [ "GET" ],
+  "handler" : "statistics",
+  "controller" : "WaitlistController"
+}, {
+  "route" : "/api/v1/waitlist/{id}",
+  "methods" : [ "DELETE" ],
+  "handler" : "cancel",
+  "controller" : "WaitlistController"
+}, {
+  "route" : "/api/v1/working-hours",
+  "methods" : [ "GET" ],
+  "handler" : "list",
+  "controller" : "WorkingHoursController"
+}, {
+  "route" : "/api/v1/working-hours/exceptions",
+  "methods" : [ "GET" ],
+  "handler" : "listExceptions",
+  "controller" : "WorkingHoursController"
+}, {
+  "route" : "/api/v1/working-hours/exceptions",
+  "methods" : [ "POST" ],
+  "handler" : "createException",
+  "controller" : "WorkingHoursController"
+}, {
+  "route" : "/api/v1/working-hours/exceptions/{id}",
+  "methods" : [ "DELETE" ],
+  "handler" : "deleteException",
+  "controller" : "WorkingHoursController"
+}, {
+  "route" : "/api/v1/working-hours/exceptions/{id}",
+  "methods" : [ "PUT" ],
+  "handler" : "updateException",
+  "controller" : "WorkingHoursController"
+}, {
+  "route" : "/api/v1/working-hours/{dayOfWeek}",
+  "methods" : [ "PUT" ],
+  "handler" : "update",
+  "controller" : "WorkingHoursController"
+} ]

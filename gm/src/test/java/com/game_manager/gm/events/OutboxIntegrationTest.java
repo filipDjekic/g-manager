@@ -42,6 +42,43 @@ class OutboxIntegrationTest {
     }
 
     @Test
+    void consumerRowLockPreventsReclaimEvenAfterLeaseTime() throws Exception {
+        UUID id = writeEvent(); Instant now = Instant.now().plusSeconds(5);
+        OutboxMessage original = store.claim("processing-worker", 1, now, Duration.ofSeconds(1)).getFirst();
+        CountDownLatch locked = new CountDownLatch(1), release = new CountDownLatch(1);
+        try (var executor = Executors.newSingleThreadExecutor()) {
+            Future<?> processing = executor.submit(() -> new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+                assertThat(store.lockClaim(id, "processing-worker", original.attempts())).isTrue();
+                locked.countDown();
+                try { if (!release.await(10, java.util.concurrent.TimeUnit.SECONDS)) throw new IllegalStateException("barrier timeout"); }
+                catch (InterruptedException exception) { Thread.currentThread().interrupt(); throw new IllegalStateException(exception); }
+            }));
+            try {
+                assertThat(locked.await(10, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+                assertThat(store.claim("other-worker", 1, now.plusSeconds(2), Duration.ofSeconds(1))).isEmpty();
+            } finally { release.countDown(); }
+            processing.get(10, java.util.concurrent.TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    void staleLeaseCannotProcessOrFailANewerClaim() {
+        UUID id = writeEvent();
+        Instant now = Instant.now().plusSeconds(5);
+        TransactionTemplate transaction = new TransactionTemplate(transactionManager);
+        OutboxMessage old = transaction.execute(status -> store.claim("old-worker", 1, now, Duration.ofSeconds(10)).getFirst());
+        OutboxMessage current = transaction.execute(status -> store.claim("new-worker", 1, now.plusSeconds(11), Duration.ofSeconds(10)).getFirst());
+        assertThat(current.attempts()).isEqualTo(old.attempts() + 1);
+        transaction.executeWithoutResult(status -> {
+            assertThat(store.lockClaim(id, "old-worker", old.attempts())).isFalse();
+            assertThat(store.markFailed(id, "old-worker", old.attempts(), 5, now, "stale failure")).isFalse();
+            assertThat(store.lockClaim(id, "new-worker", current.attempts())).isTrue();
+        });
+        assertThat(jdbc.queryForObject("SELECT status FROM outbox_events WHERE id=?", String.class, id.toString()))
+                .isEqualTo("PROCESSING");
+    }
+
+    @Test
     void businessTransactionAndEventCommitAndRollbackAtomically() {
         TransactionTemplate transaction = new TransactionTemplate(transactionManager);
         UUID aggregateId = UUID.randomUUID();
@@ -112,6 +149,7 @@ class OutboxIntegrationTest {
 
     @Test
     void concurrentWorkersClaimDifferentEvents() throws Exception {
+        for (int round = 0; round < 10; round++) {
         writeEvent();
         writeEvent();
         Instant now = Instant.now().plusSeconds(5);
@@ -134,13 +172,13 @@ class OutboxIntegrationTest {
                     .execute(status -> store.claim("worker-c", 2, now, Duration.ofSeconds(30)));
             assertThat(firstClaim.size() + secondClaim.size() + remainder.size()).isEqualTo(2);
         }
+        }
     }
 
     private List<OutboxMessage> claimAfter(CountDownLatch start, String worker, Instant now)
             throws InterruptedException {
         start.await();
-        TransactionTemplate transaction = new TransactionTemplate(transactionManager);
-        return transaction.execute(status -> store.claim(worker, 1, now, Duration.ofSeconds(30)));
+        return store.claim(worker, 1, now, Duration.ofSeconds(30));
     }
 
     private UUID writeEvent() {

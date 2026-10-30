@@ -1,0 +1,20 @@
+﻿{
+    "capturedAt":  "2026-10-30T17:13:07.9442261+01:00",
+    "cpu":  {
+                "Name":  "11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz",
+                "NumberOfCores":  4,
+                "NumberOfLogicalProcessors":  8
+            },
+    "os":  {
+               "Version":  "10.0.19045",
+               "OSArchitecture":  "64-bit",
+               "TotalVisibleMemorySize":  8123000
+           },
+    "javaVersion":  "21.0.1",
+    "dockerMemoryMiB":  3789,
+    "mysqlImageDigest":  "sha256:6ea90827b1100f8f2ae306a539f86d2c264a26ed435a2a9f75551dd5c3aeb242",
+    "baselineCommit":  "ac8c5b40834546362855290dca8b09bef13e3350",
+    "measurementScope":  "Disposable MySQL, random local HTTP port, no production database",
+    "coverageAgentDuringMeasurements":  false,
+    "debugLoggingDuringMeasurements":  false
+}

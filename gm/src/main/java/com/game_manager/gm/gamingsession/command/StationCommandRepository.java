@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface StationCommandRepository extends JpaRepository<StationCommand, UUID> {
     Optional<StationCommand> findByStationIdAndSequence(UUID stationId, Long sequence);
     List<StationCommand> findByStationIdAndSequenceGreaterThanOrderBySequence(UUID stationId, Long sequence);
+    List<StationCommand> findByStationIdAndSequenceGreaterThanAndAvailableAtLessThanEqualOrderBySequence(
+            UUID stationId, Long sequence, java.time.Instant now, org.springframework.data.domain.Pageable pageable);
     @org.springframework.data.jpa.repository.Query("""
             select c from StationCommand c where c.stationId in :stationIds
             and not exists (select newer.id from StationCommand newer

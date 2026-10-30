@@ -22,8 +22,8 @@ public class JobStore {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void insert(UUID id, String type, String payload, String correlationId,
+    @Transactional
+    public UUID insert(UUID id, String type, String payload, String correlationId,
                        String dedupeKey, int priority,
                        int maxAttempts, long timeoutSeconds, Instant availableAt) {
         jdbcTemplate.update("""
@@ -31,19 +31,23 @@ public class JobStore {
                 (id, job_type, payload, correlation_id, dedupe_key, status, priority, attempts, max_attempts,
                  available_at, timeout_seconds, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, 'QUEUED', ?, 0, ?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE id=id
                 """, id.toString(), type, payload, correlationId, dedupeKey, priority, maxAttempts,
                 Timestamp.from(availableAt), timeoutSeconds, Timestamp.from(availableAt),
                 Timestamp.from(availableAt));
+        // A current locking read also sees a concurrent winner under MySQL REPEATABLE READ.
+        return dedupeKey == null ? id : findIdByDedupeKey(dedupeKey).orElseThrow();
     }
 
     public Optional<UUID> findIdByDedupeKey(String dedupeKey) {
         List<UUID> ids = jdbcTemplate.query(
-                "SELECT id FROM background_jobs WHERE dedupe_key = ?",
+                "SELECT id FROM background_jobs WHERE dedupe_key = ? FOR UPDATE",
                 (resultSet, row) -> UUID.fromString(resultSet.getString(1)), dedupeKey);
         return ids.stream().findFirst();
     }
 
-    @Transactional(propagation = Propagation.MANDATORY)
+    @Transactional(propagation = Propagation.REQUIRES_NEW,
+            isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public List<JobRecord> claim(String workerId, int limit, Instant now, Duration lease) {
         List<JobRecord> jobs = jdbcTemplate.query("""
                 SELECT id, job_type, payload, correlation_id, attempts, max_attempts, timeout_seconds,

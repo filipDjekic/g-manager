@@ -48,8 +48,8 @@ public class OutboxPublisher {
             return;
         }
         Instant now = clock.instant();
-        List<OutboxMessage> claimed = transactions.execute(status -> store.claim(
-                workerId, properties.batchSize(), now, Duration.ofSeconds(properties.leaseSeconds())));
+        List<OutboxMessage> claimed = store.claim(
+                workerId, properties.batchSize(), now, Duration.ofSeconds(properties.leaseSeconds()));
         if (claimed == null) {
             return;
         }
@@ -60,7 +60,9 @@ public class OutboxPublisher {
         String previousCorrelation = MDC.get("requestId");
         MDC.put("requestId", message.correlationId());
         try {
-            transactions.executeWithoutResult(status -> {
+            Boolean processed = transactions.execute(status -> {
+                // Fence an expired claim and hold the row while receipts/DB effects commit.
+                if (!store.lockClaim(message.id(), workerId, message.attempts())) return false;
                 for (OutboxConsumer consumer : consumers) {
                     if (!store.hasReceipt(consumer.name(), message.id())) {
                         consumer.consume(message);
@@ -68,13 +70,15 @@ public class OutboxPublisher {
                     }
                 }
                 store.markProcessed(message.id(), clock.instant());
+                return true;
             });
-            meterRegistry.counter("gmanager.outbox.processed").increment();
+            if (Boolean.TRUE.equals(processed)) meterRegistry.counter("gmanager.outbox.processed").increment();
         } catch (RuntimeException exception) {
             long delay = backoffSeconds(message.attempts());
-            transactions.executeWithoutResult(status -> store.markFailed(
-                    message.id(), message.attempts(), properties.maxAttempts(),
+            Boolean updated = transactions.execute(status -> store.markFailed(
+                    message.id(), workerId, message.attempts(), properties.maxAttempts(),
                     clock.instant().plusSeconds(delay), exception.getMessage()));
+            if (!Boolean.TRUE.equals(updated)) return;
             String outcome = message.attempts() >= properties.maxAttempts() ? "dead" : "retry";
             meterRegistry.counter("gmanager.outbox.failed", "outcome", outcome).increment();
             LOGGER.warn("Outbox event {} processing failed; outcome={}", message.id(), outcome);

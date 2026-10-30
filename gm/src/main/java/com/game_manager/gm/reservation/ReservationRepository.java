@@ -12,6 +12,14 @@ import org.springframework.data.repository.query.Param;
 public interface ReservationRepository
         extends JpaRepository<Reservation, UUID>, JpaSpecificationExecutor<Reservation>, ReservationSummaryRepository {
     @Query("""
+            select distinct r.resourceId from Reservation r where r.resourceId in :ids
+                and r.status not in :excluded and r.startTime < :end and r.endTime > :start
+                and (:excludeId is null or r.id <> :excludeId)
+            """)
+    java.util.Set<UUID> unavailableResources(@Param("ids") Collection<UUID> ids,
+            @Param("start") Instant start, @Param("end") Instant end,
+            @Param("excluded") List<ReservationStatus> excluded, @Param("excludeId") UUID excludeId);
+    @Query("""
             select new com.game_manager.gm.reservation.ResourceBusyInterval(r.resourceId, r.startTime, r.endTime)
             from Reservation r where r.resourceId in :ids and r.status not in :excluded
                 and r.startTime < :to and r.endTime > :from

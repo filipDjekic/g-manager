@@ -9,13 +9,14 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.Map;
+import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.UUID;
+import org.springframework.scheduling.annotation.Scheduled;
 
 @Service
 public class RateLimitService {
-    private final Map<String, Deque<Instant>> attempts = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Bucket> attempts = new ConcurrentHashMap<>();
     private final Clock clock;
 
     public RateLimitService(Clock clock) {
@@ -23,7 +24,7 @@ public class RateLimitService {
     }
 
     public void checkLogin(String ip, String email) {
-        check("login:" + ip + ":" + email.toLowerCase(), 5, Duration.ofMinutes(10));
+        check("login:" + ip + ":" + email.toLowerCase(Locale.ROOT), 5, Duration.ofMinutes(10));
     }
 
     public void checkActivation(String ip) {
@@ -47,9 +48,10 @@ public class RateLimitService {
     }
 
     private void check(String key, int limit, Duration window) {
-        Instant now = clock.instant();
-        Deque<Instant> values = attempts.computeIfAbsent(key, ignored -> new ArrayDeque<>());
-        synchronized (values) {
+        attempts.compute(key, (ignored, previous) -> {
+            Instant now = clock.instant();
+            Bucket bucket = previous == null ? new Bucket(new ArrayDeque<>(), window) : previous;
+            Deque<Instant> values = bucket.values();
             while (!values.isEmpty() && values.peekFirst().isBefore(now.minus(window))) {
                 values.removeFirst();
             }
@@ -57,6 +59,19 @@ public class RateLimitService {
                 throw new ApplicationException(HttpStatus.TOO_MANY_REQUESTS, "Too many attempts. Try again later.");
             }
             values.addLast(now);
-        }
+            return bucket;
+        });
     }
+
+    @Scheduled(fixedDelay = 60000)
+    public void removeExpiredBuckets() {
+        Instant now = clock.instant();
+        attempts.forEach((key, ignored) -> attempts.computeIfPresent(key, (presentKey, bucket) ->
+                bucket.values().stream().allMatch(at -> at.isBefore(now.minus(bucket.window())))
+                        ? null : bucket));
+    }
+
+    int trackedKeyCount() { return attempts.size(); }
+
+    private record Bucket(Deque<Instant> values, Duration window) {}
 }

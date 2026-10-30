@@ -57,10 +57,50 @@ class ResourceIntegrationTest {
     @Autowired private WorkingHoursRepository workingHours;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbc;
+    @Autowired private com.game_manager.gm.gamingsession.GamingSessionRepository gamingSessions;
+    @Autowired private com.game_manager.gm.station.GamingStationProfileRepository stationProfiles;
 
     @BeforeEach void clean() {
         testsupport.DatabaseCleaner.clean(jdbc);
         jdbc.update("DELETE FROM working_hours_exceptions");
+    }
+
+    @Test
+    void batchedAvailabilityPreservesStatusesSessionsAndHalfOpenIntervals() throws Exception {
+        User customer = user(Role.CUSTOMER), employee = user(Role.EMPLOYEE);
+        CatalogItem service = service(); Setup setup = resource(service);
+        String token = login(customer); Instant start = futureStart(), end = start.plusSeconds(1800);
+        var reservation = new com.game_manager.gm.reservation.Reservation();
+        reservation.setCustomerId(customer.getId()); reservation.setEmployeeId(employee.getId());
+        reservation.setServiceId(service.getId()); reservation.setResourceId(setup.resource().getId());
+        reservation.setLocationId(setup.location().getId()); reservation.setStartTime(start); reservation.setEndTime(end);
+        for (ReservationStatus state : ReservationStatus.values()) {
+            reservation.setStatus(state); reservation = reservations.saveAndFlush(reservation);
+            String expected = state == ReservationStatus.PENDING || state == ReservationStatus.CONFIRMED ? "OCCUPIED" : "AVAILABLE";
+            assertAvailability(setup, start, end, token, expected);
+        }
+        reservation.setStatus(ReservationStatus.COMPLETED); reservations.saveAndFlush(reservation);
+        var session = new com.game_manager.gm.gamingsession.GamingSession();
+        session.setCustomerId(customer.getId()); session.setResourceId(setup.resource().getId());
+        session.setLocationId(setup.location().getId()); session.setStartedBy(employee.getId());
+        session.setStartedAt(start); session.setEndsAt(end);
+        session.setStatus(com.game_manager.gm.gamingsession.GamingSessionStatus.ACTIVE); gamingSessions.saveAndFlush(session);
+        assertAvailability(setup, start, end, token, "OCCUPIED");
+        assertAvailability(setup, end, end.plusSeconds(1800), token, "AVAILABLE");
+        assertAvailability(setup, start.minusSeconds(1800), start, token, "AVAILABLE");
+        var profile = new com.game_manager.gm.station.GamingStationProfile(); profile.setResourceId(setup.resource().getId());
+        profile.setOperationalStatus(com.game_manager.gm.station.StationOperationalStatus.MAINTENANCE);
+        profile = stationProfiles.saveAndFlush(profile); assertAvailability(setup, start, end, token, "MAINTENANCE");
+        profile.setOperationalStatus(com.game_manager.gm.station.StationOperationalStatus.RETIRED);
+        stationProfiles.saveAndFlush(profile); assertAvailability(setup, start, end, token, "RETIRED");
+        var inactive = resources.findById(setup.resource().getId()).orElseThrow(); inactive.setActive(false);
+        resources.saveAndFlush(inactive); assertAvailability(setup, start, end, token, "INACTIVE");
+    }
+
+    private void assertAvailability(Setup setup, Instant start, Instant end, String token, String expected) throws Exception {
+        mockMvc.perform(get("/api/v1/resources/areas/{id}/availability", setup.area().getId())
+                .param("start", start.toString()).param("end", end.toString()).header("Authorization", bearer(token)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].status").value(expected));
     }
 
     @Test

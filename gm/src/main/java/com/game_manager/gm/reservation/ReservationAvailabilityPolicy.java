@@ -21,6 +21,15 @@ public class ReservationAvailabilityPolicy implements com.game_manager.gm.common
     private final TimeOffAvailabilityPolicy timeOffPolicy;
     private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
+    @Override
+    public java.util.Set<UUID> unavailableResources(Collection<UUID> ids, Instant start, Instant end, UUID excludeId) {
+        if (ids.isEmpty()) return java.util.Set.of();
+        java.util.Set<UUID> result = new java.util.HashSet<>(
+                repository.unavailableResources(ids, start, end, RESOURCE_NON_BLOCKING, excludeId));
+        resourceSessionIntervals(ids, start, end).forEach(interval -> result.add(interval.resourceId()));
+        return result;
+    }
+
     public List<ResourceBusyInterval> resourceReservationIntervals(Collection<UUID> ids, Instant from, Instant to) {
         return ids.isEmpty() ? List.of() : repository.resourceIntervals(ids, from, to, RESOURCE_NON_BLOCKING);
     }
