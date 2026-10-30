@@ -1,6 +1,7 @@
 package com.game_manager.gm.jobs;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -43,6 +44,23 @@ class JobFrameworkIntegrationTest {
     @BeforeEach
     void cleanDatabase() {
         DatabaseCleaner.clean(jdbc);
+    }
+
+    @Test
+    void enqueueRollsBackWithBusinessTransactionAndDuplicateDoesNotPoisonCommit() {
+        TransactionTemplate transaction = transaction();
+        assertThatThrownBy(() -> transaction.executeWithoutResult(status -> {
+            jobService.enqueue("test", Map.of(), "rollback-job");
+            throw new IllegalStateException("business failure");
+        })).isInstanceOf(IllegalStateException.class);
+        assertThat(store.findIdByDedupeKey("rollback-job")).isEmpty();
+
+        UUID first = jobService.enqueue("test", Map.of(), "committed-job");
+        transaction.executeWithoutResult(status -> {
+            assertThat(jobService.enqueue("test", Map.of(), "committed-job")).isEqualTo(first);
+            jobService.enqueue("test", Map.of(), "another-job");
+        });
+        assertThat(store.findIdByDedupeKey("another-job")).isPresent();
     }
 
     @Test

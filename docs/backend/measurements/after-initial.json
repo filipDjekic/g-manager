@@ -1,0 +1,73 @@
+{
+  "environment" : {
+    "java" : "21.0.1",
+    "concurrentSamples" : 48,
+    "commandBacklog" : 5000,
+    "resources" : 32,
+    "concurrency" : 4,
+    "statisticsEnabled" : true,
+    "database" : "mysql:8.4 disposable Testcontainer",
+    "serialSamples" : 24,
+    "warmupPerFlow" : 8
+  },
+  "availability" : {
+    "singleRequest" : {
+      "mysqlStatements" : 17,
+      "mysqlStatementTimeMs" : 4.178717,
+      "ormStatements" : 4,
+      "entitiesLoaded" : 65
+    },
+    "serial" : {
+      "heapUsedBytesAtEnd" : 212221528,
+      "samples" : 24,
+      "wallMs" : 853.1654,
+      "p99Ms" : 44.8513,
+      "concurrency" : 1,
+      "p50Ms" : 32.931,
+      "p95Ms" : 44.1922,
+      "backendCpuMs" : 2468.75,
+      "liveThreadsAtEnd" : 44
+    },
+    "concurrent" : {
+      "heapUsedBytesAtEnd" : 259407448,
+      "samples" : 48,
+      "wallMs" : 537.8371,
+      "p99Ms" : 55.1805,
+      "concurrency" : 4,
+      "p50Ms" : 42.1908,
+      "p95Ms" : 48.6937,
+      "backendCpuMs" : 2750.0,
+      "liveThreadsAtEnd" : 51
+    }
+  },
+  "commandPoll" : {
+    "singleRequest" : {
+      "mysqlStatements" : 14,
+      "mysqlStatementTimeMs" : 20.754803,
+      "ormStatements" : 2,
+      "entitiesLoaded" : 101
+    },
+    "serial" : {
+      "heapUsedBytesAtEnd" : 301350488,
+      "samples" : 24,
+      "wallMs" : 1093.7463,
+      "p99Ms" : 59.1923,
+      "concurrency" : 1,
+      "p50Ms" : 43.6488,
+      "p95Ms" : 58.0022,
+      "backendCpuMs" : 1812.5,
+      "liveThreadsAtEnd" : 51
+    },
+    "concurrent" : {
+      "heapUsedBytesAtEnd" : 360070744,
+      "samples" : 48,
+      "wallMs" : 793.076,
+      "p99Ms" : 113.3699,
+      "concurrency" : 4,
+      "p50Ms" : 60.0212,
+      "p95Ms" : 102.1192,
+      "backendCpuMs" : 1593.75,
+      "liveThreadsAtEnd" : 51
+    }
+  }
+}

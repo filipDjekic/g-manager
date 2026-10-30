@@ -5,7 +5,6 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.slf4j.MDC;
@@ -34,20 +33,12 @@ public class JobService {
     public UUID enqueue(String type, Object payload, String dedupeKey, int priority,
                         Instant availableAt, int maxAttempts, Duration timeout) {
         UUID id = UUID.randomUUID();
-        try {
-            String correlationId = MDC.get("requestId");
-            if (correlationId == null || correlationId.isBlank()) {
-                correlationId = id.toString();
-            }
-            store.insert(id, type, objectMapper.writeValueAsString(payload), correlationId,
-                    normalize(dedupeKey), priority, maxAttempts, timeout.toSeconds(), availableAt);
-            return id;
-        } catch (DataIntegrityViolationException exception) {
-            if (dedupeKey == null || dedupeKey.isBlank()) {
-                throw exception;
-            }
-            return store.findIdByDedupeKey(dedupeKey.trim()).orElseThrow(() -> exception);
+        String correlationId = MDC.get("requestId");
+        if (correlationId == null || correlationId.isBlank()) {
+            correlationId = id.toString();
         }
+        return store.insert(id, type, objectMapper.writeValueAsString(payload), correlationId,
+                normalize(dedupeKey), priority, maxAttempts, timeout.toSeconds(), availableAt);
     }
 
     @Transactional

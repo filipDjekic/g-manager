@@ -5,6 +5,7 @@ import java.util.UUID;
 
 /** Reservation admission, including its existing transaction/locking semantics. */
 public interface ResourceAvailabilityPort {
+    java.util.Set<UUID> unavailableResources(java.util.Collection<UUID> ids, Instant start, Instant end, UUID excludeId);
     boolean isResourceAvailable(UUID resourceId, Instant start, Instant end, UUID excludeId);
     boolean isResourceAvailableForUpdate(UUID resourceId, Instant start, Instant end, UUID excludeId);
     void requireResourceAvailableForUpdate(UUID resourceId, Instant start, Instant end, UUID excludeId);

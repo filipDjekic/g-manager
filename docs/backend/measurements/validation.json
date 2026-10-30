@@ -1,0 +1,682 @@
+{
+  "date": "2026-10-30",
+  "backendVerify": {
+    "status": "passed",
+    "tests": 204,
+    "suites": 83,
+    "checkstyle": "passed",
+    "coverageGate": "passed",
+    "packageAndSbom": "passed"
+  },
+  "mysql": {
+    "status": "passed-final-class-results",
+    "tests": 27,
+    "combinedFromSeparateRuns": true,
+    "classes": [
+      {
+        "name": "com.game_manager.gm.events.OutboxConcurrencyIT",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.game_manager.gm.gamingsession.GamingSessionConcurrencyIT",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.game_manager.gm.idempotency.IdempotencyConcurrencyIT",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.game_manager.gm.jobs.JobConcurrencyIT",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.game_manager.gm.migration.MySqlSchemaIT",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.game_manager.gm.resource.ResourceConcurrencyIT",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ]
+  },
+  "httpBenchmark": {
+    "status": "passed",
+    "executions": [
+      "baseline",
+      "after-initial",
+      "after-final"
+    ],
+    "fixture": {
+      "java": "21.0.1",
+      "concurrentSamples": 48,
+      "commandBacklog": 5000,
+      "resources": 32,
+      "concurrency": 4,
+      "statisticsEnabled": true,
+      "database": "mysql:8.4 disposable Testcontainer",
+      "serialSamples": 24,
+      "warmupPerFlow": 8
+    },
+    "latestArtifact": "after.json"
+  },
+  "frontend": {
+    "productionBuild": "passed",
+    "sseTests": 10,
+    "sseTestFiles": 2
+  },
+  "windowsClient": {
+    "tests": 16,
+    "releaseBuild": "passed",
+    "warnings": 0,
+    "errors": 0,
+    "physicalStationTested": false
+  },
+  "nginx": {
+    "syntax": "passed",
+    "image": "nginxinc/nginx-unprivileged:alpine3.24",
+    "network": "none"
+  },
+  "productionLoadTested": false,
+  "apiOperationsInventoried": 209,
+  "unitClasses": [
+    {
+      "name": "com.game_manager.gm.GmApplicationTests",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.ai.AiOutputPolicyEvaluationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.ai.AiPropertiesTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.ai.AiSummaryServiceTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.ai.HttpAiSummaryProviderTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.architecture.ModuleArchitectureTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.auth.AuthFlowIntegrationTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.auth.RateLimitServiceTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.availability.AvailabilityIntegrationTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.catalog.CatalogBulkIntegrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.catalog.CatalogIntegrationTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.common.config.GManagerPropertiesValidationTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.common.config.GamingSessionPropertiesTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.common.config.OpenApiContractIntegrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.common.config.PageRequestFactoryTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.common.config.ProductionPropertiesTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.common.config.PwaHttpConfigTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.common.error.ApiErrorContractIntegrationTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.common.error.ApiErrorFactoryClockTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.common.error.ErrorCodeTest",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.common.error.GlobalExceptionHandlerTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.common.observability.ObservabilityIntegrationTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.common.observability.ReadinessFailureIntegrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.common.observability.SensitiveDataSanitizerTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.customer.CustomerAccountIntegrationTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.customer.CustomerIntegrationTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.customer.crm.CustomerCrmIntegrationTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.dashboard.DashboardIntegrationTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.dashboard.DashboardTodayServiceTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.document.DocumentSecurityIntegrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.document.DocumentStreamLifecycleTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.document.LocalDocumentStorageTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.document.SafeDocumentScannerTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.document.storage.S3DocumentStorageTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.events.OutboxIntegrationTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.extension.ExtensionRegistryTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.feature.FeatureFlagIntegrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.feature.FeatureFlagServiceTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.feature.TenantIsolationPrototypeTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.gamingsession.GamingSessionIntegrationTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.gamingsession.GamingSessionTransitionPolicyTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.gamingsession.job.GamingSessionJobHandlersTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.gamingsession.operations.GamingOperationsBoardServiceTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.gamingsession.realtime.GamingSessionOutboxConsumerTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.gamingsession.realtime.GamingSessionRealtimeHubTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.idempotency.CanonicalRequestHasherTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.idempotency.IdempotencyRecoveryIntegrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.jobs.JobFrameworkIntegrationTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.machine.MachineCryptoTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.machine.MachineEnrollmentAndReplayTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.machine.MachineProtocolScopeTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.machine.MachineSessionLoginScopeTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.machine.StationEnforcementProjectionServiceTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.machine.StationPolicySignerTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.notification.NotificationIntegrationTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.notification.NotificationRealtimeHubTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.notification.NotificationReplayTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.order.OrderIntegrationTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.performance.OrderQueryCountIntegrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.report.ReportGeneratorTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.report.ReportJobHandlerTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.report.ReportScheduleTimeTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.report.ReportSecurityIntegrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.reservation.RecurrenceIntegrationTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.reservation.ReservationIntegrationTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.reservation.ReservationTransitionPolicyTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.resource.ResourceIntegrationTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.savedview.SavedViewIntegrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.search.SearchSecurityIntegrationTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.security.JwtRealtimeAccessTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.security.JwtServiceTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.security.SecurityDispatchIntegrationTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.security.SecurityFoundationIntegrationTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.security.permission.ResourceAuthorizationPolicyTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.security.permission.RolePermissionsTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.stage7.AuditSoftDeleteIntegrationTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.station.StationReadinessIntegrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.testsupport.H2MigrationConfigurationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.timeoff.EmployeeTimeOffIntegrationTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.user.UserManagementIntegrationTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.user.UserRepositoryTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.waitlist.WaitlistIntegrationTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "com.game_manager.gm.workinghours.WorkingHoursIntegrationTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ]
+}

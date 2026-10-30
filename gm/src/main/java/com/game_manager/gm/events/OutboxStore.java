@@ -21,7 +21,8 @@ public class OutboxStore {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    @Transactional(propagation = Propagation.MANDATORY)
+    @Transactional(propagation = Propagation.REQUIRES_NEW,
+            isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public List<OutboxMessage> claim(String workerId, int limit, Instant now, Duration lease) {
         List<OutboxMessage> messages = jdbcTemplate.query("""
                 SELECT id, event_type, schema_version, aggregate_type, aggregate_id,
@@ -40,6 +41,14 @@ public class OutboxStore {
                     """, workerId, Timestamp.from(now), message.id().toString());
         }
         return messages;
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public boolean lockClaim(UUID eventId, String workerId, int attempt) {
+        return !jdbcTemplate.queryForList("""
+                SELECT id FROM outbox_events
+                WHERE id=? AND status='PROCESSING' AND claimed_by=? AND attempts=? FOR UPDATE
+                """, String.class, eventId.toString(), workerId, attempt).isEmpty();
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -68,13 +77,14 @@ public class OutboxStore {
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
-    public void markFailed(UUID eventId, int attempt, int maxAttempts, Instant availableAt,
+    public boolean markFailed(UUID eventId, String workerId, int attempt, int maxAttempts, Instant availableAt,
                            String error) {
         String status = attempt >= maxAttempts ? OutboxStatus.DEAD.name() : OutboxStatus.PENDING.name();
-        jdbcTemplate.update("""
+        return jdbcTemplate.update("""
                 UPDATE outbox_events SET status = ?, available_at = ?, claimed_by = NULL,
                     claimed_at = NULL, last_error = ? WHERE id = ?
-                """, status, Timestamp.from(availableAt), abbreviate(error), eventId.toString());
+                    AND status='PROCESSING' AND claimed_by=? AND attempts=?
+                """, status, Timestamp.from(availableAt), abbreviate(error), eventId.toString(), workerId, attempt) == 1;
     }
 
     public int replayDead(UUID eventId, Instant now) {

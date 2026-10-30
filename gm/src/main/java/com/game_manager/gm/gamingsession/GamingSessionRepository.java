@@ -44,4 +44,14 @@ public interface GamingSessionRepository extends JpaRepository<GamingSession, UU
 
     @Query("select s from GamingSession s order by s.updatedAt")
     List<GamingSession> findForReconciliation(Pageable pageable);
+
+    @Query("""
+            select s.id from GamingSession s
+            where (s.status = com.game_manager.gm.gamingsession.GamingSessionStatus.ACTIVE
+                or s.endedAt is null or s.endedAt >= :cutoff)
+                and (:afterId is null or s.id > :afterId)
+            order by s.id
+            """)
+    List<UUID> findReconciliationIds(@Param("cutoff") Instant cutoff,
+            @Param("afterId") UUID afterId, Pageable pageable);
 }

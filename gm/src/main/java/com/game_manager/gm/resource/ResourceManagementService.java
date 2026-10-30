@@ -198,7 +198,11 @@ public class ResourceManagementService {
  @Transactional(readOnly=true) @PreAuthorize("hasAuthority('RESOURCE_READ')")
  public List<ResourceAvailabilityView> availability(UUID areaId,UUID serviceId,Instant start,Instant end){
   if(start==null||end==null||!end.isAfter(start))throw new ApplicationException(HttpStatus.BAD_REQUEST,"Resource interval is invalid");
-  return resources.findByAreaIdOrderByDisplayOrderAscNameAsc(areaId).stream().filter(v->serviceId==null||v.getServiceId().equals(serviceId)).map(v->new ResourceAvailabilityView(v.getId(),v.getAreaId(),v.getServiceId(),v.getCode(),v.getName(),v.getType(),v.getX(),v.getY(),v.getWidth(),v.getHeight(),v.getRotation(),availabilityStatus(v,start,end),start,end)).toList();
+  var values=resources.findByAreaIdOrderByDisplayOrderAscNameAsc(areaId).stream().filter(v->serviceId==null||v.getServiceId().equals(serviceId)).toList();
+  var ids=values.stream().map(PhysicalResource::getId).toList();
+  var states=stationProfiles.operationalStates(ids);
+  var occupied=availability.unavailableResources(ids,start,end,null);
+  return values.stream().map(v->new ResourceAvailabilityView(v.getId(),v.getAreaId(),v.getServiceId(),v.getCode(),v.getName(),v.getType(),v.getX(),v.getY(),v.getWidth(),v.getHeight(),v.getRotation(),availabilityStatus(v,states.get(v.getId()),occupied),start,end)).toList();
  }
  @Transactional @PreAuthorize("hasAuthority('RESOURCE_MANAGE')")
  public ResourceView createResource(UUID areaId,ResourceRequest r){area(areaId);catalog.requirePhysicalResource(r.serviceId());PhysicalResource v=new PhysicalResource();v.setAreaId(areaId);apply(v,r);return ResourceView.from(resources.saveAndFlush(v));}
@@ -225,6 +229,6 @@ public class ResourceManagementService {
   return v.isActive()&&v.isBookable()&&v.getServiceId().equals(serviceId)&&!unavailableStation&&a.isActive()&&location(a.getLocationId()).isActive();
  }
  private void requireBookableState(PhysicalResource v,UUID serviceId){if(!isBookableState(v,serviceId))throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Selected resource is not bookable for this service");}
- private ResourceAvailabilityView.Availability availabilityStatus(PhysicalResource v,Instant start,Instant end){if(!v.isActive()||!v.isBookable())return ResourceAvailabilityView.Availability.INACTIVE;if(v.getType()==ResourceType.GAMING_PC){var state=stationProfiles.operationalState(v.getId());if("MAINTENANCE".equals(state))return ResourceAvailabilityView.Availability.MAINTENANCE;if("RETIRED".equals(state))return ResourceAvailabilityView.Availability.RETIRED;}return availability.isResourceAvailable(v.getId(),start,end,null)?ResourceAvailabilityView.Availability.AVAILABLE:ResourceAvailabilityView.Availability.OCCUPIED;}
+ private ResourceAvailabilityView.Availability availabilityStatus(PhysicalResource v,String state,Set<UUID> occupied){if(!v.isActive()||!v.isBookable())return ResourceAvailabilityView.Availability.INACTIVE;if(v.getType()==ResourceType.GAMING_PC){if("MAINTENANCE".equals(state))return ResourceAvailabilityView.Availability.MAINTENANCE;if("RETIRED".equals(state))return ResourceAvailabilityView.Availability.RETIRED;}return occupied.contains(v.getId())?ResourceAvailabilityView.Availability.OCCUPIED:ResourceAvailabilityView.Availability.AVAILABLE;}
  private static String trim(String v){return v==null||v.isBlank()?null:v.trim();}
 }

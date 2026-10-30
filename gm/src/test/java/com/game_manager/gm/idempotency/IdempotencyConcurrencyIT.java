@@ -33,11 +33,12 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Testcontainers
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 class IdempotencyConcurrencyIT {
     @Container
     static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.4")
             .withDatabaseName("gmanager").withUsername("gmanager_it")
-            .withPassword("ephemeral-test-password").withEnv("TZ", "UTC");
+            .withPassword("ephemeral-test-password").withEnv("TZ", "UTC").withUrlParam("serverTimezone", "UTC");
 
     @DynamicPropertySource
     static void databaseProperties(DynamicPropertyRegistry registry) {
@@ -55,16 +56,17 @@ class IdempotencyConcurrencyIT {
 
     @Test
     void twentyConcurrentIdenticalRequestsCreateExactlyOneOrderAcrossRepeatedRounds() throws Exception {
-        User customer = new User("Concurrency Customer", "concurrency-" + UUID.randomUUID() + "@example.test",
-                encoder.encode("StrongPass1!"), Role.CUSTOMER, true, null);
-        customer = users.saveAndFlush(customer);
         CatalogItem product = new CatalogItem(); product.setName("Concurrent product");
         product.setType(ItemType.PRODUCT); product.setPrice(BigDecimal.TEN); product.setActive(true);
         product = catalog.saveAndFlush(product);
-        String token = login(customer);
         String body = "{\"items\":[{\"productId\":\"%s\",\"quantity\":1}]}".formatted(product.getId());
 
         for (int round = 0; round < 3; round++) {
+            // Keep each wave below the real 30/minute admission limit; do not disable rate limiting.
+            User customer = users.saveAndFlush(new User("Concurrency Customer",
+                    "concurrency-" + UUID.randomUUID() + "@example.test",
+                    encoder.encode("StrongPass1!"), Role.CUSTOMER, true, null));
+            String token = login(customer);
             long before = orders.count();
             String key = UUID.randomUUID().toString();
             CountDownLatch start = new CountDownLatch(1);
@@ -82,8 +84,26 @@ class IdempotencyConcurrencyIT {
                     try { return future.get(); }
                     catch (Exception exception) { throw new RuntimeException(exception); }
                 }).toList();
-                assertThat(results).allMatch(result -> result.getResponse().getStatus() == 201);
-                assertThat(results.stream().map(result -> new String(
+                assertThat(results).allMatch(result -> result.getResponse().getStatus() == 201
+                        || result.getResponse().getStatus() == 425);
+                assertThat(results).anyMatch(result -> result.getResponse().getStatus() == 201);
+                List<MvcResult> completed = new java.util.ArrayList<>();
+                for (MvcResult result : results) {
+                    if (result.getResponse().getStatus() == 425) {
+                        assertThat(result.getResponse().getHeader("Retry-After")).isEqualTo("2");
+                    } else completed.add(result);
+                }
+                if (completed.size() != results.size()) {
+                    Thread.sleep(2000); // Honor the protocol's Retry-After, after the winning request completed.
+                    MvcResult replay = mockMvc.perform(post("/api/v1/orders")
+                            .header("Authorization", "Bearer " + token).header("Idempotency-Key", key)
+                            .contentType(MediaType.APPLICATION_JSON).content(body)).andReturn();
+                    assertThat(replay.getResponse().getStatus()).isEqualTo(201);
+                    assertThat(replay.getResponse().getHeader("Idempotency-Replayed")).isEqualTo("true");
+                    completed.add(replay);
+                }
+                assertThat(results).hasSize(20);
+                assertThat(completed.stream().map(result -> new String(
                                 result.getResponse().getContentAsByteArray(), java.nio.charset.StandardCharsets.UTF_8))
                         .distinct())
                         .hasSize(1);

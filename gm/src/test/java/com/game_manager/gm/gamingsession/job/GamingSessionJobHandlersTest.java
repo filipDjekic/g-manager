@@ -45,13 +45,17 @@ class GamingSessionJobHandlersTest {
         StationCommandWriter commands = mock(StationCommandWriter.class);
         StationCommandRepository commandRepository = mock(StationCommandRepository.class);
         JobContext context = mock(JobContext.class); GamingSession session = activeSession();
-        when(sessions.findAll()).thenReturn(List.of(session));
+        when(sessions.findReconciliationIds(any(), isNull(), any())).thenReturn(List.of(session.getId()));
+        when(sessions.findReconciliationIds(any(), eq(session.getId()), any())).thenReturn(List.of());
         when(sessions.findByIdForUpdate(session.getId())).thenReturn(Optional.of(session));
         when(commands.matchesCurrentProjection(session)).thenReturn(false, true);
         when(commandRepository.deleteByExpiresAtBeforeAndAcknowledgedAtIsNotNull(NOW)).thenReturn(0L);
+        var transactionManager = mock(org.springframework.transaction.PlatformTransactionManager.class);
+        when(transactionManager.getTransaction(any())).thenAnswer(invocation ->
+                new org.springframework.transaction.support.SimpleTransactionStatus());
         GamingSessionReconciliationJobHandler handler = new GamingSessionReconciliationJobHandler(
                 sessions, commands, commandRepository, new SimpleMeterRegistry(),
-                Clock.fixed(NOW, ZoneOffset.UTC), 30);
+                Clock.fixed(NOW, ZoneOffset.UTC), 30, transactionManager);
 
         handler.handle(mock(JobRecord.class), context);
         handler.handle(mock(JobRecord.class), context);

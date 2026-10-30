@@ -67,8 +67,8 @@ public class JobRunner {
             return;
         }
         Instant now = clock.instant();
-        List<JobRecord> claimed = transactions.execute(status -> store.claim(
-                workerId, limit, now, Duration.ofSeconds(properties.leaseSeconds())));
+        List<JobRecord> claimed = store.claim(
+                workerId, limit, now, Duration.ofSeconds(properties.leaseSeconds()));
         if (claimed != null) {
             claimed.forEach(this::submit);
         }
