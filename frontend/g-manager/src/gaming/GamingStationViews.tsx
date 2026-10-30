@@ -85,7 +85,7 @@ export const StationTile = memo(function StationTile({ station, seconds, selecte
     <header className="ops-station-header">
       <span className="ops-monitor"><GamingOperationsIcon /></span>
       <h3><Button variant="ghost" type="button" className="ops-station-select" aria-pressed={selected}
-        aria-controls="ops-selected-station" aria-label={`Pregled stanice ${station.resourceName}`} onClick={() => onSelect(station)}>
+        aria-controls={selected ? 'ops-selected-station' : undefined} aria-label={`Pregled stanice ${station.resourceName}`} onClick={() => onSelect(station)}>
         {station.resourceName}
       </Button></h3>
     </header>

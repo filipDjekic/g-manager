@@ -1,0 +1,10 @@
+.gm-reports { container: reports / inline-size; }
+.gm-reports .ui-card > p { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-sm); line-height: var(--line-height-relaxed); }
+.gm-report-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.gm-reports .ui-card > label { max-width: var(--form-width); }
+.gm-reports .ui-card > ul { display: grid; gap: var(--space-3); padding-inline-start: var(--space-5); margin: 0; font-size: var(--font-size-sm); }
+.gm-reports .ui-card > ul li { overflow-wrap: anywhere; }
+.gm-reports .ui-data-table td small { display: block; margin-top: var(--space-2); }
+.gm-reports .ui-data-table td:last-child .ui-actions { flex-wrap: wrap; }
+@container reports (max-width: 52rem) { .gm-report-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container reports (max-width: 30rem) { .gm-report-fields { grid-template-columns: minmax(0, 1fr); } }

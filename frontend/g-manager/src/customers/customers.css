@@ -11,13 +11,13 @@
 .customers-list-skeleton { padding: var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
 .customers-table th { white-space: nowrap; }
 .customers-identity { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
-.customers-avatar { display: grid; place-items: center; flex-shrink: 0; width: 2.25rem; height: 2.25rem; border: 1px solid color-mix(in srgb, var(--color-primary) 30%, var(--color-border)); border-radius: 50%; color: var(--color-primary); background: linear-gradient(135deg, var(--color-primary-bg), var(--color-secondary-bg)); font-weight: var(--font-weight-bold); font-size: var(--font-size-sm); }
-.customers-avatar--large { width: 4.75rem; height: 4.75rem; font-size: var(--font-size-2xl); box-shadow: var(--glow-primary); }
+.customers-avatar { display: grid; place-items: center; flex-shrink: 0; width: 2.25rem; height: 2.25rem; border: 1px solid color-mix(in srgb, var(--color-primary) 30%, var(--color-border)); border-radius: var(--radius-circle); color: var(--color-primary); background: var(--color-primary-bg); font-weight: var(--font-weight-bold); font-size: var(--font-size-sm); }
+.customers-avatar--large { width: 4.75rem; height: 4.75rem; font-size: var(--font-size-2xl); box-shadow: var(--shadow-sm); }
 .customers-name.ui-button { text-align: left; justify-content: flex-start; overflow-wrap: anywhere; }
 .customers-email { overflow-wrap: anywhere; }
 .customers-number { color: var(--color-primary); font-variant-numeric: tabular-nums; }
 .customers-menu-trigger.ui-button { min-width: 2.75rem; }
-.customers-row-menu { position: fixed; z-index: 95; display: grid; gap: var(--space-1); width: 240px; max-width: calc(100vw - 24px); overflow-y: auto; }
+.customers-row-menu { position: fixed; z-index: 95; display: grid; gap: var(--space-1); width: min(var(--menu-width), calc(100vw - var(--space-6))); max-width: calc(100vw - 24px); overflow-y: auto; }
 .customers-row-menu .ui-button { justify-content: flex-start; }
 .customers-row-menu > span { padding: var(--space-2); color: var(--color-text-muted); font-size: var(--font-size-xs); }
 .customers-profile-drawer .ui-dialog-body { flex: 1; }

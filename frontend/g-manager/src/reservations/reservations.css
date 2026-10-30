@@ -55,7 +55,7 @@
 .reservations-muted { color: var(--color-text-muted); font-size: var(--font-size-xs); }
 .reservations-duration-cell { font-variant-numeric: tabular-nums; }
 .reservations-page .reservations-row-menu-trigger { width: 2rem; }
-.reservations-row-menu { position: fixed; z-index: 90; display: grid; align-content: start; gap: var(--space-1); width: min(240px, calc(100vw - 24px)); overflow-y: auto; overscroll-behavior: contain; }
+.reservations-row-menu { position: fixed; z-index: 90; display: grid; align-content: start; gap: var(--space-1); width: min(var(--menu-width), calc(100vw - var(--space-6))); overflow-y: auto; overscroll-behavior: contain; }
 .reservations-row-menu > .ui-button { justify-content: start; text-align: start; }
 .reservations-row-menu > span { padding: var(--space-2) var(--space-3); color: var(--color-text-muted); font-size: var(--font-size-xs); line-height: 1.45; }
 .reservations-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -101,8 +101,7 @@
 .reservations-advanced-filters .reservation-customer-picker { grid-column: 1 / -1; grid-row: 2; }
 }
 @media (max-width: 760px) {
-  .reservations-table { min-width: 0; table-layout: auto; }
-.reservations-table { display: block; width: 100%; }
+  .reservations-table { min-width: 0; table-layout: auto; display: block; width: 100%; }
 .reservations-table .reservations-select-cell { grid-column: 1; grid-row: 1; }
 .reservations-table .reservations-customer-cell { grid-column: 2; grid-row: 1; align-self: center; }
 .reservations-table .reservations-actions-cell { grid-column: 3; grid-row: 1; }
@@ -159,10 +158,10 @@
 .reservation-time-dialog .ui-dialog-body { display: grid; gap: var(--space-3); }
 .reservation-clock-controls, .reservation-clock-range, .reservation-clock-quarters { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--space-2); }
 .reservation-time-dialog [aria-pressed='true'] { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-bg); }
-.reservation-clock { position: relative; justify-self: center; width: min(17rem, 100%); aspect-ratio: 1; border: 1px solid var(--color-border); border-radius: 50%; background: var(--color-bg); }
+.reservation-clock { position: relative; justify-self: center; width: min(17rem, 100%); aspect-ratio: 1; border: 1px solid var(--color-border); border-radius: var(--radius-circle); background: var(--color-bg); }
 .reservation-clock-hand { position: absolute; bottom: 50%; left: calc(50% - 1px); width: 2px; height: 34%; transform-origin: bottom center; background: var(--color-secondary); pointer-events: none; }
-.reservation-clock::after { content: ''; position: absolute; left: calc(50% - 4px); top: calc(50% - 4px); width: 8px; height: 8px; background: var(--color-secondary); border-radius: 50%; pointer-events: none; }
-.reservation-clock .reservation-clock-tick { position: absolute; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; min-height: 0; padding: 0; transform: translate(-50%, -50%); border: 1px solid transparent; border-radius: 50%; color: var(--color-text-secondary); background: var(--color-surface); font-size: var(--font-size-sm); font-variant-numeric: tabular-nums; touch-action: manipulation; }
+.reservation-clock::after { content: ''; position: absolute; left: calc(50% - 4px); top: calc(50% - 4px); width: 8px; height: 8px; background: var(--color-secondary); border-radius: var(--radius-circle); pointer-events: none; }
+.reservation-clock .reservation-clock-tick { position: absolute; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; min-height: 0; padding: 0; transform: translate(-50%, -50%); border: 1px solid transparent; border-radius: var(--radius-circle); color: var(--color-text-secondary); background: var(--color-surface); font-size: var(--font-size-sm); font-variant-numeric: tabular-nums; touch-action: manipulation; }
 .reservation-clock .reservation-clock-tick:hover { border-color: var(--color-primary); }
 .reservation-clock .reservation-clock-tick:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .reservation-clock .reservation-clock-tick[aria-pressed='true'] { border-color: var(--color-primary); color: var(--color-on-primary); background: var(--color-primary); }

@@ -15,7 +15,7 @@
 .gm-notification-draft-status { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--space-3); min-height: 2.75rem; color: var(--notification-muted); font-size: var(--font-size-sm); }
 .gm-notification-draft-status[data-dirty='true'] { color: var(--color-warning); }
 .gm-notification-section-heading h2 { font-size: var(--font-size-md); line-height: 1.4; }
-.gm-notification-section-heading p { margin-top: .4rem; font-size: var(--font-size-sm); line-height: 1.6; color: var(--notification-muted); }
+.gm-notification-section-heading p { margin-top: var(--space-2); font-size: var(--font-size-sm); line-height: 1.6; color: var(--notification-muted); }
 .gm-notification-channel-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
 .gm-notification-channel { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--notification-raised); }
 .gm-notification-channel--emailEnabled { border-color: color-mix(in srgb, var(--color-primary) 25%, var(--color-border)); }
@@ -24,38 +24,38 @@
 .gm-notification-channel-icon .gm-notification-icon { width: 1.35rem; height: 1.35rem; }
 .gm-notification-channel--inAppEnabled .gm-notification-channel-icon { color: var(--color-secondary); background: var(--color-secondary-bg); }
 .gm-notification-channel-description h3 { font-size: var(--font-size-sm); line-height: 1.4; }
-.gm-notification-channel-description p { margin-top: .25rem; color: var(--notification-muted); font-size: var(--font-size-xs); line-height: 1.6; }
+.gm-notification-channel-description p { margin-top: var(--space-1); color: var(--notification-muted); font-size: var(--font-size-xs); line-height: 1.6; }
 .gm-notification-channel-help { color: var(--notification-muted); font-size: var(--font-size-xs); line-height: 1.65; }
-.gm-notification-switch-control { display: grid; justify-items: center; gap: .1rem; }
+.gm-notification-switch-control { display: grid; justify-items: center; gap: var(--space-half); }
 .gm-notification-switch { display: grid; place-items: center; flex: 0 0 auto; width: 2.75rem; min-height: 2.75rem; padding: 0; border: 0; border-radius: var(--radius-sm); background: transparent; cursor: pointer; }
-.gm-notification-switch-track { display: block; width: 2.75rem; height: 1.5rem; padding: 2px; border: 1px solid var(--color-control-border); border-radius: 999px; background: var(--color-bg); transition: background var(--duration-fast), border-color var(--duration-fast); }
-.gm-notification-switch-track > span { display: grid; place-items: center; width: 1.125rem; height: 1.125rem; border-radius: 50%; color: var(--color-bg); background: var(--color-text-muted); font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); line-height: 1; transition: transform var(--duration-fast); }
+.gm-notification-switch-track { display: block; width: 2.75rem; height: 1.5rem; padding: 2px; border: 1px solid var(--color-control-border); border-radius: var(--radius-pill); background: var(--color-bg); transition: background var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard); }
+.gm-notification-switch-track > span { display: grid; place-items: center; width: 1.125rem; height: 1.125rem; border-radius: var(--radius-circle); color: var(--color-bg); background: var(--color-text-muted); font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); line-height: 1; transition: transform var(--duration-fast) var(--ease-standard); }
 .gm-notification-switch[data-state='on'] .gm-notification-switch-track { background: var(--color-primary-bg); border-color: var(--color-primary); }
 .gm-notification-switch[data-state='on'] .gm-notification-switch-track > span { transform: translateX(1.125rem); color: var(--color-on-primary); background: var(--color-primary); }
 .gm-notification-switch[data-state='mixed'] .gm-notification-switch-track { border-color: var(--color-primary); background: var(--color-primary-bg); }
 .gm-notification-switch[data-state='mixed'] .gm-notification-switch-track > span { transform: translateX(.5625rem); color: var(--color-on-primary); background: var(--color-primary); }
 .gm-notification-switch:disabled { opacity: .65; cursor: not-allowed; }
-.gm-notification-switch-state { display: flex; align-items: center; justify-content: center; gap: .25rem; color: var(--notification-muted); font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); line-height: 1.5; }
+.gm-notification-switch-state { display: flex; align-items: center; justify-content: center; gap: var(--space-1); color: var(--notification-muted); font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); line-height: 1.5; }
 .gm-notification-switch-state .gm-notification-icon { width: .75rem; height: .75rem; }
 .gm-notification-switch:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .gm-notification-table { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; }
 .gm-notification-table thead th:not(:first-child) { width: 7.5rem; }
-.gm-notification-group th > span { display: inline-flex; align-items: center; gap: .45rem; }
+.gm-notification-group th > span { display: inline-flex; align-items: center; gap: var(--space-2); }
 .gm-notification-group .gm-notification-icon { width: .95rem; height: .95rem; }
 .gm-notification-type-row:hover { background: var(--color-row-hover); }
 .gm-notification-type-identity { display: flex; align-items: flex-start; gap: var(--space-3); min-width: 0; text-align: left; }
 .gm-notification-type-icon { display: grid; place-items: center; flex: 0 0 auto; width: 2rem; height: 2rem; border-radius: var(--radius-sm); background: var(--color-primary-bg); color: var(--color-primary); }
-.gm-notification-type-title { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; }
+.gm-notification-type-title { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .gm-notification-type-title strong { color: var(--color-text); font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); line-height: 1.5; }
-.gm-notification-type-summary p { margin-top: .25rem; color: var(--notification-muted); font-size: var(--font-size-xs); font-weight: var(--font-weight-normal); line-height: 1.6; }
+.gm-notification-type-summary p { margin-top: var(--space-1); color: var(--notification-muted); font-size: var(--font-size-xs); font-weight: var(--font-weight-normal); line-height: 1.6; }
 .gm-notification-type-summary p.gm-notification-mandatory { font-size: var(--font-size-xs); }
 .gm-notification-type-summary p.gm-notification-row-error { color: var(--color-danger); }
 .gm-notification-edited { color: var(--color-warning); font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); }
 .gm-notification-mobile-label { display: none; }
 .gm-notification-delivery-icon { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: var(--radius-sm); color: var(--color-primary); background: var(--color-primary-bg); }
 .gm-notification-delivery h2 { font-size: var(--font-size-sm); line-height: 1.5; }
-.gm-notification-delivery p { margin-top: .4rem; color: var(--notification-muted); font-size: var(--font-size-xs); line-height: 1.7; }
-.gm-notification-preferences .ui-error h2 { margin-bottom: .4rem; }
+.gm-notification-delivery p { margin-top: var(--space-2); color: var(--notification-muted); font-size: var(--font-size-xs); line-height: 1.7; }
+.gm-notification-preferences .ui-error h2 { margin-bottom: var(--space-2); }
 .gm-notification-preferences .ui-error .ui-button { margin-top: var(--space-3); }
 .gm-notification-preferences .ui-empty { text-align: center; }
 .gm-notification-loading { display: grid; gap: var(--space-5); }
@@ -73,7 +73,7 @@
 .gm-notification-table .gm-notification-type-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); padding: var(--space-4); margin-bottom: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--notification-raised); }
 .gm-notification-table .gm-notification-type-row[data-changed='true'] { border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border)); }
 .gm-notification-type-summary { grid-column: 1 / -1; }
-.gm-notification-table .gm-notification-channel-cell { display: grid; align-content: start; justify-items: start; gap: .15rem; padding-top: .5rem; border-top: 1px solid var(--color-border); }
+.gm-notification-table .gm-notification-channel-cell { display: grid; align-content: start; justify-items: start; gap: var(--space-1); padding-top: var(--space-2); border-top: 1px solid var(--color-border); }
 .gm-notification-mobile-label { display: block; color: var(--notification-muted); font-size: var(--font-size-xs); }
 .gm-notification-type-title strong { font-size: var(--font-size-sm); }
 .gm-notification-type-summary p { font-size: var(--font-size-xs); }
@@ -82,10 +82,10 @@
 }
 
 @container notification-preferences (max-width: 380px) {
-  .gm-notification-channel { grid-template-columns: auto minmax(0, 1fr) auto; gap: .6rem; }
+  .gm-notification-channel { grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-3); }
 .gm-notification-channel-icon { width: 2rem; height: 2rem; }
 .gm-notification-channel-icon .gm-notification-icon { width: 1.15rem; height: 1.15rem; }
-.gm-notification-type-identity { gap: .5rem; }
+.gm-notification-type-identity { gap: var(--space-2); }
 .gm-notification-type-icon { width: 1.7rem; height: 1.7rem; }
 .gm-notification-type-icon .gm-notification-icon { width: 1rem; height: 1rem; }
 .gm-notification-footer[data-dirty='true'] { flex-direction: column; align-items: stretch; }
@@ -94,4 +94,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .gm-notification-switch-track, .gm-notification-switch-track > span { transition: none; }
+}
+
+.gm-notification-preferences.ui-page-layout {
+  max-width: calc(var(--reading-width) + var(--page-padding-inline) * 2);
+  margin-inline: auto;
 }

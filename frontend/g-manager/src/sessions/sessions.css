@@ -29,8 +29,8 @@
 .gm-session-panel-icon { display: grid; place-items: center; flex: 0 0 auto; width: 2.5rem; height: 2.5rem; border-radius: var(--radius-md); color: var(--color-primary); background: var(--color-primary-bg); }
 .gm-session-history .gm-session-panel-icon { color: var(--color-secondary); background: var(--color-secondary-bg); }
 .gm-session-panel-title h2 { font-size: var(--font-size-md); line-height: 1.4; }
-.gm-session-panel-title h2:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 4px; border-radius: .2rem; }
-.gm-session-panel-title p { margin-top: .3rem; color: var(--session-muted); font-size: var(--font-size-sm); line-height: 1.6; }
+.gm-session-panel-title h2:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 4px; border-radius: var(--radius-xs); }
+.gm-session-panel-title p { margin-top: var(--space-1); color: var(--session-muted); font-size: var(--font-size-sm); line-height: 1.6; }
 .gm-session-panel-note { color: var(--session-muted); font-size: var(--font-size-xs); line-height: 1.6; }
 .gm-session-revoke-all.ui-button { flex-shrink: 0; }
 .gm-session .gm-session-revoke.ui-button { flex-wrap: wrap; width: 100%; }
@@ -53,7 +53,7 @@
 .gm-session-history-table thead th:nth-child(4) { width: 34%; }
 .gm-session-event-name { text-align: left; }
 .gm-session-event-name > div { display: flex; align-items: center; gap: var(--space-2); }
-.gm-session-event-name > .ui-badge { margin-top: .3rem; }
+.gm-session-event-name > .ui-badge { margin-top: var(--space-1); }
 .gm-session-event-icon { display: grid; place-items: center; flex: 0 0 auto; width: 1.9rem; height: 1.9rem; border-radius: var(--radius-sm); color: var(--color-primary); background: var(--color-primary-bg); }
 .gm-session-event-icon--success { color: var(--color-success); background: var(--color-success-bg); }
 .gm-session-event-icon--danger { color: var(--color-danger); background: var(--color-danger-bg); }
@@ -62,14 +62,14 @@
 .gm-session-history-count { color: var(--session-muted); font-size: var(--font-size-xs); line-height: 1.5; }
 .gm-session-risk > .gm-session-icon { width: 1.7rem; height: 1.7rem; color: var(--color-warning); }
 .gm-session-risk h2 { font-size: var(--font-size-sm); line-height: 1.5; }
-.gm-session-risk p { margin-top: .35rem; font-size: var(--font-size-sm); line-height: 1.7; color: var(--session-muted); }
+.gm-session-risk p { margin-top: var(--space-1); font-size: var(--font-size-sm); line-height: 1.7; color: var(--session-muted); }
 .gm-session-risk .ui-button { text-decoration: none; }
 .gm-session-resource-error { display: grid; gap: var(--space-2); }
 .gm-session-resource-error > p { color: var(--color-warning); font-size: var(--font-size-xs); line-height: 1.6; }
-.gm-session .ui-error h2 { margin-bottom: .4rem; }
+.gm-session .ui-error h2 { margin-bottom: var(--space-2); }
 .gm-session .ui-error .ui-button { margin-top: var(--space-3); }
 .gm-session .ui-empty { text-align: center; }
-.gm-session-timezone { display: flex; align-items: center; gap: .5rem; font-size: var(--font-size-xs); line-height: 1.6; color: var(--session-muted); }
+.gm-session-timezone { display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-xs); line-height: 1.6; color: var(--session-muted); }
 .gm-session-timezone .gm-session-icon { width: .95rem; height: .95rem; }
 .gm-session-dialog .confirmation-description { font-size: var(--font-size-sm); line-height: 1.7; color: var(--session-muted); }
 .gm-session-confirmation { display: grid; gap: var(--space-4); }
@@ -94,7 +94,7 @@
 .gm-session-history-table { display: block; }
 .gm-session-history-table .gm-session-event-name { grid-row: 1; }
 .gm-session-history-table .gm-session-event-time { grid-row: 2; color: var(--color-text); }
-.gm-session-history-table .gm-session-event-detail { padding-top: .5rem; border-top: 1px solid var(--color-border); }
+.gm-session-history-table .gm-session-event-detail { padding-top: var(--space-2); border-top: 1px solid var(--color-border); }
 .gm-session-risk .ui-button { grid-column: 1 / -1; width: 100%; }
 }
 
@@ -107,6 +107,11 @@
 @media (max-width: 480px) {
   .gm-session-dialog .dialog-actions { flex-direction: column-reverse; align-items: stretch; }
 .gm-session-dialog .dialog-actions .ui-button { width: 100%; }
-.gm-session-confirmation dl > div { grid-template-columns: minmax(0, 1fr); gap: .3rem; }
+.gm-session-confirmation dl > div { grid-template-columns: minmax(0, 1fr); gap: var(--space-1); }
 .gm-session-confirmation dd { text-align: left; }
+}
+
+.gm-session.ui-page-layout {
+  max-width: calc(var(--reading-width) + var(--page-padding-inline) * 2);
+  margin-inline: auto;
 }

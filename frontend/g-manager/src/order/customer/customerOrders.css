@@ -19,7 +19,7 @@
 .gm-my-product-filters label:nth-child(2) { grid-column: 1 / -1; }
 .gm-my-product-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
 .gm-my-product-card { display: grid; grid-template-rows: auto 1fr; min-width: 0; }
-.gm-my-product-card:hover { border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border)); box-shadow: var(--glow-primary); }
+.gm-my-product-card:hover { border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border)); box-shadow: var(--shadow-sm); }
 .gm-my-product-content { display: grid; grid-template-rows: auto 1fr auto auto auto; align-content: start; gap: var(--space-2); min-width: 0; padding: var(--space-4); }
 .gm-my-product-content h3 { margin: 0; font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); line-height: 1.5; }
 .gm-my-product-description { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin: 0; color: var(--color-text-muted); font-size: var(--font-size-xs); line-height: 1.6; }
@@ -77,7 +77,7 @@
 .gm-my-order-progress { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
 .gm-my-order-progress > li { position: relative; display: grid; justify-items: center; align-content: start; gap: var(--space-2); min-width: 0; text-align: center; --step-color: var(--color-primary); }
 .gm-my-order-progress > li:not(:last-child)::after { content: ''; position: absolute; z-index: 0; left: 50%; top: 1rem; width: calc(100% + var(--space-2)); height: 1px; background: var(--color-border); }
-.gm-my-order-progress li > span:first-child { display: grid; place-items: center; width: 2rem; height: 2rem; z-index: 1; border: 1px solid var(--step-color); border-radius: 50%; color: var(--step-color); background: var(--color-surface); font-size: var(--font-size-sm); }
+.gm-my-order-progress li > span:first-child { display: grid; place-items: center; width: 2rem; height: 2rem; z-index: 1; border: 1px solid var(--step-color); border-radius: var(--radius-circle); color: var(--step-color); background: var(--color-surface); font-size: var(--font-size-sm); }
 .gm-my-order-progress strong { color: var(--color-text-secondary); font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); line-height: 1.5; }
 .gm-my-order-progress .is-current { --step-color: var(--color-secondary); }
 .gm-my-order-progress .is-done { --step-color: var(--color-success); }

@@ -44,7 +44,7 @@
 .gm-user-detail-button.ui-button { min-width: 2.75rem; }
 .gm-user-detail-button > span { display: none; }
 .gm-user-menu-trigger.ui-button { min-width: 2.75rem; }
-.gm-user-menu { position: fixed; z-index: 300; display: grid; gap: var(--space-1); width: min(14rem, calc(100vw - 24px)); overflow-y: auto; overscroll-behavior: contain; }
+.gm-user-menu { position: fixed; z-index: 300; display: grid; gap: var(--space-1); width: min(var(--menu-width), calc(100vw - var(--space-6))); overflow-y: auto; overscroll-behavior: contain; }
 .gm-user-menu button { display: flex; align-items: center; min-width: 0; text-align: start; }
 .gm-user-menu .is-danger { color: var(--color-danger); }
 .gm-user-menu svg { flex-shrink: 0; }

@@ -11,16 +11,14 @@
   grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
   gap: var(--space-5);
   padding: clamp(var(--space-5), 3vw, var(--space-7));
-  border-color: transparent;
-  background: linear-gradient(115deg, var(--color-primary-bg), transparent 55%, var(--color-secondary-bg)) padding-box,
-    linear-gradient(var(--color-surface), var(--color-surface)) padding-box,
-    linear-gradient(110deg, color-mix(in srgb, var(--color-primary) 45%, var(--color-border)), var(--color-border) 55%, color-mix(in srgb, var(--color-secondary) 40%, var(--color-border))) border-box;
-  box-shadow: var(--shadow-sm), var(--glow-primary);
+  border-color: var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
 }
 .g-dashboard.gm-customer-home .dashboard-hero-content { position: relative; z-index: 1; gap: var(--space-3); }
 .gm-home-hero-eyebrow { color: var(--color-primary); font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); letter-spacing: .15em; }
-.g-dashboard.gm-customer-home .gm-home-hero h2 { color: var(--color-text); font-size: clamp(1.5rem, 2.6vw, 2.5rem); font-weight: var(--font-weight-bold); line-height: 1.2; letter-spacing: -.04em; }
-.g-dashboard.gm-customer-home .gm-home-hero .gm-home-hero-subtitle { color: var(--color-text); font-size: clamp(.9rem, 1.5vw, 1.125rem); font-weight: var(--font-weight-medium); }
+.g-dashboard.gm-customer-home .gm-home-hero h2 { color: var(--color-text); font-size: var(--font-size-hero); font-weight: var(--font-weight-bold); line-height: 1.2; letter-spacing: -.04em; }
+.g-dashboard.gm-customer-home .gm-home-hero .gm-home-hero-subtitle { color: var(--color-text); font-size: var(--font-size-lg); font-weight: var(--font-weight-medium); }
 .g-dashboard.gm-customer-home .dashboard-hero-actions { gap: var(--space-3); }
 .g-dashboard.gm-customer-home .dashboard-hero-secondary { gap: var(--space-2); }
 .gm-home-resource-link { display: inline-flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); min-height: 2.75rem; font-size: var(--font-size-xs); text-decoration: none; }
@@ -29,10 +27,9 @@
 .gm-home-gaming-motif { display: block; width: min(100%, 19rem); height: auto; position: relative; z-index: 1; }
 .gm-home-motif-screen { color: var(--color-primary); }
 .gm-home-motif-controller { color: var(--color-secondary); }
-.gm-home-motif-orbit { position: absolute; width: 88%; aspect-ratio: 1.8; border: 1px solid color-mix(in srgb, var(--color-primary) 18%, transparent); border-radius: 50%; background: radial-gradient(ellipse, var(--color-primary-bg), transparent 65%); transform: rotate(-15deg); box-shadow: var(--glow-primary); }
+.gm-home-motif-orbit { position: absolute; width: 88%; aspect-ratio: 1.8; border: 1px solid color-mix(in srgb, var(--color-primary) 18%, transparent); border-radius: var(--radius-circle); background: radial-gradient(ellipse, var(--color-primary-bg), transparent 65%); transform: rotate(-15deg); box-shadow: var(--shadow-sm); }
 .gm-home-kpis { min-width: 0; }
-.gm-home-main-grid, .gm-home-lower-grid, .gm-home-orders-grid { display: grid; gap: var(--space-4); min-width: 0; }
-.gm-home-main-grid, .gm-home-lower-grid, .gm-home-orders-grid { grid-template-columns: minmax(0, 1fr); align-items: start; }
+.gm-home-main-grid, .gm-home-lower-grid, .gm-home-orders-grid { display: grid; gap: var(--space-4); min-width: 0; grid-template-columns: minmax(0, 1fr); align-items: start; }
 .gm-home-main-grid:has(> :only-child), .gm-home-lower-grid:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
 .gm-home-kpi-link { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 2.75rem; color: var(--color-text-secondary); }
 .gm-home-kpi-link::after { content: ''; position: absolute; inset: 0; border-radius: var(--radius-lg); }
@@ -49,14 +46,14 @@
 .gm-customer-home .ui-badge { flex-shrink: 0; white-space: normal; }
 .gm-customer-home :is(.button-link, .ui-button) { max-width: 100%; white-space: normal; }
 .gm-home-active-visit, .gm-home-session-detail { display: grid; gap: var(--space-4); min-width: 0; }
-.gm-home-session-visual { display: grid; place-items: center; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: radial-gradient(ellipse at center, var(--color-primary-bg), transparent 70%), var(--color-bg); }
+.gm-home-session-visual { display: grid; place-items: center; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); }
 .gm-home-session-visual .gm-home-gaming-motif { width: min(100%, 11rem); }
 .gm-home-session-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); min-width: 0; }
 .gm-home-session-heading > div { flex: 1 1 8rem; min-width: 0; }
 .gm-home-session-heading h3 { margin: var(--space-1) 0 0; font-size: var(--font-size-md); line-height: 1.4; }
 .gm-home-session-timer { display: grid; gap: var(--space-1); text-align: center; padding-block: var(--space-2); }
 .gm-home-session-timer > span, .gm-home-session-timer small { color: var(--color-text-muted); font-size: var(--font-size-xs); }
-.gm-home-session-timer > strong { color: var(--color-primary); font-size: clamp(2rem, 3.2vw, 2.75rem); font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; letter-spacing: -.035em; line-height: 1.2; }
+.gm-home-session-timer > strong { color: var(--color-primary); font-size: var(--font-size-timer-large); font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; letter-spacing: -.035em; line-height: 1.2; }
 .gm-home-session-times { display: grid; gap: var(--space-3); margin: 0; }
 .gm-home-session-times > div { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); align-items: baseline; gap: var(--space-3); padding-bottom: var(--space-2); border-bottom: 1px solid var(--color-border); font-size: var(--font-size-xs); }
 .gm-home-session-times dt { color: var(--color-text-muted); }
@@ -66,7 +63,7 @@
 .gm-home-notice { margin: 0; padding: var(--space-3); border: 1px solid color-mix(in srgb, var(--color-warning) 35%, var(--color-border)); border-radius: var(--radius-sm); color: var(--color-warning); background: var(--color-warning-bg); font-size: var(--font-size-xs); line-height: 1.6; }
 .gm-home-upcoming-list, .gm-home-waitlist-list, .gm-home-activity-list { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
 .gm-home-upcoming-list a, .gm-home-waitlist-list > li { display: grid; gap: var(--space-2); min-width: 0; padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); }
-.gm-home-upcoming-list a { color: var(--color-text); text-decoration: none; transition: border-color var(--duration-fast), background var(--duration-fast); }
+.gm-home-upcoming-list a { color: var(--color-text); text-decoration: none; transition: border-color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard); }
 .gm-home-upcoming-list a:hover { border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border)); background: var(--color-primary-bg); }
 .gm-home-reservation-heading { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); min-width: 0; }
 .gm-home-reservation-heading > strong { flex: 1 1 7rem; min-width: 0; font-size: var(--font-size-sm); line-height: 1.5; }
@@ -75,7 +72,7 @@
 .gm-home-upcoming-list a > span, .gm-home-waitlist-list li > span { color: var(--color-text-secondary); font-size: var(--font-size-xs); line-height: 1.6; }
 .gm-home-upcoming-list small, .gm-home-waitlist-list small { color: var(--color-text-muted); font-size: var(--font-size-xs); line-height: 1.6; }
 .gm-home-quick-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
-.gm-home-quick-actions > a { --quick-accent: var(--color-primary); display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: start; gap: var(--space-2); min-width: 0; padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-text); background: var(--color-bg); text-decoration: none; transition: background var(--duration-fast), border-color var(--duration-fast), box-shadow var(--duration-fast); }
+.gm-home-quick-actions > a { --quick-accent: var(--color-primary); display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: start; gap: var(--space-2); min-width: 0; padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-text); background: var(--color-bg); text-decoration: none; transition: background var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard); }
 .gm-home-quick-actions > a:nth-child(2) { --quick-accent: var(--color-secondary); }
 .gm-home-quick-actions > a:nth-child(3) { --quick-accent: var(--color-success); }
 .gm-home-quick-actions > a:nth-child(4) { --quick-accent: var(--color-secondary); }
@@ -84,7 +81,7 @@
 .gm-home-quick-actions a > svg:last-child { grid-area: 1 / 2; width: 1rem; height: 1rem; color: var(--color-text-muted); }
 .gm-home-quick-actions strong { grid-column: 1 / -1; font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); line-height: 1.5; }
 .gm-home-quick-actions a > span { grid-column: 1 / -1; color: var(--color-text-muted); font-size: var(--font-size-xs); line-height: 1.6; }
-.gm-home-waitlist-list > .gm-home-offered { border-color: color-mix(in srgb, var(--color-secondary) 60%, var(--color-border)); background: linear-gradient(130deg, var(--color-secondary-bg), transparent), var(--color-bg); box-shadow: var(--glow-secondary); }
+.gm-home-waitlist-list > .gm-home-offered { border-color: color-mix(in srgb, var(--color-secondary) 60%, var(--color-border)); background: var(--color-secondary-bg); box-shadow: var(--shadow-sm); }
 .gm-home-offer-intro { margin: 0; color: var(--color-text); font-size: var(--font-size-sm); line-height: 1.6; }
 .gm-home-offer-timer { color: var(--color-secondary); font-size: var(--font-size-2xl); font-variant-numeric: tabular-nums; }
 .gm-customer-home .gm-home-offer-link { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: 2.75rem; color: var(--color-secondary); border: 1px solid color-mix(in srgb, var(--color-secondary) 45%, var(--color-border)); background: var(--color-secondary-bg); }

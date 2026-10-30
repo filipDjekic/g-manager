@@ -81,7 +81,7 @@ export async function installApi(page: Page, role: Role, aiEnabled = false, rese
     if (path === '/working-hours/exceptions' || path === '/time-off') return json([])
     if (path === '/reports/definitions') return json([{ key: 'orders', label: 'Orders', metricDefinition: 'Created in range', formats: ['CSV'] }])
     if (path === '/reports' && request.method() === 'GET') return json([{ id: 'report-1', definitionKey: 'orders', format: 'CSV', status: 'COMPLETED', progress: 100, rowCount: 42, documentId: 'document-1', errorMessage: null, snapshotAt: '2028-03-15T10:00:00Z', expiresAt: '2028-03-16T10:00:00Z', version: 1 }])
-    if (path === '/reports/schedules') return json([])
+    if (path === '/reports/schedules' || path === '/reports/templates') return json([])
     if (path === '/ai/report-summaries/report-1') return json({ usageId: 'usage-1', aiGenerated: false, summary: 'Deterministic report metadata summary.', limitations: 'Provider unavailable; source report remains authoritative.', sources: [{ reportId: 'report-1', definition: 'orders', rowCount: 42, snapshotAt: '2028-03-15T10:00:00Z' }], promptVersion: 'report-summary-v1', outputVersion: 'report-summary-response-v1' })
     if (path === '/ai/usage/usage-1/feedback') return json(null, 204)
     if (path === '/dashboard/summary') return json({
@@ -113,11 +113,16 @@ export async function installApi(page: Page, role: Role, aiEnabled = false, rese
       completedOrders: { current: 2, previous: 1, absoluteChange: 1, percentChange: 100 },
       reservations: { current: 6, previous: 4, absoluteChange: 2, percentChange: 50 },
       reservationsByStatus: { PENDING: 1, CONFIRMED: 2, REJECTED: 0, CANCELLED: 0, COMPLETED: 3 },
-      buckets: [],
+      buckets: [
+        { date: '2028-03-14', completedRevenue: 300, completedOrders: 1, reservations: 1 },
+        { date: '2028-03-15', completedRevenue: 400, completedOrders: 0, reservations: 2 },
+        { date: '2028-03-16', completedRevenue: 500, completedOrders: 1, reservations: 3 },
+      ],
     })
     if (path === '/dashboard/workload') return json({
       from: '2028-03-01', to: '2028-03-31', timezone: 'Europe/Belgrade',
-      capacityDefinition: 'Podešeno radno vreme', employees: [],
+      capacityDefinition: 'Podešeno radno vreme', employees: [{ employeeId: 'employee-1', employeeName: 'EMPLOYEE E2E',
+        reservationCount: 2, reservedMinutes: 120, capacityMinutes: 480, utilizationPercent: 25 }],
     })
     if (path === '/catalog') {
       const service = url.searchParams.get('type') === 'SERVICE'

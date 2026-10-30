@@ -22,19 +22,26 @@ body {
   line-height: var(--line-height);
 }
 
-button { font: inherit; cursor: pointer; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+input, select, textarea { width: 100%; }
 button:disabled { opacity: var(--disabled-opacity); cursor: not-allowed; }
 :is(button, input, select, textarea, summary, a):focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; box-shadow: var(--focus-ring); }
 label { display: grid; gap: var(--space-2); min-width: 0; color: var(--color-text-secondary); font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); }
 :is(h1, h2, h3) { line-height: var(--line-height-heading); }
 h1 { font-size: var(--font-size-title); font-weight: var(--font-weight-semibold); }
 h2 { font-size: var(--font-size-xl); font-weight: var(--font-weight-semibold); }
-small { font-size: var(--font-size-xs); }
+h3 { font-size: var(--font-size-md); font-weight: var(--font-weight-semibold); }
+small { color: var(--color-text-muted); font-size: var(--font-size-xs); }
+input::placeholder, textarea::placeholder { color: var(--color-text-muted); opacity: 1; }
+input[type='checkbox'], input[type='radio'] { width: var(--icon-size); flex-shrink: 0; accent-color: var(--color-primary); }
+textarea { resize: vertical; }
+::selection { color: var(--color-text); background: var(--color-selected-bg); }
 .connectivity-banner {
   position: sticky;
   top: 0;
   z-index: 20;
-  padding: 0.65rem 1rem;
+  padding: var(--space-3) var(--space-4);
   color: var(--color-warning);
   background: var(--color-warning-bg);
   text-align: center;

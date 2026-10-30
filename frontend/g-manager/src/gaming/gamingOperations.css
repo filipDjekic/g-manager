@@ -12,7 +12,7 @@
 .gaming-ops-page .ops-filters { display: grid; }
 .gaming-ops-page .ops-primary-filters { display: flex; flex-wrap: wrap; gap: var(--space-2); padding-bottom: var(--space-4); border-bottom: 1px solid var(--color-border); }
 .gaming-ops-page .ops-primary-filters > button { display: flex; align-items: center; }
-.gaming-ops-page .ops-primary-filters > button > span { padding: .1rem .45rem; border-radius: var(--radius-sm); background: var(--color-bg); color: var(--color-text-muted); font-size: var(--font-size-xs); }
+.gaming-ops-page .ops-primary-filters > button > span { padding: var(--space-half) var(--space-2); border-radius: var(--radius-sm); background: var(--color-bg); color: var(--color-text-muted); font-size: var(--font-size-xs); }
 .gaming-ops-page .ops-filter-fields { display: grid; grid-template-columns: minmax(0, 1.7fr) repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
 .gaming-ops-page .ops-filter-fields label { min-width: 0; }
 .gaming-ops-page .ops-filter-options { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); }
@@ -26,13 +26,13 @@
 .gaming-ops-page .ops-section-heading > span { color: var(--color-text-muted); font-size: var(--font-size-xs); }
 .gaming-ops-page .ops-section-heading > svg { color: var(--color-primary); }
 .gaming-ops-page .ops-station-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); align-items: start; }
-.gaming-ops-page .ops-station--active { --station-accent: var(--color-primary); background: linear-gradient(150deg, var(--color-primary-bg), transparent 45%), var(--color-surface); }
+.gaming-ops-page .ops-station--active { --station-accent: var(--color-primary); background: var(--color-surface); }
 .gaming-ops-page .ops-station--maintenance, .gaming-ops-page .ops-station--expired, .gaming-ops-page .ops-station--lock-pending { --station-accent: var(--color-warning); }
 .gaming-ops-page .ops-station--offline { --station-accent: var(--color-danger); }
 .gaming-ops-page .ops-station--retired { --station-accent: var(--color-text-muted); background: var(--color-bg); }
 .gaming-ops-page .ops-station--retired .ops-monitor { color: var(--color-text-muted); background: var(--color-surface); }
 .gaming-ops-page .ops-station--expiring:not(.ops-station--offline) { --station-accent: var(--color-warning); }
-.gaming-ops-page .ops-station--selected, .gaming-ops-page .ops-station--selected:hover { border-color: var(--color-primary); box-shadow: var(--glow-primary); }
+.gaming-ops-page .ops-station--selected, .gaming-ops-page .ops-station--selected:hover { border-color: var(--color-primary); box-shadow: var(--shadow-sm); }
 .gaming-ops-page .ops-station-header { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-width: 0; }
 .gaming-ops-page .ops-station-header h3 { min-width: 0; flex: 1; margin: 0; }
 .gaming-ops-page .ops-monitor { display: grid; place-items: center; flex-shrink: 0; width: 2rem; height: 2rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-primary); background: var(--color-primary-bg); }
@@ -42,7 +42,7 @@
 .gaming-ops-page .ops-station-session { display: grid; gap: var(--space-1); width: 100%; }
 .gaming-ops-page .ops-station-customer { color: var(--color-text); font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); }
 .gaming-ops-page .ops-timer-label { color: var(--color-text-muted); font-size: var(--font-size-xs); font-weight: var(--font-weight-normal); }
-.gaming-ops-page .ops-timer { display: block; color: var(--color-primary); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: clamp(1.65rem, 2vw, 2.25rem); font-weight: var(--font-weight-semibold); line-height: 1.25; font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
+.gaming-ops-page .ops-timer { display: block; color: var(--color-primary); font-family: var(--font-mono); font-size: var(--font-size-timer); font-weight: var(--font-weight-semibold); line-height: 1.25; font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
 .gaming-ops-page .ops-timer--warning { color: var(--color-warning); }
 .gaming-ops-page .ops-station-message { margin: 0; min-height: 4.5rem; color: var(--color-text-muted); font-size: var(--font-size-sm); line-height: 1.6; }
 .gaming-ops-page .ops-station-signals { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
@@ -59,12 +59,12 @@
 .gaming-ops-page .ops-detail-panel { position: sticky; top: calc(var(--topbar-height) + var(--space-4)); gap: var(--space-4); padding: var(--space-5); border-top-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border)); }
 .gaming-ops-page .ops-detail-panel .eyebrow { margin-bottom: var(--space-2); font-size: var(--font-size-xs); }
 .gaming-ops-page .ops-detail-identity { display: grid; justify-items: center; gap: var(--space-2); text-align: center; padding-block: var(--space-2); }
-.gaming-ops-page .ops-detail-monitor { display: grid; place-items: center; width: 4.5rem; height: 4.5rem; margin-bottom: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-lg); color: var(--color-primary); background: linear-gradient(135deg, var(--color-primary-bg), var(--color-secondary-bg)); }
+.gaming-ops-page .ops-detail-monitor { display: grid; place-items: center; width: 4.5rem; height: 4.5rem; margin-bottom: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-lg); color: var(--color-primary); background: var(--color-primary-bg); }
 .gaming-ops-page .ops-detail-monitor svg { width: 2.75rem; height: 2.75rem; }
 .gaming-ops-page .ops-detail-identity h3 { margin: 0; font-size: var(--font-size-xl); font-weight: var(--font-weight-semibold); }
 .gaming-ops-page .ops-detail-note { margin: 0; padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text-muted); background: var(--color-bg); font-size: var(--font-size-xs); }
 .gaming-ops-page .ops-detail-countdown { display: grid; gap: var(--space-2); padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); text-align: center; }
-.gaming-ops-page .ops-detail-countdown .ops-timer { font-size: 2.75rem; }
+.gaming-ops-page .ops-detail-countdown .ops-timer { font-size: var(--font-size-timer-large); }
 .gaming-ops-page .ops-detail-list { display: grid; gap: var(--space-3); margin: 0; }
 .gaming-ops-page .ops-detail-list > div { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: var(--space-3); padding-bottom: var(--space-3); border-bottom: 1px solid var(--color-border); font-size: var(--font-size-xs); }
 .gaming-ops-page .ops-detail-list dt { color: var(--color-text-muted); }
@@ -75,7 +75,7 @@
 .gaming-ops-page .ops-table-select { display: flex; align-items: center; min-width: 7.5rem; text-align: start; }
 .gaming-ops-page .ops-table-select svg { flex-shrink: 0; color: var(--color-primary); }
 .gaming-ops-page .ops-table-select small { display: block; margin-top: var(--space-1); font-size: var(--font-size-xs); font-weight: var(--font-weight-normal); }
-.gaming-ops-page .ops-table-timer { color: var(--color-primary); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; white-space: nowrap; font-size: var(--font-size-sm); font-variant-numeric: tabular-nums; }
+.gaming-ops-page .ops-table-timer { color: var(--color-primary); font-family: var(--font-mono); white-space: nowrap; font-size: var(--font-size-sm); font-variant-numeric: tabular-nums; }
 .gaming-ops-page .ops-table-timer.ops-timer--warning { color: var(--color-warning); }
 .gaming-ops-page .ops-session-row--selected { background: var(--color-primary-bg); }
 .gaming-ops-page .ops-session-row--selected > th { box-shadow: inset 2px 0 var(--color-primary); }
@@ -118,6 +118,8 @@
 .gaming-ops-page .ops-primary-filters > label { flex:1 1 12rem; }
 .gaming-ops-page .ops-primary-filters > .ops-search { flex:2 1 17rem; }
 .ops-day-summary { display:grid; gap:var(--space-4); }
+.workday-summary { display: grid; gap: var(--section-gap); }
+.workday-summary > p, .workday-summary > .ui-alert > p { margin: 0; }
 .ops-day-summary header { display:flex; justify-content:space-between; flex-wrap:wrap; gap:var(--space-3); }
 .ops-day-columns { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr)); gap:var(--space-4); }
 .ops-day-columns article { padding:var(--space-3); border-bottom:1px solid var(--color-border); display:grid; gap:var(--space-2); }

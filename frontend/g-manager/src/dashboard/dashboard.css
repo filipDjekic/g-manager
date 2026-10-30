@@ -15,7 +15,7 @@
 .g-dashboard .dashboard-section-actions a { text-decoration: none; }
 .g-dashboard .dashboard-section-body { display: grid; gap: var(--space-4); min-width: 0; }
 .g-dashboard .dashboard-shortcuts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); gap: var(--space-3); }
-.g-dashboard .dashboard-shortcuts a { display: flex; align-items: center; gap: var(--space-3); min-width: 0; min-height: 3.5rem; padding: var(--space-3) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-text-secondary); background: var(--color-surface); font-size: var(--font-size-sm); text-decoration: none; transition: border-color var(--duration-fast), background var(--duration-fast); }
+.g-dashboard .dashboard-shortcuts a { display: flex; align-items: center; gap: var(--space-3); min-width: 0; min-height: 3.5rem; padding: var(--space-3) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-text-secondary); background: var(--color-surface); font-size: var(--font-size-sm); text-decoration: none; transition: border-color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard); }
 .g-dashboard .dashboard-shortcuts a:hover { border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border)); color: var(--color-text); background: var(--color-primary-bg); }
 .g-dashboard .dashboard-shortcuts a .navigation-icon { color: var(--color-primary); }
 .g-dashboard .dashboard-shortcuts a > span:last-child { margin-inline-start: auto; color: var(--color-text-muted); }
@@ -61,7 +61,7 @@
 .g-dashboard .dashboard-status-legend { display: grid; gap: var(--space-2); padding: 0; margin: 0; list-style: none; }
 .g-dashboard .dashboard-status-legend li { display: flex; align-items: center; gap: var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-sm); }
 .g-dashboard .dashboard-status-legend strong { margin-inline-start: auto; color: var(--color-text); font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; }
-.g-dashboard .dashboard-status-dot { width: .5rem; height: .5rem; flex-shrink: 0; border-radius: 50%; }
+.g-dashboard .dashboard-status-dot { width: .5rem; height: .5rem; flex-shrink: 0; border-radius: var(--radius-circle); }
 .g-dashboard .dashboard-chart-table { padding-top: var(--space-3); border-top: 1px solid var(--color-border); }
 .g-dashboard .dashboard-chart-table > summary { color: var(--color-text-secondary); font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); }
 .g-dashboard .dashboard-chart-table[open] > summary { margin-bottom: var(--space-3); }
@@ -71,7 +71,7 @@
 .g-dashboard .dashboard-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5); align-items: start; }
 .g-dashboard .dashboard-timeline { display: grid; gap: var(--space-4); padding: 0; margin: 0; list-style: none; }
 .g-dashboard .dashboard-timeline > li { position: relative; display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); gap: var(--space-4); }
-.g-dashboard .dashboard-timeline > li::before { content: ''; position: absolute; left: 4.7rem; top: 1.25rem; z-index: 1; width: .5rem; height: .5rem; border: 2px solid var(--color-primary); border-radius: 50%; background: var(--color-surface); }
+.g-dashboard .dashboard-timeline > li::before { content: ''; position: absolute; left: 4.7rem; top: 1.25rem; z-index: 1; width: .5rem; height: .5rem; border: 2px solid var(--color-primary); border-radius: var(--radius-circle); background: var(--color-surface); }
 .g-dashboard .dashboard-timeline > li:not(:last-child)::after { content: ''; position: absolute; left: calc(4.95rem - .5px); top: 1.5rem; bottom: calc(-1 * var(--space-4) - 1.5rem); width: 1px; background: var(--color-border); }
 .g-dashboard .dashboard-timeline-time { display: grid; align-content: start; gap: var(--space-1); padding-top: var(--space-4); font-size: var(--font-size-sm); font-variant-numeric: tabular-nums; }
 .g-dashboard .dashboard-timeline-time time:first-child { color: var(--color-text); font-weight: var(--font-weight-semibold); }
@@ -99,9 +99,9 @@
 .g-dashboard .dashboard-order-heading > strong { color: var(--color-text); font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; }
 .g-dashboard .dashboard-order > time { color: var(--color-text-muted); font-size: var(--font-size-xs); }
 .g-dashboard .dashboard-order-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--font-size-sm); }
-.g-dashboard .dashboard-customer-hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-6); padding: var(--space-7); border: 1px solid color-mix(in srgb, var(--color-primary) 25%, var(--color-border)); border-radius: var(--radius-xl); background: linear-gradient(115deg, var(--color-primary-bg), transparent 50%, var(--color-secondary-bg)), var(--color-surface); box-shadow: var(--shadow-sm); }
+.g-dashboard .dashboard-customer-hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-6); padding: var(--space-7); border: 1px solid color-mix(in srgb, var(--color-primary) 25%, var(--color-border)); border-radius: var(--radius-xl); background: var(--color-surface); box-shadow: var(--shadow-sm); }
 .g-dashboard .dashboard-hero-content { display: grid; justify-items: start; gap: var(--space-4); min-width: 0; }
-.g-dashboard .dashboard-customer-hero h1 { font-size: clamp(1.875rem, 3vw, 2.5rem); font-weight: var(--font-weight-bold); }
+.g-dashboard .dashboard-customer-hero h1 { font-size: var(--font-size-hero); font-weight: var(--font-weight-bold); }
 .g-dashboard .dashboard-customer-hero h2 { margin: 0; font-size: var(--font-size-xl); font-weight: var(--font-weight-medium); }
 .g-dashboard .dashboard-customer-hero p:not(.eyebrow) { max-width: 38rem; margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-sm); line-height: 1.8; }
 .g-dashboard .dashboard-hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-top: var(--space-2); }
@@ -109,12 +109,12 @@
 .g-dashboard .dashboard-hero-secondary { display: inline-flex; align-items: center; justify-content: center; min-height: 3rem; padding: var(--space-3) var(--space-4); border: 1px solid var(--color-control-border); border-radius: var(--radius-md); color: var(--color-text); font-size: var(--font-size-sm); text-decoration: none; }
 .g-dashboard .dashboard-hero-secondary:hover { border-color: var(--color-primary); background: var(--color-primary-bg); }
 .g-dashboard .dashboard-hero-resource { font-size: var(--font-size-sm); text-decoration: none; }
-.g-dashboard .dashboard-hero-motif { display: grid; place-items: center; width: 10rem; height: 10rem; border: 1px solid var(--color-border); border-radius: var(--radius-xl); color: var(--color-primary); background: linear-gradient(140deg, var(--color-primary-bg), var(--color-secondary-bg)); }
+.g-dashboard .dashboard-hero-motif { display: grid; place-items: center; width: 10rem; height: 10rem; border: 1px solid var(--color-border); border-radius: var(--radius-xl); color: var(--color-primary); background: var(--color-primary-bg); }
 .g-dashboard .dashboard-hero-motif svg { width: 6rem; height: 6rem; }
 .g-dashboard .dashboard-active-sessions .gaming-visit-list { display: grid; gap: var(--space-4); }
 .g-dashboard .dashboard-active-sessions .gaming-visit.current { margin: 0; padding: var(--space-5); border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border)); background: var(--color-bg); }
-.g-dashboard .dashboard-active-sessions .gaming-countdown { margin-top: var(--space-4); font-size: clamp(2rem, 4vw, 3rem); line-height: 1.25; font-weight: var(--font-weight-semibold); }
-.g-dashboard .dashboard-active-sessions .gaming-countdown::before { content: 'Preostalo vreme'; display: block; margin-bottom: var(--space-2); color: var(--color-text-muted); font-size: var(--font-size-xs); font-weight: var(--font-weight-normal); }
+.g-dashboard .dashboard-active-sessions .gaming-countdown { margin-top: var(--space-4); font-size: var(--font-size-timer-large); line-height: 1.25; font-weight: var(--font-weight-semibold); }
+.g-dashboard .dashboard-active-sessions .gaming-countdown::before { content: 'Preostalo vreme'; display: block; margin-bottom: var(--space-2); color: var(--color-text-muted); font-size: var(--font-size-timer-large); font-weight: var(--font-weight-normal); }
 .g-dashboard .dashboard-active-sessions .gaming-visit-list > small { display: none; }
 .g-dashboard .dashboard-next-content { display: grid; gap: var(--space-5); }
 .g-dashboard .dashboard-reservation-details { display: grid; gap: var(--space-3); margin: 0; }

@@ -17,7 +17,7 @@ const statusColors: Record<ReservationStatus, string> = {
 }
 const tooltipStyle = {
   background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)',
-  borderRadius: 'var(--radius-md)', color: 'var(--color-text)', boxShadow: 'var(--shadow-raised)', fontSize: '.8125rem',
+  borderRadius: 'var(--radius-md)', color: 'var(--color-text)', boxShadow: 'var(--shadow-raised)', fontSize: 'var(--font-size-sm)',
 }
 const tooltipItemStyle = { color: 'var(--color-text)' }
 const number = (value: number) => value.toLocaleString('sr-RS')
@@ -36,13 +36,13 @@ export function DashboardTrendChart({ trends }: { trends: DashboardTrends }) {
       <ResponsiveContainer width="100%" height={300}><ComposedChart data={trends.buckets} accessibilityLayer={false}
         margin={{ top: 16, right: 0, bottom: 4, left: 0 }}>
         <CartesianGrid vertical={false} strokeDasharray="3 5" stroke="var(--color-border)" />
-        <XAxis dataKey="date" tickFormatter={formatChartDate} stroke="var(--color-text-muted)" tickLine={false} axisLine={false} minTickGap={24} tick={{ fontSize: 11 }} />
+        <XAxis dataKey="date" tickFormatter={formatChartDate} stroke="var(--color-text-muted)" tickLine={false} axisLine={false} minTickGap={24} tick={{ fontSize: 'var(--font-size-xs)' }} />
         <YAxis yAxisId="revenue" stroke="var(--color-text-muted)" tickLine={false} axisLine={false} width={52}
-          tick={{ fontSize: 11 }} tickFormatter={(value: number) => value.toLocaleString('sr-RS', { notation: 'compact' })} />
-        <YAxis yAxisId="count" orientation="right" allowDecimals={false} stroke="var(--color-text-muted)" tickLine={false} axisLine={false} width={32} tick={{ fontSize: 11 }} />
+          tick={{ fontSize: 'var(--font-size-xs)' }} tickFormatter={(value: number) => value.toLocaleString('sr-RS', { notation: 'compact' })} />
+        <YAxis yAxisId="count" orientation="right" allowDecimals={false} stroke="var(--color-text-muted)" tickLine={false} axisLine={false} width={32} tick={{ fontSize: 'var(--font-size-xs)' }} />
         <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} labelFormatter={(label) => formatDashboardDate(String(label))}
           formatter={(value, name) => [name === 'Prihod završenih narudžbina (RSD)' ? formatDashboardMoney(Number(value)) : number(Number(value)), name]} />
-        <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '.75rem', paddingTop: '1rem' }} />
+        <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 'var(--font-size-xs)', paddingTop: 'var(--space-4)' }} />
         <Area yAxisId="revenue" type="monotone" dataKey="completedRevenue" name="Prihod završenih narudžbina (RSD)"
           stroke="var(--color-secondary)" fill="var(--color-secondary-bg)" strokeWidth={2} isAnimationActive={false} />
         <Bar yAxisId="count" dataKey="completedOrders" name="Završene narudžbine" fill="var(--color-text-muted)"
@@ -72,7 +72,7 @@ export function DashboardStatusChart({ trends }: { trends: DashboardTrends }) {
       <div className="dashboard-donut" aria-hidden="true">
         <ResponsiveContainer width="100%" height={230}><PieChart accessibilityLayer={false}>
           <Pie data={segments.map(([status, value]) => ({ name: reservationLabels[status], value }))} dataKey="value" nameKey="name"
-            innerRadius={65} outerRadius={90} paddingAngle={2} stroke="var(--color-surface)" strokeWidth={3} isAnimationActive={false}>
+            innerRadius={65} outerRadius={90} paddingAngle={2} stroke="var(--color-surface)" strokeWidth={3} rootTabIndex={-1} isAnimationActive={false}>
             {segments.map(([status]) => <Cell key={status} fill={statusColors[status]} />)}
           </Pie><Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} formatter={(value) => number(Number(value))} />
         </PieChart></ResponsiveContainer>
@@ -105,8 +105,8 @@ export function DashboardWorkloadChart({ workload, threshold }: { workload: Dash
           <BarChart layout="vertical" data={configured} accessibilityLayer={false} margin={{ top: 10, right: 24, bottom: 8, left: 0 }}>
             <CartesianGrid horizontal={false} strokeDasharray="3 5" stroke="var(--color-border)" />
             <XAxis type="number" domain={[0, (maximum: number) => Math.max(100, maximum)]} tickFormatter={(value) => `${value}%`}
-              stroke="var(--color-text-muted)" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-            <YAxis type="category" dataKey="employeeName" width={110} stroke="var(--color-text-muted)" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+              stroke="var(--color-text-muted)" axisLine={false} tickLine={false} tick={{ fontSize: 'var(--font-size-xs)' }} />
+            <YAxis type="category" dataKey="employeeName" width={110} stroke="var(--color-text-muted)" axisLine={false} tickLine={false} tick={{ fontSize: 'var(--font-size-xs)' }} />
             <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} cursor={{ fill: 'var(--color-primary-bg)' }}
               formatter={(value) => [`${number(Number(value))}%`, 'Iskorišćenost']} />
             <ReferenceLine x={threshold} stroke="var(--color-warning)" strokeDasharray="4 4" />

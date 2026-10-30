@@ -14,6 +14,8 @@ import { useFeatureStore } from '../feature/featureStore'
 import { aiApi } from '../api/aiApi'
 import { formatBusinessDateTime } from '../reservations/dateTime'
 import type { AiFeedback, AiReportSummary } from '../types/ai.types'
+import { NavigationIcon } from '../layout/NavigationIcon'
+import '../reports/reports.css'
 
 export function ReportsPage() {
   const { confirm, confirmationDialog } = useConfirmDialog()
@@ -109,12 +111,12 @@ export function ReportsPage() {
     catch (cause) { setError(apiErrorMessage(cause, 'Povratna informacija nije sačuvana.')) }
   }
 
-  return <PageLayout>{confirmationDialog}<PageHeader eyebrow="Asinhrona obrada" title="Izveštaji" description="Kreiranje, preuzimanje i zakazivanje izveštaja." />
+  return <PageLayout className="gm-reports">{confirmationDialog}<PageHeader eyebrow="Asinhrona obrada" title="Izveštaji" icon={<NavigationIcon to="/reports" />} description="Kreiranje, preuzimanje i zakazivanje izveštaja." />
     {draft.recovered && <p role="status" className="connectivity-banner">Oporavljen je šifrovani lokalni draft. Pregledajte podatke pre slanja. <Button variant="secondary" onClick={draft.acknowledge}>U redu</Button></p>}
     <Card><h2>Novi izveštaj</h2>
       <div className="ui-actions">{[{value:'today',label:'Danas'},{value:'week',label:'Poslednjih 7 dana'},{value:'month',label:'Ovaj mesec'},{value:'30days',label:'Poslednjih 30 dana'}].map(value => <Button key={value.value} variant="secondary" disabled={busy} onClick={() => preset(value.value)}>{value.label}</Button>)}</div>
       <label>Sačuvani šabloni<Select value="" onChange={event => chooseTemplate(event.target.value)} disabled={busy}><option value="">Izaberite šablon</option>{templates.map(template => <option key={template.id} value={template.id}>{template.name}</option>)}</Select></label>
-      <div className="form-grid">
+      <div className="form-grid gm-report-fields">
       <label>Definicija<Select aria-label={"Definicija"} value={definition} onChange={(event) => setDefinition(event.target.value)}>
         {definitions.map((value) => <option key={value.key} value={value.key}>{reportLabels[value.key] ?? value.label}</option>)}</Select></label>
       <label>Format<Select aria-label={"Format"} value={format} onChange={(event) => setFormat(event.target.value as ReportFormat)}>
@@ -130,11 +132,11 @@ export function ReportsPage() {
     {error && <ErrorState message={error} action={<Button variant="secondary" onClick={() => void refresh()}>Osveži</Button>} />}
     {loading ? <Skeleton lines={5} /> : !items.length ? <EmptyState title="Nema izveštaja" description="Pokrenite prvi izveštaj." /> :
       <Card><h2>Istorija</h2><TableShell label="Tabelarni pregled" className="table-scroll"><table className="ui-data-table"><thead><tr><th>Izveštaj</th><th>Format</th><th>Status</th><th>Redovi</th><th>Akcije</th></tr></thead>
-        <tbody>{items.map((item) => <tr key={item.id}><td data-label="Izveštaj">{reportLabels[item.definitionKey] ?? item.definitionKey}</td><td data-label="Format">{item.format}</td><td data-label="Status"><Badge tone={item.status === 'COMPLETED' ? 'success' : item.status === 'FAILED' ? 'danger' : item.status === 'RUNNING' ? 'info' : 'neutral'}>{{ QUEUED:'Na čekanju', RUNNING:'U obradi', COMPLETED:'Spreman', FAILED:'Neuspešno', CANCELLED:'Otkazan', EXPIRED:'Istekao' }[item.status]} {item.status === 'RUNNING' && `${item.progress}%`}</Badge>{item.errorMessage && <small>{item.errorMessage}</small>}</td><td data-label="Redovi">{item.rowCount ?? '—'}</td><td data-label="Akcije">
+        <tbody>{items.map((item) => <tr key={item.id}><td data-label="Izveštaj">{reportLabels[item.definitionKey] ?? item.definitionKey}</td><td data-label="Format">{item.format}</td><td data-label="Status"><Badge tone={item.status === 'COMPLETED' ? 'success' : item.status === 'FAILED' ? 'danger' : item.status === 'RUNNING' ? 'info' : 'neutral'}>{{ QUEUED:'Na čekanju', RUNNING:'U obradi', COMPLETED:'Spreman', FAILED:'Neuspešno', CANCELLED:'Otkazan', EXPIRED:'Istekao' }[item.status]} {item.status === 'RUNNING' && `${item.progress}%`}</Badge>{item.errorMessage && <small>{item.errorMessage}</small>}</td><td data-label="Redovi">{item.rowCount ?? '—'}</td><td data-label="Akcije"><div className="ui-actions">
           {item.status === 'COMPLETED' && <Button onClick={() => void download(item)}>Preuzmi</Button>}
           {item.status === 'COMPLETED' && aiEnabled && <Button variant="secondary" loading={aiBusy} onClick={() => confirm({ title:'AI sažetak ovog izveštaja', description:'Saglasnošću šaljete AI provider-u definiciju, broj redova i vreme preseka ovog izveštaja. Rezultat može biti netačan; izvorni izveštaj ostaje merodavan.', confirmLabel:'Pristajem — napravi sažetak', onConfirm:()=>summarize(item) })}>AI sažetak</Button>}
           {['QUEUED', 'RUNNING'].includes(item.status) && <Button variant="secondary" onClick={() => confirm({ title: 'Otkaži generisanje', description: 'Obrada izveštaja biće zaustavljena.', variant: 'warning', confirmLabel: 'Otkaži obradu', onConfirm: async () => { await reportApi.cancel(item.id); await refresh() } })}>Otkaži</Button>}
-        </td></tr>)}</tbody></table></TableShell></Card>}
+        </div></td></tr>)}</tbody></table></TableShell></Card>}
     {manage && <Card><h2>Rasporedi</h2>{!schedules.length ? <p>Nema rasporeda.</p> : <ul>{schedules.map((schedule) =>
       <li key={schedule.id}>{reportLabels[schedule.definitionKey] ?? schedule.definitionKey} · {schedule.dayOfWeek === null ? 'Svakog dana' : ['Ponedeljak','Utorak','Sreda','Četvrtak','Petak','Subota','Nedelja'][schedule.dayOfWeek-1]} u {schedule.localTime} · {schedule.timezone} · sledeće {formatBusinessDateTime(schedule.nextRunAt)} <Button variant="danger" onClick={() => confirm({ title: 'Obriši raspored izveštaja', description: 'Automatsko generisanje po ovom rasporedu biće uklonjeno.', variant: 'danger', confirmLabel: 'Obriši raspored', onConfirm: async () => { await reportApi.removeSchedule(schedule.id); await refresh() } })}>Obriši</Button></li>)}</ul>}</Card>}
     {aiSummary && <Card><h2>{aiSummary.aiGenerated ? 'AI sažetak' : 'Sažetak bez AI-a'}</h2><p role="status">{aiSummary.summary}</p><p><strong>Ograničenja:</strong> {aiSummary.limitations}</p>
