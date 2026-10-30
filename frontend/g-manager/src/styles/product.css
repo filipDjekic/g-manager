@@ -1,26 +1,26 @@
 /* Shared product surfaces: inherited by every feature page and both themes. */
-input, select, textarea { width: 100%; }
-small { color: var(--color-text-muted); }
 .workspace > .panel + .panel { margin-block-start: var(--space-4); }
 .section-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .section-heading h2 { margin: 0; }
-.notification-bell span { position: absolute; inset-block-start: -.25rem; inset-inline-end: -.2rem; min-width: 1.15rem; padding: .05rem .25rem; border: 2px solid var(--color-topbar); border-radius: 999px; background: var(--color-secondary); font-size: var(--font-size-xs); color: var(--color-on-primary); }
+.notification-bell span { position: absolute; inset-block-start: -.25rem; inset-inline-end: -.2rem; min-width: 1.15rem; padding: var(--space-half) var(--space-1); border: 2px solid var(--color-topbar); border-radius: var(--radius-pill); background: var(--color-secondary); font-size: var(--font-size-xs); color: var(--color-on-secondary); }
 .live-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-block: var(--space-4); color: var(--color-text-muted); font-size: var(--font-size-sm); }
 .live-status time { margin-inline-end: auto; font-variant-numeric: tabular-nums; }
-.operations-metrics { margin-block: var(--space-4); }
+.operations-metrics { margin-block: var(--space-4); grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .station-context, .station-profile { color: var(--color-text-muted); font-size: var(--font-size-sm); }
 .station-profile strong { color: var(--color-text-secondary); }
 .station-signals { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .station-warning { color: var(--color-warning); }
 .station-detail { display: grid; gap: var(--space-3); }
-.station-detail div { display: grid; gap: .15rem; padding-block-end: var(--space-2); border-block-end: 1px solid var(--color-border); }
+.station-detail div { display: grid; gap: var(--space-1); padding-block-end: var(--space-2); border-block-end: 1px solid var(--color-border); }
 .station-detail dt { color: var(--color-text-muted); font-size: var(--font-size-sm); }
 .station-detail dd { margin: 0; overflow-wrap: anywhere; }
 .timeline-list { display: grid; gap: var(--space-4); padding-inline-start: var(--space-5); }
 .timeline-list li { overflow-wrap: anywhere; }
-.timeline-list li > * { display: block; margin-block: .2rem; }
+.timeline-list li > * { display: block; margin-block: var(--space-1); }
 .timeline-list time { color: var(--color-text-muted); font-size: var(--font-size-sm); }
-.gaming-overview { padding: var(--space-5); margin-block: var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: linear-gradient(120deg, var(--color-primary-bg), transparent 45%), var(--color-surface); }
+.gaming-overview { container: gaming-overview / inline-size; padding: var(--card-padding); margin-block: var(--section-gap); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
+@container gaming-overview (max-width: 48rem) { .operations-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container gaming-overview (max-width: 24rem) { .operations-metrics { grid-template-columns: minmax(0, 1fr); } }
 .operations-attention-list { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
 .operations-attention-list li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
 .operations-attention-list a { display: grid; text-decoration: none; }
@@ -39,10 +39,10 @@ summary:focus-visible { outline: 0; box-shadow: var(--focus-ring); }
 :target { scroll-margin-top: 6rem; }
 @media (max-width: 620px) { .operations-attention-list { grid-template-columns: 1fr; }
 .gaming-overview { padding: var(--space-4); } }
-.reservation-scope { display:flex; flex-wrap:wrap; gap:.65rem; margin-bottom:1rem; }
+.reservation-scope { display:flex; flex-wrap:wrap; gap:var(--space-3); margin-bottom:var(--space-4); }
 .reservation-readonly-notice { padding:var(--space-4); border:1px solid var(--color-border); border-radius:var(--radius-md); background:var(--color-surface-raised); color:var(--color-text-secondary); }
-.reservation-customer-picker { display:grid; gap:.5rem; min-width:0; }
-.reservation-editor { margin-block:1rem; }
+.reservation-customer-picker { display:grid; gap:var(--space-2); min-width:0; }
+.reservation-editor { margin-block:var(--space-4); }
 .reservation-review { overflow-wrap:anywhere; }
 .reservation-filters { grid-template-columns: repeat(3, minmax(150px, 1fr)); flex-wrap:wrap; }
 .reservation-filters label, .reservation-filters .reservation-customer-picker { min-width:10rem; flex:1; }
@@ -66,12 +66,9 @@ summary:focus-visible { outline: 0; box-shadow: var(--focus-ring); }
 }
 /* Product layout and feature hierarchy use the existing shared tokens. */
 .workspace > *, .panel-grid > *, .panel > *, .dashboard-widget { min-width: 0; }
-.panel-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); }
-input::placeholder, textarea::placeholder { color: var(--color-text-muted); opacity: 1; }
+.panel-grid { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); }
 label:has(input[type='checkbox']), label:has(input[type='radio']) { cursor: pointer; }
 .inline-toggle { min-height: 2.75rem; }
-input[type='checkbox'], input[type='radio'] { accent-color: var(--color-primary); width: 1.1rem; flex-shrink: 0; }
-textarea { resize: vertical; }
 .table-scroll { overscroll-behavior-x: contain; }
 .dashboard-quick-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); margin-block: var(--space-5); padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
 .dashboard-quick-actions > a:not(.button-link) { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); text-decoration: none; }

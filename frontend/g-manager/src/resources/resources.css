@@ -1,4 +1,4 @@
-.resource-details-icon { display: grid; place-items: center; flex: 0 0 auto; width: 3.25rem; height: 3.25rem; border: 1px solid color-mix(in srgb, var(--color-primary) 32%, var(--color-border)); border-radius: var(--radius-md); color: var(--color-primary); background: linear-gradient(140deg, var(--color-primary-bg), var(--color-secondary-bg)); }
+.resource-details-icon { display: grid; place-items: center; flex: 0 0 auto; width: 3.25rem; height: 3.25rem; border: 1px solid color-mix(in srgb, var(--color-primary) 32%, var(--color-border)); border-radius: var(--radius-md); color: var(--color-primary); background: var(--color-primary-bg); }
 .resource-details-icon svg { width: 1.8rem; height: 1.8rem; }
 .resource-workspace .resource-context-panel, .resource-workspace .resource-map-panel, .resource-workspace .resource-table-panel { min-width: 0; max-width: 100%; margin: 0; overflow: visible; }
 .resource-workspace .resource-context-panel { display: flex; flex-wrap: wrap; align-items: end; }
@@ -10,9 +10,9 @@
 .resource-workspace .resource-save-notice { margin: 0; color: var(--color-success); padding: var(--space-4); background: var(--color-success-bg); border-radius: var(--radius-md); }
 .resource-workspace .resource-section-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-4); margin-bottom: var(--space-4); }
 .resource-workspace .resource-section-heading h2 { margin: 0; font-size: var(--font-size-lg); }
-.resource-workspace .resource-section-heading p { margin: .35rem 0 0; color: var(--color-text-secondary); font-size: var(--font-size-sm); }
+.resource-workspace .resource-section-heading p { margin: var(--space-1) 0 0; color: var(--color-text-secondary); font-size: var(--font-size-sm); }
 .resource-workspace .resource-section-heading > span { color: var(--color-text-secondary); font-size: var(--font-size-sm); }
-.resource-workspace .resource-map-zoom { display: flex; gap: .35rem; flex-wrap: wrap; }
+.resource-workspace .resource-map-zoom { display: flex; gap: var(--space-1); flex-wrap: wrap; }
 .resource-workspace .resource-map-toolbar { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: end; padding-bottom: var(--space-4); }
 .resource-workspace .resource-map-toolbar label { flex: 1 1 16rem; max-width: 28rem; }
 .resource-workspace .resource-map-canvas { height: clamp(23rem, 48vw, 39rem); width: 100%; min-width: 0; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); overscroll-behavior: contain; }
@@ -47,8 +47,8 @@
 .resource-workspace .resource-node-label small { color: var(--resource-status-color); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .resource-workspace .resource-draw-preview { fill: var(--color-primary-bg); stroke: var(--color-primary); stroke-width: 3; stroke-dasharray: 8 4; pointer-events: none; }
 .resource-workspace .resource-map-legend { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); padding-top: var(--space-4); color: var(--color-text-secondary); font-size: var(--font-size-sm); }
-.resource-workspace .resource-map-legend > span { display: inline-flex; align-items: center; gap: .4rem; }
-.resource-workspace .resource-map-legend i { width: .5rem; height: .5rem; border-radius: 50%; background: var(--resource-status-color); }
+.resource-workspace .resource-map-legend > span { display: inline-flex; align-items: center; gap: var(--space-2); }
+.resource-workspace .resource-map-legend i { width: .5rem; height: .5rem; border-radius: var(--radius-circle); background: var(--resource-status-color); }
 .resource-workspace .resource-pan-hint { margin-left: auto; }
 .resource-workspace .resource-map-hint { margin: var(--space-4) 0 0; color: var(--color-text-secondary); font-size: var(--font-size-sm); line-height: 1.6; }
 .resource-workspace .resource-map-inspector { margin-top: var(--space-4); padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-raised); }
@@ -61,7 +61,7 @@
 .resource-workspace .resource-table-name { display: flex; align-items: center; gap: var(--space-3); }
 .resource-workspace .resource-table-name svg { color: var(--color-primary); flex: 0 0 auto; width: 1.4rem; height: 1.4rem; }
 .resource-workspace .resource-table-name strong, .resource-workspace .resource-table-name small { display: block; overflow-wrap: anywhere; }
-.resource-workspace .resource-table-name small { color: var(--color-text-secondary); margin-top: .2rem; font-size: var(--font-size-xs); }
+.resource-workspace .resource-table-name small { color: var(--color-text-secondary); margin-top: var(--space-1); font-size: var(--font-size-xs); }
 .resource-workspace .resource-visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .resource-menu { position: relative; flex: 0 0 auto; }
 .resource-menu-popover { position: fixed; z-index: 120; width: max-content; min-width: 12rem; max-width: calc(100vw - 2rem); max-height: min(24rem, calc(100dvh - 2rem)); overflow-y: auto; }
@@ -72,25 +72,25 @@
 .resource-editor-dialog input:not([type='checkbox']), .resource-editor-dialog select, .resource-editor-dialog textarea { width: 100%; }
 .resource-editor-dialog input:focus-visible, .resource-editor-dialog select:focus-visible, .resource-editor-dialog textarea:focus-visible { outline: none; }
 .resource-editor-dialog fieldset { min-width: 0; margin: 0; border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-4); }
-.resource-editor-dialog legend { color: var(--color-text-secondary); font-size: var(--font-size-sm); padding-inline: .4rem; }
+.resource-editor-dialog legend { color: var(--color-text-secondary); font-size: var(--font-size-sm); padding-inline: var(--space-2); }
 .resource-editor-dialog label.inline-toggle { display: flex; flex-direction: row; align-items: center; color: var(--color-text); }
 .resource-editor-dialog input[type='checkbox'] { accent-color: var(--color-primary); width: 1rem; }
 .resource-details-dialog .ui-dialog-body { display: grid; gap: var(--space-5); }
 .resource-details-identity { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); }
 .resource-details-identity > div { flex: 1; min-width: 8rem; }
 .resource-details-identity strong, .resource-details-identity small { display: block; }
-.resource-details-identity small { margin-top: .35rem; color: var(--color-text-secondary); }
+.resource-details-identity small { margin-top: var(--space-1); color: var(--color-text-secondary); }
 .resource-details-grid { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
 .resource-details-grid > div { padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); min-width: 0; }
 .resource-details-grid dt { color: var(--color-text-secondary); font-size: var(--font-size-sm); }
-.resource-details-grid dd { margin: .35rem 0 0; color: var(--color-text); overflow-wrap: anywhere; }
+.resource-details-grid dd { margin: var(--space-1) 0 0; color: var(--color-text); overflow-wrap: anywhere; }
 .resource-details-description { margin: 0; color: var(--color-text-secondary); overflow-wrap: anywhere; }
 .resource-details-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
 .resource-employees-dialog .operations-attention-list { display: grid; gap: var(--space-3); list-style: none; padding: 0; }
 .resource-employees-dialog .operations-attention-list li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); padding: var(--space-4); }
 .resource-employees-dialog .operations-attention-list li > div { flex: 1 1 12rem; min-width: 0; }
 .resource-employees-dialog .operations-attention-list strong, .resource-employees-dialog .operations-attention-list small { display: block; overflow-wrap: anywhere; }
-.resource-employees-dialog .operations-attention-list small { color: var(--color-text-secondary); margin-top: .25rem; }
+.resource-employees-dialog .operations-attention-list small { color: var(--color-text-secondary); margin-top: var(--space-1); }
 @media (max-width: 1100px) {
   .resource-workspace .resource-context-fields { flex-basis: 100%; }
 .resource-workspace .resource-context-actions { margin-left: auto; }
