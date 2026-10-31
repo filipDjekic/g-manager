@@ -43,7 +43,9 @@ try {
     if(!$PolicySigningPublicKey){$PolicySigningPublicKey=Read-Host 'Odobreni javni Ed25519 policy ključ (Base64)'}
     if(!$PolicySigningKeyId){$PolicySigningKeyId=Read-Host 'Policy signing key ID'}
     if(!$PolicySigningKeyId){throw 'Policy key ID je obavezan.'}
-    if(([Convert]::FromBase64String($PolicySigningPublicKey)).Length -ne 32){throw 'Ed25519 javni ključ mora imati 32 bajta.'}
+    if(([Convert]::FromBase64String($PolicySigningPublicKey)).Length -ne 44){
+    	throw 'Ed25519 X.509/SPKI javni ključ mora imati 44 bajta.'
+	}
     $PackageDirectory=(Resolve-Path -LiteralPath $PackageDirectory).Path
     $manifest=Assert-Package $PackageDirectory $SigningSubject $SigningThumbprint
     $existingConfigPath=Join-Path $script:ClientState 'client.json'
