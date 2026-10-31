@@ -14,3 +14,30 @@ client/artifacts/audit/
 /client/**/obj/
 /test-results/
 /playwright-report/
+
+# .NET build output
+**/bin/
+**/obj/
+
+# Generated client releases
+/client/artifacts/
+
+# Local signing material
+/gm/config/local/station-policy-signing-private-key.base64
+
+# Private keys
+*.pfx
+*.p12
+*.pem
+*.key
+*.keystore
+
+# Local application data
+*.log
+*.db
+*.sqlite
+*.sqlite3
+*.bak
+
+# Uploaded runtime files
+/data/uploads/
