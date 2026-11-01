@@ -30,3 +30,11 @@ occurred on an ordinary push and is unrelated to fork permissions.
 CI preserves generated `codeql-results/*.sarif` as a private Actions artifact,
 including when GitHub rejects the upload. Inspect those results for findings
 while arranging enablement. A failed upload remains a failed required job.
+
+The first preserved report from PR #17 contained one Java finding,
+`java/spring-disabled-csrf-protection`, and no JavaScript/TypeScript findings.
+The repair enables Spring CSRF protection for the refresh/logout endpoints that
+authenticate with a cookie. The frontend obtains a masked token from
+`GET /api/v1/auth/csrf` before those POSTs. The backing cookie stays HttpOnly,
+SameSite Strict, scoped to auth, and Secure in production; the token response is
+not cacheable. Explicit bearer user/machine APIs retain their stateless contract.

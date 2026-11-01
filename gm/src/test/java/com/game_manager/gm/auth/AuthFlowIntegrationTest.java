@@ -24,6 +24,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -47,13 +48,17 @@ class AuthFlowIntegrationTest {
         MvcResult login = login(email, "StrongPass1!");
         String accessToken = jsonString(login, "token");
         Cookie originalRefresh = login.getResponse().getCookie(AuthController.REFRESH_COOKIE);
+        MvcResult csrf = csrf();
+        Cookie csrfCookie = csrf.getResponse().getCookie("gm_csrf");
+        String csrfToken = jsonString(csrf, "token");
 
         assertThat(originalRefresh).isNotNull();
         assertThat(originalRefresh.isHttpOnly()).isTrue();
         assertThat(originalRefresh.getPath()).isEqualTo("/api/v1/auth");
         assertThat(decodedJwtPayload(accessToken)).contains("\"sub\"").doesNotContain("role");
 
-        MvcResult refreshed = mockMvc.perform(post("/api/v1/auth/refresh").cookie(originalRefresh))
+        MvcResult refreshed = mockMvc.perform(post("/api/v1/auth/refresh").cookie(originalRefresh, csrfCookie)
+                        .header("X-XSRF-TOKEN", csrfToken))
                 .andExpect(status().isOk())
                 .andExpect(cookie().httpOnly(AuthController.REFRESH_COOKIE, true))
                 .andReturn();
@@ -61,16 +66,51 @@ class AuthFlowIntegrationTest {
         assertThat(replacementRefresh).isNotNull();
         assertThat(replacementRefresh.getValue()).isNotEqualTo(originalRefresh.getValue());
 
-        mockMvc.perform(post("/api/v1/auth/refresh").cookie(originalRefresh))
+        mockMvc.perform(post("/api/v1/auth/refresh").cookie(originalRefresh, csrfCookie)
+                        .header("X-XSRF-TOKEN", csrfToken))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value("Refresh token reuse detected"));
 
-        mockMvc.perform(post("/api/v1/auth/refresh").cookie(replacementRefresh))
+        mockMvc.perform(post("/api/v1/auth/refresh").cookie(replacementRefresh, csrfCookie)
+                        .header("X-XSRF-TOKEN", csrfToken))
                 .andExpect(status().isUnauthorized());
 
-        mockMvc.perform(post("/api/v1/auth/logout").cookie(replacementRefresh))
+        mockMvc.perform(post("/api/v1/auth/logout").cookie(replacementRefresh, csrfCookie)
+                        .header("X-XSRF-TOKEN", csrfToken))
                 .andExpect(status().isNoContent())
                 .andExpect(cookie().maxAge(AuthController.REFRESH_COOKIE, 0));
+    }
+
+    @Test
+    void cookieAuthenticationRejectsMissingAndMismatchedCsrfTokens() throws Exception {
+        String email = "csrf-" + UUID.randomUUID() + "@example.com";
+        register(email);
+        Cookie refresh = login(email, "StrongPass1!").getResponse().getCookie(AuthController.REFRESH_COOKIE);
+        MvcResult csrf = csrf();
+        Cookie csrfCookie = csrf.getResponse().getCookie("gm_csrf");
+        String token = jsonString(csrf, "token");
+        for (String path : java.util.List.of("/api/v1/auth/refresh", "/api/v1/auth/logout")) {
+            mockMvc.perform(post(path).cookie(refresh)).andExpect(status().isForbidden());
+            mockMvc.perform(post(path).cookie(refresh, csrfCookie).header("X-XSRF-TOKEN", "invalid"))
+                    .andExpect(status().isForbidden());
+            mockMvc.perform(post(path).cookie(refresh).header("X-XSRF-TOKEN", token))
+                    .andExpect(status().isForbidden());
+        }
+        // Rejected cross-site requests must not rotate or revoke the refresh credential.
+        mockMvc.perform(post("/api/v1/auth/refresh").cookie(refresh, csrfCookie).header("X-XSRF-TOKEN", token))
+                .andExpect(status().isOk());
+    }
+
+    private MvcResult csrf() throws Exception {
+        MvcResult result = mockMvc.perform(get("/api/v1/auth/csrf"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(cookie().httpOnly("gm_csrf", true))
+                .andExpect(cookie().path("gm_csrf", "/api/v1/auth"))
+                .andExpect(jsonPath("$.token").isString()).andReturn();
+        assertThat(result.getRequest().getSession(false)).isNull();
+        assertThat(result.getResponse().getCookie("gm_csrf").getAttribute("SameSite")).isEqualTo("Strict");
+        return result;
     }
 
     @Test

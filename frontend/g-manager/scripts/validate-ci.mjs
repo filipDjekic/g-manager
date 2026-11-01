@@ -17,6 +17,7 @@ function validate(workflowSource, releaseWorkflowSource = releaseSource) {
 
   if (workflow.permissions?.contents !== 'read') throw new Error('Workflow root permissions must be contents: read')
   if (workflow.jobs.codeql?.permissions?.actions !== 'read') throw new Error('CodeQL requires actions: read to inspect private workflow runs')
+  if (workflow.jobs.secrets?.permissions?.['pull-requests'] !== 'read') throw new Error('Secret scan requires pull-requests: read to inspect PR commits')
   const dockerNode = frontendDockerfile.match(/^FROM node:([\d.]+)-/m)?.[1]
   const dockerNpm = frontendDockerfile.match(/^ARG NPM_VERSION=([\d.]+)/m)?.[1]
   if (workflow.env.NODE_VERSION !== dockerNode || workflow.env.NPM_VERSION !== dockerNpm
@@ -42,6 +43,7 @@ if (process.argv.includes('--self-test')) {
     [source.replace(/@[a-f0-9]{40}/, '@v4'), releaseSource],
     [source, releaseSource.replace(/@[a-f0-9]{40}/, '@v4')],
     [source.replace('      actions: read', '      actions: none'), releaseSource],
+    [source.replace('      pull-requests: read', '      pull-requests: none'), releaseSource],
     [source.replace(/NPM_VERSION: '[\d.]+'/, "NPM_VERSION: '0.0.0'"), releaseSource],
   ]
   for (const [invalidSource, invalidRelease] of invalidWorkflows) {
@@ -53,7 +55,7 @@ if (process.argv.includes('--self-test')) {
     }
     if (!rejected) throw new Error('CI contract accepted a deliberately invalid workflow')
   }
-  console.log('CI contract negative self-tests passed: CI/release pins, CodeQL permissions and npm versions were enforced.')
+  console.log('CI contract negative self-tests passed: CI/release pins, CodeQL/PR scan permissions and npm versions were enforced.')
 } else {
   console.log(`CI contract valid: ${result.jobs} jobs, ${result.checks} required checks, all actions SHA-pinned.`)
 }

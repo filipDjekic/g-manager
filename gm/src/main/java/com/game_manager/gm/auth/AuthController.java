@@ -14,6 +14,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
@@ -25,9 +26,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.web.csrf.CsrfToken;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -54,6 +57,12 @@ public class AuthController {
         this.secureCookie = properties.jwt().secureCookie();
         this.refreshTtl = Duration.ofDays(properties.jwt().refreshTokenDays());
         this.customerAccountService = customerAccountService;
+    }
+
+    @GetMapping("/csrf")
+    ResponseEntity<Map<String, String>> csrf(CsrfToken csrfToken) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .body(Map.of("token", csrfToken.getToken()));
     }
 
     @PostMapping("/activate")
