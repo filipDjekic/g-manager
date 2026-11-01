@@ -8,6 +8,8 @@ export default defineConfig({
     command: 'npm run build && npm run preview -- --host 127.0.0.1 --port 4174',
     url: 'http://127.0.0.1:4174',
     reuseExistingServer: false,
+    // Startup includes TypeScript compilation and a production Vite build.
+    timeout: 180_000,
   },
   projects: [{ name: 'pwa-chromium', use: { ...devices['Desktop Chrome'] } }],
 })

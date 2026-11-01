@@ -4,6 +4,7 @@ import { addDays } from '../calendar/calendarModel'
 import { businessLocalToInstant } from '../reservations/dateTime'
 
 export const server = setupServer(
+  http.get('/api/v1/auth/csrf', () => HttpResponse.json({ token: 'synthetic-csrf-token' })),
   http.get('/api/v1/dashboard/today', () => HttpResponse.json({
     date: '2026-08-15', timezone: 'Europe/Belgrade', workingDayStart: null, workingDayEnd: null,
     appointments: [], gaps: [], unclaimedOrders: [], assignedOrders: [], attentionNotifications: [],

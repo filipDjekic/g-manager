@@ -20,10 +20,17 @@ export function ActionMenu({ label, actions, children = '⋯', disabled, classNa
   }, [open])
   useEffect(() => {
     if (!open) return
+    const anchor = trigger.current?.getBoundingClientRect()
     const outside = (event: PointerEvent) => {
       if (!trigger.current?.contains(event.target as Node) && !menu.current?.contains(event.target as Node)) setOpen(false)
     }
-    const scroll = (event: Event) => { if (!menu.current?.contains(event.target as Node)) setOpen(false) }
+    const scroll = (event: Event) => {
+      if (event.target instanceof Node && menu.current?.contains(event.target)) return
+      const current = trigger.current?.getBoundingClientRect()
+      // Scroll-into-view can deliver its event after the opening click. Keep the
+      // menu usable unless the anchor actually moved away from its placement.
+      if (!anchor || !current || current.top !== anchor.top || current.left !== anchor.left) setOpen(false)
+    }
     const resize = () => setOpen(false)
     document.addEventListener('pointerdown', outside); window.addEventListener('scroll', scroll, true); window.addEventListener('resize', resize)
     return () => { document.removeEventListener('pointerdown', outside); window.removeEventListener('scroll', scroll, true); window.removeEventListener('resize', resize) }

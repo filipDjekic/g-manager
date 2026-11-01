@@ -24,7 +24,7 @@ public class OpenApiConfig {
     private static final String BEARER_AUTH = "bearerAuth";
     private static final String MACHINE_BEARER_AUTH = "machineBearerAuth";
     private static final Set<String> PUBLIC_PATHS = Set.of(
-            "/api/v1/auth/activate", "/api/v1/auth/login",
+            "/api/v1/auth/csrf", "/api/v1/auth/activate", "/api/v1/auth/login",
             "/api/v1/auth/refresh", "/api/v1/auth/logout",
             "/api/v1/machine/enroll", "/api/v1/machine/auth/challenge",
             "/api/v1/machine/auth/token");

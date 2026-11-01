@@ -10,8 +10,18 @@ import type { FeatureFlagState } from '../types/feature.types'
 
 const baseURL = import.meta.env.VITE_API_URL ?? '/api/v1'
 
-export const publicClient = axios.create({ baseURL, withCredentials: true })
+export const publicClient = axios.create({ baseURL, withCredentials: true, withXSRFToken: false })
 export const apiClient = axios.create({ baseURL, withCredentials: true })
+
+publicClient.interceptors.request.use(async (config) => {
+  if (config.method === 'post' && (config.url === '/auth/refresh' || config.url === '/auth/logout')) {
+    // Read the masked token through the API; the CSRF cookie remains HttpOnly.
+    const { data } = await publicClient.get<{ token: string }>('/auth/csrf')
+    if (!data.token) throw new Error('CSRF token is unavailable')
+    config.headers.set('X-XSRF-TOKEN', data.token)
+  }
+  return config
+})
 
 let refreshPromise: Promise<string | null> | null = null
 const OFFLINE_READ_PATHS = ['/catalog', '/working-hours', '/reports/definitions']

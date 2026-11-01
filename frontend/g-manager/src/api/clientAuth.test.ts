@@ -5,10 +5,12 @@ import { apiClient, publicClient, refreshAccessToken } from './client'
 
 describe('API authentication failures', () => {
   const originalAdapter = apiClient.defaults.adapter
+  const originalPublicAdapter = publicClient.defaults.adapter
   const user = { id: 'auth-test', name: 'Auth', email: 'auth@example.test', role: 'CUSTOMER' as const, active: true }
   beforeEach(() => { useAuthStore.setState({ accessToken: 'old-token', user }) })
   afterEach(() => {
     apiClient.defaults.adapter = originalAdapter
+    publicClient.defaults.adapter = originalPublicAdapter
     vi.restoreAllMocks()
   })
   const failure = (status: number, config?: InternalAxiosRequestConfig) =>
@@ -50,5 +52,28 @@ describe('API authentication failures', () => {
     await expect(apiClient.get('/notifications')).rejects.toMatchObject({ response: { status: 403 } })
     expect(refresh).not.toHaveBeenCalled()
     expect(useAuthStore.getState().accessToken).toBe('old-token')
+  })
+
+  it.each(['/auth/refresh', '/auth/logout'])('sends the server CSRF token with %s', async (path) => {
+    const calls: string[] = []
+    publicClient.defaults.adapter = async (config) => {
+      calls.push(config.url ?? '')
+      if (config.url === '/auth/csrf') {
+        return { data: { token: 'masked-test-token' }, status: 200, statusText: 'OK', headers: {}, config }
+      }
+      expect(config.headers.get('X-XSRF-TOKEN')).toBe('masked-test-token')
+      expect(config.withCredentials).toBe(true)
+      return { data: {}, status: 200, statusText: 'OK', headers: {}, config }
+    }
+    await publicClient.post(path)
+    expect(calls).toEqual(['/auth/csrf', path])
+  })
+
+  it('does not send a cookie-authenticated mutation when CSRF bootstrap fails', async () => {
+    const requests = vi.fn(async (config: InternalAxiosRequestConfig) => { throw failure(503, config) })
+    publicClient.defaults.adapter = requests
+    await expect(publicClient.post('/auth/logout')).rejects.toMatchObject({ response: { status: 503 } })
+    expect(requests).toHaveBeenCalledTimes(1)
+    expect(requests.mock.calls[0][0].url).toBe('/auth/csrf')
   })
 })

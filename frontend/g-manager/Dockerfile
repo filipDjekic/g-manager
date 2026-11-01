@@ -11,6 +11,8 @@ ENV VITE_RELEASE=${APP_VERSION} VITE_API_URL=/api/v1
 RUN npm run build
 
 FROM nginxinc/nginx-unprivileged:alpine3.24
+USER 0:0
+RUN apk upgrade --no-cache
 ARG APP_VERSION=dev
 LABEL org.opencontainers.image.title="G-Manager frontend" \
       org.opencontainers.image.version="${APP_VERSION}"

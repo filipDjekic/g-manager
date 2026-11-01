@@ -85,7 +85,10 @@ test('employee performs an order status transition', async ({ page }) => {
   await login(page, 'EMPLOYEE')
   await page.goto('/orders')
   await page.getByRole('button', { name: /Akcije za narudžbinu/ }).click()
-  const takeOrder = page.getByRole('menuitem', { name: 'Preuzmi' })
+  // Cover a scroll-into-view event queued before the opening click.
+  await page.evaluate(() => document.dispatchEvent(new Event('scroll')))
+  const takeOrder = page.getByRole('menuitem', { name: 'Preuzmi narudžbinu', exact: true })
+  await expect(takeOrder).toBeVisible()
   await takeOrder.focus()
   await takeOrder.press('Enter')
   await expect(page.getByRole('table').getByText('U pripremi')).toBeVisible()

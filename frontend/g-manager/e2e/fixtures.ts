@@ -49,6 +49,7 @@ export async function installApi(page: Page, role: Role, aiEnabled = false, rese
     if (path === '/waitlist/statistics') return json({ active: 0, waiting: 0, offered: 0, accepted: 0, cancelled: 0, expiredOffers: 0, periodStart: '2028-03-01T00:00:00Z', periodEnd: '2028-04-01T00:00:00Z', serverTime: new Date().toISOString() })
     if (path === '/audit-events/statistics') return json({ total: 0, created: 0, updated: 0, removed: 0, creationActions: [], updateActions: [], removalActions: [] })
     if (path === '/users/statistics') return json({ total: 4, active: 4, inactive: 0, byRole: { OWNER: 1, ADMIN: 1, EMPLOYEE: 1, CUSTOMER: 1 } })
+    if (path === '/auth/csrf') return json({ token: 'synthetic-csrf-token' })
     if (path === '/auth/refresh') {
       return authenticated
         ? json({ token: 'synthetic-e2e-token', expiresAt: '2030-01-01T00:00:00Z', user: user(role) })

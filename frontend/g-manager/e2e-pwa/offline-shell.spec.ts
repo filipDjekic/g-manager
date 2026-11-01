@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test('production shell is installable, works offline and never caches API responses', async ({ page, context }) => {
+  await page.route('**/api/v1/auth/csrf', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ token: 'synthetic-csrf-token' }) }))
   await page.route('**/api/v1/auth/refresh', (route) => route.fulfill({ status: 401, contentType: 'application/json', body: '{}' }))
   await page.goto('/login')
   await page.evaluate(() => navigator.serviceWorker.ready)

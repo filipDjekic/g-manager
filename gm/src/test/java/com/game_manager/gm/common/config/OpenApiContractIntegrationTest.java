@@ -19,7 +19,7 @@ import tools.jackson.databind.ObjectMapper;
 @ActiveProfiles("test")
 class OpenApiContractIntegrationTest {
     private static final Set<String> REQUIRED_PATHS = Set.of(
-            "/api/v1/auth/activate", "/api/v1/auth/login", "/api/v1/auth/refresh",
+            "/api/v1/auth/csrf", "/api/v1/auth/activate", "/api/v1/auth/login", "/api/v1/auth/refresh",
             "/api/v1/auth/logout", "/api/v1/catalog", "/api/v1/catalog/{id}",
             "/api/v1/catalog/{id}/activate", "/api/v1/catalog/{id}/deactivate",
             "/api/v1/catalog/{id}/image", "/api/v1/dashboard/summary",
@@ -63,7 +63,7 @@ class OpenApiContractIntegrationTest {
             "/api/v1/working-hours/{dayOfWeek}", "/api/v1/working-hours/exceptions",
             "/api/v1/working-hours/exceptions/{id}");
     private static final Set<String> PUBLIC_PATHS = Set.of(
-            "/api/v1/auth/activate", "/api/v1/auth/login",
+            "/api/v1/auth/csrf", "/api/v1/auth/activate", "/api/v1/auth/login",
             "/api/v1/auth/refresh", "/api/v1/auth/logout",
             "/api/v1/machine/enroll", "/api/v1/machine/auth/challenge",
             "/api/v1/machine/auth/token");
