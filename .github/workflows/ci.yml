@@ -266,7 +266,12 @@ jobs:
       - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
         with:
           output: codeql-results
-      - name: Preserve CodeQL results even when code scanning upload fails
+          upload: never
+      - name: Test the CodeQL SARIF gate
+        run: python3 -B -m unittest discover -s scripts -p 'test_check_codeql_sarif.py'
+      - name: Reject error-level CodeQL findings
+        run: python3 -B scripts/check_codeql_sarif.py codeql-results
+      - name: Preserve CodeQL SARIF reports
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
