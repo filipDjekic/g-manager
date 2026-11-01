@@ -150,7 +150,7 @@ export function WaitlistEntryDialog({ entry, serverTime, returnFocusRef, onClose
           min={todayInBusinessZone(new Date(now))} disabled={blocked} onChange={event => change({ date: event.target.value })} /></FormField>
         <FormField label="Početak termina *" htmlFor={id + '-time'} hint="Vreme lokala · Europe/Belgrade"><Input id={id + '-time'} type="time" step="60" required value={form.time}
           disabled={blocked} onChange={event => change({ time: event.target.value })} /></FormField>
-        <div className="gm-waitlist-form-wide gm-waitlist-duration"><WaitlistIcon kind="clock" /><span>Kraj termina: <strong>{end ? formatBusinessTime(end) : '—'}</strong> · {service?.durationMinutes ?? '—'} min
+        <div className="gm-waitlist-form-wide gm-waitlist-duration"><WaitlistIcon kind="clock" /><span>Kraj termina: <strong>{end ? formatBusinessTime(end) : '-'}</strong> · {service?.durationMinutes ?? '-'} min
           {end && businessInstantToLocal(end).slice(0,10) !== form.date && <small> Završetak: {businessInstantToLocal(end).slice(0,10)}</small>}</span></div>
         <div className="gm-waitlist-form-wide"><FormField label="Interna napomena" htmlFor={id + '-note'} hint={`${form.note.length}/500 · vidljivo ovlašćenom osoblju`}>
           <Textarea id={id + '-note'} rows={3} maxLength={500} value={form.note} disabled={blocked} onChange={event => change({ note: event.target.value })} /></FormField></div>

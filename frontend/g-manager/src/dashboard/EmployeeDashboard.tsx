@@ -40,7 +40,7 @@ export function EmployeeDashboard({ today, busy, refreshing, error, onRefresh, o
     {children}
     <DashboardHeader title="Moj radni dan" eyebrow="Dnevna operativa" date={today.date} timezone={today.timezone}
       description="Termini, narudžbine i zadaci koji su danas pred vama." onRefresh={onRefresh} loading={refreshing}>
-      {today.workingDayStart && today.workingDayEnd && <span>Radno vreme igraonice: {formatBusinessTime(today.workingDayStart)}–{formatBusinessTime(today.workingDayEnd)}</span>}
+      {today.workingDayStart && today.workingDayEnd && <span>Radno vreme igraonice: {formatBusinessTime(today.workingDayStart)}-{formatBusinessTime(today.workingDayEnd)}</span>}
     </DashboardHeader>
     {error && <Alert tone="danger" role="alert">{error}</Alert>}
     <div className="ui-stat-grid dashboard-kpis" aria-label="Pregled radnog dana">
@@ -88,7 +88,7 @@ export function EmployeeDashboard({ today, busy, refreshing, error, onRefresh, o
         {canAppointments && <DashboardSection title="Slobodni intervali" icon="/waitlist" description="Dostupni razmaci u radnom vremenu">
           {!today.gaps.length ? <EmptyState title="Nema slobodnih intervala u podešenom radnom vremenu." /> :
             <ul className="dashboard-gaps">{today.gaps.map((gap) => <li key={gap.startTime}>
-              <time dateTime={gap.startTime}>{formatBusinessTime(gap.startTime)}</time><span aria-hidden="true">–</span>
+              <time dateTime={gap.startTime}>{formatBusinessTime(gap.startTime)}</time><span aria-hidden="true">-</span>
               <time dateTime={gap.endTime}>{formatBusinessTime(gap.endTime)}</time>
             </li>)}</ul>}
         </DashboardSection>}

@@ -98,7 +98,7 @@ export function CustomerProfile({ customerId, open, onClose, onEdit, onDeactivat
             {detail.data.reservations.length ? <ul className="customers-history">{detail.data.reservations.map(item => {
               const status = item.status as ReservationStatus
               return <li key={item.id}><NavigationIcon to="/reservations" /><div><strong>{item.serviceName}</strong>
-                <span>{customerDate(item.startTime)} – {customerDate(item.endTime)}</span></div>
+                <span>{customerDate(item.startTime)} - {customerDate(item.endTime)}</span></div>
                 <Badge tone={reservationTones[status] ?? 'neutral'}>{reservationLabels[status] ?? 'Nepoznat status'}</Badge></li>
             })}</ul> : <EmptyState title="Nema istorije rezervacija" description="Rezervacije klijenta će se pojaviti ovde." />}
             {canReadReservations && <Link className="customers-history-link" to={`/reservations?customerId=${customerId}`}>Otvori pregled rezervacija →</Link>}

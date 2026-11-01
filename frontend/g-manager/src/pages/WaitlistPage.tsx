@@ -116,7 +116,7 @@ useEffect(() => {
     {!canRead ? <ErrorState message="Nemate dozvolu za pregled operativne liste čekanja." /> : <>
       <details className="ui-advanced-filters"><summary>Statistika liste čekanja</summary>
       <div className="ui-stat-grid gm-waitlist-kpis">{kpis.map(kpi => <StatCard label={<>{kpi.title}</>} value={statistics.isLoading ? <Skeleton lines={1} label={`Učitavanje: ${kpi.title}`} />
-          : <>{statistics.isError || !statistics.data ? '—' : new Intl.NumberFormat('sr-Latn-RS').format(statistics.data[kpi.key])}</>} icon={<WaitlistIcon kind={kpi.icon} />} description={<>{kpi.hint}</>} tone={kpi.tone} key={kpi.key} aria-label={kpi.title} />)}</div>
+          : <>{statistics.isError || !statistics.data ? '-' : new Intl.NumberFormat('sr-Latn-RS').format(statistics.data[kpi.key])}</>} icon={<WaitlistIcon kind={kpi.icon} />} description={<>{kpi.hint}</>} tone={kpi.tone} key={kpi.key} aria-label={kpi.title} />)}</div>
       {statistics.error && <ErrorState message="Statistiku nije moguće učitati." action={<Button variant="secondary" onClick={() => void statistics.refetch()}>Pokušaj ponovo</Button>} />}
       {statistics.data && <p className="gm-waitlist-period">Prihvaćene i otkazane prijave: {new Intl.DateTimeFormat('sr-Latn-RS', {timeZone: 'Europe/Belgrade', month: 'long', year: 'numeric'}).format(new Date(statistics.data.periodStart))}.
         {statistics.data.expiredOffers > 0 && <span> Istekle poslednje ponude: {statistics.data.expiredOffers}. Otkazivanje prijave je zasebno stanje.</span>}</p>}
@@ -160,7 +160,7 @@ useEffect(() => {
               <td><div className="gm-waitlist-customer"><WaitlistAvatar name={entry.customerName} /><div><Button variant="ghost" type="button" className="gm-waitlist-name" onClick={event => showDetails(entry, event.currentTarget)}>{entry.customerName}</Button>
                 {entry.customerEmail && <small>{entry.customerEmail}</small>}</div></div></td>
               <td><strong>{entry.serviceName}</strong><small>{entry.durationMinutes} min{entry.resourceType ? ' · ' + (resourceLabels[entry.resourceType] ?? entry.resourceType) : ''}</small></td>
-              <td><strong>{new Intl.DateTimeFormat('sr-Latn-RS', {timeZone: 'Europe/Belgrade', dateStyle: 'medium'}).format(new Date(entry.desiredStart))}</strong><small>{formatBusinessTime(entry.desiredStart)} – {entry.desiredEnd ? formatBusinessTime(entry.desiredEnd) : '—'}</small></td>
+              <td><strong>{new Intl.DateTimeFormat('sr-Latn-RS', {timeZone: 'Europe/Belgrade', dateStyle: 'medium'}).format(new Date(entry.desiredStart))}</strong><small>{formatBusinessTime(entry.desiredStart)} - {entry.desiredEnd ? formatBusinessTime(entry.desiredEnd) : '-'}</small></td>
               <td><strong>{entry.resourceName || 'Bez određenog resursa'}</strong><small>{[entry.locationName, entry.areaName, entry.resourceCode].filter(Boolean).join(' · ') || 'Bez određenog lokala'}</small></td>
               <td><WaitlistStatusBadge entry={entry} now={now} /></td>
               <td><small>{waitlistDate(entry.createdAt)}</small></td>
@@ -169,7 +169,7 @@ useEffect(() => {
             <div className="gm-waitlist-mobile">{rows.map(entry => <Card as="article" key={entry.id} className={`gm-waitlist-entry-card${selected === entry.id ? ' is-selected' : ''}`}>
               <header><div className="gm-waitlist-customer"><WaitlistAvatar name={entry.customerName} /><div><h3>{entry.customerName}</h3>{entry.customerEmail && <small>{entry.customerEmail}</small>}</div></div>
                 <WaitlistMenu entry={entry} disabled={actionDisabled} onDetails={trigger => showDetails(entry, trigger)} onEdit={trigger => void edit(entry, trigger)} onCancel={() => cancel(entry)} /></header>
-              <strong>{entry.serviceName} <small>· {entry.durationMinutes} min</small></strong><p>{waitlistDate(entry.desiredStart)}{entry.desiredEnd ? ' – ' + formatBusinessTime(entry.desiredEnd) : ''}</p>
+              <strong>{entry.serviceName} <small>· {entry.durationMinutes} min</small></strong><p>{waitlistDate(entry.desiredStart)}{entry.desiredEnd ? ' - ' + formatBusinessTime(entry.desiredEnd) : ''}</p>
               <small>{[entry.locationName, entry.areaName, entry.resourceName].filter(Boolean).join(' · ') || 'Bez određenog resursa'}</small><WaitlistStatusBadge entry={entry} now={now} />
               <Button type="button" variant="secondary" onClick={event => showDetails(entry, event.currentTarget)}>Detalji</Button></Card>)}</div>
           </>}

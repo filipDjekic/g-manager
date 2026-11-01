@@ -1,4 +1,4 @@
-# Product upgrade Stage 3 — availability backend foundation
+# Product upgrade Stage 3 - availability backend foundation
 
 
 > **Istorijski dokument.** Sačuvan radi projektantskog konteksta i ranijih nalaza. Opisi, komande i rezultati u nastavku nisu potvrda trenutnog ponašanja niti važeće operativno uputstvo. Koristite [aktuelnu dokumentaciju](../../README.md) i [nalaze pregleda od 1. novembra 2026.](../../MAINTENANCE_AUDIT.md).
@@ -10,7 +10,7 @@ Stage 3 reuses the catalog active-service validation, active employee model, `Eu
 ## Implemented
 
 - `GET /api/v1/availability` accepts typed `serviceId`, optional `employeeId`, and inclusive `from`/`to` local dates.
-- Queries are limited to 1–31 calendar days and require the existing `CATALOG_READ` capability.
+- Queries are limited to 1-31 calendar days and require the existing `CATALOG_READ` capability.
 - The response identifies the business timezone, service and duration, 15-minute slot increment, requested range and human-readable employee groups with UTC slot instants.
 - Only active SERVICE catalog items and active EMPLOYEE users are accepted. Omitting `employeeId` returns all active employees in stable name/id order.
 - Slot windows come from the same weekly/exception/overnight implementation used by create validation. Full-day closures return no slots.

@@ -1,4 +1,4 @@
-# Stage 23 — Approval workflow i poslovna automatizacija
+# Stage 23 - Approval workflow i poslovna automatizacija
 
 
 > **Istorijski dokument.** Sačuvan radi projektantskog konteksta i ranijih nalaza. Opisi, komande i rezultati u nastavku nisu potvrda trenutnog ponašanja niti važeće operativno uputstvo. Koristite [aktuelnu dokumentaciju](../../README.md) i [nalaze pregleda od 1. novembra 2026.](../../MAINTENANCE_AUDIT.md).

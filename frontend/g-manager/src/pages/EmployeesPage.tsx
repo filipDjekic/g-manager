@@ -170,7 +170,7 @@ useEffect(() => {
   return <PageLayout ref={root} className="gm-employees">
     {confirmationDialog}
     <PageHeader title="Zaposleni" description={<>Pregled zaposlenih, njihovih naloga i dostupnosti.</>} icon={<EmployeeIcon />} actions={<>{canCreate && <Button type="button" className="gm-employee-primary" aria-haspopup="dialog" aria-expanded={createOpen}
-        onClick={event => { createOpener.current = event.currentTarget; setCreateOpen(true) }}><EmployeeIcon kind="add" />+ Novi zaposleni</Button>}</>} />
+        onClick={event => { createOpener.current = event.currentTarget; setCreateOpen(true) }}><EmployeeIcon kind="add" />Novi zaposleni</Button>}</>} />
     <details className="ui-secondary-section"><summary>Statistika naloga</summary>    <div className="ui-stat-grid gm-employee-kpis">
       <EmployeeKpi title="Ukupno zaposlenih" kind="users" tone="blue" value={statistics.isError ? undefined : statistics.data?.total} loading={statistics.isLoading} description="Nalozi koji nisu obrisani" />
       <EmployeeKpi title="Aktivni nalozi" kind="check" tone="green" value={statistics.isError ? undefined : statistics.data?.active} loading={statistics.isLoading} description="Omogućen pristup aplikaciji" />

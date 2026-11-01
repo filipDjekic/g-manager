@@ -63,11 +63,11 @@ export function CustomerCartContents({ cart, canCreate, locked, onClear, onCheck
             <Input type="number" min={1} max={999} step={1} inputMode="numeric" value={quantity} disabled={disabled}
               aria-label={`Količina za ${product?.name ?? shortOrderId(id)}`} onChange={event => { if (event.target.value !== '') cart.change(id, Number(event.target.value)) }} />
             <Button iconOnly type="button" variant="secondary" disabled={disabled || quantity >= 999} aria-label={`Povećaj količinu za ${product?.name ?? shortOrderId(id)}`} onClick={() => cart.change(id, quantity + 1)}>+</Button></div>
-          <strong className="gm-my-cart-line-total">{product ? orderMoney.format(product.price * quantity) : '—'}</strong>
+          <strong className="gm-my-cart-line-total">{product ? orderMoney.format(product.price * quantity) : '-'}</strong>
         </div>
       </li>
     })}</ul>
-    <div className="gm-my-cart-total"><span>Ukupno</span><strong>{cart.estimatedTotal === null ? '—' : orderMoney.format(cart.estimatedTotal)}</strong></div>
+    <div className="gm-my-cart-total"><span>Ukupno</span><strong>{cart.estimatedTotal === null ? '-' : orderMoney.format(cart.estimatedTotal)}</strong></div>
     <p className="gm-my-order-note">Informativan obračun. Konačan iznos potvrđuje server prilikom slanja.</p>
     {cart.unresolved.length > 0 && <p className="gm-my-order-notice" role="status">Proizvodi ostaju u korpi dok se ne potvrdi njihova dostupnost i cena.</p>}
     {cart.attempt && <p className="gm-my-order-notice" role="status">Korpa čeka potvrdu prethodnog slanja. Ponovni pokušaj koristi iste stavke.</p>}

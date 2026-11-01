@@ -62,7 +62,7 @@ export function CalendarWeek({ days, events, contexts, now, onOpen, onDay, onCre
               title={`${eventTime(event.item)} · ${event.item.serviceName} · ${event.item.customerName} · ${event.item.employeeName} · ${event.item.resourceCode ?? event.item.resourceName ?? 'Bez resursa'} · ${reservationLabels[event.item.status]}`}
               aria-label={`${eventTime(event.item)} · ${event.item.serviceName}, ${event.item.customerName}, ${reservationLabels[event.item.status]}`}
               onClick={click => onOpen(event.item.id, click)}>
-              <time>{formatBusinessTime(event.item.startTime)}–{formatBusinessTime(event.item.endTime)}</time>
+              <time>{formatBusinessTime(event.item.startTime)}-{formatBusinessTime(event.item.endTime)}</time>
               <strong>{event.item.serviceName}</strong><span>{event.item.customerName}</span>
               <small>{event.item.employeeName} · {event.item.resourceCode ?? event.item.resourceName ?? 'Bez resursa'}</small>
               <small>{reservationLabels[event.item.status]}</small>

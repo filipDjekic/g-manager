@@ -28,8 +28,8 @@ export function ReservationTimePicker({label,value,onChange,disabled}: {
       <div className="reservation-clock-controls"><Button type="button" variant="secondary" aria-pressed={mode === 'hours'} onClick={() => setMode('hours')}>{padded(hour)}</Button>
         <span aria-hidden="true">:</span><Button type="button" variant="secondary" aria-pressed={mode === 'minutes'} onClick={() => setMode('minutes')}>{padded(minute)}</Button></div>
       {mode === 'hours' && <div className="reservation-clock-range" role="group" aria-label="Deo dana">
-        <Button type="button" variant="secondary" aria-pressed={hour < 12} onClick={() => setHour(hour % 12)}>00–11</Button>
-        <Button type="button" variant="secondary" aria-pressed={hour >= 12} onClick={() => setHour(hour % 12 + 12)}>12–23</Button>
+        <Button type="button" variant="secondary" aria-pressed={hour < 12} onClick={() => setHour(hour % 12)}>00-11</Button>
+        <Button type="button" variant="secondary" aria-pressed={hour >= 12} onClick={() => setHour(hour % 12 + 12)}>12-23</Button>
       </div>}
       <div className="reservation-clock" role="group" aria-label={mode === 'hours' ? 'Izbor sata, 24-časovni format' : 'Izbor minuta'}>
         <span className="reservation-clock-hand" aria-hidden="true" style={{transform: `rotate(${angle}deg)`}} />

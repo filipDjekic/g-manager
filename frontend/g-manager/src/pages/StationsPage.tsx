@@ -157,10 +157,10 @@ const setUrl = url.set
     {section==='stations'&&<>
     <details className="ui-secondary-section"><summary>Statistika stanica</summary>
     <div className="ui-stat-grid gm-stations-kpis" aria-label="Statistika gaming stanica">
-      <StatCard label={<>Ukupno stanica</>} value={<>{stations.data ? allStations.length : '—'}</>} icon={<StationIcon />} description={<>Sve gaming PC stanice u pregledu</>} />
-      <StatCard label={<>U upotrebi</>} value={<>{operationalReady ? operationalStations.filter(value => value.live?.sessionId).length : '—'}</>} icon={<StationIcon />} description={<>Stvarna aktivna gaming sesija</>} tone={"success"} />
-      <StatCard label={<>Slobodne stanice</>} value={<>{operationalReady ? operationalStations.filter(value => permitsStationAction(user, value.live!, 'START')).length : '—'}</>} icon={<StationIcon />} description={<>Sistem dozvoljava pokretanje sesije</>} tone={"info"} />
-      <StatCard label={<>Problematične stanice</>} value={<>{operationalReady ? operationalStations.filter(problematicStation).length : '—'}</>} icon={<StationIcon kind="shield" />} description={<>Održavanje, van upotrebe, veza ili potrebna intervencija</>} tone={"warning"} />
+      <StatCard label={<>Ukupno stanica</>} value={<>{stations.data ? allStations.length : '-'}</>} icon={<StationIcon />} description={<>Sve gaming PC stanice u pregledu</>} />
+      <StatCard label={<>U upotrebi</>} value={<>{operationalReady ? operationalStations.filter(value => value.live?.sessionId).length : '-'}</>} icon={<StationIcon />} description={<>Stvarna aktivna gaming sesija</>} tone={"success"} />
+      <StatCard label={<>Slobodne stanice</>} value={<>{operationalReady ? operationalStations.filter(value => permitsStationAction(user, value.live!, 'START')).length : '-'}</>} icon={<StationIcon />} description={<>Sistem dozvoljava pokretanje sesije</>} tone={"info"} />
+      <StatCard label={<>Problematične stanice</>} value={<>{operationalReady ? operationalStations.filter(problematicStation).length : '-'}</>} icon={<StationIcon kind="shield" />} description={<>Održavanje, van upotrebe, veza ili potrebna intervencija</>} tone={"warning"} />
     </div>
     <p className="gm-stations-stat-scope">Ukupan broj obuhvata sve stanice u pregledu. {operationalReady
       ? `Operativni pokazatelji obuhvataju ${operationalStations.length} stanica u vašem Gaming Operations opsegu, bez uticaja filtera i paginacije.`

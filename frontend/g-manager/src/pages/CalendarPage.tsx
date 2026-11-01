@@ -101,7 +101,7 @@ export function CalendarPage() {
     {message && <Alert tone="success" role="status">{message}</Alert>}
     <details className="ui-advanced-filters"><summary>Statistika rasporeda</summary>
     <section className="ui-stat-grid gm-calendar-kpis" aria-label="Statistika kalendara">
-      {kpis.map(kpi => <StatCard label={<>{kpi.label}</>} value={<>{kpi.value ?? '—'}</>} icon={<ReservationIcon kind={kpi.kind}/>} description={<>{kpi.hint}</>} tone={kpi.accent} key={kpi.label} />)}
+      {kpis.map(kpi => <StatCard label={<>{kpi.label}</>} value={<>{kpi.value ?? '-'}</>} icon={<ReservationIcon kind={kpi.kind}/>} description={<>{kpi.hint}</>} tone={kpi.accent} key={kpi.label} />)}
     </section>
     {summary.error && <ErrorState message="Statistiku rezervacija nije moguće učitati." action={<Button variant="secondary" onClick={() => summary.refetch()}>Pokušaj ponovo</Button>}/>}
     </details>
@@ -127,7 +127,7 @@ export function CalendarPage() {
         {canCustomers && <Button type="button" variant="secondary" aria-expanded={moreFilters} onClick={()=>setMoreFilters(value=>!value)}><ReservationIcon kind="filter"/>Više filtera{url.state.customerId?' · Klijent':''}</Button>}
         {moreFilters && canCustomers && <CustomerPicker value={url.state.customerId} onChange={customerId=>setUrl({customerId})}/>}
       </div>
-      </details>{actor?.role==='EMPLOYEE'&&<ReservationScopeSwitch scope={scope} onChange={changeScope}/>}<div className="gm-calendar-period"><div className="gm-calendar-period-title"><h2>{view==='month'?monthLabel(anchor):view==='day'?dateLabel(anchor,true):`${dateLabel(range.from)} – ${dateLabel(range.to)}`}</h2>
+      </details>{actor?.role==='EMPLOYEE'&&<ReservationScopeSwitch scope={scope} onChange={changeScope}/>}<div className="gm-calendar-period"><div className="gm-calendar-period-title"><h2>{view==='month'?monthLabel(anchor):view==='day'?dateLabel(anchor,true):`${dateLabel(range.from)} - ${dateLabel(range.to)}`}</h2>
         <span>{calendarViews[view]} · Europe/Belgrade{result.isFetching && !result.isLoading?' · Osvežavanje…':''}</span></div>
         <div className="gm-calendar-navigation"><label>Datum<Input type="date" value={anchor} onChange={event=>selectDate(event.target.value)}/></label><Button type="button" variant="secondary" aria-label="Prethodni period" onClick={()=>move(-1)}>‹</Button>
           <Button type="button" variant="secondary" onClick={()=>selectDate(todayInBusinessZone())}>Danas</Button><Button type="button" variant="secondary" aria-label="Sledeći period" onClick={()=>move(1)}>›</Button></div>

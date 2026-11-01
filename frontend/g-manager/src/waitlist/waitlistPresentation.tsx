@@ -36,7 +36,7 @@ export function WaitlistAvatar({ name }: { name: string }) {
 export function WaitlistStatusBadge({ entry, now }: { entry: WaitlistOperationalEntry; now: number }) {
   const expired = entry.offerStatus === 'EXPIRED' || Boolean(entry.offerExpiresAt && Date.parse(entry.offerExpiresAt) <= now)
   return <div className="gm-waitlist-status"><Badge tone={tones[entry.status]}>{waitlistLabels[entry.status]}</Badge>
-    {entry.status === 'WAITING' && expired && <small>Ponuda istekla — ponovo čeka termin.</small>}
+    {entry.status === 'WAITING' && expired && <small>Ponuda istekla - ponovo čeka termin.</small>}
     {entry.status === 'OFFERED' && expired && <small>Rok ponude je istekao. Čeka se automatska provera.</small>}
   </div>
 }

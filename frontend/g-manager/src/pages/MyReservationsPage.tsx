@@ -122,9 +122,9 @@ export function MyReservationsPage() {
     <PageHeader icon={<CalendarClock />}  title="Moji termini" description={<>Vaši termini, novi zahtevi i dozvoljeno otkazivanje.</>} titleRef={titleRef} actions={<>{canCreate && <Button type="button" className="gm-my-new-reservation" onClick={event => openBooking({}, event.currentTarget)}>+ Nova rezervacija</Button>}</>} />
     <details className="ui-advanced-filters"><summary>Pregled mojih termina</summary>
     <section className="ui-stat-grid gm-my-reservation-kpis" aria-label="Statistika mojih termina" aria-busy={summary.isLoading}>
-      <StatCard icon={<CalendarClock />} label="Predstojeći" value={summary.data ? summary.data.upcomingReservations : '—'} description="Budući termini na čekanju ili potvrđeni" />
-      <StatCard label={<>Danas</>} value={<>{summary.data ? summary.data.todayReservations : '—'}</>} icon={<CustomerReservationIcon kind="clock" />} description={<>Današnji termini na čekanju ili potvrđeni</>} />
-      <StatCard label={<>Završeni</>} value={<>{summary.data ? summary.data.completedReservations : '—'}</>} icon={<CustomerReservationIcon kind="check" />} description={<>Sve završene rezervacije</>} />
+      <StatCard icon={<CalendarClock />} label="Predstojeći" value={summary.data ? summary.data.upcomingReservations : '-'} description="Budući termini na čekanju ili potvrđeni" />
+      <StatCard label={<>Danas</>} value={<>{summary.data ? summary.data.todayReservations : '-'}</>} icon={<CustomerReservationIcon kind="clock" />} description={<>Današnji termini na čekanju ili potvrđeni</>} />
+      <StatCard label={<>Završeni</>} value={<>{summary.data ? summary.data.completedReservations : '-'}</>} icon={<CustomerReservationIcon kind="check" />} description={<>Sve završene rezervacije</>} />
     </section>
     {summary.isError && <ErrorState message={customerReservationError(summary.error, 'Statistiku termina nije moguće osvežiti.')} action={<Button variant="secondary" type="button" onClick={() => summary.refetch()}>Pokušaj ponovo</Button>} />}
     {summary.isError && summary.data && <p className="gm-my-booking-note" role="status">Statistika prikazuje poslednje uspešno učitane podatke.</p>}

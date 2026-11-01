@@ -1,4 +1,4 @@
-# Stage 25 — Feature flags i multi-tenancy readiness
+# Stage 25 - Feature flags i multi-tenancy readiness
 
 
 > **Istorijski dokument.** Sačuvan radi projektantskog konteksta i ranijih nalaza. Opisi, komande i rezultati u nastavku nisu potvrda trenutnog ponašanja niti važeće operativno uputstvo. Koristite [aktuelnu dokumentaciju](../../README.md) i [nalaze pregleda od 1. novembra 2026.](../../MAINTENANCE_AUDIT.md).
@@ -26,10 +26,10 @@ Backend filter sprovodi `REPORTS` i `WORKFLOWS`, pa frontend navigacija nije sig
 
 ## API i frontend
 
-- `GET /api/v1/features/bootstrap` — efektivni flagovi prijavljenog korisnika.
-- `GET /api/v1/features` — definicije i override metadata za upravljanje.
-- `PATCH /api/v1/features/{flag}` — auditovana promena rollout-a.
-- `/features` — administratorska forma sa owner/review informacijama i obaveznim razlogom.
+- `GET /api/v1/features/bootstrap` - efektivni flagovi prijavljenog korisnika.
+- `GET /api/v1/features` - definicije i override metadata za upravljanje.
+- `PATCH /api/v1/features/{flag}` - auditovana promena rollout-a.
+- `/features` - administratorska forma sa owner/review informacijama i obaveznim razlogom.
 
 Bootstrap se učitava posle login i refresh toka. Typed frontend fallback ostavlja eksperimentalni AI isključen ako bootstrap nije dostupan. Logout resetuje flag stanje. Isključena report/workflow ruta ima stabilnu unavailable stranicu.
 

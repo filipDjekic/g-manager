@@ -1,4 +1,4 @@
-# G-Manager — master implementation roadmap
+# G-Manager - master implementation roadmap
 
 
 > **Istorijski dokument.** Sačuvan radi projektantskog konteksta i ranijih nalaza. Opisi, komande i rezultati u nastavku nisu potvrda trenutnog ponašanja niti važeće operativno uputstvo. Koristite [aktuelnu dokumentaciju](../../README.md) i [nalaze pregleda od 1. novembra 2026.](../../MAINTENANCE_AUDIT.md).
@@ -10,7 +10,7 @@ Osnova: `CURRENT_STATE_AND_GAP_ANALYSIS.md`
 > Product track za staff-managed customer naloge, runtime gaming sesije i
 > zaključani Windows Gaming PC Client planiran je zasebno u
 > [`GAMING_SESSION_AND_PC_CLIENT_ROADMAP.md`](GAMING_SESSION_AND_PC_CLIENT_ROADMAP.md).
-> Taj dokument koristi platformu iz Stage-ova 1–27 i ima sopstveni Stage 1–11
+> Taj dokument koristi platformu iz Stage-ova 1-27 i ima sopstveni Stage 1-11
 > namespace; komanda za izvršenje mora eksplicitno navesti taj roadmap.
 
 Ovo je autoritativni dokument za buduću komandu „Izvrši kompletan Stage N
@@ -21,29 +21,29 @@ stage osim minimalnog tehničkog preduslova opisanog pravilima izvršavanja.
 
 | Faza | Stage-ovi | Tema |
 |---|---:|---|
-| Phase 0 — Stabilna osnova | 1–2 | build, okruženje, dokumentacija, granice |
-| Phase 1 — Podaci i API | 3–4 | realna baza, migracije, API ugovor |
-| Phase 2 — Security i integritet | 5–8 | permissions, sesije, audit, konkurentnost |
-| Phase 3 — Quality automation | 9–10 | testna infrastruktura i CI/CD |
-| Phase 4 — Pouzdanost i operacije | 11–14 | events, jobs, observability, performanse |
-| Phase 5 — UX temelj | 15–17 | design system, a11y, forme/tabele |
-| Phase 6 — Produktivnost i podaci | 18–19 | global search i dashboard |
-| Phase 7 — Komunikacija i sadržaj | 20–23 | notifikacije, dokumenti, izveštaji, workflow |
-| Phase 8 — Klijentska otpornost | 24 | PWA i ograničeni offline režim |
-| Phase 9 — Skaliranje | 25 | feature flags i multi-tenancy readiness |
-| Phase 10 — Produkcija | 26 | deploy, backup, hardening, release |
-| Phase 11 — Opcioni horizont | 27 | AI i plugin extension points |
+| Phase 0 - Stabilna osnova | 1-2 | build, okruženje, dokumentacija, granice |
+| Phase 1 - Podaci i API | 3-4 | realna baza, migracije, API ugovor |
+| Phase 2 - Security i integritet | 5-8 | permissions, sesije, audit, konkurentnost |
+| Phase 3 - Quality automation | 9-10 | testna infrastruktura i CI/CD |
+| Phase 4 - Pouzdanost i operacije | 11-14 | events, jobs, observability, performanse |
+| Phase 5 - UX temelj | 15-17 | design system, a11y, forme/tabele |
+| Phase 6 - Produktivnost i podaci | 18-19 | global search i dashboard |
+| Phase 7 - Komunikacija i sadržaj | 20-23 | notifikacije, dokumenti, izveštaji, workflow |
+| Phase 8 - Klijentska otpornost | 24 | PWA i ograničeni offline režim |
+| Phase 9 - Skaliranje | 25 | feature flags i multi-tenancy readiness |
+| Phase 10 - Produkcija | 26 | deploy, backup, hardening, release |
+| Phase 11 - Opcioni horizont | 27 | AI i plugin extension points |
 
 Prioriteti: 14 **OBAVEZNO**, 9 **PREPORUČENO**, 2 **OPCIONO**, 2
 **DUGOROČNO**. Veličine su relativne (`XS`, `S`, `M`, `L`, `XL`), ne vremenske.
 
 ---
 
-## Phase 0 — Analiza i stabilizacija
+## Phase 0 - Analiza i stabilizacija
 
-## Stage 1 — Reproducibilan build i razvojno okruženje
+## Stage 1 - Reproducibilan build i razvojno okruženje
 
-Izvršni status: **BLOCKED** (2026-08-02) — implementacija i sve automatizovane
+Izvršni status: **BLOCKED** (2026-08-02) - implementacija i sve automatizovane
 backend/frontend provere su završene. Compose/MySQL startup acceptance kriterijum
 nije moguće izvršiti u trenutnom okruženju jer Docker CLI nije instaliran, a
 postojeća spoljna MySQL instanca odbija lokalnog korisnika `gmanager`. Puni
@@ -150,7 +150,7 @@ M
 `frontend/g-manager/`: `npm ci`, `npm run lint`, `npm run typecheck`,
 `npm test`, `npm run build`; ručno proveriti `/actuator/health` i login stranu.
 
-## Stage 2 — Enforce-ovane granice modularnog monolita
+## Stage 2 - Enforce-ovane granice modularnog monolita
 
 **Izvršni status: DONE (2026-08-02).** Granice modula su dokumentovane i
 enforce-ovane ArchUnit/ESLint pravilima; ciklusi su uklonjeni, konfiguracija je
@@ -250,9 +250,9 @@ npm run build`; pregled generisanog module dependency dijagrama.
 
 ---
 
-## Phase 1 — Podaci i API ugovor
+## Phase 1 - Podaci i API ugovor
 
-## Stage 3 — MySQL-verne migracije i integritet šeme
+## Stage 3 - MySQL-verne migracije i integritet šeme
 
 **Izvršni status: BLOCKED (2026-08-08).** Implementirani su MySQL 8.4
 Testcontainers profil, migration/upgrade/schema/repository/concurrency testovi i
@@ -276,7 +276,7 @@ H2 MySQL mode ne verifikuje stvarni dialect, indekse, locks i migration upgrade.
 Stage 1; ADR-03.
 
 ### Trenutno stanje
-V1–V7, `ddl-auto=validate`, MySQL 8.4 Compose, H2 test profil.
+V1-V7, `ddl-auto=validate`, MySQL 8.4 Compose, H2 test profil.
 
 ### Gap analiza
 Nema Testcontainers MySQL suite-a, upgrade testa ni query-plan baseline-a.
@@ -296,7 +296,7 @@ Nema.
 
 ### Database zadaci
 Samo korektivne aditivne Flyway migracije ako test otkrije stvarni šema gap;
-nikada ne menjati primenjene V1–V7.
+nikada ne menjati primenjene V1-V7.
 
 ### API promene
 Nema.
@@ -347,7 +347,7 @@ M
 `.\mvnw.cmd clean verify -Pmysql-it`; ponoviti suite sa praznim containerom i
 upgrade fixture-om; `docker compose config`.
 
-## Stage 4 — Stabilan API ugovor, validacija i OpenAPI
+## Stage 4 - Stabilan API ugovor, validacija i OpenAPI
 
 ### Status prioriteta
 OBAVEZNO
@@ -365,7 +365,7 @@ Osnova postoji, ali error detalji, sort allow-list, API docs i contract tests
 nisu kompletni; springdoc verziju treba potvrditi uz Spring Boot 4.
 
 ### Preduslovi
-Stage 2–3; ADR-04.
+Stage 2-3; ADR-04.
 
 ### Trenutno stanje
 `/api/v1`, DTO, `ApiError`, `PageResponse`, Bean Validation i global handler.
@@ -444,9 +444,9 @@ frontend lint/typecheck/test/build; ručno 400/401/403/409/429/500 scenariji.
 
 ---
 
-## Phase 2 — Security i integritet podataka
+## Phase 2 - Security i integritet podataka
 
-## Stage 5 — Permission i resource-level autorizacija
+## Stage 5 - Permission i resource-level autorizacija
 
 ### Status prioriteta
 OBAVEZNO
@@ -543,7 +543,7 @@ XL
 Backend security suite + `clean verify`; frontend guard/component testovi i
 build; ručno proveriti četiri role i negativne IDOR zahteve.
 
-## Stage 6 — Upravljanje sesijama i security događajima
+## Stage 6 - Upravljanje sesijama i security događajima
 
 ### Status prioriteta
 PREPORUČENO
@@ -633,7 +633,7 @@ L
 Auth/security integration suite, migration MySQL suite, frontend test/build;
 ručni login iz dva browser context-a i selektivni revoke.
 
-## Stage 7 — Audit log, ciljano soft delete i restore
+## Stage 7 - Audit log, ciljano soft delete i restore
 
 ### Status prioriteta
 OBAVEZNO
@@ -729,7 +729,7 @@ XL
 MySQL migration/integration suite, security matrix, frontend test/build; ručno
 create→delete→list→restore i pregled audit zapisa.
 
-## Stage 8 — Idempotency i konkurentnost za sve kritične mutacije
+## Stage 8 - Idempotency i konkurentnost za sve kritične mutacije
 
 ### Status prioriteta
 OBAVEZNO
@@ -746,7 +746,7 @@ Filter + `REQUIRES_NEW` postoji, ali zahteva real-DB concurrency, principal
 scope, canonical request hash i jasnu retry semantiku.
 
 ### Preduslovi
-Stage 3–5.
+Stage 3-5.
 
 ### Trenutno stanje
 Idempotency za POST orders/reservations, response replay, TTL cleanup i
@@ -827,9 +827,9 @@ frontend test/build i ručni network retry scenario.
 
 ---
 
-## Phase 3 — Testiranje i automatizacija
+## Phase 3 - Testiranje i automatizacija
 
-## Stage 9 — Testna piramida i E2E/a11y osnova
+## Stage 9 - Testna piramida i E2E/a11y osnova
 
 ### Status prioriteta
 OBAVEZNO
@@ -845,7 +845,7 @@ Brže i sigurnije promene uz manje ručne regresije.
 Backend integracije postoje, ali nema komponentnog/E2E/accessibility safety neta.
 
 ### Preduslovi
-Stage 3–5.
+Stage 3-5.
 
 ### Trenutno stanje
 42 backend testa i mali Vitest utility/schema suite.
@@ -919,7 +919,7 @@ XL
 Backend `clean verify` i MySQL IT; frontend lint/typecheck/unit/coverage/build;
 `npx playwright test` na desktop i mobile projektu.
 
-## Stage 10 — CI quality, security i artefakt pipeline
+## Stage 10 - CI quality, security i artefakt pipeline
 
 ### Status prioriteta
 OBAVEZNO
@@ -1011,9 +1011,9 @@ cache i artefakata.
 
 ---
 
-## Phase 4 — Pouzdanost, asinhroni procesi i observability
+## Phase 4 - Pouzdanost, asinhroni procesi i observability
 
-## Stage 11 — Domain events i transactional Outbox
+## Stage 11 - Domain events i transactional Outbox
 
 ### Status prioriteta
 OBAVEZNO
@@ -1031,7 +1031,7 @@ Side-effect infrastruktura ne postoji; direktni async pozivi bi pravili dual
 write problem.
 
 ### Preduslovi
-Stage 2, 3, 7–10; ADR-10/11.
+Stage 2, 3, 7-10; ADR-10/11.
 
 ### Trenutno stanje
 Sinhroni application servisi i scheduler samo za idempotency cleanup.
@@ -1107,7 +1107,7 @@ XL
 MySQL integration/concurrency suite, restart/failure injection, metrike backlog-a
 i `clean verify`.
 
-## Stage 12 — Background jobs, scheduler i pouzdani retry
+## Stage 12 - Background jobs, scheduler i pouzdani retry
 
 ### Status prioriteta
 PREPORUČENO
@@ -1197,7 +1197,7 @@ L
 MySQL two-runner integration test, failure injection, shutdown test, metrics/
 health pregled, backend/frontend build ako UI postoji.
 
-## Stage 13 — Produkcioni observability baseline
+## Stage 13 - Produkcioni observability baseline
 
 ### Status prioriteta
 OBAVEZNO
@@ -1214,7 +1214,7 @@ Actuator/request ID postoje, ali nema scrape, dashboard, alert ili strukturirane
 log politike.
 
 ### Preduslovi
-Stage 10–12; ADR-13/14.
+Stage 10-12; ADR-13/14.
 
 ### Trenutno stanje
 Health/info/metrics, request ID/MDC i generičan 500.
@@ -1291,7 +1291,7 @@ L
 Backend/frontend suite; `docker compose` ops profile; Prometheus targets/rules
 check; probe i test-alert failure injection; pretraga loga za test secret.
 
-## Stage 14 — Performance baseline, query tuning i load test
+## Stage 14 - Performance baseline, query tuning i load test
 
 ### Status prioriteta
 PREPORUČENO
@@ -1382,9 +1382,9 @@ Prometheus/Grafana pregled tokom testa.
 
 ---
 
-## Phase 5 — UX, design system i pristupačnost
+## Phase 5 - UX, design system i pristupačnost
 
-## Stage 15 — Design system i osnovna UX stanja
+## Stage 15 - Design system i osnovna UX stanja
 
 ### Status prioriteta
 OBAVEZNO
@@ -1477,7 +1477,7 @@ XL
 Frontend lint/typecheck/unit/build, Playwright desktop/mobile, axe i visual
 snapshots; backend contract smoke.
 
-## Stage 16 — WCAG 2.2 AA pristupačnost
+## Stage 16 - WCAG 2.2 AA pristupačnost
 
 ### Status prioriteta
 OBAVEZNO
@@ -1568,7 +1568,7 @@ L
 Unit/axe/Playwright suite, keyboard walkthrough, NVDA/VoiceOver smoke, 200% zoom
 i prefers-reduced-motion provera.
 
-## Stage 17 — Napredne forme, tabele, filteri i saved views
+## Stage 17 - Napredne forme, tabele, filteri i saved views
 
 ### Status prioriteta
 PREPORUČENO
@@ -1585,7 +1585,7 @@ korisnicima.
 Stranice ručno ponavljaju state/fetch/form obrasce i filteri se gube navigacijom.
 
 ### Preduslovi
-Stage 4, 5, 15–16.
+Stage 4, 5, 15-16.
 
 ### Trenutno stanje
 Paginacija/filteri i forme postoje, ali uglavnom kroz lokalni `useState`.
@@ -1666,9 +1666,9 @@ back/refresh/deep-link i bulk partial-failure scenariji.
 
 ---
 
-## Phase 6 — Napredna produktivnost i vizuelizacija
+## Phase 6 - Napredna produktivnost i vizuelizacija
 
-## Stage 18 — Global search, command palette i produktivnost
+## Stage 18 - Global search, command palette i produktivnost
 
 ### Status prioriteta
 PREPORUČENO
@@ -1760,7 +1760,7 @@ L
 MySQL search/performance/security tests, frontend component/E2E/axe/build,
 manual role-by-role palette.
 
-## Stage 19 — Poslovni dashboard i pristupačne vizualizacije
+## Stage 19 - Poslovni dashboard i pristupačne vizualizacije
 
 ### Status prioriteta
 PREPORUČENO
@@ -1777,7 +1777,7 @@ Postoje tri management KPI-ja i operativne kartice, ali grafikoni imaju malu
 analitičku vrednost i nisu pristupačni.
 
 ### Preduslovi
-Stage 5, 13–18; ADR-16.
+Stage 5, 13-18; ADR-16.
 
 ### Trenutno stanje
 Agregatni summary/today endpoint-i, Recharts pie/bar i period filter.
@@ -1859,9 +1859,9 @@ visual/build; ručno poređenje fixture SQL podataka, drill-down i CSV.
 
 ---
 
-## Phase 7 — Notifikacije, dokumenti, izveštaji i workflow
+## Phase 7 - Notifikacije, dokumenti, izveštaji i workflow
 
-## Stage 20 — Jedinstvene notifikacije i real-time isporuka
+## Stage 20 - Jedinstvene notifikacije i real-time isporuka
 
 ### Status prioriteta
 PREPORUČENO
@@ -1877,7 +1877,7 @@ Korisnici pravovremeno saznaju za promene termina/narudžbina bez ručnog refres
 Nema notification modela; Stage 11/12 daje pouzdanu osnovu.
 
 ### Preduslovi
-Stage 5–7, 11–13, 15–16; ADR-17.
+Stage 5-7, 11-13, 15-16; ADR-17.
 
 ### Trenutno stanje
 Potpuno odsutno.
@@ -1955,7 +1955,7 @@ XL
 Backend event/job/SSE/security suite; frontend E2E sa reconnect-om; email sandbox;
 metrics/DLQ pregled.
 
-## Stage 21 — Bezbedni dokumenti i object-storage spremnost
+## Stage 21 - Bezbedni dokumenti i object-storage spremnost
 
 **Izvršni status: DONE (2026-08-10).** Uvedeni su privatni verzionisani
 dokumenti, karantin i skeniranje, local/S3 storage ugovor, autorizovani
@@ -1976,7 +1976,7 @@ Omogućava bezbedno čuvanje priloga uz korisnike/workflow/report tokove.
 Trenutni lokalni image upload je javni, bez metadata/version/audit/storage scale.
 
 ### Preduslovi
-Stage 5, 7, 11–13; ADR-18/19.
+Stage 5, 7, 11-13; ADR-18/19.
 
 ### Trenutno stanje
 PNG/JPEG magic/MIME/size/path validacija i lokalni `/media/**`.
@@ -2056,7 +2056,7 @@ XL
 Storage contract/integration/security tests, malware test corpus bez aktivnog
 malware-a, frontend E2E/a11y, object-store local stack i migration dry-run.
 
-## Stage 22 — Asinhroni izveštaji i eksport
+## Stage 22 - Asinhroni izveštaji i eksport
 
 **Izvršni status: DONE (2026-08-10).** Implementirani su permission-safe
 asinhroni reports, CSV/XLSX/PDF rendereri, privatni document output, status,
@@ -2076,7 +2076,7 @@ Vlasnik dobija operativne/finansijske podatke bez blokiranja aplikacije.
 Dashboard export nije report engine; jobs/documents sada daju potrebnu osnovu.
 
 ### Preduslovi
-Stage 12–14, 19, 21; ADR-20.
+Stage 12-14, 19, 21; ADR-20.
 
 ### Trenutno stanje
 Nema report engine-a ni export-a osim planiranog dashboard CSV-a.
@@ -2153,7 +2153,7 @@ XL
 Backend golden/security/load/job tests, otvoriti PDF/XLSX/CSV standardnim
 alatima, frontend E2E/a11y, metrics pregled.
 
-## Stage 23 — Approval workflow i poslovna automatizacija
+## Stage 23 - Approval workflow i poslovna automatizacija
 
 **Izvršni status: DONE (2026-08-10).** Implementiran je izolovani pilot za odobravanje internih troškova sa verzionisanim definicijama, SLA pravilima, bezbednim akcijama, audit timeline-om, prilozima i inbox/detail UI tokom. Detalji su u `docs/stages/STAGE_23_APPROVAL_WORKFLOW.md`.
 
@@ -2172,7 +2172,7 @@ Postoje hardkodovane state machine tranzicije; generički engine nije opravdan
 bez konkretnog approval procesa.
 
 ### Preduslovi
-Stage 5, 7, 11–13, 20–22; ADR-21 i potvrđen poslovni use case.
+Stage 5, 7, 11-13, 20-22; ADR-21 i potvrđen poslovni use case.
 
 ### Trenutno stanje
 Order/reservation status pravila, bez approval instance/modela.
@@ -2253,9 +2253,9 @@ frontend E2E/a11y i pilot walkthrough.
 
 ---
 
-## Phase 8 — PWA i ograničeni offline režim
+## Phase 8 - PWA i ograničeni offline režim
 
-## Stage 24 — PWA, offline read i bezbedni draftovi
+## Stage 24 - PWA, offline read i bezbedni draftovi
 
 **Izvršni status: DONE (2026-08-10).** Dodat je installable/versioned app shell, eksplicitni user-scoped stale read cache, AES-GCM report draft, purge pri logout/user switch-u, offline/update UX, ETag/API metadata i CSP. Capability matrica i runbook su u `docs/stages/STAGE_24_PWA_OFFLINE.md`.
 
@@ -2273,7 +2273,7 @@ Bolji rad na nestabilnoj vezi i očuvanje dužeg unosa.
 SPA nema service worker/offline model; auth i konflikt semantika moraju prethoditi.
 
 ### Preduslovi
-Stage 8–9, 15–17, 20; ADR-22.
+Stage 8-9, 15-17, 20; ADR-22.
 
 ### Trenutno stanje
 Online-only Vite SPA; access token u memoriji.
@@ -2353,9 +2353,9 @@ CSP i cache-header pregled.
 
 ---
 
-## Phase 9 — Skalabilnost i budući razvoj
+## Phase 9 - Skalabilnost i budući razvoj
 
-## Stage 25 — Feature flags i multi-tenancy readiness
+## Stage 25 - Feature flags i multi-tenancy readiness
 
 **Izvršni status: DONE (2026-08-10).** Implementirani su typed, auditovani i deterministično rollout-ovani feature flagovi. Multi-tenancy stop/go je NO-GO jer nema odobrenog multi-organization identity/data modela; Stage je završen ADR/prototype rezultatom bez polu-tenant produkcijske migracije. Detalji su u `docs/stages/STAGE_25_FEATURE_FLAGS_TENANCY.md`.
 
@@ -2374,7 +2374,7 @@ Sistem je single-business; tenant kolona naknadno utiče na svaki query, unique,
 audit, job, dokument i cache.
 
 ### Preduslovi
-Stage 2, 5, 7, 9–14, 20–23; ADR-23/24 i odobren poslovni zahtev.
+Stage 2, 5, 7, 9-14, 20-23; ADR-23/24 i odobren poslovni zahtev.
 
 ### Trenutno stanje
 Nema flags/tenant koncepta; backend je stateless osim lokalnih fajlova i
@@ -2459,9 +2459,9 @@ cross-tenant automated test i multi-instance smoke.
 
 ---
 
-## Phase 10 — Produkciona konsolidacija
+## Phase 10 - Produkciona konsolidacija
 
-## Stage 26 — Produkcioni deployment, backup, hardening i release
+## Stage 26 - Produkcioni deployment, backup, hardening i release
 
 ### Status prioriteta
 OBAVEZNO
@@ -2477,8 +2477,8 @@ Sistem postaje operativno spreman, obnovljiv i kontrolisano izdan.
 Compose sada podiže samo lokalni MySQL; nema application image/deploy/restore.
 
 ### Preduslovi
-Svi OBAVEZNI stage-ovi 1–16 i relevantni implementirani feature stage-ovi;
-Stage 10, 13–14 obavezno.
+Svi OBAVEZNI stage-ovi 1-16 i relevantni implementirani feature stage-ovi;
+Stage 10, 13-14 obavezno.
 
 ### Trenutno stanje
 Local Compose/MySQL, prod profil i Actuator osnova.
@@ -2565,9 +2565,9 @@ rehearsal.
 
 ---
 
-## Phase 11 — Opcione napredne funkcije
+## Phase 11 - Opcione napredne funkcije
 
-## Stage 27 — AI asistencija i bezbedni plugin extension points
+## Stage 27 - AI asistencija i bezbedni plugin extension points
 
 ### Status prioriteta
 DUGOROČNO
@@ -2583,7 +2583,7 @@ Potencijalno ubrzava izveštavanje/pretragu uz kontrolisan rizik i dokaziv ROI.
 AI/plugin pre temelja povećava curenje podataka, netačne odluke i operativni dug.
 
 ### Preduslovi
-Stage 5, 7, 10–14, 18–22, 26; ADR-25/26 i eksplicitno odobren use case.
+Stage 5, 7, 10-14, 18-22, 26; ADR-25/26 i eksplicitno odobren use case.
 
 ### Trenutno stanje
 Nema AI ni plugin infrastrukture.

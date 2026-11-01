@@ -5,7 +5,7 @@
 Dokument definiše jasnu "Backend First" arhitekturu sa izolovanim modulima, servisnim slojem kao centrom poslovne logike, DTO-orijentisanim REST API-jem i frontendom koji predstavlja isključivo prezentacioni sloj.
 
 1. Korak-po-korak plan razvoja (Backend First)
-   Faza 0 — Infrastruktura projekta
+   Faza 0 - Infrastruktura projekta
    Cilj
 
 Napraviti stabilnu osnovu.
@@ -29,7 +29,7 @@ Preduslov
 
 Ništa.
 
-Faza 1 — Common modul
+Faza 1 - Common modul
 
 Ovaj modul koriste svi ostali.
 
@@ -47,7 +47,7 @@ Custom Exceptions
 
 Posle ove faze svi moduli koriste istu infrastrukturu.
 
-Faza 2 — Security + Auth
+Faza 2 - Security + Auth
 
 Implementirati:
 
@@ -66,7 +66,7 @@ Ovde implementirati pravilo:
 
 Role iz JWT se koristi samo za identifikaciju, dok se kompletan korisnik uvek učitava iz baze.
 
-Faza 3 — User modul
+Faza 3 - User modul
 
 Implementirati:
 
@@ -79,7 +79,7 @@ Owner/Admin pravila
 
 Tek kada User radi može se razvijati ostatak sistema.
 
-Faza 4 — Catalog modul
+Faza 4 - Catalog modul
 
 Implementirati:
 
@@ -95,7 +95,7 @@ PRODUCT → Order
 SERVICE → Reservation
 SERVICE mora imati duration
 inactive nije dozvoljen
-Faza 5 — Working Hours
+Faza 5 - Working Hours
 
 Napraviti zaseban modul ili podmodul Catalog-a.
 
@@ -107,7 +107,7 @@ UTC validaciju
 
 Kasnije Reservation koristi ovaj modul.
 
-Faza 6 — Reservation
+Faza 6 - Reservation
 
 Najkompleksniji modul.
 
@@ -132,7 +132,7 @@ Ovde implementirati:
 Optimistic Locking
 Idempotency
 UTC konverziju
-Faza 7 — Order
+Faza 7 - Order
 
 Implementirati:
 
@@ -152,7 +152,7 @@ Ovde implementirati:
 
 Idempotency
 Optimistic Locking
-Faza 8 — Dashboard
+Faza 8 - Dashboard
 
 Implementirati agregatne upite:
 
@@ -165,7 +165,7 @@ aktivne usluge
 
 Koristiti DTO projekcije umesto učitavanja entiteta.
 
-Faza 9 — Frontend
+Faza 9 - Frontend
 
 Tek sada počinje React.
 
@@ -183,14 +183,14 @@ Dashboard
 
 Frontend koristi isključivo REST API.
 
-Faza 10 — Testiranje
+Faza 10 - Testiranje
 Unit test
 Service test
 Repository test
 Security test
 Integration test
 API test
-Faza 11 — Produkcija
+Faza 11 - Produkcija
 Docker
 Flyway migration
 HTTPS

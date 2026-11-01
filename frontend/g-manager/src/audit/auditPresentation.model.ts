@@ -13,12 +13,12 @@ export type AuditPeriod = keyof typeof periods
 export const sortOptions = [
   { sort: 'createdAt', direction: 'DESC', label: 'Najnovije prvo' },
   { sort: 'createdAt', direction: 'ASC', label: 'Najstarije prvo' },
-  { sort: 'action', direction: 'ASC', label: 'Akcija, A–Z' },
-  { sort: 'resourceType', direction: 'ASC', label: 'Tip resursa, A–Z' },
-  { sort: 'action', direction: 'DESC', label: 'Akcija, Z–A' },
-  { sort: 'resourceType', direction: 'DESC', label: 'Tip resursa, Z–A' },
-  { sort: 'actorRole', direction: 'ASC', label: 'Uloga izvršioca, A–Z' },
-  { sort: 'actorRole', direction: 'DESC', label: 'Uloga izvršioca, Z–A' },
+  { sort: 'action', direction: 'ASC', label: 'Akcija, A-Z' },
+  { sort: 'resourceType', direction: 'ASC', label: 'Tip resursa, A-Z' },
+  { sort: 'action', direction: 'DESC', label: 'Akcija, Z-A' },
+  { sort: 'resourceType', direction: 'DESC', label: 'Tip resursa, Z-A' },
+  { sort: 'actorRole', direction: 'ASC', label: 'Uloga izvršioca, A-Z' },
+  { sort: 'actorRole', direction: 'DESC', label: 'Uloga izvršioca, Z-A' },
 ]
 
 export function shiftDate(value: string, amount: number) {
@@ -55,7 +55,7 @@ export function dateLabel(value: string) {
 }
 export function periodLabel(draft: AuditDraft) {
   const bounds = periodBounds(draft)
-  return bounds.from || bounds.to ? `${bounds.from ? dateLabel(bounds.from) : 'Bez donje granice'} – ${bounds.to ? dateLabel(bounds.to) : 'Bez gornje granice'}` : 'Svi datumi'
+  return bounds.from || bounds.to ? `${bounds.from ? dateLabel(bounds.from) : 'Bez donje granice'} - ${bounds.to ? dateLabel(bounds.to) : 'Bez gornje granice'}` : 'Svi datumi'
 }
 export function validateDraft(draft: AuditDraft): string {
   if (draft.actorId.trim() && !uuidPattern.test(draft.actorId.trim())) return 'Unesite ispravan UUID izvršioca.'

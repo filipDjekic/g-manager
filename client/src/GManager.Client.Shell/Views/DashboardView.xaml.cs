@@ -30,7 +30,7 @@ public partial class DashboardView : UserControl, INotifyPropertyChanged
     bool profileReady, warning15, warning5, connectionKnown, lastConnected, navigating;
     ClientMode? lastMode;
     DateTimeOffset? toastUntil;
-    string search = "", customerName = "Korisnik", remainingText = "—:—:—", endsText = "Podatak nije dostupan";
+    string search = "", customerName = "Korisnik", remainingText = "-:-:-", endsText = "Podatak nije dostupan";
     string sessionStatus = "Sesija je aktivna", connectionLabel = "Provera veze", connectionDetail = "Povezivanje sa servisom…";
     string localTime = "", localDate = "", timerMessage = "Vreme prema aktivnoj sesiji", toast = "";
     string preferencesStatus = "Podešavanja se čuvaju lokalno za tvoj nalog.";
@@ -134,7 +134,7 @@ public partial class DashboardView : UserControl, INotifyPropertyChanged
     {
         remaining = remaining < TimeSpan.Zero ? TimeSpan.Zero : remaining;
         if (known && remaining == TimeSpan.Zero) { CanInteract = false; CloseLogout(); }
-        RemainingText = known ? $"{(int)remaining.TotalHours:00}:{remaining.Minutes:00}:{remaining.Seconds:00}" : "—:—:—";
+        RemainingText = known ? $"{(int)remaining.TotalHours:00}:{remaining.Minutes:00}:{remaining.Seconds:00}" : "-:-:-";
         int level = !known ? 0 : remaining <= TimeSpan.Zero ? 3 : remaining.TotalMinutes < 5 ? 2 : remaining.TotalMinutes <= 15 ? 1 : 0;
         if (timerLevel != level)
         {

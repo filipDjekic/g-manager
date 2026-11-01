@@ -26,7 +26,7 @@ const defaults = { page: '0', size: '10', active: '', deleted: '', role: '', sor
 const allowed = ['page', 'size', 'active', 'deleted', 'role', 'sort', 'direction', 'search', 'focus'] as const
 const roles: Role[] = ['OWNER', 'ADMIN', 'EMPLOYEE', 'CUSTOMER']
 const sorting = [{ sort: 'createdAt', direction: 'DESC', label: 'Najnoviji' }, { sort: 'createdAt', direction: 'ASC', label: 'Najstariji' },
-  { sort: 'name', direction: 'ASC', label: 'Ime A–Z' }, { sort: 'name', direction: 'DESC', label: 'Ime Z–A' }]
+  { sort: 'name', direction: 'ASC', label: 'Ime A-Z' }, { sort: 'name', direction: 'DESC', label: 'Ime Z-A' }]
 
 export function UserManagementPage({ employeesOnly = false }: Props) {
   const actor = useAuthStore(state => state.user)

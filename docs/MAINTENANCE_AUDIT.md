@@ -15,7 +15,7 @@ Datum: **1. novembar 2026.** Obuhvat: postojeći Markdown fajlovi, frontend/back
 | [Konfiguracija](reference/CONFIGURATION.md) | Parametri, default-i, profili i secrets |
 | [API](reference/API.md) | Controller rute i zajednički HTTP ugovori |
 | [Bezbednost](reference/SECURITY_ACCESS.md) | Uloge, resource scope i trust granice |
-| [Baza](reference/DATABASE.md) | MySQL, V1–V41 i održavanje šeme |
+| [Baza](reference/DATABASE.md) | MySQL, V1-V41 i održavanje šeme |
 | [Deployment](operations/DEPLOYMENT.md) | Produkcija, release, bootstrap i rollback |
 | [Backup/recovery](operations/BACKUP_RECOVERY.md) | DB alati i kompletan oporavak |
 | [Troubleshooting](operations/TROUBLESHOOTING.md) | Dijagnostika svih komponenti |

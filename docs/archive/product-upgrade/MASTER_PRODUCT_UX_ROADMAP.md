@@ -44,7 +44,7 @@ flowchart TD
 
 ## Stage plan
 
-### Stage 1 — UX/design-system foundation and role-aware navigation
+### Stage 1 - UX/design-system foundation and role-aware navigation
 
 - Goal: grouped desktop sidebar, responsive Drawer and role-specific home/navigation based on existing capabilities and flags.
 - Backend/database/API: no change; current permission payload remains authoritative.
@@ -54,7 +54,7 @@ flowchart TD
 - Risk: frontend filtering is not authorization; backend guards remain unchanged.
 - Existing reuse: capability model, Drawer, CommandPalette, NotificationCenter, preferences and tokens.
 
-### Stage 2 — Reservation details and reusable action dialogs
+### Stage 2 - Reservation details and reusable action dialogs
 
 - Goal: one accessible details Drawer shared by list, dashboard, calendar and Today surfaces; remove reservation native prompts/confirms.
 - Backend/API: add permission-scoped reservation detail projection only for missing human-readable customer/service/employee/history fields; reuse transition service.
@@ -63,7 +63,7 @@ flowchart TD
 - Tests/acceptance: foreign detail hidden, capability/state matrix, focus trap/return, no raw UUID as primary content.
 - Risk: avoid leaking customer contact to roles lacking permission.
 
-### Stage 3 — Availability backend foundation
+### Stage 3 - Availability backend foundation
 
 - Goal: authoritative day/range slot API shared by booking and calendar.
 - Backend/API: typed availability query, business-zone conversion, service duration, working-hour exceptions, employee filtering and overlap reuse from reservation policy.
@@ -71,7 +71,7 @@ flowchart TD
 - Tests: DST, overnight hours, holidays, overlap boundaries, inactive employee/service, concurrency revalidation.
 - Acceptance: every returned slot is valid under create rules; create still independently rejects stale slots.
 
-### Stage 4 — Customer slot-based booking
+### Stage 4 - Customer slot-based booking
 
 - Goal: replace `datetime-local` with service → employee/any → date → slot → note → review → confirmation.
 - Backend/API: use Stage 3; optional “any employee” resolves deterministically and locks at create.
@@ -79,7 +79,7 @@ flowchart TD
 - Frontend/tests: step flow, loading/empty/conflict/retry, keyboard and mobile tests; preserve idempotency.
 - Acceptance: customer books only a real slot and receives actionable conflict recovery.
 
-### Stage 5 — Calendar/Scheduler
+### Stage 5 - Calendar/Scheduler
 
 - Goal: real day/week/month and employee-oriented reservation calendar.
 - Backend/API: permission-scoped range projection with human-readable labels and bounded date windows.
@@ -87,7 +87,7 @@ flowchart TD
 - Frontend/tests: responsive calendar, semantic status tokens, details Drawer, timezone/DST and range navigation.
 - Acceptance: calendar matches repository data and never computes critical availability locally.
 
-### Stage 6 — Employee Today workspace
+### Stage 6 - Employee Today workspace
 
 - Goal: primary employee landing page for today’s appointments, gaps, assigned/unclaimed orders and attention notifications.
 - Backend/API: bounded “today” projection using authenticated employee and business timezone.
@@ -95,7 +95,7 @@ flowchart TD
 - Tests: employee isolation, midnight/DST, action capabilities and empty day.
 - Acceptance: employee completes normal daily work without analytics navigation.
 
-### Stage 7 — Operational dashboard / Needs attention
+### Stage 7 - Operational dashboard / Needs attention
 
 - Goal: add actionable current-state overview above retained analytics.
 - Backend/API: today counts, pending/cancelled, next appointments, order attention and workload thresholds with explicit semantics.
@@ -103,7 +103,7 @@ flowchart TD
 - Tests: metric definitions, drill-down links/filters, role scope and accessible chart/table fallback.
 - Acceptance: every attention item links to an authorized actionable view.
 
-### Stage 8 — Customer/Client 360 domain and UI
+### Stage 8 - Customer/Client 360 domain and UI
 
 - Goal: management customer list/detail with reliable history and computed KPIs.
 - Backend/API: customer projection/facade over User, reservations and orders; introduce minimal profile table only for non-auth business attributes.
@@ -111,14 +111,14 @@ flowchart TD
 - Tests: permission isolation, revenue semantics, pagination/N+1 and customer with no history.
 - Acceptance: no invented phone/visit/CRM data and no auth-model split without need.
 
-### Stage 9 — Customer/management catalog separation
+### Stage 9 - Customer/management catalog separation
 
 - Goal: simple browse/choose experience for customers and dense administration workspace for managers.
 - Backend/API: retain catalog contracts; add only missing customer filters/projections.
 - Frontend/tests: distinct composition by capability, service booking CTA, product cart CTA, management dialogs and bulk tools.
 - Acceptance: customers never see management chrome; managers retain all current operations.
 
-### Stage 10 — Real cart/order flow
+### Stage 10 - Real cart/order flow
 
 - Goal: persistent client cart UX with server-authoritative checkout and order review.
 - Backend/API: validate active products, price snapshot and totals; retain idempotency.
@@ -126,7 +126,7 @@ flowchart TD
 - Tests: price change, inactive item, quantity, duplicate submit, conflict and recovery.
 - Acceptance: no fake cart action; every order persists through existing order service.
 
-### Stage 11 — Reservation lifecycle extension
+### Stage 11 - Reservation lifecycle extension
 
 - Goal: explicit transition policy and state-aware management/customer actions.
 - Backend/API: central transition graph, reason rules and action capabilities in detail DTO.
@@ -134,7 +134,7 @@ flowchart TD
 - Tests: full allowed/forbidden matrix, optimistic locking and temporal cutoff.
 - Acceptance: UI renders server-supported actions and backend rejects every illegal transition.
 
-### Stage 12 — Notification and Command Palette entity actions/search
+### Stage 12 - Notification and Command Palette entity actions/search
 
 - Goal: actionable notifications and permission-aware navigation/search over real entities.
 - Backend/API: extend existing search/notification projections with stable action/deep-link metadata.
@@ -142,7 +142,7 @@ flowchart TD
 - Tests: no unauthorized result/action, stale target, keyboard palette and notification recovery.
 - Acceptance: no client-generated privileged action metadata.
 
-### Stage 13 — Unified management list patterns
+### Stage 13 - Unified management list patterns
 
 - Goal: consistent filters, saved views, selection, bulk outcomes, pagination and row details across management pages.
 - Backend/API: normalize only inconsistent pagination/bulk contracts.
@@ -150,7 +150,7 @@ flowchart TD
 - Tests: URL restoration, partial bulk failure, mobile table/card alternative and focus.
 - Acceptance: existing specialized workflows remain intact while shared mechanics converge.
 
-### Stage 14 — Employee time-off / availability
+### Stage 14 - Employee time-off / availability
 
 - Goal: management of employee-specific working exceptions consumed by availability.
 - Backend/API: scoped time-off aggregate, overlap policy, audit and availability integration.
@@ -158,7 +158,7 @@ flowchart TD
 - Tests: overlap, authorization, DST, cancellation and slot exclusion.
 - Acceptance: approved time off removes slots and pending/rejected requests do not.
 
-### Stage 15 — Waitlist
+### Stage 15 - Waitlist
 
 - Goal: customer opt-in when no slots exist, with safe offer/expiry workflow.
 - Backend/API: waitlist state machine, matching job, notification and idempotent acceptance.
@@ -166,7 +166,7 @@ flowchart TD
 - Tests: ordering, concurrent offer acceptance, expiry, privacy and notification retry.
 - Acceptance: waitlist cannot create a reservation without final create-time availability validation.
 
-### Stage 16 — Recurring reservations
+### Stage 16 - Recurring reservations
 
 - Goal: explicit recurrence proposal creating individually validated reservations.
 - Backend/API: bounded recurrence rule, preview, partial-conflict policy and idempotent batch creation.
@@ -174,7 +174,7 @@ flowchart TD
 - Tests: DST/month boundaries, partial conflicts, cancellation scope and limits.
 - Acceptance: no unbounded generation or bypass of slot rules.
 
-### Stage 17 — CRM notes/tags
+### Stage 17 - CRM notes/tags
 
 - Goal: minimal auditable management notes/tags attached to customers.
 - Backend/API: dedicated customer CRM aggregate with permission/retention rules.
@@ -182,7 +182,7 @@ flowchart TD
 - Tests: authorization, audit, optimistic updates, search and retention.
 - Acceptance: CRM state is separate from User identity and based on real entered data.
 
-### Stage 18 — Advanced analytics/heatmaps
+### Stage 18 - Advanced analytics/heatmaps
 
 - Goal: demand weekday × time-bucket heatmap and improved operational analytics from real reservations/orders.
 - Backend/API: defined aggregation semantics, bounded periods and timezone buckets.
@@ -190,14 +190,14 @@ flowchart TD
 - Tests: bucket boundaries, DST, empty data, role scope, accessible table and performance.
 - Acceptance: no attendance/overtime/team metric without a domain source.
 
-### Stage 19 — Resource scheduling, conditional
+### Stage 19 - Resource scheduling, conditional
 
 - Entry gate: written evidence of room/equipment constraints from product/domain documentation. Current decision: `NO-GO`.
 - If approved: model resources, eligibility and conflicts as a separate module integrated with Stage 3 availability.
 - Tests: employee/resource atomic locking, conflicts and rollback.
 - Acceptance: otherwise document extension port only and introduce no generic tables/UI.
 
-### Stage 20 — Final integration and hardening
+### Stage 20 - Final integration and hardening
 
 - Goal: complete role journeys, accessibility, performance, cleanup and current documentation.
 - Backend/database: MySQL migration upgrade/fresh tests, query budgets, security matrix and no N+1.

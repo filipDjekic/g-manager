@@ -11,7 +11,7 @@ import type { WaitlistEntry } from '../../types/waitlist.types'
 export type HomeIconKind = 'gamepad' | 'cart' | 'clock' | 'arrow' | 'refresh'
 
 export function homeCountdown(seconds: number) {
-  if (!Number.isFinite(seconds)) return '—'
+  if (!Number.isFinite(seconds)) return '-'
   const value = Math.max(0, Math.ceil(seconds))
   return [Math.floor(value / 3600), Math.floor(value % 3600 / 60), value % 60].map(part => String(part).padStart(2, '0')).join(':')
 }

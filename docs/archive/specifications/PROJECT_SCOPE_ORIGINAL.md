@@ -2,7 +2,7 @@
 
 > **Istorijski dokument.** Sačuvan radi projektantskog konteksta i ranijih nalaza. Opisi, komande i rezultati u nastavku nisu potvrda trenutnog ponašanja niti važeće operativno uputstvo. Koristite [aktuelnu dokumentaciju](../../README.md) i [nalaze pregleda od 1. novembra 2026.](../../MAINTENANCE_AUDIT.md).
 
-G-Manager — Full System Specification
+G-Manager - Full System Specification
 1. SYSTEM OVERVIEW
 
 G-Manager je univerzalni sistem za upravljanje lokalnim biznisom.

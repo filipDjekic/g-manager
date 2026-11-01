@@ -20,7 +20,7 @@ Konfiguracija instalirane verzije je u ACL-zaštićenom `%ProgramData%\GManager\
 
 Komande ispod pokreću se iz CMD-a. Zamenite vrednosti servera, javnog policy ključa, key ID-a, subject-a i thumbprint-a stvarnim deployment vrednostima. Privatni Ed25519 ključ ostaje isključivo na backendu.
 
-**Razvojni laptop — bez administratora**
+**Razvojni laptop - bez administratora**
 
 Potrebne su nove, prethodno pripremljene Service/Shell izvršne datoteke iz ovog izvornog koda. Skripta ne radi build. Stari binarni fajlovi bez `runtime-capabilities.json` se odbijaju. Framework-dependent razvojni izlaz zahteva odgovarajući .NET 10 Desktop Runtime; objavljeni self-contained izlaz ga sadrži.
 
@@ -33,7 +33,7 @@ Opcije `-ServiceExecutable "C:\izlaz\service\GManager.Client.Service.exe" -Shell
 
 Razvojni podaci su u `%LOCALAPPDATA%\GManager\Development`, zaštićeni DPAPI CurrentUser. Koristite zasebnu test stanicu i njen enrollment token iz postojećeg administratorskog interfejsa. Posle pripreme konfiguracije dozvoljeno je i ručno pokretanje oba EXE-a sa `--development`. Nema servisa, UAC zahteva, AppLocker/WDAC/Chrome/Registry/NTFS promena, Windows zaključavanja ili zatvaranja tuđih procesa. Istek zaključava samo Client prikaz. Razvojni Client ne šalje fizički LOCK_ACK. Instalirani produkcioni servis onemogućava razvojni režim i Service-a i Shell-a.
 
-**Prvo izdanje i instalacija — administrator**
+**Prvo izdanje i instalacija - administrator**
 
 Produkcija: Windows 10 build 19041+ / Windows 11 Enterprise/Education, AppLocker/Application Identity i Scheduled Tasks; zaseban aktivan lokalni standardni nalog igrača i zaseban administratorski nalog za održavanje. OS i igre moraju već biti podržani na tom računaru. Naloge i njihove lozinke održava Windows administrator; Client ne uključuje Windows autologon i ne skladišti te lozinke.
 
@@ -59,7 +59,7 @@ U Stations napravite/izaberite stanicu, uključite Client, dodelite postojeći p
 
 Instalacioni direktorijum je `%ProgramFiles%\GManager Client`, a zaštićeni podaci `%ProgramData%\GManager\Client`. Servis je automatski SYSTEM policy broker; igre pokreće Shell kao standardni korisnik, bez elevacije. Shell task se pokreće pri prijavi izabranog Windows naloga. Update se proverava svakih 15 minuta; recovery na boot-u i svakog minuta.
 
-**Status i bezbedna dijagnostika — bez elevacije gde Windows politika dozvoljava**
+**Status i bezbedna dijagnostika - bez elevacije gde Windows politika dozvoljava**
 
 ```cmd
 "%ProgramFiles%\GManager Client\gmanagerctl.cmd" status
@@ -68,7 +68,7 @@ Instalacioni direktorijum je `%ProgramFiles%\GManager Client`, a zaštićeni pod
 
 Zaštićeni nalog igrača nema opšti pristup CMD/PowerShell-u. Druge standardne Windows sesije mogu čitati bezbedan status; sve promene zahtevaju povišen administratorski token.
 
-**Održavanje — povišen CMD, radi i bez backenda**
+**Održavanje - povišen CMD, radi i bez backenda**
 
 ```cmd
 "%ProgramFiles%\GManager Client\gmanagerctl.cmd" maintenance enable
@@ -82,7 +82,7 @@ Ako je gaming sesija prekinuta održavanjem/recovery postupkom, njen ID ostaje l
 
 Po isteku servis odmah vraća lokalno zaključano stanje; zaseban expiry task i recovery task ponavljaju povratak kada servis ne radi ili je računar bio ugašen. Standardni korisnik ne može pisati maintenance lease niti pozvati administratorski pipe bez povišenog tokena.
 
-**Update, popravka i restart — administrator**
+**Update, popravka i restart - administrator**
 
 ```cmd
 "%ProgramFiles%\GManager Client\gmanagerctl.cmd" update
@@ -92,7 +92,7 @@ Po isteku servis odmah vraća lokalno zaključano stanje; zaseban expiry task i 
 
 Update zahteva server. Pri aktivnoj sesiji se odlaže; koristiti završenu sesiju ili lokalno autorizovano održavanje. Nema opcije za proizvoljan ZIP ili drugi server. HTTPS, SHA-256, potpisani file manifest i lokalni publisher/thumbprint pin proveravaju se pre zamene. Konfiguracija, DPAPI identitet, potpisani lease, command cursor i poslovno stanje ostaju u ProgramData. Binarni direktorijumi se menjaju kroz candidate/previous transakciju; neuspešan health signal vraća prethodne fajlove i konfiguraciju. Boot recovery nastavlja prekinut rollback. Repair/restart bez preuzimanja rade bez backenda; lokalni health razlikuje nedostupan backend od neispravne instalacije.
 
-**Deinstalacija — administrator, server nije potreban**
+**Deinstalacija - administrator, server nije potreban**
 
 ```cmd
 "%ProgramFiles%\GManager Client\gmanagerctl.cmd" uninstall
@@ -101,7 +101,7 @@ Update zahteva server. Pri aktivnoj sesiji se odlaže; koristiti završenu sesij
 
 Uklanjaju se customer Shell/sesije, servis, svi G-Manager task-ovi, binarni direktorijumi i isključivo evidentirana G-Manager pravila/trust unosi. Default čuva lokalni identitet za ponovnu instalaciju. `-PurgeData` zahteva eksplicitno `OBRISI` i briše identitet, konfiguraciju i sesijsko stanje. Zaštićeni audit/policy journal i recovery alati ostaju kao trag oporavka. Backend stanica se ne briše. Ako rollback zapne, ostaje recovery task koji ponavlja završavanje deinstalacije.
 
-**Emergency recovery — zaseban lokalni administrator, bez servera/Service-a**
+**Emergency recovery - zaseban lokalni administrator, bez servera/Service-a**
 
 Prijavite se zasebnim Windows administratorskim nalogom (po potrebi Ctrl+Alt+Del → promena korisnika). Recovery kopija nije u direktorijumu koji update menja:
 

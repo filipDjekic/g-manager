@@ -71,7 +71,7 @@ export function ProfilePasswordCard({ canUpdate, onChanged, onDirty }: {
         onChange={value => { setNext(value); setError('') }} onBlur={() => touch('next')} show={visible.next} toggle={() => toggle('next')}
         disabled={!canUpdate || busy} error={touched.next ? errors.next : ''} hint="Od 8 do 100 karaktera." strengthId={`${id}-strength-note`} />
       <div className={`gm-profile-strength gm-profile-strength--${strength.tone}`}>
-        <div className="gm-profile-strength-label"><span>Informativna jačina lozinke</span><strong>{strength.level ? strength.label : '—'}</strong></div>
+        <div className="gm-profile-strength-label"><span>Informativna jačina lozinke</span><strong>{strength.level ? strength.label : '-'}</strong></div>
         <div className="gm-profile-strength-segments" role="meter" aria-label="Informativna procena jačine lozinke" aria-valuemin={0} aria-valuemax={4}
           aria-valuenow={strength.level} aria-valuetext={strength.label}>{[1, 2, 3, 4].map(level => <span key={level} className={level <= strength.level ? 'is-filled' : ''} />)}</div>
         <p id={`${id}-strength-note`}>Procena je informativna i nije garancija bezbednosti.</p>

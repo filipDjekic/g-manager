@@ -61,7 +61,7 @@ Service se upisuje jednokratnim enrollment kodom i sopstvenim Ed25519 javnim klj
 
 ## Podaci, vreme i konkurentnost
 
-Migracije u [db/migration](../../gm/src/main/resources/db/migration) trenutno obuhvataju V1–V41. Hibernate koristi `ddl-auto=validate`; u `prod` profilu Flyway je isključen i migracije izvršava odvojeni servis. Identiteti se uglavnom prenose UUID referencama između modula, uz FK i indekse definisane SQL-om.
+Migracije u [db/migration](../../gm/src/main/resources/db/migration) trenutno obuhvataju V1-V41. Hibernate koristi `ddl-auto=validate`; u `prod` profilu Flyway je isključen i migracije izvršava odvojeni servis. Identiteti se uglavnom prenose UUID referencama između modula, uz FK i indekse definisane SQL-om.
 
 Timestamp vrednosti koriste UTC, poslovni datumi i radno vreme IANA zone, podrazumevano `Europe/Belgrade`. Intervali su `[start,end)`. Rezervacije, gaming sesije i employee scope imaju dodatne DB lock provere; `version` sprečava prepisivanje iz zastarelog UI-a. Detalji su u [bazi](../reference/DATABASE.md) i [API vodiču](../reference/API.md).
 

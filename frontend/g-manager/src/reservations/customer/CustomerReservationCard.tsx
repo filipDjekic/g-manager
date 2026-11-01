@@ -22,7 +22,7 @@ export function CustomerReservationCard({ value, service, disabled, canCreate, c
       <Badge tone={reservationTones[value.status]}>{reservationLabels[value.status]}</Badge>
       <Button variant="ghost" ref={titleRef} type="button" className="gm-my-reservation-title" onClick={event => onDetails(value, undefined, event.currentTarget)}>{value.serviceName ?? service?.name ?? 'Usluga'}</Button>
       <p className="gm-my-reservation-date">{customerDate(value.startTime)}</p>
-      <p className="gm-my-reservation-time"><CustomerReservationIcon kind="clock" /><strong>{formatBusinessTime(value.startTime)} – {formatBusinessIntervalEnd(value.startTime, value.endTime, 'sr-Latn-RS')}</strong><span>{customerDuration(minutes)}</span></p>
+      <p className="gm-my-reservation-time"><CustomerReservationIcon kind="clock" /><strong>{formatBusinessTime(value.startTime)} - {formatBusinessIntervalEnd(value.startTime, value.endTime, 'sr-Latn-RS')}</strong><span>{customerDuration(minutes)}</span></p>
       <p className="gm-my-reservation-place"><CustomerReservationIcon kind="pin" /><span>{value.locationName || 'Lokal nije dodeljen'}{area && <small>Zona: {area}</small>}</span></p>
       <p className="gm-my-reservation-place"><CustomerReservationIcon kind="monitor" /><span>{value.resourceId ? [value.resourceCode, value.resourceName].filter(Boolean).join(' · ') || 'Dodeljeni resurs' : value.resourceRequired ? 'Resurs još nije dodeljen' : 'Usluga ne zahteva fizički resurs'}</span></p>
     </div></div>

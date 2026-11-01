@@ -24,13 +24,13 @@ Extension i termination zaključavaju session red i zahtevaju aktuelnu `version`
 
 Osnovna putanja je `/api/v1/gaming-sessions`.
 
-- `POST /` — start; telo: `customerId`, `resourceId`, opciono `reservationId` i
+- `POST /` - start; telo: `customerId`, `resourceId`, opciono `reservationId` i
   `durationMinutes`; zahteva `GAMING_SESSION_START`.
-- `POST /{id}/extend` — telo: `minutes`, `version`; zahteva
+- `POST /{id}/extend` - telo: `minutes`, `version`; zahteva
   `GAMING_SESSION_EXTEND`.
-- `POST /{id}/terminate` — telo: `reason`, `version`; zahteva
+- `POST /{id}/terminate` - telo: `reason`, `version`; zahteva
   `GAMING_SESSION_TERMINATE`.
-- `GET /{id}` i `GET /` — detalj i aktivne sesije dostupne actor-ovom location
+- `GET /{id}` i `GET /` - detalj i aktivne sesije dostupne actor-ovom location
 scope-u dozvoljenih resursa; zahtevaju `GAMING_SESSION_READ`.
 
 Sve POST komande zahtevaju `Idempotency-Key`. Ponovljen identičan zahtev vraća

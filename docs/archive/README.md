@@ -8,8 +8,8 @@ Aktuelni početak je [indeks dokumentacije](../README.md), a ograničenja su u [
 | --- | --- |
 | `specifications/` | Root specifikacije i plan izrade; originalni project scope i zaseban stari backend scope |
 | `roadmap/` | Master roadmap, dependency mapa, gap analiza i gaming/Client plan |
-| `stages/` | Istorijski stage 18–27 izveštaji; njihove rezultate ovaj pregled nije ponavljao |
-| `product-upgrade/` | Product/UX roadmap i stage 1–17 beleške |
+| `stages/` | Istorijski stage 18-27 izveštaji; njihove rezultate ovaj pregled nije ponavljao |
+| `product-upgrade/` | Product/UX roadmap i stage 1-17 beleške |
 | `ux/` | Raniji plan pojednostavljenja interfejsa |
 | `ideas/` | Odložene ideje Documents/Workflow |
 | `audits/` | System audit od 24. oktobra 2026. |

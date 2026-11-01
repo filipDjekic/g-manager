@@ -1,4 +1,4 @@
-# ADR-002 — Eksplicitno ručno DTO mapiranje
+# ADR-002 - Eksplicitno ručno DTO mapiranje
 
 Status: prihvaćeno  
 Datum: 2026-08-02  

@@ -106,7 +106,7 @@ export function NotificationTypes({ items, changed, failures, saving, onChange }
                 </th>
                 {(['inAppEnabled', 'emailEnabled'] as const).map(channel => <td key={channel} role="cell" className="gm-notification-channel-cell">
                   <span className="gm-notification-mobile-label">{channel === 'inAppEnabled' ? 'U aplikaciji' : 'Email'}</span>
-                  <PreferenceSwitch label={`${definition.label} — ${channel === 'inAppEnabled' ? 'u aplikaciji' : 'email'}`}
+                  <PreferenceSwitch label={`${definition.label} - ${channel === 'inAppEnabled' ? 'u aplikaciji' : 'email'}`}
                     value={item[channel]} disabled={item.mandatory || saving} locked={item.mandatory}
                     describedBy={description} onChange={value => onChange(item.type, channel, value)} />
                 </td>)}

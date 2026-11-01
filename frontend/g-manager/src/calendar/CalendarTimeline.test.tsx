@@ -38,7 +38,7 @@ describe('resource calendar occupancy', () => {
     expect(screen.getByRole('heading', { name: 'Rezervacije bez dodeljenog resursa' })).toBeVisible()
     expect(screen.getAllByText('Trenutno nedostupan')).toHaveLength(2)
     expect(screen.getByText(/Zona neaktivna/)).toBeVisible()
-    expect(screen.getAllByTitle('Nedostupno — van radnog vremena').length).toBeGreaterThan(0)
+    expect(screen.getAllByTitle('Nedostupno - van radnog vremena').length).toBeGreaterThan(0)
     const zone = screen.getByRole('button', { name: /Arena \/ PC room/ })
     fireEvent.click(zone)
     expect(zone).toHaveAttribute('aria-expanded', 'false')

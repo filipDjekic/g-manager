@@ -40,7 +40,7 @@ prilagođava sadašnjem kodu i odstupanje se dokumentuje.
 
 Dozvoljeno je kreiranje, menjanje, premeštanje i opravdano brisanje fajlova,
 refaktorisanje, migracije, dependency/config/Docker/CI promene i backend,
-frontend, test i dokumentacione izmene — ali samo u granicama Stage N.
+frontend, test i dokumentacione izmene - ali samo u granicama Stage N.
 
 ## Zabranjeno
 

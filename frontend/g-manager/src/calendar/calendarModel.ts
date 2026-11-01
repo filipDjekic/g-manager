@@ -39,7 +39,7 @@ export const instantLabel = (value: string) => formatBusinessDateTime(value,fals
 export function eventTime(item: {startTime: string; endTime: string}, compact = false) {
   const start = instantLabel(item.startTime), end = instantLabel(item.endTime)
   const sameDate = businessInstantToLocal(item.startTime).slice(0,10) === businessInstantToLocal(item.endTime).slice(0,10)
-  return `${compact && sameDate ? formatBusinessTime(item.startTime) : start}–${sameDate ? formatBusinessTime(item.endTime) : end}`
+  return `${compact && sameDate ? formatBusinessTime(item.startTime) : start}-${sameDate ? formatBusinessTime(item.endTime) : end}`
 }
 export function eventsByDay(events: CalendarReservation[], days: string[]) {
   const result: Record<string,CalendarReservation[]> = {}

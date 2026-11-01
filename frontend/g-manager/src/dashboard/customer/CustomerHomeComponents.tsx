@@ -41,7 +41,7 @@ export function CustomerHomeMetric({ label, value, detail, icon, iconNode, tone,
 }) {
   return <DashboardMetricCard label={label} value={loading
     ? <span className="ui-skeleton gm-home-kpi-skeleton" role="status" aria-label={`Učitavanje: ${label}`}><span /><span /></span>
-    : error ? '—' : value} detail={
+    : error ? '-' : value} detail={
     error ? undefined : loading ? 'Učitavanje…' : detail
   } icon={icon} iconNode={iconNode} tone={tone}>
     {error && <ErrorState message="Podaci nisu dostupni." action={<Button type="button" className="gm-home-kpi-retry" variant="secondary" onClick={onRetry}>Pokušaj ponovo</Button>} />}
@@ -57,7 +57,7 @@ export function ActiveGamingVisit({ visit, now, synchronized, onOpen }: {
     <div className="gm-home-session-visual"><GamingMotif /></div>
     <div className="gm-home-session-heading"><div><span>Računar / gaming resurs</span><h3>{visit.resourceName}</h3></div><Badge tone={status.tone}>{status.label}</Badge></div>
     <div className="gm-home-session-timer"><span>Preostalo vreme</span>
-      <strong role="timer" aria-label="Preostalo vreme gaming sesije">{synchronized ? homeCountdown((Date.parse(visit.endsAt) - now) / 1000) : '—'}</strong>
+      <strong role="timer" aria-label="Preostalo vreme gaming sesije">{synchronized ? homeCountdown((Date.parse(visit.endsAt) - now) / 1000) : '-'}</strong>
       {!synchronized && <small>Sinhronizacija vremena…</small>}
     </div>
     <dl className="gm-home-session-times">
@@ -81,7 +81,7 @@ export function CustomerSessionDialog({ open, visit, now, synchronized, loading,
     {error ? <ErrorState message={error} action={<Button variant="secondary" type="button" onClick={onRefresh}>Pokušaj ponovo</Button>} />
       : visit && status ? <div className="gm-home-session-detail">
         <div className="gm-home-session-heading"><h3>{visit.resourceName}</h3><Badge tone={status.tone}>{status.label}</Badge></div>
-        {visit.status === 'ACTIVE' && <div className="gm-home-session-timer"><span>Preostalo vreme</span><strong role="timer" aria-label="Preostalo vreme sesije">{synchronized ? homeCountdown((Date.parse(visit.endsAt) - now) / 1000) : '—'}</strong></div>}
+        {visit.status === 'ACTIVE' && <div className="gm-home-session-timer"><span>Preostalo vreme</span><strong role="timer" aria-label="Preostalo vreme sesije">{synchronized ? homeCountdown((Date.parse(visit.endsAt) - now) / 1000) : '-'}</strong></div>}
         <dl className="gm-home-session-times">
           <div><dt>Početak</dt><dd>{formatBusinessDateTime(visit.startedAt, false, 'sr-Latn-RS')}</dd></div>
           <div><dt>Planirani kraj</dt><dd>{formatBusinessDateTime(visit.endsAt, false, 'sr-Latn-RS')}</dd></div>
@@ -99,7 +99,7 @@ export function UpcomingReservations({ reservations }: { reservations: Reservati
   return <ul className="gm-home-upcoming-list">{reservations.map(value => <li key={value.id}>
     <Link to={reservationHref(value.id)}>
       <div className="gm-home-reservation-heading"><strong>{value.serviceName || 'Rezervacija'}<span aria-hidden="true">↗</span></strong><Badge tone={reservationTones[value.status]}>{reservationLabels[value.status]}</Badge></div>
-      <time dateTime={value.startTime}>{formatBusinessDateTime(value.startTime, false, 'sr-Latn-RS')} – {formatBusinessIntervalEnd(value.startTime, value.endTime, 'sr-Latn-RS')}</time>
+      <time dateTime={value.startTime}>{formatBusinessDateTime(value.startTime, false, 'sr-Latn-RS')} - {formatBusinessIntervalEnd(value.startTime, value.endTime, 'sr-Latn-RS')}</time>
       <span>{value.resourceId ? [value.resourceCode, value.resourceName].filter(Boolean).join(' · ') || 'Dodeljeni resurs'
         : value.resourceRequired ? 'Resurs još nije dodeljen' : 'Usluga bez fizičkog resursa'}</span>
       {value.locationName && <small>{value.locationName}</small>}
@@ -119,7 +119,7 @@ export function CustomerWaitlistPreview({ entries, now, synchronized, canManage 
       <div className="gm-home-reservation-heading"><strong>{entry.serviceName || 'Prijava na listu čekanja'}</strong>
         <Badge tone={active ? 'accent' : expired ? 'neutral' : 'warning'}>{active ? 'Ponuda čeka odgovor' : expired ? 'Ponuda nije važeća' : offered ? 'Provera ponude' : 'Čeka slobodan termin'}</Badge></div>
       {active && <p className="gm-home-offer-intro">Oslobodio se termin koji ste čekali.</p>}
-      <time dateTime={entry.desiredStart}>{formatBusinessDateTime(entry.desiredStart, false, 'sr-Latn-RS')}{entry.desiredEnd && ` – ${formatBusinessIntervalEnd(entry.desiredStart, entry.desiredEnd, 'sr-Latn-RS')}`}</time>
+      <time dateTime={entry.desiredStart}>{formatBusinessDateTime(entry.desiredStart, false, 'sr-Latn-RS')}{entry.desiredEnd && ` - ${formatBusinessIntervalEnd(entry.desiredStart, entry.desiredEnd, 'sr-Latn-RS')}`}</time>
       {(entry.resourceId || entry.locationName) && <span>{[entry.resourceCode, entry.resourceName, entry.locationName].filter(Boolean).join(' · ') || 'Dodeljeni resurs'}</span>}
       {offered && entry.offerExpiresAt && <small>Rok za prihvatanje: {formatBusinessDateTime(entry.offerExpiresAt, true, 'sr-Latn-RS')}</small>}
       {active && <strong className="gm-home-offer-timer" role="timer" aria-label="Preostalo vreme ponude">{homeCountdown((Date.parse(entry.offerExpiresAt!) - now) / 1000)}</strong>}

@@ -1,4 +1,4 @@
-# Stage 18 — Global search i command palette
+# Stage 18 - Global search i command palette
 
 
 > **Istorijski dokument.** Sačuvan radi projektantskog konteksta i ranijih nalaza. Opisi, komande i rezultati u nastavku nisu potvrda trenutnog ponašanja niti važeće operativno uputstvo. Koristite [aktuelnu dokumentaciju](../../README.md) i [nalaze pregleda od 1. novembra 2026.](../../MAINTENANCE_AUDIT.md).
@@ -30,24 +30,24 @@ Početna implementacija koristi ograničene JPA `LIKE`/exact query-je i najviše
 pet kandidata po izvoru, odnosno 20 ukupno. FULLTEXT indeks nije dodat bez
 merenog dokaza da je potreban. Ako produkciono p95 pređe Stage 14 budžet od
 500 ms, sledeći korak je merenje na MySQL ciljnom datasetu, pa indeks ili search
-adapter — ne uklanjanje permission filtera.
+adapter - ne uklanjanje permission filtera.
 
 ## Backend
 
 Ključni ugovori su:
 
-- `common.search.SearchResourceType` — stabilni tipovi `CATALOG`, `USER`,
+- `common.search.SearchResourceType` - stabilni tipovi `CATALOG`, `USER`,
   `ORDER`, `RESERVATION`;
-- `common.search.SearchEntry` — minimalna interna projekcija;
-- `common.search.SearchSource` — role-aware `search` i `findVisible` port;
+- `common.search.SearchEntry` - minimalna interna projekcija;
+- `common.search.SearchSource` - role-aware `search` i `findVisible` port;
 - domen-specifični izvori u `catalog`, `user`, `order` i `reservation` modulima;
-- `search.SearchService` — validacija, rate limit, merge/ranking, preferences i
+- `search.SearchService` - validacija, rate limit, merge/ranking, preferences i
   Micrometer metrike;
-- `search.SearchController` — javni REST ugovor.
+- `search.SearchController` - javni REST ugovor.
 
 Ranking je determinističan: exact pogodak ima najveći rang, zatim prefix, pa
-contains; rezultat se sekundarno sortira po naslovu. Query mora imati 2–100
-štampivih znakova. Traženi limit se svodi na opseg 1–20. Search je ograničen na
+contains; rezultat se sekundarno sortira po naslovu. Query mora imati 2-100
+štampivih znakova. Traženi limit se svodi na opseg 1-20. Search je ograničen na
 60 zahteva po autentifikovanom korisniku u jednom minutu.
 
 Korisnik vidi samo sopstvene orders/reservations kada ima `*_READ_OWN`, dok
@@ -59,13 +59,13 @@ uključujući zabranu da ADMIN pretražuje OWNER naloge.
 
 Svi endpoint-i zahtevaju autentifikaciju:
 
-- `GET /api/v1/search?q={query}&limit={1..20}` — grupabilni rezultati svih
+- `GET /api/v1/search?q={query}&limit={1..20}` - grupabilni rezultati svih
   dozvoljenih izvora;
-- `GET /api/v1/search/preferences?favoritesOnly=true|false` — omiljene ili
+- `GET /api/v1/search/preferences?favoritesOnly=true|false` - omiljene ili
   poslednje korišćene stavke trenutnog korisnika;
 - `POST /api/v1/search/preferences` sa `{ "type": "ORDER", "id": "uuid",
-  "favorite": true|false }` — beleži otvaranje i opciono favorite;
-- `DELETE /api/v1/search/preferences?type=ORDER&id={uuid}` — uklanja favorite
+  "favorite": true|false }` - beleži otvaranje i opciono favorite;
+- `DELETE /api/v1/search/preferences?type=ORDER&id={uuid}` - uklanja favorite
   oznaku bez brisanja istorije poslednjeg pristupa.
 
 Response sadrži samo `type`, `id`, `title`, `subtitle`, `url` i `favorite`.

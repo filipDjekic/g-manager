@@ -1,4 +1,4 @@
-# ADR-001 — Modularni monolit sa enforce-ovanim package granicama
+# ADR-001 - Modularni monolit sa enforce-ovanim package granicama
 
 Status: prihvaćeno  
 Datum: 2026-08-02  

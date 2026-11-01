@@ -160,7 +160,7 @@
 .g-dashboard .dashboard-timeline > li { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
 .g-dashboard .dashboard-timeline > li::before, .g-dashboard .dashboard-timeline > li::after { display: none; }
 .g-dashboard .dashboard-timeline-time { display: flex; gap: var(--space-2); padding-top: 0; }
-.g-dashboard .dashboard-timeline-time time:last-child::before { content: '–'; margin-inline-end: var(--space-2); }
+.g-dashboard .dashboard-timeline-time time:last-child::before { content: '-'; margin-inline-end: var(--space-2); }
 .g-dashboard .dashboard-appointment .card-actions > .ui-button { flex: 1 1 auto; }
 .g-dashboard .dashboard-status-legend { grid-template-columns: minmax(0, 1fr); }
 }

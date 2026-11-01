@@ -139,7 +139,7 @@ test('AI report pilot requires consent and exposes an accessible sourced fallbac
   await page.getByRole('button', { name: 'AI sažetak' }).press('Enter')
   const consent = page.getByRole('dialog', { name: 'AI sažetak ovog izveštaja' })
   await expect(page.getByRole('heading', { name: 'Sažetak bez AI-a' })).toHaveCount(0)
-  await consent.getByRole('button', { name: 'Pristajem — napravi sažetak' }).click()
+  await consent.getByRole('button', { name: 'Pristajem - napravi sažetak' }).click()
   await expect(page.getByRole('heading', { name: 'Sažetak bez AI-a' })).toBeVisible()
   await expect(page.getByText(/Izveštaj orders, 42 redova/)).toBeVisible()
   const results = await new AxeBuilder({ page }).analyze()

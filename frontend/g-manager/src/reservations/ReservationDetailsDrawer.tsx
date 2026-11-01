@@ -142,7 +142,7 @@ function ReservationDetailsContent({ reservationId, onClose, onChanged, initialA
               setResourceChoice({ reservationId: value.id, resourceId: event.target.value })}>
               <option value="">Izaberite konkretan resurs</option>
               {resourceOptions.data?.resources.map((resource) => <option key={resource.id} value={resource.id} disabled={!resource.available}>
-                {resource.code} · {resource.name} · {resource.locationName}{resource.available ? '' : ' — Zauzet ili van radnog vremena'}</option>)}
+                {resource.code} · {resource.name} · {resource.locationName}{resource.available ? '' : ' - Zauzet ili van radnog vremena'}</option>)}
             </Select></label>
             {!resourceOptions.isLoading && !resourceOptions.error && !resourceOptions.data?.resources.some((resource) => resource.available)
               && <p>Nema slobodnog kompatibilnog resursa za ovaj termin. Rezervaciju možete otkazati.</p>}

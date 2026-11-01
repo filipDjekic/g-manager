@@ -1,4 +1,4 @@
-# G-Manager — roadmap za gaming sesije i zaključani PC Client
+# G-Manager - roadmap za gaming sesije i zaključani PC Client
 
 
 > **Istorijski dokument.** Sačuvan radi projektantskog konteksta i ranijih nalaza. Opisi, komande i rezultati u nastavku nisu potvrda trenutnog ponašanja niti važeće operativno uputstvo. Koristite [aktuelnu dokumentaciju](../../README.md) i [nalaze pregleda od 1. novembra 2026.](../../MAINTENANCE_AUDIT.md).
@@ -29,14 +29,14 @@ Ovaj dokument je autoritativni plan za buduću komandu „Izvrši kompletan Stag
 - UTC `Instant` model, uz lokacijsku/business vremensku zonu samo za prikaz i radno vreme.
 - Postojeći `Customer`, CRM, pretraga, soft delete, notifikacije, feature flags, metrics i readiness infrastruktura.
 
-### 1.3 Customer nalozi — stvarno stanje i jaz
+### 1.3 Customer nalozi - stvarno stanje i jaz
 
 - Customer trenutno nije poseban entitet: to je postojeći `User` sa rolom `CUSTOMER`. To treba zadržati; CRM ostaje dodatni customer profil.
 - Javni `POST /api/v1/auth/register` i frontend `/register` trenutno omogućavaju samostalnu registraciju. To je u direktnom konfliktu sa zahtevom da nalog kreira zaposleni.
 - `USER_CREATE` trenutno pripada samo OWNER/ADMIN korisnicima, a `UserAuthorizationPolicy` ne dozvoljava kreiranje role `CUSTOMER`. EMPLOYEE zato trenutno ne može da kreira customer nalog.
 - Customer list/detail/CRM već postoje i treba ih proširiti operativnom akcijom „pokreni sesiju“, bez paralelnog Customer sistema.
 
-### 1.4 Oprema i rezervacije — stvarno stanje i jaz
+### 1.4 Oprema i rezervacije - stvarno stanje i jaz
 
 - Radno stablo sadrži `Location`, `Area` i `PhysicalResource`, tipove uključujući `GAMING_PC`, mapu, `active/bookable`, service vezu i pessimistic lock. Flyway V28 povezuje resurs sa rezervacijom i lokacijom.
 - Ovo je odgovarajuća osnova za Gaming Station; ne uvodi se zasebna tabela `equipment` sa dupliranim identitetom. Gaming-specifična polja proširuju `physical_resources` ili 1:1 station profile vezan za isti resource ID.
@@ -118,7 +118,7 @@ Machine token mora sadržati samo machine/station identitet, key version i uzak 
 
 ## 4. Staged implementation roadmap
 
-## Stage 1 — Zatvaranje foundation gap-ova i ugovora
+## Stage 1 - Zatvaranje foundation gap-ova i ugovora
 
 ### Cilj
 Zaključati trenutni resource/customer baseline i precizne gaming-session/security ugovore pre novih runtime tabela.
@@ -169,7 +169,7 @@ ugovori su implementirani i validirani. `MySqlSchemaIT` je usklađen sa V28, ali
 izvršen jer Docker pokretanje ostaje na korisniku. Nijedan gaming runtime endpoint niti
 Windows Client implementacija nije uvedena.
 
-## Stage 2 — Staff-managed customer nalozi
+## Stage 2 - Staff-managed customer nalozi
 
 ### Cilj
 Zaposleni kreira ili nalazi customer-a bez javne registracije i bez administrativnih privilegija.
@@ -220,7 +220,7 @@ Backend/frontend customer workflow, migracija, audit i authorization testovi pro
 aktivacija, V29 credential state, zatvorena javna registracija i customer workspace tok su
 implementirani. Gaming-session akcija je namerno onemogućena; Stage 3 nije implementiran.
 
-## Stage 3 — Gaming station readiness i aplikacioni profili
+## Stage 3 - Gaming station readiness i aplikacioni profili
 
 ### Cilj
 Pretvoriti `PhysicalResource(GAMING_PC)` u operativno upravljivu station projekciju pre pokretanja sesija.
@@ -268,7 +268,7 @@ Station readiness verticala je upotrebljiva bez Client-a i pokrivena testovima.
 projection port, booking zaštita, RBAC, application policy editor i employee read-only
 overview/map indikatori su implementirani. Gaming session, machine API i Client nisu uvedeni.
 
-## Stage 4 — Authoritative gaming-session lifecycle
+## Stage 4 - Authoritative gaming-session lifecycle
 
 ### Cilj
 Implementirati atomski start, extension i manual termination sa backend vremenom kao izvorom istine.
@@ -321,7 +321,7 @@ idempotency, audit/outbox, station `IN_SESSION` projekcija i minimalni employee
 start/detail UI su implementirani. Automatsko isticanje, command log, SSE session
 događaji i Gaming Client ostaju u narednim Stage-ovima.
 
-## Stage 5 — Automatsko isticanje, command log i projekcije
+## Stage 5 - Automatsko isticanje, command log i projekcije
 
 ### Cilj
 Pouzdano završavati sesije i pripremiti durable server→machine komande.
@@ -372,7 +372,7 @@ expiration i reconciliation jobs, acknowledged-command retention, metrike i
 outbox-to-SSE invalidacija employee session upita su implementirani. Machine
 poll/ack endpointi i OS enforcement nisu uvedeni.
 
-## Stage 6 — Employee gaming operations dashboard
+## Stage 6 - Employee gaming operations dashboard
 
 ### Cilj
 Zaposleni sa jedne stranice vidi stanice i upravlja aktivnim sesijama.
@@ -405,7 +405,7 @@ Component testovi svih station stanja, countdown/extension, role/location scope 
 Operativni employee workflow.
 
 ### Dependencies
-Stages 4–5.
+Stages 4-5.
 
 ### Acceptance criteria
 - Promena je vidljiva bez punog page reload-a.
@@ -423,7 +423,7 @@ responsive station grid, quick customer start, +30/+60/custom extension, manual
 termination, SSE query invalidation, periodični resync i Stage 6 test scenariji su
 implementirani. Machine API i Gaming Client nisu uvedeni.
 
-## Stage 7 — Machine enrollment i autentifikovani protocol
+## Stage 7 - Machine enrollment i autentifikovani protocol
 
 ### Cilj
 Svaka stanica dobija opoziv identitet i zaseban machine API.
@@ -476,7 +476,7 @@ identity-keyed rate limiting, management UI i headless protocol harness su
 implementirani. Windows Service, Shell i session-bound customer login ostaju u
 Stage-u 8.
 
-## Stage 8 — Windows Service i fullscreen Shell vertical slice
+## Stage 8 - Windows Service i fullscreen Shell vertical slice
 
 ### Cilj
 Napraviti instalabilan Windows Client koji prikazuje locked/active ekran i prati authoritative sesiju.
@@ -520,7 +520,7 @@ Stage 7.
 ### Definition of Done
 Instalabilan development build i testirana end-to-end komunikacija bez OS lockdown politike.
 
-## Stage 9 — Allowed applications i OS policy integracija
+## Stage 9 - Allowed applications i OS policy integracija
 
 ### Cilj
 Pokretati samo konfigurisan launcher/game/helper skup, uz OS application control kao stvarnu granicu.
@@ -563,7 +563,7 @@ Stages 3 i 8.
 ### Definition of Done
 Repo artefakti i Windows test dokazi potvrđuju allowlist defense-in-depth.
 
-## Stage 10 — Offline lease, reconnect i pouzdan završetak
+## Stage 10 - Offline lease, reconnect i pouzdan završetak
 
 ### Cilj
 Definisano i bezbedno ponašanje pri LAN/backend/client/Windows kvarovima.
@@ -599,7 +599,7 @@ Network loss, delayed/duplicate/out-of-order commands, clock drift, backend rest
 Failure matrix i operator recovery runbook.
 
 ### Dependencies
-Stages 5, 7–9.
+Stages 5, 7-9.
 
 ### Acceptance criteria
 - Gubitak mreže ne produžava sesiju beskonačno.
@@ -609,7 +609,7 @@ Stages 5, 7–9.
 ### Definition of Done
 Automatizovani failure testovi i ručni Windows restart drill prolaze.
 
-## Stage 11 — Produkcioni hardening, E2E i rollout
+## Stage 11 - Produkcioni hardening, E2E i rollout
 
 ### Cilj
 Završiti observability, distribuciju, operativne procedure i pun business E2E.
@@ -639,7 +639,7 @@ Pun E2E: employee create/find customer → bira station → start → client log
 Production deployment, certificates/DNS/firewall, provisioning, incident response, backup/restore i release checklist.
 
 ### Dependencies
-Stages 1–10.
+Stages 1-10.
 
 ### Acceptance criteria
 - Kritični E2E prolazi na podržanom Windows izdanju i MySQL-u.
@@ -684,7 +684,7 @@ Stage 1 ─┬─> Stage 2 ───────┐
 Stage 3 ──────────────────────────> Stage 7 ─> Stage 8 ─> Stage 9
                                              └───────────> Stage 10
 Stage 5 ─────────────────────────────────────────────────> Stage 10
-Stages 1–10 ─────────────────────────────────────────────> Stage 11
+Stages 1-10 ─────────────────────────────────────────────> Stage 11
 ```
 
-Stage 2 i Stage 3 mogu se izvršavati nezavisno nakon Stage 1. Stage 6 je web-operativni rezultat bez Windows Client-a; Stage 7–10 grade machine vertikalu. Stage 11 je jedini production-release gate.
+Stage 2 i Stage 3 mogu se izvršavati nezavisno nakon Stage 1. Stage 6 je web-operativni rezultat bez Windows Client-a; Stage 7-10 grade machine vertikalu. Stage 11 je jedini production-release gate.

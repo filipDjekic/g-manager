@@ -79,7 +79,7 @@ describe('report generation and scheduling transactions', () => {
     await user.click(await screen.findByRole('button', { name: 'Osveži' }))
     expect(await screen.findByText('Nema izveštaja')).toBeVisible()
     fireEvent.change(screen.getByLabelText('Od'), { target: { value: '2028-03-20' } })
-    fireEvent.change(screen.getByLabelText('Do — isključivi kraj'), { target: { value: '2028-03-16' } })
+    fireEvent.change(screen.getByLabelText('Do - isključivi kraj'), { target: { value: '2028-03-16' } })
     await user.click(screen.getByRole('button', { name: 'Generiši' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Generisanje nije pokrenuto.')
     expect(generated).toBe(0)

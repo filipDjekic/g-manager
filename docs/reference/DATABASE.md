@@ -4,16 +4,16 @@ Podržana runtime baza u konfiguraciji je MySQL 8.4. Root Compose koristi tag `m
 
 ## Šema i vlasništvo
 
-Jedini verzionisani izvor šeme je [gm/src/main/resources/db/migration](../../gm/src/main/resources/db/migration): **41 SQL migracija, V1–V41**. `flyway_schema_history` beleži primenjene verzije i checksum. JPA entiteti koriste `ddl-auto=validate`; Hibernate ne treba da kreira ili menja produkcione tabele.
+Jedini verzionisani izvor šeme je [gm/src/main/resources/db/migration](../../gm/src/main/resources/db/migration): **41 SQL migracija, V1-V41**. `flyway_schema_history` beleži primenjene verzije i checksum. JPA entiteti koriste `ddl-auto=validate`; Hibernate ne treba da kreira ili menja produkcione tabele.
 
 | Migracije | Glavne oblasti |
 | --- | --- |
-| V1–V9 | Users, refresh tokens, avatar, catalog, working hours, reservations/idempotency, orders, FK i auth sessions |
-| V10–V17 | Audit/soft delete, scoped idempotency, outbox, background jobs, indeksi, saved views, search i widget preferences |
-| V18–V23 | Notifications, documents/versions, reports, istorijske workflow tabele, feature overrides i AI usage |
-| V24–V29 | Time off, waitlist, recurrence, CRM, lokacije/zone/resursi i customer activation |
-| V30–V36 | Station readiness, gaming lifecycle, komande/cursors, machine trust, session login, potpisana policy i enforcement/reconciliation |
-| V37–V41 | `requires_resource`, employee-resource dodele, floor plan, waitlist management i Client management telemetry |
+| V1-V9 | Users, refresh tokens, avatar, catalog, working hours, reservations/idempotency, orders, FK i auth sessions |
+| V10-V17 | Audit/soft delete, scoped idempotency, outbox, background jobs, indeksi, saved views, search i widget preferences |
+| V18-V23 | Notifications, documents/versions, reports, istorijske workflow tabele, feature overrides i AI usage |
+| V24-V29 | Time off, waitlist, recurrence, CRM, lokacije/zone/resursi i customer activation |
+| V30-V36 | Station readiness, gaming lifecycle, komande/cursors, machine trust, session login, potpisana policy i enforcement/reconciliation |
+| V37-V41 | `requires_resource`, employee-resource dodele, floor plan, waitlist management i Client management telemetry |
 
 Postojanje tabele ne znači da postoji aktivan korisnički modul: workflow tabele su primer sačuvane istorije šeme bez aktuelnog workflow API-ja.
 

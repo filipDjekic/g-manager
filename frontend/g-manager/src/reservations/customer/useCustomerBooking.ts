@@ -138,7 +138,7 @@ export function useCustomerBooking({ prefill, services, employees, loading, data
         if (request.kind === 'RECURRING') { const created = await reservationApi.createRecurrence(request.input, keys.begin()); setRecurrenceResult(created); createdId = created.created[0]?.id }
         else createdId = (await reservationApi.create(request.input, keys.begin())).id
         keys.succeeded(); pending.current = null
-        toast(request.kind === 'RECURRING' ? 'Serija rezervacija je obrađena.' : 'Zahtev poslat — čeka potvrdu.', 'success')
+        toast(request.kind === 'RECURRING' ? 'Serija rezervacija je obrađena.' : 'Zahtev poslat - čeka potvrdu.', 'success')
         releaseNavigation()
         await onCreated(request.kind === 'SINGLE' ? createdId : undefined).catch(() => toast('Rezervacija je sačuvana. Osvežite spisak za njen status.', 'info'))
       } catch (cause) {

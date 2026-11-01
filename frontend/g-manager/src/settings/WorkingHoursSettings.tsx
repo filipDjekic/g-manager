@@ -98,7 +98,7 @@ export function WorkingHoursSettings({ query, onDirtyChange }: { query: UseQuery
             disabled={disabled || !values.active} onChange={event => update(day, { openTime: event.target.value })} /></label>
           <label><span>Vreme zatvaranja</span><Input type="time" step="60" aria-label={`Vreme zatvaranja · ${dayLabels[day]}`} value={values.closeTime.slice(0, 5)}
             disabled={disabled || !values.active} onChange={event => update(day, { closeTime: event.target.value })} /></label>
-          <div className="gm-settings-hour-midnight">{overnight ? <Badge tone="info"><SettingsIcon kind="clock" />Prelazi ponoć</Badge> : <span>{values.openTime && values.closeTime ? 'Istog dana' : '—'}</span>}</div>
+          <div className="gm-settings-hour-midnight">{overnight ? <Badge tone="info"><SettingsIcon kind="clock" />Prelazi ponoć</Badge> : <span>{values.openTime && values.closeTime ? 'Istog dana' : '-'}</span>}</div>
           <div className="gm-settings-hour-actions">{canManage && <><Button type="button" loading={saving === day} disabled={disabled || !draft || Boolean(conflict)} onClick={() => void save(day)}>Sačuvaj</Button>
             {draft && <Button type="button" variant="secondary" disabled={(Boolean(saving) || savingAll)} onClick={() => discard(day)}>{conflict ? 'Učitaj aktuelne' : 'Poništi'}</Button>}</>}</div>
           {(errors[day] || conflict) && <Alert tone="danger" className="gm-settings-hour-error" role="alert">{errors[day] || 'Raspored je promenjen. Vaše nesačuvane vrednosti ostaju sačuvane dok ne učitate aktuelne podatke.'}</Alert>}

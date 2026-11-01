@@ -201,7 +201,7 @@ function CustomerOrdersWorkspace({ user }: { user: AuthUser }) {
           <label className="gm-my-product-search"><span>Pretraga proizvoda</span><div><OrderIcon kind="search" /><Input ref={searchRef} type="search" value={search} maxLength={200}
             placeholder="Pretraži proizvode..." disabled={!canCatalog} onChange={event => setSearch(event.target.value)} /></div></label>
           <label><span>Sortiranje</span><Select value={sort} disabled={!canCatalog} onChange={event => setSort(event.target.value as keyof typeof productSorts)}>
-            <option value="NAME_ASC">Naziv: A–Ž</option><option value="NAME_DESC">Naziv: Ž–A</option>
+            <option value="NAME_ASC">Naziv: A-Ž</option><option value="NAME_DESC">Naziv: Ž-A</option>
             <option value="PRICE_ASC">Cena: rastuće</option><option value="PRICE_DESC">Cena: opadajuće</option></Select></label>
           <details className="ui-advanced-filters"><summary>Raspon cena</summary><div className="ui-form-grid">          <label><span>Cena od (RSD)</span><Input type="number" inputMode="decimal" min={0} step="0.01" value={minPrice} disabled={!canCatalog} onChange={event => setMinPrice(event.target.value)} aria-invalid={!pricesValid || undefined} /></label>
           <label><span>Cena do (RSD)</span><Input type="number" inputMode="decimal" min={0} step="0.01" value={maxPrice} disabled={!canCatalog} onChange={event => setMaxPrice(event.target.value)} aria-invalid={!pricesValid || undefined} /></label>
@@ -226,7 +226,7 @@ function CustomerOrdersWorkspace({ user }: { user: AuthUser }) {
 
     <Button ref={element => { if (element) cartOpener.current = element }} type="button" className="gm-my-mobile-cart" variant="secondary"
       onClick={event => { cartOpener.current = event.currentTarget; setCartOpen(true) }} aria-haspopup="dialog" aria-expanded={cartOpen}>
-      <OrderIcon /><span>Korpa <strong>{cart.ready ? quantityCount : '—'}</strong></span><strong>{cart.ready && cart.estimatedTotal !== null ? orderMoney.format(cart.estimatedTotal) : '—'}</strong>
+      <OrderIcon /><span>Korpa <strong>{cart.ready ? quantityCount : '-'}</strong></span><strong>{cart.ready && cart.estimatedTotal !== null ? orderMoney.format(cart.estimatedTotal) : '-'}</strong>
     </Button>
 
     </>}

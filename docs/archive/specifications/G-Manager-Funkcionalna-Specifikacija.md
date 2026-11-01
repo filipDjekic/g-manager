@@ -1,4 +1,4 @@
-# G-Manager — Funkcionalna Specifikacija (End-to-End Flows)
+# G-Manager - Funkcionalna Specifikacija (End-to-End Flows)
 
 
 > **Istorijski dokument.** Sačuvan radi projektantskog konteksta i ranijih nalaza. Opisi, komande i rezultati u nastavku nisu potvrda trenutnog ponašanja niti važeće operativno uputstvo. Koristite [aktuelnu dokumentaciju](../../README.md) i [nalaze pregleda od 1. novembra 2026.](../../MAINTENANCE_AUDIT.md).
@@ -16,11 +16,11 @@
 
 ---
 
-# MODUL 1 — AUTH & USER MANAGEMENT
+# MODUL 1 - AUTH & USER MANAGEMENT
 
-## FR-AUTH-01 — Registracija novog korisnika (CUSTOMER)
+## FR-AUTH-01 - Registracija novog korisnika (CUSTOMER)
 
-**1. Rola:** Javno dostupno (bez autentifikacije). Registracija kroz ovaj endpoint **uvek** kreira korisnika sa rolom `CUSTOMER` — ne postoji polje `role` u request DTO-u.
+**1. Rola:** Javno dostupno (bez autentifikacije). Registracija kroz ovaj endpoint **uvek** kreira korisnika sa rolom `CUSTOMER` - ne postoji polje `role` u request DTO-u.
 
 **2. Ulaz:** `POST /api/v1/auth/register`
 ```json
@@ -31,23 +31,23 @@
 - Bean Validation: `name` @NotBlank, `email` @Email @NotBlank, `password` @NotBlank @Size(min=8).
 - `AuthService`: provera da `email` već ne postoji u bazi (`UserRepository.existsByEmail`) → ako postoji, prekid.
 - `password` → `BCryptPasswordEncoder.encode()`.
-- Transakcija: `INSERT` u `user` tabelu — `role = CUSTOMER`, `active = true`.
-- Rate limiting: max 10 registracija/sat po IP (sekcija 24) — proverava se **pre** ulaska u servis (filter/interceptor nivo).
+- Transakcija: `INSERT` u `user` tabelu - `role = CUSTOMER`, `active = true`.
+- Rate limiting: max 10 registracija/sat po IP (sekcija 24) - proverava se **pre** ulaska u servis (filter/interceptor nivo).
 
 **4. Uspešan odgovor:** `201 Created`
 ```json
 { "id": "uuid", "name": "...", "email": "...", "role": "CUSTOMER" }
 ```
-(bez `passwordHash`, bez auto-login tokena — korisnik se posle registracije eksplicitno loguje).
+(bez `passwordHash`, bez auto-login tokena - korisnik se posle registracije eksplicitno loguje).
 
 **5. Edge-case-ovi:**
-- Email već postoji → **409 Conflict** ("email je već registrovan") — namerno 409 a ne 400, jer je zahtev strukturno ispravan ali stanje sistema (postojeći resurs) ga sprečava.
+- Email već postoji → **409 Conflict** ("email je već registrovan") - namerno 409 a ne 400, jer je zahtev strukturno ispravan ali stanje sistema (postojeći resurs) ga sprečava.
 - Prekoračen rate limit → **429 Too Many Requests**.
 - Neispravan email format / kratka lozinka → **400 Bad Request**.
 
 ---
 
-## FR-AUTH-02 — Login (izdavanje JWT tokena)
+## FR-AUTH-02 - Login (izdavanje JWT tokena)
 
 **1. Rola:** Javno dostupno.
 
@@ -58,10 +58,10 @@
 
 **3. Backend flow:**
 - Učitati `User` po `email`. Ako ne postoji → generička poruka greške (ne otkrivati da li email postoji, radi bezbednosti).
-- Proveriti `active == true` — ako `false` → odbiti login istom generičkom porukom.
+- Proveriti `active == true` - ako `false` → odbiti login istom generičkom porukom.
 - `BCryptPasswordEncoder.matches(rawPassword, user.passwordHash)`.
-- Ako uspešno: `JwtService.generateToken(user.id, user.role)` — token nosi **samo** `sub=userId` (i eventualno `exp`), **ne** rolu kao trajni claim koji se slepo veruje (rola se i dalje uvek re-proverava iz baze na svakom sledećem requestu).
-- Rate limiting: max 5 pokušaja/10min po email+IP kombinaciji (sekcija 24) — nakon prekoračenja, blokirati dalje pokušaje bez obzira na tačnost lozinke.
+- Ako uspešno: `JwtService.generateToken(user.id, user.role)` - token nosi **samo** `sub=userId` (i eventualno `exp`), **ne** rolu kao trajni claim koji se slepo veruje (rola se i dalje uvek re-proverava iz baze na svakom sledećem requestu).
+- Rate limiting: max 5 pokušaja/10min po email+IP kombinaciji (sekcija 24) - nakon prekoračenja, blokirati dalje pokušaje bez obzira na tačnost lozinke.
 
 **4. Uspešan odgovor:** `200 OK`
 ```json
@@ -69,13 +69,13 @@
 ```
 
 **5. Edge-case-ovi:**
-- Pogrešan email ili lozinka → **401 Unauthorized** ("neispravni kredencijali" — namerno ista poruka za oba slučaja, da se ne otkriva da li email postoji).
+- Pogrešan email ili lozinka → **401 Unauthorized** ("neispravni kredencijali" - namerno ista poruka za oba slučaja, da se ne otkriva da li email postoji).
 - Deaktiviran nalog → **401 Unauthorized** (ista generička poruka, iz istog bezbednosnog razloga).
 - Prekoračen rate limit → **429 Too Many Requests**.
 
 ---
 
-## FR-USER-01 — Kreiranje EMPLOYEE/ADMIN naloga
+## FR-USER-01 - Kreiranje EMPLOYEE/ADMIN naloga
 
 **1. Rola:** OWNER (kreira ADMIN i EMPLOYEE), ADMIN (kreira samo EMPLOYEE).
 
@@ -86,13 +86,13 @@
 
 **3. Backend flow:**
 - `@PreAuthorize("hasAnyRole('OWNER','ADMIN')")`.
-- **Servisna provera hijerarhije** (ne postoji kao anotacija — mora biti eksplicitan kod u `UserService`):
+- **Servisna provera hijerarhije** (ne postoji kao anotacija - mora biti eksplicitan kod u `UserService`):
   - Ako `currentUser.role == ADMIN` i `request.role == OWNER` ili `request.role == ADMIN` → odbiti (ADMIN sme kreirati samo EMPLOYEE).
   - `CUSTOMER` rola se **ne** kreira kroz ovaj endpoint (ide kroz `/auth/register`).
 - Provera jedinstvenosti email-a.
 - `INSERT` u `user` tabelu, `active = true` po default-u.
 
-**4. Uspešan odgovor:** `201 Created` — `UserResponse` (bez `passwordHash`).
+**4. Uspešan odgovor:** `201 Created` - `UserResponse` (bez `passwordHash`).
 
 **5. Edge-case-ovi:**
 - ADMIN pokušava kreirati OWNER/ADMIN → **403 Forbidden**.
@@ -101,7 +101,7 @@
 
 ---
 
-## FR-USER-02 — Pregled liste korisnika (paginirano)
+## FR-USER-02 - Pregled liste korisnika (paginirano)
 
 **1. Rola:** OWNER, ADMIN.
 
@@ -111,9 +111,9 @@
 - `@PreAuthorize("hasAnyRole('OWNER','ADMIN')")`.
 - Paginacija po standardnoj konvenciji (sekcija 14): `size` default 20, max 100 (vrednost preko 100 se **skraćuje** na 100 na servisnom nivou, ne baca grešku).
 - Opcioni filter po `role` i `active`.
-- ADMIN u rezultatima **ne vidi** OWNER zapise (filtrira se na nivou upita, ne samo na frontendu) — sprečava informaciono curenje o postojanju/broju OWNER naloga ADMIN-u.
+- ADMIN u rezultatima **ne vidi** OWNER zapise (filtrira se na nivou upita, ne samo na frontendu) - sprečava informaciono curenje o postojanju/broju OWNER naloga ADMIN-u.
 
-**4. Uspešan odgovor:** `200 OK` — `PageResponse<UserResponse>` (`content`, `page`, `size`, `totalElements`).
+**4. Uspešan odgovor:** `200 OK` - `PageResponse<UserResponse>` (`content`, `page`, `size`, `totalElements`).
 
 **5. Edge-case-ovi:**
 - EMPLOYEE/CUSTOMER pristup → **403 Forbidden**.
@@ -121,24 +121,24 @@
 
 ---
 
-## FR-USER-03 — Pregled/izmena sopstvenog profila
+## FR-USER-03 - Pregled/izmena sopstvenog profila
 
-**1. Rola:** Svi autentifikovani (OWNER, ADMIN, EMPLOYEE, CUSTOMER) — samo nad **sopstvenim** nalogom.
+**1. Rola:** Svi autentifikovani (OWNER, ADMIN, EMPLOYEE, CUSTOMER) - samo nad **sopstvenim** nalogom.
 
 **2. Ulaz:** `GET /api/v1/users/me` i `PATCH /api/v1/users/me` `{ "name": "Novo Ime" }`
 
 **3. Backend flow:**
-- `userId` se **uvek** uzima iz `SecurityContext` (JWT `sub`), **nikad** iz path/body parametra — sprečava IDOR (Insecure Direct Object Reference) napad gde bi korisnik pokušao da izmeni tuđ profil slanjem tuđeg ID-a.
-- `PATCH` dozvoljava izmenu **samo** `name` (i eventualno lozinke kroz poseban `/users/me/password` endpoint sa obaveznom trenutnom lozinkom) — **ne** `role`, **ne** `active`, **ne** `email` (email promena bi zahtevala poseban verifikacioni flow, van MVP-a).
+- `userId` se **uvek** uzima iz `SecurityContext` (JWT `sub`), **nikad** iz path/body parametra - sprečava IDOR (Insecure Direct Object Reference) napad gde bi korisnik pokušao da izmeni tuđ profil slanjem tuđeg ID-a.
+- `PATCH` dozvoljava izmenu **samo** `name` (i eventualno lozinke kroz poseban `/users/me/password` endpoint sa obaveznom trenutnom lozinkom) - **ne** `role`, **ne** `active`, **ne** `email` (email promena bi zahtevala poseban verifikacioni flow, van MVP-a).
 
-**4. Uspešan odgovor:** `200 OK` — ažuriran `UserResponse`.
+**4. Uspešan odgovor:** `200 OK` - ažuriran `UserResponse`.
 
 **5. Edge-case-ovi:**
 - Pokušaj slanja `role`/`active` polja u telu → servis ta polja **ignoriše** (ne baca grešku, samo ih ne primenjuje) ili baca **400** ako DTO strogo ne dozvoljava ta polja (preporuka: DTO na nivou tipa nema ta polja, pa je ignorisanje automatsko).
 
 ---
 
-## FR-USER-04 — Deaktivacija korisnika (soft delete)
+## FR-USER-04 - Deaktivacija korisnika (soft delete)
 
 **1. Rola:** OWNER (deaktivira ADMIN/EMPLOYEE/CUSTOMER), ADMIN (deaktivira samo EMPLOYEE).
 
@@ -146,11 +146,11 @@
 
 **3. Backend flow:**
 - Ista hijerarhijska provera kao FR-USER-01.
-- `active = false` (fizičko brisanje **nikad** — sekcija 25, `users → soft delete`).
-- Svi budući JWT tokeni tog korisnika automatski postaju nevažeći **efektivno**, jer `JwtAuthenticationFilter` na svakom sledećem requestu učitava `active` iz baze i odbija pristup — nema potrebe za eksplicitnom token blacklistom.
+- `active = false` (fizičko brisanje **nikad** - sekcija 25, `users → soft delete`).
+- Svi budući JWT tokeni tog korisnika automatski postaju nevažeći **efektivno**, jer `JwtAuthenticationFilter` na svakom sledećem requestu učitava `active` iz baze i odbija pristup - nema potrebe za eksplicitnom token blacklistom.
 - Korisnik se ne sme sam deaktivirati (`id == currentUser.id` → odbiti, sprečava slučajno samo-zaključavanje OWNER-a).
 
-**4. Uspešan odgovor:** `200 OK` — `UserResponse` sa `active: false`.
+**4. Uspešan odgovor:** `200 OK` - `UserResponse` sa `active: false`.
 
 **5. Edge-case-ovi:**
 - Pokušaj samo-deaktivacije → **409 Conflict** ili **400 Bad Request** (stanje: nedozvoljena operacija nad sopstvenim nalogom).
@@ -159,9 +159,9 @@
 
 ---
 
-# MODUL 2 — CATALOG
+# MODUL 2 - CATALOG
 
-## FR-CAT-01 — Kreiranje CatalogItem-a (PRODUCT ili SERVICE)
+## FR-CAT-01 - Kreiranje CatalogItem-a (PRODUCT ili SERVICE)
 
 **1. Rola:** ADMIN, OWNER.
 
@@ -178,7 +178,7 @@
   - `type == PRODUCT` → `durationMinutes` mora biti `null` → ako klijent pošalje vrednost, servis je ili odbacuje uz grešku ili je eksplicitno nulira (preporuka: **422** da se signalizira nekonzistentnost, ne tiho brisanje podatka).
 - `INSERT` u `catalog_item`, `active = true` po default-u.
 
-**4. Uspešan odgovor:** `201 Created` — `CatalogItemResponse`.
+**4. Uspešan odgovor:** `201 Created` - `CatalogItemResponse`.
 
 **5. Edge-case-ovi:**
 - `SERVICE` bez `durationMinutes` → **422 Unprocessable Entity**.
@@ -188,9 +188,9 @@
 
 ---
 
-## FR-CAT-02 — Pretraga/listing kataloga
+## FR-CAT-02 - Pretraga/listing kataloga
 
-**1. Rola:** Svi autentifikovani (uključujući CUSTOMER — mora videti katalog da bi napravio rezervaciju/narudžbinu).
+**1. Rola:** Svi autentifikovani (uključujući CUSTOMER - mora videti katalog da bi napravio rezervaciju/narudžbinu).
 
 **2. Ulaz:** `GET /api/v1/catalog?type=SERVICE&active=true&page=0&size=20`
 
@@ -199,14 +199,14 @@
 - CUSTOMER i EMPLOYEE (read-only za EMPLOYEE) po default-u vide **samo `active=true`** stavke, osim ako eksplicitno ADMIN/OWNER ne zatraže i neaktivne (query parametar `active` se ignoriše/force-uje na `true` za ne-management role).
 - Standardna paginacija.
 
-**4. Uspešan odgovor:** `200 OK` — `PageResponse<CatalogItemResponse>`.
+**4. Uspešan odgovor:** `200 OK` - `PageResponse<CatalogItemResponse>`.
 
 **5. Edge-case-ovi:**
 - Nema posebnih grešaka van standardnih (401 ako token nedostaje).
 
 ---
 
-## FR-CAT-03 — Izmena i deaktivacija CatalogItem-a
+## FR-CAT-03 - Izmena i deaktivacija CatalogItem-a
 
 **1. Rola:** ADMIN, OWNER.
 
@@ -214,9 +214,9 @@
 
 **3. Backend flow:**
 - Ista cross-field validacija kao FR-CAT-01 ako se `type`/`durationMinutes` menjaju.
-- Deaktivacija **ne** briše postojeće `Reservation`/`OrderItem` zapise koji već referenciraju taj `catalogItemId` (istorijski podaci ostaju netaknuti) — samo sprečava **nove** upotrebe (provera u `ReservationService`/`OrderService` pri kreiranju).
+- Deaktivacija **ne** briše postojeće `Reservation`/`OrderItem` zapise koji već referenciraju taj `catalogItemId` (istorijski podaci ostaju netaknuti) - samo sprečava **nove** upotrebe (provera u `ReservationService`/`OrderService` pri kreiranju).
 
-**4. Uspešan odgovor:** `200 OK` — ažuriran `CatalogItemResponse`.
+**4. Uspešan odgovor:** `200 OK` - ažuriran `CatalogItemResponse`.
 
 **5. Edge-case-ovi:**
 - Item ne postoji → **404 Not Found**.
@@ -224,9 +224,9 @@
 
 ---
 
-# MODUL 3 — WORKING HOURS
+# MODUL 3 - WORKING HOURS
 
-## FR-WH-01 — Podešavanje radnog vremena po danu
+## FR-WH-01 - Podešavanje radnog vremena po danu
 
 **1. Rola:** ADMIN, OWNER.
 
@@ -237,11 +237,11 @@
 
 **3. Backend flow:**
 - `@PreAuthorize("hasAnyRole('OWNER','ADMIN')")`.
-- Validacija: ako `closeTime < openTime` → **ovo se NE odbija kao greška** — tretira se kao legitimna "smena preko ponoći" (Deo 2 UTC specifikacije). Servis samo interno markira `spansMidnight = true` (izvedeno polje, ne perzistira se nužno ako se računa on-the-fly).
+- Validacija: ako `closeTime < openTime` → **ovo se NE odbija kao greška** - tretira se kao legitimna "smena preko ponoći" (Deo 2 UTC specifikacije). Servis samo interno markira `spansMidnight = true` (izvedeno polje, ne perzistira se nužno ako se računa on-the-fly).
 - `UPSERT` semantika: ako zapis za taj `dayOfWeek` već postoji → update; ako ne → insert (jedan zapis po danu, unique constraint na `dayOfWeek`).
-- Ovo **ne utiče retroaktivno** na već kreirane `Reservation` zapise — samo na buduće validacije.
+- Ovo **ne utiče retroaktivno** na već kreirane `Reservation` zapise - samo na buduće validacije.
 
-**4. Uspešan odgovor:** `200 OK` — `WorkingHoursResponse`.
+**4. Uspešan odgovor:** `200 OK` - `WorkingHoursResponse`.
 
 **5. Edge-case-ovi:**
 - `openTime == closeTime` (nulti interval) → **400 Bad Request** ("radno vreme ne sme biti praznog trajanja").
@@ -249,21 +249,21 @@
 
 ---
 
-## FR-WH-02 — Pregled radnog vremena (svi dani)
+## FR-WH-02 - Pregled radnog vremena (svi dani)
 
-**1. Rola:** Svi autentifikovani (CUSTOMER treba da vidi radno vreme pre pravljenja rezervacije — može biti i javno dostupno, po odluci tima).
+**1. Rola:** Svi autentifikovani (CUSTOMER treba da vidi radno vreme pre pravljenja rezervacije - može biti i javno dostupno, po odluci tima).
 
 **2. Ulaz:** `GET /api/v1/working-hours`
 
 **3. Backend flow:** Prost read, vraća svih 7 zapisa (uključujući `active=false` dane, da frontend može prikazati "neradno" umesto da ih izostavi).
 
-**4. Uspešan odgovor:** `200 OK` — lista od 7 `WorkingHoursResponse` objekata.
+**4. Uspešan odgovor:** `200 OK` - lista od 7 `WorkingHoursResponse` objekata.
 
-**5. Edge-case-ovi:** Nema posebnih — standardna autentifikaciona provera.
+**5. Edge-case-ovi:** Nema posebnih - standardna autentifikaciona provera.
 
 ---
 
-## FR-WH-03 — Kreiranje izuzetka od radnog vremena (praznik)
+## FR-WH-03 - Kreiranje izuzetka od radnog vremena (praznik)
 
 **1. Rola:** ADMIN, OWNER.
 
@@ -278,11 +278,11 @@ ili (skraćeno radno vreme):
 
 **3. Backend flow:**
 - Validacija: ako `fullDayClosed == false`, oba `overrideOpenTime` i `overrideCloseTime` moraju biti prisutna (par ide zajedno) → inače **422**.
-- `date` mora biti u budućnosti (nema smisla kreirati izuzetak za prošli datum) — **400** ako nije.
-- Unique constraint na `date` — ako izuzetak za taj datum već postoji → **409 Conflict** (koristiti `PUT` za izmenu postojećeg umesto `POST` duplikata).
+- `date` mora biti u budućnosti (nema smisla kreirati izuzetak za prošli datum) - **400** ako nije.
+- Unique constraint na `date` - ako izuzetak za taj datum već postoji → **409 Conflict** (koristiti `PUT` za izmenu postojećeg umesto `POST` duplikata).
 - Invalidacija keša (Deo 4.4 UTC specifikacije) nakon uspešnog upisa.
 
-**4. Uspešan odgovor:** `201 Created` — `WorkingHoursExceptionResponse`.
+**4. Uspešan odgovor:** `201 Created` - `WorkingHoursExceptionResponse`.
 
 **5. Edge-case-ovi:**
 - Duplirani datum → **409 Conflict**.
@@ -291,9 +291,9 @@ ili (skraćeno radno vreme):
 
 ---
 
-# MODUL 4 — RESERVATIONS
+# MODUL 4 - RESERVATIONS
 
-## FR-RES-01 — Kreiranje zahteva za terminom
+## FR-RES-01 - Kreiranje zahteva za terminom
 
 **1. Rola:** CUSTOMER.
 
@@ -302,10 +302,10 @@ Header: `Idempotency-Key: <client-generated-uuid>`
 ```json
 { "employeeId": "uuid", "serviceId": "uuid", "startTime": "2026-08-01T18:00:00Z", "note": "..." }
 ```
-(`customerId` se **ne** šalje — uzima se iz JWT-a.)
+(`customerId` se **ne** šalje - uzima se iz JWT-a.)
 
 **3. Backend flow (kompletan redosled iz UTC specifikacije, Deo "Rekapitulacija"):**
-- `IdempotencyInterceptor`: proverava `Idempotency-Key` header — ako nedostaje → **400**; ako ključ već postoji sa istim hash-om tela → vraća keširan response bez ponovnog izvršavanja; ako postoji sa **drugačijim** telom → **409/422**.
+- `IdempotencyInterceptor`: proverava `Idempotency-Key` header - ako nedostaje → **400**; ako ključ već postoji sa istim hash-om tela → vraća keširan response bez ponovnog izvršavanja; ako postoji sa **drugačijim** telom → **409/422**.
 - `@PreAuthorize("hasRole('CUSTOMER')")`.
 - Učitati `CatalogItem` po `serviceId` → mora postojati, `active == true`, `type == SERVICE` → inače **404** (ne postoji) ili **422** (postoji ali nije validna usluga).
 - Učitati `User` po `employeeId` → mora postojati, `role == EMPLOYEE`, `active == true` → inače **404**/**422**.
@@ -334,7 +334,7 @@ Header: `Idempotency-Key: <client-generated-uuid>`
 
 ---
 
-## FR-RES-02 — Potvrda rezervacije (`PENDING → CONFIRMED`)
+## FR-RES-02 - Potvrda rezervacije (`PENDING → CONFIRMED`)
 
 **1. Rola:** EMPLOYEE (samo sopstveni termini), ADMIN, OWNER.
 
@@ -345,9 +345,9 @@ Header: `Idempotency-Key: <client-generated-uuid>`
 - Autorizacija: EMPLOYEE mora imati `entity.employeeId == currentUser.id` → inače **403**.
 - Provera tranzicije: trenutni status mora biti `PENDING` → inače **409** ("nevažeća promena statusa").
 - **Ponovna** provera preklapanja (moglo se promeniti dok je bio PENDING) → ako konflikt → **409**.
-- `UPDATE reservation SET status = CONFIRMED` — Hibernate proverava `@Version` → konkurentna izmena → **409**.
+- `UPDATE reservation SET status = CONFIRMED` - Hibernate proverava `@Version` → konkurentna izmena → **409**.
 
-**4. Uspešan odgovor:** `200 OK` — `ReservationResponse` sa `status: CONFIRMED`.
+**4. Uspešan odgovor:** `200 OK` - `ReservationResponse` sa `status: CONFIRMED`.
 
 **5. Edge-case-ovi:**
 - Status nije `PENDING` (već CONFIRMED/REJECTED/itd.) → **409**.
@@ -356,7 +356,7 @@ Header: `Idempotency-Key: <client-generated-uuid>`
 
 ---
 
-## FR-RES-03 — Odbijanje rezervacije (`PENDING → REJECTED`)
+## FR-RES-03 - Odbijanje rezervacije (`PENDING → REJECTED`)
 
 **1. Rola:** EMPLOYEE (sopstveni), ADMIN, OWNER.
 
@@ -364,13 +364,13 @@ Header: `Idempotency-Key: <client-generated-uuid>`
 
 **3. Backend flow:** Identično FR-RES-02 osim ciljnog statusa; nema ponovne provere preklapanja (odbijanje ne zahteva proveru zauzetosti).
 
-**4. Uspešan odgovor:** `200 OK` — `status: REJECTED`.
+**4. Uspešan odgovor:** `200 OK` - `status: REJECTED`.
 
 **5. Edge-case-ovi:** Isti kao FR-RES-02.
 
 ---
 
-## FR-RES-04 — Otkazivanje rezervacije (`PENDING/CONFIRMED → CANCELLED`)
+## FR-RES-04 - Otkazivanje rezervacije (`PENDING/CONFIRMED → CANCELLED`)
 
 **1. Rola:** CUSTOMER (samo sopstveni termin), ADMIN, OWNER.
 
@@ -379,10 +379,10 @@ Header: `Idempotency-Key: <client-generated-uuid>`
 **3. Backend flow:**
 - Autorizacija: CUSTOMER mora imati `entity.customerId == currentUser.id` → inače **403**.
 - Provera tranzicije: trenutni status mora biti `PENDING` ili `CONFIRMED` → inače **409**.
-- **Ako je trenutni status `CONFIRMED` I akter je CUSTOMER:** dodatna provera cutoff prozora — `Instant.now() < startTime.minus(cancellationCutoffMinutes)` → inače **409** ("prekasno za otkazivanje"). ADMIN/OWNER akcija **zaobilazi** ovu proveru.
+- **Ako je trenutni status `CONFIRMED` I akter je CUSTOMER:** dodatna provera cutoff prozora - `Instant.now() < startTime.minus(cancellationCutoffMinutes)` → inače **409** ("prekasno za otkazivanje"). ADMIN/OWNER akcija **zaobilazi** ovu proveru.
 - `UPDATE reservation SET status = CANCELLED`.
 
-**4. Uspešan odgovor:** `200 OK` — `status: CANCELLED`.
+**4. Uspešan odgovor:** `200 OK` - `status: CANCELLED`.
 
 **5. Edge-case-ovi:**
 - Tuđi termin (CUSTOMER) → **403**.
@@ -391,7 +391,7 @@ Header: `Idempotency-Key: <client-generated-uuid>`
 
 ---
 
-## FR-RES-05 — Označavanje termina kao završenog (`CONFIRMED → COMPLETED`)
+## FR-RES-05 - Označavanje termina kao završenog (`CONFIRMED → COMPLETED`)
 
 **1. Rola:** EMPLOYEE (sopstveni), ADMIN, OWNER.
 
@@ -402,7 +402,7 @@ Header: `Idempotency-Key: <client-generated-uuid>`
 - Provera tranzicije: trenutni status mora biti `CONFIRMED` → inače **409**.
 - **Obavezna vremenska provera:** `Instant.now() >= entity.endTime` → ako termin (po vremenu) još nije istekao → **409** ("termin još nije istekao").
 
-**4. Uspešan odgovor:** `200 OK` — `status: COMPLETED`.
+**4. Uspešan odgovor:** `200 OK` - `status: COMPLETED`.
 
 **5. Edge-case-ovi:**
 - Pokušaj pre isteka `endTime` → **409**.
@@ -410,26 +410,26 @@ Header: `Idempotency-Key: <client-generated-uuid>`
 
 ---
 
-## FR-RES-06 — Pregled rezervacija (sopstvenih ili svih, sa filterima)
+## FR-RES-06 - Pregled rezervacija (sopstvenih ili svih, sa filterima)
 
-**1. Rola:** CUSTOMER (`GET /reservations/me` — samo svoje), EMPLOYEE/ADMIN/OWNER (`GET /reservations` — sve, sa filterima).
+**1. Rola:** CUSTOMER (`GET /reservations/me` - samo svoje), EMPLOYEE/ADMIN/OWNER (`GET /reservations` - sve, sa filterima).
 
 **2. Ulaz:** `GET /api/v1/reservations?status=PENDING&employeeId=uuid&from=2026-08-01&to=2026-08-31&page=0&size=20`
 
 **3. Backend flow:**
-- CUSTOMER ruta: `WHERE customerId = currentUser.id` — server-side hardkodovano, ignoriše se bilo koji `customerId` parametar poslat sa fronta.
+- CUSTOMER ruta: `WHERE customerId = currentUser.id` - server-side hardkodovano, ignoriše se bilo koji `customerId` parametar poslat sa fronta.
 - EMPLOYEE (ako koristi opšti `/reservations` endpoint umesto `/me`): opciono ograničiti da vidi samo `employeeId == currentUser.id` termine, zavisno od odluke tima (dokument iz Faze State Machine sugeriše da EMPLOYEE radi nad sopstvenim terminima).
 - Standardna paginacija i filter kombinacije (svi filteri opcioni, kombinuju se AND logikom).
 
-**4. Uspešan odgovor:** `200 OK` — `PageResponse<ReservationResponse>`.
+**4. Uspešan odgovor:** `200 OK` - `PageResponse<ReservationResponse>`.
 
 **5. Edge-case-ovi:** Nevalidan `status` enum vrednost u query parametru → **400**.
 
 ---
 
-# MODUL 5 — ORDERS
+# MODUL 5 - ORDERS
 
-## FR-ORD-01 — Kreiranje narudžbine (korpa sa proizvodima)
+## FR-ORD-01 - Kreiranje narudžbine (korpa sa proizvodima)
 
 **1. Rola:** CUSTOMER.
 
@@ -438,16 +438,16 @@ Header: `Idempotency-Key: <uuid>`
 ```json
 { "items": [ { "productId": "uuid", "quantity": 2 }, { "productId": "uuid", "quantity": 1 } ] }
 ```
-(Nema `unitPrice` polja — cena se nikad ne prima od klijenta.)
+(Nema `unitPrice` polja - cena se nikad ne prima od klijenta.)
 
 **3. Backend flow:**
 - `IdempotencyInterceptor` provera (isto kao FR-RES-01).
 - `@PreAuthorize("hasRole('CUSTOMER')")`.
 - Bean Validation: `items` @NotEmpty, svaki `quantity` @Positive.
-- Transakciona granica: za svaki `productId` — učitati `CatalogItem` → mora postojati, `active == true`, `type == PRODUCT` → inače **422** (jedna nevalidna stavka odbija **ceo** zahtev, ne pravi se delimična narudžbina).
+- Transakciona granica: za svaki `productId` - učitati `CatalogItem` → mora postojati, `active == true`, `type == PRODUCT` → inače **422** (jedna nevalidna stavka odbija **ceo** zahtev, ne pravi se delimična narudžbina).
 - Za svaku stavku: `unitPrice = catalogItem.price` (snapshot), `lineTotal = unitPrice * quantity`.
 - `totalPrice = SUM(lineTotal svih stavki)`.
-- `INSERT` u `order` (`status = CREATED`, `customerId` iz JWT-a, `handledBy = null`) i `INSERT` u `order_item` za svaku stavku — sve u **jednoj transakciji** (cascade preko `Order` agregatnog korena).
+- `INSERT` u `order` (`status = CREATED`, `customerId` iz JWT-a, `handledBy = null`) i `INSERT` u `order_item` za svaku stavku - sve u **jednoj transakciji** (cascade preko `Order` agregatnog korena).
 
 **4. Uspešan odgovor:** `201 Created`
 ```json
@@ -456,7 +456,7 @@ Header: `Idempotency-Key: <uuid>`
 
 **5. Edge-case-ovi:**
 - Prazna `items` lista → **400**.
-- `productId` referencira `SERVICE` tip (ne `PRODUCT`) → **422** ("samo proizvodi mogu ići u narudžbinu" — sekcija 6).
+- `productId` referencira `SERVICE` tip (ne `PRODUCT`) → **422** ("samo proizvodi mogu ići u narudžbinu" - sekcija 6).
 - Neaktivan proizvod → **422**.
 - Nepostojeći `productId` → **404**.
 - Nedostaje `Idempotency-Key` → **400**.
@@ -464,7 +464,7 @@ Header: `Idempotency-Key: <uuid>`
 
 ---
 
-## FR-ORD-02 — Preuzimanje narudžbine u obradu (`CREATED → IN_PROGRESS`)
+## FR-ORD-02 - Preuzimanje narudžbine u obradu (`CREATED → IN_PROGRESS`)
 
 **1. Rola:** EMPLOYEE, ADMIN, OWNER.
 
@@ -474,9 +474,9 @@ Header: `Idempotency-Key: <uuid>`
 - Učitati `Order` → **404** ako ne postoji.
 - Provera tranzicije: trenutni status mora biti `CREATED` → inače **409**.
 - `entity.handledBy = currentUser.id` (atomarno sa promenom statusa, ista transakcija).
-- `save()` → Hibernate `@Version` provera — ako je **drugi** zaposleni u međuvremenu već preuzeo (i time promenio `version`) → **409 Conflict** ("narudžbina je već preuzeta") — ovo je klasičan slučaj gde optimistic lock direktno implementira poslovno pravilo "samo jedan zaposleni može preuzeti".
+- `save()` → Hibernate `@Version` provera - ako je **drugi** zaposleni u međuvremenu već preuzeo (i time promenio `version`) → **409 Conflict** ("narudžbina je već preuzeta") - ovo je klasičan slučaj gde optimistic lock direktno implementira poslovno pravilo "samo jedan zaposleni može preuzeti".
 
-**4. Uspešan odgovor:** `200 OK` — `status: IN_PROGRESS`, `handledBy: <currentUser.id>`.
+**4. Uspešan odgovor:** `200 OK` - `status: IN_PROGRESS`, `handledBy: <currentUser.id>`.
 
 **5. Edge-case-ovi:**
 - Status nije `CREATED` → **409**.
@@ -484,7 +484,7 @@ Header: `Idempotency-Key: <uuid>`
 
 ---
 
-## FR-ORD-03 — Označavanje narudžbine kao spremne (`IN_PROGRESS → READY`)
+## FR-ORD-03 - Označavanje narudžbine kao spremne (`IN_PROGRESS → READY`)
 
 **1. Rola:** EMPLOYEE (samo `handledBy == currentUser.id`), ADMIN, OWNER.
 
@@ -494,13 +494,13 @@ Header: `Idempotency-Key: <uuid>`
 - Autorizacija: EMPLOYEE mora biti `entity.handledBy == currentUser.id` → inače **403** ("narudžbinu obrađuje drugi zaposleni").
 - Provera tranzicije: trenutni status mora biti `IN_PROGRESS` → inače **409**.
 
-**4. Uspešan odgovor:** `200 OK` — `status: READY`.
+**4. Uspešan odgovor:** `200 OK` - `status: READY`.
 
 **5. Edge-case-ovi:** Isti obrazac kao gore (403 za tuđu narudžbinu, 409 za nevalidnu tranziciju).
 
 ---
 
-## FR-ORD-04 — Označavanje narudžbine kao preuzete (`READY → COMPLETED`)
+## FR-ORD-04 - Označavanje narudžbine kao preuzete (`READY → COMPLETED`)
 
 **1. Rola:** EMPLOYEE (`handledBy`), ADMIN, OWNER.
 
@@ -508,26 +508,26 @@ Header: `Idempotency-Key: <uuid>`
 
 **3. Backend flow:** Identično FR-ORD-03 (autorizacija + tranzicija), bez dodatnih vremenskih provera (COMPLETED ovde znači fizičko preuzimanje na licu mesta, ne vremensko istek kao kod rezervacija).
 
-**4. Uspešan odgovor:** `200 OK` — `status: COMPLETED`.
+**4. Uspešan odgovor:** `200 OK` - `status: COMPLETED`.
 
 **5. Edge-case-ovi:** Trenutni status nije `READY` → **409**.
 
 ---
 
-## FR-ORD-05 — Otkazivanje narudžbine (`CREATED/IN_PROGRESS/READY → CANCELLED`)
+## FR-ORD-05 - Otkazivanje narudžbine (`CREATED/IN_PROGRESS/READY → CANCELLED`)
 
 **1. Rola:** zavisi od trenutnog statusa (vidi State Machine spec, Deo 2.3):
 - `CREATED` → CUSTOMER (sopstvena), EMPLOYEE, ADMIN, OWNER.
-- `IN_PROGRESS` → EMPLOYEE (samo `handledBy`), ADMIN, OWNER — **ne** CUSTOMER.
+- `IN_PROGRESS` → EMPLOYEE (samo `handledBy`), ADMIN, OWNER - **ne** CUSTOMER.
 - `READY` → **samo** ADMIN, OWNER.
 
 **2. Ulaz:** `PATCH /api/v1/orders/{id}/status` `{ "status": "CANCELLED" }`
 
 **3. Backend flow:**
 - Servis prvo utvrđuje trenutni status entiteta, zatim primenjuje odgovarajuću autorizacionu granu iz tabele iznad (implementirano kao `switch(entity.status)` sa različitim `assertAuthorized()` pozivima po grani).
-- CUSTOMER autorizacija: `entity.customerId == currentUser.id` **I** `entity.status == CREATED` — ako je status bilo šta drugo, CUSTOMER dobija **403** (ne 409 — jer sa CUSTOMER stanovišta, on **nikad** nema pravo da otkaže IN_PROGRESS/READY narudžbinu, to nije stanje-zavisna nego rola-zavisna zabrana).
+- CUSTOMER autorizacija: `entity.customerId == currentUser.id` **I** `entity.status == CREATED` - ako je status bilo šta drugo, CUSTOMER dobija **403** (ne 409 - jer sa CUSTOMER stanovišta, on **nikad** nema pravo da otkaže IN_PROGRESS/READY narudžbinu, to nije stanje-zavisna nego rola-zavisna zabrana).
 
-**4. Uspešan odgovor:** `200 OK` — `status: CANCELLED`.
+**4. Uspešan odgovor:** `200 OK` - `status: CANCELLED`.
 
 **5. Edge-case-ovi:**
 - CUSTOMER pokušava otkazati `IN_PROGRESS`/`READY` narudžbinu → **403 Forbidden**.
@@ -537,17 +537,17 @@ Header: `Idempotency-Key: <uuid>`
 
 ---
 
-## FR-ORD-06 — Pregled narudžbina (sopstvenih ili svih, sa filterima)
+## FR-ORD-06 - Pregled narudžbina (sopstvenih ili svih, sa filterima)
 
 **1. Rola:** CUSTOMER (`GET /orders/me`), EMPLOYEE/ADMIN/OWNER (`GET /orders`, sa filterima po `status`, `handledBy`, opseg datuma).
 
-**2-5.** Analogno FR-RES-06 — server-side hardkodovan `customerId` filter za CUSTOMER rutu, standardna paginacija, `400` za nevalidan enum u query parametru.
+**2-5.** Analogno FR-RES-06 - server-side hardkodovan `customerId` filter za CUSTOMER rutu, standardna paginacija, `400` za nevalidan enum u query parametru.
 
 ---
 
-# MODUL 6 — DASHBOARD
+# MODUL 6 - DASHBOARD
 
-## FR-DASH-01 — Sažetak za OWNER/ADMIN (puni obim)
+## FR-DASH-01 - Sažetak za OWNER/ADMIN (puni obim)
 
 **1. Rola:** OWNER, ADMIN.
 
@@ -555,7 +555,7 @@ Header: `Idempotency-Key: <uuid>`
 
 **3. Backend flow:**
 - `@PreAuthorize("hasAnyRole('OWNER','ADMIN')")`.
-- Agregatni JPQL/native upiti (sekcija 19 — izbeći N+1, koristiti `GROUP BY`/`SUM`/`COUNT` direktno u bazi, ne povlačiti entitete pa sabirati u Java kodu):
+- Agregatni JPQL/native upiti (sekcija 19 - izbeći N+1, koristiti `GROUP BY`/`SUM`/`COUNT` direktno u bazi, ne povlačiti entitete pa sabirati u Java kodu):
   - `SELECT COUNT(*), SUM(totalPrice) FROM order WHERE createdAt BETWEEN :from AND :to AND status = COMPLETED`
   - `SELECT status, COUNT(*) FROM reservation WHERE startTime BETWEEN :from AND :to GROUP BY status`
 - Rezultati se mapiraju direktno u projekcioni DTO (`DashboardSummaryResponse`), bez učitavanja punih entiteta.
@@ -572,14 +572,14 @@ Header: `Idempotency-Key: <uuid>`
 
 ---
 
-## FR-DASH-02 — Operativni pregled za EMPLOYEE (današnji obim)
+## FR-DASH-02 - Operativni pregled za EMPLOYEE (današnji obim)
 
 **1. Rola:** EMPLOYEE (i implicitno OWNER/ADMIN mogu pristupiti istoj skraćenoj verziji ako žele brz pregled, ali imaju i FR-DASH-01 za pun uvid).
 
 **2. Ulaz:** `GET /api/v1/dashboard/today`
 
 **3. Backend flow:**
-- Agregira **samo** rezervacije i narudžbine vezane za `currentUser.id` (kao `employeeId`/`handledBy`) i **samo** za tekući kalendarski dan u poslovnoj zoni (`Europe/Belgrade`), ne UTC dan (bitno oko ponoći — koristi se ista `businessZoneId` logika kao u UTC/WorkingHours specifikaciji za granice "danas od 00:00 do 23:59:59 lokalno").
+- Agregira **samo** rezervacije i narudžbine vezane za `currentUser.id` (kao `employeeId`/`handledBy`) i **samo** za tekući kalendarski dan u poslovnoj zoni (`Europe/Belgrade`), ne UTC dan (bitno oko ponoći - koristi se ista `businessZoneId` logika kao u UTC/WorkingHours specifikaciji za granice "danas od 00:00 do 23:59:59 lokalno").
 - Upit: broj `PENDING` rezervacija koje čekaju njegovu potvrdu, broj `CONFIRMED` termina danas, broj `CREATED` narudžbina koje čekaju preuzimanje (sistemski, ne filtrirano po `handledBy` jer još nisu preuzete), broj `IN_PROGRESS` koje on trenutno obrađuje.
 
 **4. Uspešan odgovor:** `200 OK`
@@ -593,19 +593,19 @@ Header: `Idempotency-Key: <uuid>`
 
 ---
 
-## Rekapitulacija — HTTP status kodovi kroz ceo sistem (jedinstvena konvencija)
+## Rekapitulacija - HTTP status kodovi kroz ceo sistem (jedinstvena konvencija)
 
 | Status | Kada se koristi |
 |---|---|
 | `200 OK` | Uspešan GET ili uspešna promena stanja postojećeg resursa (PATCH). |
 | `201 Created` | Uspešno kreiranje novog resursa (POST). |
-| `400 Bad Request` | Strukturno nevalidan zahtev — nedostaje obavezno polje, pogrešan tip, nedostaje header, nevalidan enum u query parametru, datum u prošlosti gde se zahteva budućnost. |
+| `400 Bad Request` | Strukturno nevalidan zahtev - nedostaje obavezno polje, pogrešan tip, nedostaje header, nevalidan enum u query parametru, datum u prošlosti gde se zahteva budućnost. |
 | `401 Unauthorized` | Nedostaje/nevalidan/istekao JWT, ili je korisnik deaktiviran, ili su kredencijali pri loginu netačni. |
 | `403 Forbidden` | Autentifikovan korisnik, ali rola ili vlasništvo nad resursom ne dozvoljava traženu akciju. |
 | `404 Not Found` | Referencirani resurs (po ID-u) ne postoji. |
-| `409 Conflict` | Zahtev je strukturno ispravan, ali trenutno stanje resursa ga sprečava — nevalidna state-machine tranzicija, preklapanje termina, već zauzeta narudžbina, konkurentna izmena (`@Version` mismatch), duplirani email pri registraciji, cutoff prozor za otkazivanje. |
+| `409 Conflict` | Zahtev je strukturno ispravan, ali trenutno stanje resursa ga sprečava - nevalidna state-machine tranzicija, preklapanje termina, već zauzeta narudžbina, konkurentna izmena (`@Version` mismatch), duplirani email pri registraciji, cutoff prozor za otkazivanje. |
 | `422 Unprocessable Entity` | Zahtev je strukturno ispravan i prošao je Bean Validation, ali krši **cross-field poslovno pravilo** (SERVICE bez trajanja, PRODUCT sa trajanjem, SERVICE stavka u Order-u, nekompletan par override radnog vremena). |
 | `429 Too Many Requests` | Prekoračen rate limit (login, registracija). |
-| `500 Internal Server Error` | Neočekivana greška — nikad namerno vraćeno od strane servisne logike, samo fallback u `GlobalExceptionHandler`. |
+| `500 Internal Server Error` | Neočekivana greška - nikad namerno vraćeno od strane servisne logike, samo fallback u `GlobalExceptionHandler`. |
 
-**Napomena o razlici 409 vs 422** (često zbunjujuća granica, vredna eksplicitnog pravila za tim): **409** se koristi kada je problem u **vremenskoj/stanju sistema** dimenziji (nešto se promenilo ili je već u određenom stanju). **422** se koristi kada je problem **strukturalno-semantički** unutar samog zahteva (podaci su interno nekonzistentni, npr. tip stavke ne odgovara pravilu modula) — nezavisno od bilo kakvog "trenutnog stanja baze".
+**Napomena o razlici 409 vs 422** (često zbunjujuća granica, vredna eksplicitnog pravila za tim): **409** se koristi kada je problem u **vremenskoj/stanju sistema** dimenziji (nešto se promenilo ili je već u određenom stanju). **422** se koristi kada je problem **strukturalno-semantički** unutar samog zahteva (podaci su interno nekonzistentni, npr. tip stavke ne odgovara pravilu modula) - nezavisno od bilo kakvog "trenutnog stanja baze".

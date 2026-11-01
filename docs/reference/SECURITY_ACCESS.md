@@ -8,9 +8,9 @@ Izvori: [RolePermissions](../../gm/src/main/java/com/game_manager/gm/common/secu
 | --- | --- | --- | --- | --- |
 | Sopstveni profil i web sesije | Da | Da | Da | Da |
 | Čitanje kataloga/radnog vremena/resursa | Da | Da | Da | Da |
-| Katalog i radno vreme – izmene | Ne | Ne | Da | Da |
+| Katalog i radno vreme - izmene | Ne | Ne | Da | Da |
 | Kreiranje rezervacije | Za sebe | U dozvoljenom operativnom scope-u | Da | Da |
-| Rezervacije – prikaz/promena | Svoje, dozvoljeno otkazivanje | Scope/assignment i poslovna pravila | Management | Management |
+| Rezervacije - prikaz/promena | Svoje, dozvoljeno otkazivanje | Scope/assignment i poslovna pravila | Management | Management |
 | Pickup order create | Da | Ne | Ne | Ne |
 | Order obrada | Sopstveni CREATED može otkazati | Preuzimanje; dalji koraci po handler pravilima | Management | Management |
 | Customer create/update/deactivate | Ne | Da, ograničen customer ugovor | Da | Da |

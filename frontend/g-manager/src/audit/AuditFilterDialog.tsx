@@ -47,7 +47,7 @@ export function AuditFilterDialog({ initial, onApply, onClose, returnFocusRef }:
       <FormField label="Tip resursa" htmlFor={`${id}-resource`} hint="Tačna resourceType vrednost, npr. USER ili PHYSICAL_RESOURCE.">
         <Input id={`${id}-resource`} value={draft.resourceType} maxLength={80} placeholder="Svi resursi" onChange={event => change({ resourceType: event.target.value })} />
       </FormField>
-      <div className="gm-audit-form-full"><FormField label="Izvršilac — ID korisnika" htmlFor={`${id}-actor`} hint="Unesite pun UUID iz detalja događaja. Prazno polje obuhvata sve dozvoljene izvršioce.">
+      <div className="gm-audit-form-full"><FormField label="Izvršilac - ID korisnika" htmlFor={`${id}-actor`} hint="Unesite pun UUID iz detalja događaja. Prazno polje obuhvata sve dozvoljene izvršioce.">
         <Input id={`${id}-actor`} value={draft.actorId} maxLength={36} placeholder="UUID izvršioca" spellCheck={false} onChange={event => change({ actorId: event.target.value })} />
       </FormField></div>
       <p className="gm-audit-filter-period gm-audit-form-full"><AuditIcon kind="clock" />{periodLabel(draft)}</p>

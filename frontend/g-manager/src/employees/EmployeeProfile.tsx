@@ -53,7 +53,7 @@ export function EmployeeProfile({ employee, actorId, canAssignments, canAssignLo
           ? <EmptyState title="Nema odobrenih odsustava" description="Nema odsustava koja obuhvataju danas ili buduće datume." />
           : <ul className="gm-employee-leave-list">{leaves.data.map(leave => <li key={leave.id}><Badge tone={new Date(leave.startsAt).getTime() > now ? 'info' : 'success'}>
             {new Date(leave.startsAt).getTime() > now ? 'Buduće · odobreno' : 'Odobreno'}</Badge>
-            <div><time dateTime={leave.startsAt}>{employeeDate(leave.startsAt)}</time><span> — </span><time dateTime={leave.endsAt}>{employeeDate(leave.endsAt)}</time></div></li>)}</ul>}
+            <div><time dateTime={leave.startsAt}>{employeeDate(leave.startsAt)}</time><span> - </span><time dateTime={leave.endsAt}>{employeeDate(leave.endsAt)}</time></div></li>)}</ul>}
       <p className="gm-employee-note">Prikazani su datumi odobrenih odsustava, bez privatnih razloga.</p>
     </section>}
     <div className="gm-employee-profile-actions"><Button type="button" variant="secondary" disabled={busy} onClick={() => { onRefresh(); if (canAssignments) void assignments.refetch(); if (canLeave) void leaves.refetch() }}><EmployeeIcon kind="refresh" />Osveži profil</Button>

@@ -1,4 +1,4 @@
-# Stage 19 — Poslovni dashboard i pristupačne vizualizacije
+# Stage 19 - Poslovni dashboard i pristupačne vizualizacije
 
 
 > **Istorijski dokument.** Sačuvan radi projektantskog konteksta i ranijih nalaza. Opisi, komande i rezultati u nastavku nisu potvrda trenutnog ponašanja niti važeće operativno uputstvo. Koristite [aktuelnu dokumentaciju](../../README.md) i [nalaze pregleda od 1. novembra 2026.](../../MAINTENANCE_AUDIT.md).
@@ -54,14 +54,14 @@ matematičku osnovicu; apsolutna promena ostaje dostupna.
 Svi novi endpoint-i zahtevaju `DASHBOARD_SUMMARY` i dodatno management proveru
 u servisu:
 
-- `GET /api/v1/dashboard/trends?from&to` — KPI current/previous, statusi i
+- `GET /api/v1/dashboard/trends?from&to` - KPI current/previous, statusi i
   dnevni bucket-i;
-- `GET /api/v1/dashboard/workload?from&to&employeeId?` — capacity/workload za
+- `GET /api/v1/dashboard/workload?from&to&employeeId?` - capacity/workload za
   sve ili jednog aktivnog zaposlenog;
-- `GET /api/v1/dashboard/export?from&to&employeeId?&view=current|raw` — UTF-8
+- `GET /api/v1/dashboard/export?from&to&employeeId?&view=current|raw` - UTF-8
   CSV istog scope-a kao ekran;
-- `GET /api/v1/dashboard/widget-preferences` — raspored trenutnog korisnika;
-- `PUT /api/v1/dashboard/widget-preferences` — upsert vidljivosti, pozicije i
+- `GET /api/v1/dashboard/widget-preferences` - raspored trenutnog korisnika;
+- `PUT /api/v1/dashboard/widget-preferences` - upsert vidljivosti, pozicije i
   opcionog threshold-a.
 
 `summary` i `today` nisu menjani. Export ponovo računa isti permission-sensitive

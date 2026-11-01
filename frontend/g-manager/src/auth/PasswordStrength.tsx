@@ -10,7 +10,7 @@ function strengthLevel(password: string) {
 
 export function PasswordStrength({ password }: { password: string }) {
   const level = strengthLevel(password)
-  const labels = ['—', 'Slaba', 'Osrednja', 'Dobra', 'Jaka']
+  const labels = ['-', 'Slaba', 'Osrednja', 'Dobra', 'Jaka']
 
   return <div className="gm-auth-strength" data-level={level}>
     <div className="gm-auth-strength-segments" aria-hidden="true">

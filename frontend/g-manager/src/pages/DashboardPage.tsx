@@ -257,17 +257,17 @@ function ManagementDashboardPage() {
   }
   const businessMetrics = <>
     <DashboardMetricCard label="Realizovani prihod" icon="/reports" tone="accent"
-      value={trends ? formatDashboardMoney(trends.revenue.current) : '—'}
+      value={trends ? formatDashboardMoney(trends.revenue.current) : '-'}
       detail="Prihod od završenih narudžbina">
       <Change value={trends?.revenue.percentChange ?? null} />
     </DashboardMetricCard>
-    <DashboardMetricCard label="Rezervacije" icon="/reservations" value={trends?.reservations.current ?? '—'}
+    <DashboardMetricCard label="Rezervacije" icon="/reservations" value={trends?.reservations.current ?? '-'}
       detail="Svi statusi u izabranom periodu"><Change value={trends?.reservations.percentChange ?? null} /></DashboardMetricCard>
-    <DashboardMetricCard label="Završene narudžbine" icon="/orders" tone="success" value={trends?.completedOrders.current ?? '—'}
+    <DashboardMetricCard label="Završene narudžbine" icon="/orders" tone="success" value={trends?.completedOrders.current ?? '-'}
       detail="U izabranom periodu"><Change value={trends?.completedOrders.percentChange ?? null} /></DashboardMetricCard>
   </>
   const dailyCard = hasCapability(user, 'RESERVATION_READ_ALL') && <DashboardMetricCard
-    label="Današnje rezervacije" icon="/calendar" value={dailyReservations.data?.totalElements ?? '—'}
+    label="Današnje rezervacije" icon="/calendar" value={dailyReservations.data?.totalElements ?? '-'}
     detail={dailyReservations.error ? 'Dnevni pregled nije osvežen' : 'Današnji termini · svi statusi'}>
     <Link to={`/reservations?status=&from=${operationalDate}&to=${operationalDate}`}>Pregled termina →</Link>
     {dailyReservations.error && <Button type="button" variant="secondary" loading={dailyReservations.isFetching}
@@ -275,7 +275,7 @@ function ManagementDashboardPage() {
   </DashboardMetricCard>
   const unclaimedCard = hasCapability(user, 'ORDER_READ_ALL') && <DashboardMetricCard
     label="Nepreuzete narudžbine" icon="/orders" tone="warning"
-    value={attention?.items.find((item) => item.key === 'orders-unclaimed')?.count ?? '—'}
+    value={attention?.items.find((item) => item.key === 'orders-unclaimed')?.count ?? '-'}
     detail="Primljene narudžbine bez zaposlenog"><Link to="/orders?status=CREATED">Otvori narudžbine →</Link>
   </DashboardMetricCard>
 
@@ -292,12 +292,12 @@ function ManagementDashboardPage() {
       {adminPriority ? <div className="ui-stat-grid dashboard-kpis dashboard-kpis--compact" aria-label="Današnja operativa">
         {dailyCard}
         {hasCapability(user, 'RESERVATION_READ_ALL') && <DashboardMetricCard label="Rezervacije na čekanju" icon="/waitlist" tone="warning"
-          value={attention?.items.find((item) => item.key === 'pending-today')?.count ?? '—'} detail="Početak termina je danas">
+          value={attention?.items.find((item) => item.key === 'pending-today')?.count ?? '-'} detail="Početak termina je danas">
           <Link to={`/reservations?status=PENDING&from=${attention?.date ?? operationalDate}&to=${attention?.date ?? operationalDate}`}>Pregled rezervacija →</Link>
         </DashboardMetricCard>}
         {unclaimedCard}
         {hasCapability(user, 'ORDER_READ_ALL') && <DashboardMetricCard label="Narudžbine u obradi" icon="/orders"
-          value={attention?.items.find((item) => item.key === 'orders-in-progress')?.count ?? '—'} detail="Sve trenutno aktivne narudžbine">
+          value={attention?.items.find((item) => item.key === 'orders-in-progress')?.count ?? '-'} detail="Sve trenutno aktivne narudžbine">
           <Link to="/orders?status=IN_PROGRESS">Pregled narudžbina →</Link>
         </DashboardMetricCard>}
       </div> : <div className="ui-stat-grid dashboard-kpis dashboard-kpis--compact" aria-label="Današnja operativa">{dailyCard}{unclaimedCard}</div>}
@@ -314,11 +314,6 @@ function ManagementDashboardPage() {
           </article>)}</div>}
       </DashboardSection>
       <DashboardQuickActions />
-      <section className="dashboard-business-preview" aria-labelledby="dashboard-business-title">
-        <div className="section-heading"><h2 id="dashboard-business-title">Rezultati za period</h2>
-          <span className="dashboard-period-label">{trends && `${formatDashboardDate(trends.from)} – ${formatDashboardDate(trends.to)}`}</span></div>
-        <div className="ui-stat-grid dashboard-kpis dashboard-kpis--business">{businessMetrics}</div>
-      </section>
     </div>
 
     <div className="dashboard-tab-panel" role="tabpanel" id="dashboard-panel-analytics"
@@ -340,8 +335,8 @@ function ManagementDashboardPage() {
         <Button type="submit" loading={loading}>Primeni</Button>
       </form>
       {trends && <p className="dashboard-period-label">
-        Trenutni period: {formatDashboardDate(trends.from)} – {formatDashboardDate(trends.to)}.
-        Prethodni: {formatDashboardDate(trends.previousFrom)} – {formatDashboardDate(trends.previousTo)} · {trends.timezone}.
+        Trenutni period: {formatDashboardDate(trends.from)} - {formatDashboardDate(trends.to)}.
+        Prethodni: {formatDashboardDate(trends.previousFrom)} - {formatDashboardDate(trends.previousTo)} · {trends.timezone}.
       </p>}
       <div className="ui-stat-grid dashboard-kpis dashboard-kpis--business" aria-label="Poslovni rezultati u periodu">{businessMetrics}</div>
 

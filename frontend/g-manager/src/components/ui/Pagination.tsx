@@ -17,7 +17,7 @@ export function Pagination({ page, totalPages = 1, onPageChange, loading = false
   const start = Math.max(0, Math.min(current - 1, pages - 3))
   const visible = [...new Set([0, ...Array.from({ length: Math.min(3, pages) }, (_, index) => start + index), pages - 1])].sort((a, b) => a - b)
   return <div className="ui-pagination" aria-busy={loading || undefined}>
-    <div className="ui-pagination-summary"><span aria-live="polite">{totalElements !== undefined && <>Prikazano {totalElements ? Math.min(current * pageSize + 1, totalElements) : 0}–{Math.min((current + 1) * pageSize, totalElements)} od {totalElements} rezultata · </>}Stranica {current + 1} od {pages}</span>
+    <div className="ui-pagination-summary"><span aria-live="polite">{totalElements !== undefined && <>Prikazano {totalElements ? Math.min(current * pageSize + 1, totalElements) : 0}-{Math.min((current + 1) * pageSize, totalElements)} od {totalElements} rezultata · </>}Stranica {current + 1} od {pages}</span>
       {onPageSizeChange && <label>Po stranici<Select aria-label={"Po stranici"} value={pageSize} disabled={busy} onChange={event => onPageSizeChange(Number(event.target.value))}>
         {[...new Set([...pageSizes, pageSize])].sort((a, b) => a - b).map(size => <option key={size} value={size}>{size}</option>)}
       </Select></label>}

@@ -185,7 +185,7 @@ export function OrdersPage() {
       <p className="gm-orders-statistics-scope">Statistika: {!dateError ? periodLabel(statistics.data?.from ?? filters.from, statistics.data?.to ?? filters.to) : 'Neispravan period'}
         {filters.handledBy ? ` · Obrađuje: ${handler}` : ' · Sve dostupne narudžbine'} · Nezavisno od pretrage i status filtera</p>
       <div className="ui-stat-grid gm-orders-kpis">{kpis.map(kpi => <StatCard label={<>{kpi.label}</>} value={statistics.isLoading ? <Skeleton lines={1} label={`Učitavanje: ${kpi.label}`} />
-          : <>{statistics.data && !dateError ? statistics.data[kpi.key].toLocaleString('sr-Latn-RS') : '—'}</>} icon={<OrderIcon kind={kpi.icon} />} tone={kpi.tone} key={kpi.key} />)}</div>
+          : <>{statistics.data && !dateError ? statistics.data[kpi.key].toLocaleString('sr-Latn-RS') : '-'}</>} icon={<OrderIcon kind={kpi.icon} />} tone={kpi.tone} key={kpi.key} />)}</div>
       {statistics.isError && <ErrorState title="Statistika nije dostupna" message={orderErrorMessage(statistics.error, 'Statistiku nije moguće učitati.')}
         action={<Button type="button" variant="secondary" onClick={() => statistics.refetch()}>Pokušaj ponovo</Button>} />}
     </section>

@@ -43,7 +43,7 @@ export function EmployeeTimeOffSettings({ query, employees, onChanged }: {
     const label = status === 'APPROVED' ? 'Odobri odsustvo' : status === 'REJECTED' ? 'Odbij zahtev' : 'Otkaži odsustvo'
     confirm({ title: label, titleIcon: <SettingsIcon kind="calendar" />, className: 'gm-settings-dialog', confirmLabel: label,
       variant: status === 'CANCELLED' ? 'danger' : status === 'REJECTED' ? 'warning' : 'default',
-      description: <><p><strong>{name(item)}</strong></p><p>{settingsDateTime(item.startsAt)} – {settingsDateTime(item.endsAt)}</p>
+      description: <><p><strong>{name(item)}</strong></p><p>{settingsDateTime(item.startsAt)} - {settingsDateTime(item.endsAt)}</p>
         <p>{status === 'APPROVED' ? 'Odobreno odsustvo blokira dostupnost zaposlenog za rezervacije tokom ovog perioda.' : status === 'REJECTED' ? 'Zahtev će biti odbijen.' : 'Odsustvo će biti otkazano. Odobreno odsustvo više neće blokirati dostupnost zaposlenog.'}</p></>,
       reasonLabel: 'Razlog odluke', reasonMaxLength: 500, reasonRequired: false,
       formatError: cause => settingsError(cause, 'Status odsustva nije moguće promeniti.'), onConfirm: async reason => {

@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { apiErrorMessage } from '../api/client'
 import { notificationApi } from '../api/notificationApi'
 import { useAuthStore } from '../auth/authStore'
@@ -32,7 +31,7 @@ function PreferencesWorkspace({ actorId }: { actorId: string }) {
   const [saveError, setSaveError] = useState('')
   const [failures, setFailures] = useState<Partial<Record<NotificationType, string>>>({})
   const inFlight = useRef(false), mounted = useRef(true)
-  const toast = useToast(), navigate = useNavigate()
+  const toast = useToast()
   const { confirm, confirmationDialog } = useConfirmDialog()
   const changes = changedPreferences(saved, draft)
   const dirty = changes.length > 0
@@ -118,8 +117,6 @@ function PreferencesWorkspace({ actorId }: { actorId: string }) {
     })
   }
 
-  function back() { if (!inFlight.current) navigate(-1) }
-
   return <PageLayout className="gm-notification-preferences">
     <NotificationPreferencesHeading />
     <div className="gm-notification-draft-status" role="status" aria-live="polite" data-dirty={dirty}>
@@ -139,14 +136,12 @@ function PreferencesWorkspace({ actorId }: { actorId: string }) {
     <Card className="gm-notification-card gm-notification-delivery">
       <span className="gm-notification-delivery-icon"><NotificationIcon kind="info" /></span>
       <div><h2>O isporuci obaveštenja</h2>
-        <p>Obaveštenja u aplikaciji prikazuju se u G-Manager centru za obaveštenja. Email obaveštenja se šalju kada je email dostava dostupna i konfigurisana.</p>
         <p>Uključen email kanal ne garantuje isporuku poruke. Obavezna bezbednosna obaveštenja ostaju uključena.</p>
       </div>
     </Card>
     <div className="gm-notification-footer" data-dirty={dirty}>
       {dirty && <Button type="button" className="gm-notification-save" loading={saving} disabled={loading || !dirty}
         onClick={() => void save()}><NotificationIcon kind="save" />Sačuvaj promene</Button>}
-      <Button type="button" variant="secondary" disabled={saving} onClick={back}><NotificationIcon kind="arrow" />Nazad</Button>
     </div>
     {confirmationDialog}
   </PageLayout>

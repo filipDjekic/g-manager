@@ -55,7 +55,7 @@ export function WaitlistDetailsPanel({ detail, loading, error, fetching, inline,
             <div><dt>Zona</dt><dd>{entry.areaName || 'Bez određene zone'}</dd></div>
             <div><dt>Resurs</dt><dd>{[entry.resourceCode, entry.resourceName].filter(Boolean).join(' · ') || 'Bez određenog resursa'}</dd></div>
             <div><dt>Željeni datum</dt><dd>{new Intl.DateTimeFormat('sr-Latn-RS', { timeZone: 'Europe/Belgrade', dateStyle: 'long' }).format(new Date(entry.desiredStart))}</dd></div>
-            <div><dt>Početak / kraj</dt><dd>{formatBusinessTime(entry.desiredStart)} – {entry.desiredEnd ? formatBusinessIntervalEnd(entry.desiredStart, entry.desiredEnd, 'sr-Latn-RS') : '—'}</dd></div>
+            <div><dt>Početak / kraj</dt><dd>{formatBusinessTime(entry.desiredStart)} - {entry.desiredEnd ? formatBusinessIntervalEnd(entry.desiredStart, entry.desiredEnd, 'sr-Latn-RS') : '-'}</dd></div>
             <div><dt>Datum prijave</dt><dd>{waitlistDate(entry.createdAt)}</dd></div>
             <div><dt>Ulazak u FIFO red</dt><dd>{waitlistDate(entry.queueEnteredAt)}</dd></div>
             <div><dt>Kreirao</dt><dd>{entry.createdByName || 'Nije evidentirano'}</dd></div>
@@ -64,8 +64,8 @@ export function WaitlistDetailsPanel({ detail, loading, error, fetching, inline,
           {canManage && !entry.readOnly && <section className="gm-waitlist-note"><h4>Interna napomena</h4><p>{entry.internalNote || 'Nema interne napomene.'}</p></section>}
           {activeOffer && <section className="gm-waitlist-offer"><h4><WaitlistIcon kind="offer" />Aktivna ponuda</h4><Badge tone="info">Ponuda poslata</Badge>
             <strong className="gm-waitlist-countdown" aria-label="Preostalo vreme za prihvatanje">{Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, '0')}</strong>
-            <dl><div><dt>Poslata</dt><dd>{entry.offerCreatedAt ? waitlistDate(entry.offerCreatedAt) : '—'}</dd></div>
-              <div><dt>Ističe</dt><dd>{entry.offerExpiresAt ? waitlistDate(entry.offerExpiresAt) : '—'}</dd></div>
+            <dl><div><dt>Poslata</dt><dd>{entry.offerCreatedAt ? waitlistDate(entry.offerCreatedAt) : '-'}</dd></div>
+              <div><dt>Ističe</dt><dd>{entry.offerExpiresAt ? waitlistDate(entry.offerExpiresAt) : '-'}</dd></div>
               <div><dt>Ponuđeni resurs</dt><dd>{entry.offeredResourceName || 'Bez određenog resursa'}</dd></div></dl>
             <p>Ponudu prihvata isključivo klijent. Termin se proverava ponovo pri prihvatanju.</p></section>}
           {entry.reservationId && <p className="gm-waitlist-form-help">Prihvaćena ponuda je povezana sa rezervacijom. <Link to={`/reservations?reservationId=${entry.reservationId}`}>Pogledaj rezervaciju</Link></p>}

@@ -45,7 +45,7 @@ export function exceptionPresentation(item: WorkingHoursException, hours?: Worki
 }
 export function elapsedTime(start: string, end: string) {
   const minutes = Math.floor((Date.parse(end) - Date.parse(start)) / 60000)
-  return minutes >= 0 ? `${Math.floor(minutes / 60)} h${minutes % 60 ? ' ' + minutes % 60 + ' min' : ''}` : '—'
+  return minutes >= 0 ? `${Math.floor(minutes / 60)} h${minutes % 60 ? ' ' + minutes % 60 + ' min' : ''}` : '-'
 }
 export function settingsError(cause: unknown, fallback: string) {
   if (cause instanceof Error && !isAxiosError(cause)) return cause.message

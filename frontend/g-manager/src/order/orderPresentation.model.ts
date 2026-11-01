@@ -76,5 +76,5 @@ export function validOrderDate(value: string) {
 }
 export function periodLabel(from?: string | null, to?: string | null) {
   const date = (value: string) => new Intl.DateTimeFormat('sr-Latn-RS', { timeZone: 'UTC', dateStyle: 'medium' }).format(new Date(`${value}T12:00:00Z`))
-  return from && to ? `${date(from)} – ${date(to)}` : from ? `Od ${date(from)}` : to ? `Do ${date(to)}` : 'Sve vreme'
+  return from && to ? `${date(from)} - ${date(to)}` : from ? `Od ${date(from)}` : to ? `Do ${date(to)}` : 'Sve vreme'
 }

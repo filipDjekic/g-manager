@@ -133,7 +133,7 @@ export function ReservationsPage() {
     { label: 'Predstojeće rezervacije', value: metrics?.upcomingReservations, icon: 'clock' as const, tone: 'violet',
       hint: metrics ? `Narednih 7 dana · do ${calendarDate(metrics.upcomingThrough)}` : 'Narednih 7 dana' },
     { label: 'Klijenti', value: metrics?.uniqueCustomers, icon: 'users' as const, tone: 'blue',
-      hint: metrics ? `${calendarDate(metrics.customersFrom)} – ${calendarDate(metrics.customersTo)}` : 'Jedinstveni klijenti u periodu' },
+      hint: metrics ? `${calendarDate(metrics.customersFrom)} - ${calendarDate(metrics.customersTo)}` : 'Jedinstveni klijenti u periodu' },
     { label: 'Otkazane rezervacije za današnje termine', value: metrics?.cancelledTodayAppointments, icon: 'cancel' as const, tone: 'pink',
       hint: 'Prema datumu termina, ne trenutku otkazivanja' },
   ]
@@ -143,7 +143,7 @@ export function ReservationsPage() {
     <PageHeader title="Rezervacije" description={<>Upravljanje terminima, rezervacijama i dostupnošću resursa.</>} icon={<ReservationIcon />} actions={<><Button className="reservations-create-button" onClick={() => setCreateOpen(true)}><span aria-hidden="true">+</span> Nova rezervacija</Button></>} />
     <details className="ui-advanced-filters"><summary>Statistika rezervacija</summary>
     <section className="ui-stat-grid reservations-kpis" aria-label="Statistika rezervacija" aria-busy={summary.isFetching}>
-      {kpis.map(kpi => <StatCard label={<>{kpi.label}</>} value={summary.isLoading ? <Skeleton lines={1} label={`Učitavanje: ${kpi.label}`} /> : <>{kpi.value?.toLocaleString('sr-Latn-RS') ?? '—'}</>} icon={<ReservationIcon kind={kpi.icon} />} description={<>{kpi.hint}</>} tone={kpi.tone} key={kpi.label} />)}
+      {kpis.map(kpi => <StatCard label={<>{kpi.label}</>} value={summary.isLoading ? <Skeleton lines={1} label={`Učitavanje: ${kpi.label}`} /> : <>{kpi.value?.toLocaleString('sr-Latn-RS') ?? '-'}</>} icon={<ReservationIcon kind={kpi.icon} />} description={<>{kpi.hint}</>} tone={kpi.tone} key={kpi.label} />)}
     </section>
     <p className="reservations-statistics-note">Statistika po opsegu, pretrazi, lokaciji, resursu, zaposlenom i klijentu; sve statusne kategorije.
       {metrics && ` Poslovna vremenska zona: ${metrics.timezone}.`}</p>
@@ -227,7 +227,7 @@ export function ReservationsPage() {
                 disabled={bulk.isPending || result.isFetching || !reservation.allowedActions?.length || !!reservation.readOnly}
                 onChange={() => toggle(reservation.id)} aria-label={`Izaberi rezervaciju: ${reservation.customerName}, ${formatBusinessDateTime(reservation.startTime)}`} /></label></td>
               <td role="cell" className="reservations-date-cell"><time dateTime={reservation.startTime}><strong>{calendarDate(localDate)}</strong>
-                <span>{formatBusinessTime(reservation.startTime)} – {formatBusinessTime(reservation.endTime)}</span></time>
+                <span>{formatBusinessTime(reservation.startTime)} - {formatBusinessTime(reservation.endTime)}</span></time>
                 {businessInstantToLocal(reservation.endTime).split('T')[0] !== localDate && <small>Kraj: {formatBusinessDateTime(reservation.endTime)}</small>}</td>
               <td role="cell" className="reservations-customer-cell"><strong>{reservation.customerName ?? 'Klijent'}</strong>
                 <small className="reservations-access-label">{reservation.readOnly ? 'Samo pregled' : 'Upravljanje'}</small></td>

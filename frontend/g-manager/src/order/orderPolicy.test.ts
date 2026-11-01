@@ -59,7 +59,7 @@ describe('order ownership and cart recovery policies', () => {
     for (const value of ['', '2028-02-29']) expect(validOrderDate(value)).toBe(true)
     for (const value of ['2027-02-29', '0000-01-01', '01-02-2028', '2028-13-01']) expect(validOrderDate(value)).toBe(false)
     expect(periodLabel()).toBe('Sve vreme'); expect(periodLabel('2028-03-02')).toMatch(/^Od /); expect(periodLabel(null, '2028-03-02')).toMatch(/^Do /)
-    expect(periodLabel('2028-03-01', '2028-03-02')).toContain('–')
+    expect(periodLabel('2028-03-01', '2028-03-02')).toContain('-')
     expect(orderErrorMessage(new Error('Invalid order status transition'), 'Fallback')).toBe('Ova promena statusa više nije dostupna.')
     expect(orderErrorMessage(new Error(''), 'Fallback')).toBe('Fallback')
   })

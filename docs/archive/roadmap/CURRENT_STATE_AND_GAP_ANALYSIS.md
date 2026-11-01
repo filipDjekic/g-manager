@@ -1,4 +1,4 @@
-# G-Manager — trenutno stanje i gap analiza
+# G-Manager - trenutno stanje i gap analiza
 
 
 > **Istorijski dokument.** Sačuvan radi projektantskog konteksta i ranijih nalaza. Opisi, komande i rezultati u nastavku nisu potvrda trenutnog ponašanja niti važeće operativno uputstvo. Koristite [aktuelnu dokumentaciju](../../README.md) i [nalaze pregleda od 1. novembra 2026.](../../MAINTENANCE_AUDIT.md).
@@ -38,7 +38,7 @@ opravdani kao početni zahvati.
 |---|---|
 | Backend | Jedan Maven modul `gm/`; Spring Boot 4.1.0, Java 21 |
 | Frontend | Jedna Vite aplikacija `frontend/g-manager/`; React 19, TypeScript |
-| Baza | MySQL 8.4 u Compose-u; Flyway V1–V7; H2 MySQL mode u testovima |
+| Baza | MySQL 8.4 u Compose-u; Flyway V1-V7; H2 MySQL mode u testovima |
 | API | `/api/v1/*`, DTO request/response modeli, `PageResponse`, `ApiError` |
 | Deployment | Compose pokreće samo MySQL; nema image-a za backend/frontend |
 | CI/CD | Nema repozitorijumske `.github/workflows` konfiguracije |
@@ -78,7 +78,7 @@ opravdani kao početni zahvati.
 
 ### Postoji
 
-- Flyway V1–V7 kreira korisnike, refresh tokene, katalog, radno vreme,
+- Flyway V1-V7 kreira korisnike, refresh tokene, katalog, radno vreme,
   rezervacije, idempotency ključeve, narudžbine i stavke.
 - FK, unique/check constraints i indeksi postoje za najvažnije pristupe.
 - `ddl-auto=validate`; aplikacija ne generiše produkcionu šemu.

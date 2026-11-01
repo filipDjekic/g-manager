@@ -8,7 +8,7 @@ describe('shared pagination', () => {
     const change = vi.fn()
     render(<Pagination numbered page={4} totalPages={2} totalElements={11} pageSize={10} onPageChange={change} />)
     expect(change).toHaveBeenCalledWith(1)
-    expect(screen.getByText(/11–11 od 11/)).toBeVisible()
+    expect(screen.getByText(/11-11 od 11/)).toBeVisible()
     expect(screen.getByRole('button', { name: 'Sledeća' })).toBeDisabled()
   })
 

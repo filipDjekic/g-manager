@@ -4,7 +4,7 @@
 
 ## Preduslovi
 
-1. Isključivo razvojni MySQL iz root Compose-a, sa primenjenim aktuelnim migracijama V1–V41.
+1. Isključivo razvojni MySQL iz root Compose-a, sa primenjenim aktuelnim migracijama V1-V41.
 2. Postojeći nedeleted nalog **`owner@example.com` sa BCrypt hash-om**. SQL ga traži baš tim email-om; proizvoljan bootstrap owner nije dovoljan. Napraviti ga svojim `INITIAL_OWNER_EMAIL`/`INITIAL_OWNER_PASSWORD` pre seed-a.
 3. Proveren backup ako u razvojnoj bazi već ima korisnih podataka. Seed briše/obnavlja redove sa sopstvenim determinističkim demo ID prefiksima i povezane demo podatke.
 

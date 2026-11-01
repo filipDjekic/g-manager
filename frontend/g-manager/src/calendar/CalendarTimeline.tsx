@@ -116,7 +116,7 @@ export function CalendarTimeline({context, events, now, onOpen}: {
                     {!resource.canManage && <small>Samo pregled</small>}</div>
                 </div>
                 <div className="gm-calendar-track">
-                  {closed.map(range => <div key={`closed:${range.start}`} className="gm-calendar-closed" style={position(range.start,range.end)} title="Nedostupno — van radnog vremena"><span>Nedostupno</span></div>)}
+                  {closed.map(range => <div key={`closed:${range.start}`} className="gm-calendar-closed" style={position(range.start,range.end)} title="Nedostupno - van radnog vremena"><span>Nedostupno</span></div>)}
                   {(model.occupancy.get(resource.id)??[]).filter(item=>item.kind==='RESERVATION').map((item,index) => <div key={`${item.startTime}:${index}`} className="gm-calendar-busy" style={position(Date.parse(item.startTime),Date.parse(item.endTime))} title={`Rezervisano: ${eventTime(item)}`} />)}
                   {context.employeeBlocks.filter(item=>Date.parse(item.startTime)<model.to && Date.parse(item.endTime)>model.from).map((item,index) => <div key={`employee:${index}`} className="gm-calendar-employee-block" style={position(Date.parse(item.startTime),Date.parse(item.endTime))}
                     title={`${item.kind==='TIME_OFF'?'Odobreno odsustvo zaposlenog':'Zaposleni ima rezervaciju'}: ${eventTime(item)}`} />)}
@@ -124,11 +124,11 @@ export function CalendarTimeline({context, events, now, onOpen}: {
                     style={{...position(item.start,item.end),top:`${item.lane*58+9}px`}} onClick={event => onOpen(item.reservation!.id,event)}
                     title={`${eventTime(item.reservation)} · ${item.reservation.customerName} · ${item.reservation.serviceName} · ${reservationLabels[item.reservation.status]}${item.reservation.readOnly?' · Samo pregled':''}`}
                     aria-label={`${eventTime(item.reservation)} · ${resource.code} · ${item.reservation.customerName} · ${item.reservation.serviceName} · ${reservationLabels[item.reservation.status]}${item.reservation.readOnly?' · Samo pregled':''}`}>
-                    <time>{formatBusinessTime(item.reservation.startTime)}–{formatBusinessTime(item.reservation.endTime)}</time><strong>{item.reservation.customerName}</strong>
+                    <time>{formatBusinessTime(item.reservation.startTime)}-{formatBusinessTime(item.reservation.endTime)}</time><strong>{item.reservation.customerName}</strong>
                     <small>{reservationLabels[item.reservation.status]}</small>
                   </button> : <div key={item.key} tabIndex={0} className="gm-calendar-time-event gm-calendar-session" style={{...position(item.start,item.end),top:`${item.lane*58+9}px`}}
                     title={`Aktivna gaming sesija · ${eventTime({startTime:new Date(item.start).toISOString(),endTime:new Date(item.end).toISOString()})}`}>
-                    <time>{formatBusinessTime(new Date(item.start).toISOString())}–{formatBusinessTime(new Date(item.end).toISOString())}</time><strong>Gaming sesija</strong><small>Aktivna sesija</small>
+                    <time>{formatBusinessTime(new Date(item.start).toISOString())}-{formatBusinessTime(new Date(item.end).toISOString())}</time><strong>Gaming sesija</strong><small>Aktivna sesija</small>
                   </div>)}
                 </div>
               </div>
@@ -146,7 +146,7 @@ export function CalendarTimeline({context, events, now, onOpen}: {
         <span aria-hidden="true">{collapsed.has(area.id)?'›':'⌄'}</span><strong>{area.locationName} / {area.name}</strong></button>
         {!collapsed.has(area.id) && ((model.resources.get(area.id)??[]).length ? (model.resources.get(area.id)??[]).map(resource => <article key={resource.id} className="gm-calendar-mobile-resource">
           <h3>{resource.code} <small>{resource.name}</small></h3>{resource.currentRestriction && <p className="gm-calendar-resource-restricted">Trenutno: {restrictionLabel(resource.currentRestriction)}</p>}
-          <p className="gm-calendar-mobile-hours">Radno vreme: {(model.hours.get(resource.locationId)??[]).map(window=>`${formatBusinessTime(new Date(window.start).toISOString())}–${instantLabel(new Date(window.end).toISOString())}`).join(', ')||'Lokal je zatvoren.'}</p>
+          <p className="gm-calendar-mobile-hours">Radno vreme: {(model.hours.get(resource.locationId)??[]).map(window=>`${formatBusinessTime(new Date(window.start).toISOString())}-${instantLabel(new Date(window.end).toISOString())}`).join(', ')||'Lokal je zatvoren.'}</p>
           {(model.byResource.get(resource.id)??[]).map(item => item.reservation ? <CalendarEvent key={item.key} item={item.reservation} onOpen={onOpen}/>
             : <div key={item.key} className="gm-calendar-agenda-event gm-calendar-session"><strong>Aktivna gaming sesija</strong><time>{eventTime({startTime:new Date(item.start).toISOString(),endTime:new Date(item.end).toISOString()})}</time></div>)}
           {!(model.byResource.get(resource.id)??[]).length && <p className="search-help">Nema prikazanih rezervacija ni aktivnih sesija.</p>}

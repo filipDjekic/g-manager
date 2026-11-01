@@ -27,7 +27,7 @@ export function UserStatus({ user }: { user: UserResponse }) {
 export function UserKpi({ title, value, kind, tone, loading }: {
   title: string; value: number | undefined; kind: IconKind; tone: 'blue' | 'green' | 'purple' | 'pink'; loading: boolean
 }) {
-  return <StatCard label={<>{title}</>} value={loading ? <Skeleton lines={1} label={`Učitavanje: ${title}`} /> : <>{value === undefined ? '—' : new Intl.NumberFormat('sr-Latn-RS').format(value)}</>} icon={<UserIcon kind={kind} />} tone={tone} aria-label={title} />
+  return <StatCard label={<>{title}</>} value={loading ? <Skeleton lines={1} label={`Učitavanje: ${title}`} /> : <>{value === undefined ? '-' : new Intl.NumberFormat('sr-Latn-RS').format(value)}</>} icon={<UserIcon kind={kind} />} tone={tone} aria-label={title} />
 }
 function UserRowMenu({ user, actor, busy, onAction }: { user: UserResponse; actor: AuthUser; busy: boolean; onAction: ActionHandler }) {
   const permissions = allowedUserActions(actor, user)

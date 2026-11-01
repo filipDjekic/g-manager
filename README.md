@@ -119,6 +119,7 @@ Root `.env` koristi lokalni Spring profil i Compose interpolacija. Frontend ima 
 
 ## Dalja dokumentacija
 
+- [Korisnička uputstva](docs/user-guides/README.md): [vlasnik](docs/user-guides/OWNER.md), [administrator](docs/user-guides/ADMIN.md), [zaposleni](docs/user-guides/EMPLOYEE.md), [kupac](docs/user-guides/CUSTOMER.md) i [FAQ](docs/user-guides/FAQ.md).
 - [Indeks i redosled čitanja](docs/README.md)
 - [Arhitektura](docs/architecture/OVERVIEW.md) · [granice modula](docs/architecture/MODULE_BOUNDARIES.md)
 - [Lokalno okruženje](docs/development/LOCAL_SETUP.md) · [seed](docs/DEVELOPMENT_SEED.md)

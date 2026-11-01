@@ -29,7 +29,7 @@ export function ReservationEditForm({value,onChanged,onClose,onBusyChange,locale
     {options.isLoading?<Skeleton lines={2}/>:options.error?<ErrorState message={apiErrorMessage(options.error,'Slobodne stanice nisu dostupne.')} action={<Button variant="secondary" type="button" onClick={()=>options.refetch()}>Pokušaj ponovo</Button>}/>:<label>Računar / resurs<Select aria-label={"Računar / resurs"} required={!!value.resourceRequired} disabled={save.isPending} value={resourceId} onChange={e=>setResourceId(e.target.value)}>
       {!value.resourceId&&<option value="">{value.resourceRequired?'Izaberite stanicu':'Bez fizičkog resursa'}</option>}
       {resourceId&&!options.data?.resources.some(r=>r.id===resourceId)&&<option value={resourceId} disabled>Trenutna stanica nije dostupna za ovaj termin</option>}
-      {options.data?.resources.map(r=><option key={r.id} value={r.id} disabled={!r.available}>{r.code} · {r.name} · {r.locationName}{r.available?'':' — Zauzet ili van radnog vremena'}</option>)}
+      {options.data?.resources.map(r=><option key={r.id} value={r.id} disabled={!r.available}>{r.code} · {r.name} · {r.locationName}{r.available?'':' - Zauzet ili van radnog vremena'}</option>)}
     </Select></label>}
     <label>Napomena<Textarea aria-label={"Napomena"} maxLength={500} disabled={save.isPending} value={note} onChange={e=>setNote(e.target.value)}/></label>
     <p>{resource?`${resource.locationName} · ${resource.code} · ${resource.name}`:value.locationName} · {instant&&formatBusinessDateTime(instant,false,locale)}</p>

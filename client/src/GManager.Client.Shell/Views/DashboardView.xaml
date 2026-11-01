@@ -161,10 +161,10 @@
                                 <TextBlock Text="Korisnik" Style="{StaticResource DetailLabel}"/><TextBlock Text="{Binding CustomerName}" Style="{StaticResource DetailValue}"/>
                                 <TextBlock Text="Stanica / naziv Windows računara" Style="{StaticResource DetailLabel}"/><TextBlock Text="{Binding StationName}" Style="{StaticResource DetailValue}"/>
                                 <TextBlock Text="Status sesije" Style="{StaticResource DetailLabel}"/><TextBlock Text="{Binding SessionStatus}" Style="{StaticResource DetailValue}"/>
-                                <TextBlock Text="Početak sesije" Style="{StaticResource DetailLabel}"/><TextBlock Text="Podatak nije dostupan — servis ne dostavlja početak sesije." Style="{StaticResource DetailValue}"/>
+                                <TextBlock Text="Početak sesije" Style="{StaticResource DetailLabel}"/><TextBlock Text="Podatak nije dostupan - servis ne dostavlja početak sesije." Style="{StaticResource DetailValue}"/>
                                 <TextBlock Text="Planirani završetak" Style="{StaticResource DetailLabel}"/><TextBlock Text="{Binding EndsText}" Style="{StaticResource DetailValue}"/>
                                 <TextBlock Text="Preostalo vreme" Style="{StaticResource DetailLabel}"/><TextBlock Text="{Binding RemainingText}" Style="{StaticResource DetailValue}" Foreground="{DynamicResource TimerAccent}"/>
-                                <TextBlock Text="Veza sa serverom — stanje iz servisa" Style="{StaticResource DetailLabel}"/><TextBlock Text="{Binding ConnectionDetail}" Style="{StaticResource DetailValue}"/>
+                                <TextBlock Text="Veza sa serverom - stanje iz servisa" Style="{StaticResource DetailLabel}"/><TextBlock Text="{Binding ConnectionDetail}" Style="{StaticResource DetailValue}"/>
                                 <TextBlock Text="Verzija Client aplikacije" Style="{StaticResource DetailLabel}"/><TextBlock Text="{Binding ClientVersion}" Style="{StaticResource DetailValue}" Margin="0"/>
                             </StackPanel>
                         </Border>

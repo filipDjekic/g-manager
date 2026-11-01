@@ -18,12 +18,12 @@ export function SessionKpis({ sessions, events }: {
   const login = latestLogin(events.data ?? [])
   const metrics = [
     { title: 'Prijavljeni uređaji', icon: 'monitor' as const, tone: 'blue', source: sessions,
-      value: sessions.data?.length ?? '—', description: 'Sesije u trenutno učitanoj listi.' },
+      value: sessions.data?.length ?? '-', description: 'Sesije u trenutno učitanoj listi.' },
     { title: 'Poslednja prijava', icon: 'clock' as const, tone: 'purple', source: events,
-      value: events.data === null ? '—' : login ? <SessionTime value={login.occurredAt} /> : 'Nema dostupnog podatka',
+      value: events.data === null ? '-' : login ? <SessionTime value={login.occurredAt} /> : 'Nema dostupnog podatka',
       description: 'Najnovija uspešna prijava u dostupnoj istoriji.' },
     { title: 'Bezbednosni događaji', icon: 'alert' as const, tone: 'blue', source: events,
-      value: events.data?.length ?? '—', description: 'Učitana istorija: najviše 50 događaja.' },
+      value: events.data?.length ?? '-', description: 'Učitana istorija: najviše 50 događaja.' },
   ]
   return <div className="ui-stat-grid gm-session-kpis">
     {metrics.map(metric => <StatCard label={<>{metric.title}</>} value={metric.source.data === null && metric.source.loading ? <Skeleton lines={1} label={`Učitavanje: ${metric.title}`} />

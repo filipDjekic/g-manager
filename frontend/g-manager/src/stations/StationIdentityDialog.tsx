@@ -48,7 +48,7 @@ export function StationIdentityDialog({ station, onClose }: { station: StationOv
   function close() {
     if (busy) return
     if (!enrollment) { onClose(); return }
-    confirm({ title:'Zatvori jednokratni kod?', description:'Kod za upis ili rotaciju prikazuje se samo u ovom prozoru. Sačuvajte ga ili iskoristite pre zatvaranja.', variant:'warning', confirmLabel:'Kod je preuzet — zatvori', onConfirm:onClose })
+    confirm({ title:'Zatvori jednokratni kod?', description:'Kod za upis ili rotaciju prikazuje se samo u ovom prozoru. Sačuvajte ga ili iskoristite pre zatvaranja.', variant:'warning', confirmLabel:'Kod je preuzet - zatvori', onConfirm:onClose })
   }
   const hasActive = identities.data?.some(identity => identity.status === 'ACTIVE')
   const invalid = identities.isLoading || identities.isFetching || identities.isError || !identities.data

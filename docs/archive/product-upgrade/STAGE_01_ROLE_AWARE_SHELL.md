@@ -1,4 +1,4 @@
-# Product upgrade Stage 1 — role-aware shell and design-system foundation
+# Product upgrade Stage 1 - role-aware shell and design-system foundation
 
 
 > **Istorijski dokument.** Sačuvan radi projektantskog konteksta i ranijih nalaza. Opisi, komande i rezultati u nastavku nisu potvrda trenutnog ponašanja niti važeće operativno uputstvo. Koristite [aktuelnu dokumentaciju](../../README.md) i [nalaze pregleda od 1. novembra 2026.](../../MAINTENANCE_AUDIT.md).

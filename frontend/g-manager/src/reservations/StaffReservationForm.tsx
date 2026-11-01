@@ -75,7 +75,7 @@ export function StaffReservationForm(props: StaffBookingProps) {
               onChange={event => {setRange(current => ({...current,endDate: event.target.value}))}} /></label>
             <ReservationTimePicker label="Od" value={range.from} disabled={blocked || !service} onChange={from => {setRange(current => ({...current,from}))}} />
             <ReservationTimePicker label="Do" value={range.to} disabled={blocked || !rules?.variableDuration} onChange={to => {setRange(current => ({...current,to}))}} />
-            {rules && <p className="search-help reservation-form-wide">{rules.variableDuration ? `Gaming termin: ${rules.minimumDurationMinutes}–${rules.maximumDurationMinutes} min. Sat nudi korake od 15 minuta; moguć je i ručni unos.` : `Ova usluga ima fiksno trajanje od ${rules.defaultDurationMinutes} minuta.`} Poslovna zona: Europe/Belgrade.</p>}
+            {rules && <p className="search-help reservation-form-wide">{rules.variableDuration ? `Gaming termin: ${rules.minimumDurationMinutes}-${rules.maximumDurationMinutes} min. Sat nudi korake od 15 minuta; moguć je i ručni unos.` : `Ova usluga ima fiksno trajanje od ${rules.defaultDurationMinutes} minuta.`} Poslovna zona: Europe/Belgrade.</p>}
           </section>
           {inputError && service && <Alert tone="warning" className="reservation-form-wide" role="alert"><p>{inputError}</p>
             {nearestEnd && (duration < minimum || !validTime(range.to)) && <Button type="button" variant="secondary" disabled={blocked}
@@ -88,12 +88,12 @@ export function StaffReservationForm(props: StaffBookingProps) {
                 : plan.error ? <ErrorState message={apiErrorMessage(plan.error,'Dostupnost nije moguće proveriti.')} action={<Button variant="secondary" type="button" onClick={() => plan.refetch()}>Pokušaj ponovo</Button>} />
                   : !inputError && plan.data && <p role="status" className={plan.data.available ? 'reservation-interval-available' : 'warning-banner'}>{plan.data.available ? 'Izabrani period je dostupan. Pre čuvanja će biti ponovo proveren.' : bookingConflictReason(plan.data.reason)}</p>}
             {!inputError && !plan.error && !plan.isFetching && plan.data && !plan.data.available && plan.data.alternatives.length > 0 && <div className="reservation-alternatives"><span>Dostupne alternative za isto trajanje:</span>
-              {plan.data.alternatives.map(item => <Button key={item.startTime} type="button" variant="secondary" disabled={blocked} onClick={() => applyAlternative(item)}>{formatBusinessDateTime(item.startTime)} – {formatBusinessIntervalEnd(item.startTime,item.endTime,'sr-Latn-RS')}</Button>)}</div>}
+              {plan.data.alternatives.map(item => <Button key={item.startTime} type="button" variant="secondary" disabled={blocked} onClick={() => applyAlternative(item)}>{formatBusinessDateTime(item.startTime)} - {formatBusinessIntervalEnd(item.startTime,item.endTime,'sr-Latn-RS')}</Button>)}</div>}
           </section>
           {resourceId && range.date && plan.data && !plan.error && <section className="reservation-day-schedule" aria-label="Zauzetost resursa za izabrani dan">
             <h3>Zauzetost resursa za izabrani dan</h3><p>Stvarni intervali rezervacija i aktivnih sesija. Poslednja provera: {formatBusinessDateTime(plan.data.serverTime)}.</p>
             <ol>{plan.data.intervals.map(item => <li key={item.startTime} className={`reservation-day-interval reservation-day-interval--${item.status.toLowerCase()}`}>
-              <span>{intervalLabels[item.status]}</span><time dateTime={item.startTime}>{formatBusinessDateTime(item.startTime)} – {formatBusinessDateTime(item.endTime)}</time></li>)}</ol>
+              <span>{intervalLabels[item.status]}</span><time dateTime={item.startTime}>{formatBusinessDateTime(item.startTime)} - {formatBusinessDateTime(item.endTime)}</time></li>)}</ol>
           </section>}
           <details className="ui-advanced-filters reservation-form-wide"><summary>Ponavljanje i napredne opcije</summary><fieldset className="reservation-repeat-fields"><legend>Ponavljanje termina</legend>
             <label className="checkbox-field"><Input aria-label={"Ponavljajuća rezervacija"} type="checkbox" disabled={blocked} checked={repeat} onChange={event => setRepeat(event.target.checked)} /> Ponavljajuća rezervacija</label>
@@ -114,7 +114,7 @@ export function StaffReservationForm(props: StaffBookingProps) {
           {frozen && <p role="status">Prethodni zahtev čeka konačan ishod. Ponovite isti zahtev; podaci i Idempotency-Key su sačuvani.</p>}
           {!frozen && !canSubmit && <Alert tone="warning" role="alert">Dostupnost ili pravo rezervisanja se promenilo. Sačekajte proveru ili izmenite podatke.</Alert>}
         </Card>}
-        {!repeat && start && end && service && customerName && <div className="ui-alert ui-alert--info"><strong>{customerName} · {service.name}</strong><p>{formatBusinessDateTime(start)} — {formatBusinessIntervalEnd(start,end,'sr-Latn-RS')} · {durationLabel(duration)}</p><small>Rezervacija čeka potvrdu osoblja.</small></div>}
+        {!repeat && start && end && service && customerName && <div className="ui-alert ui-alert--info"><strong>{customerName} · {service.name}</strong><p>{formatBusinessDateTime(start)} - {formatBusinessIntervalEnd(start,end,'sr-Latn-RS')} · {durationLabel(duration)}</p><small>Rezervacija čeka potvrdu osoblja.</small></div>}
         {repeat && <section aria-label="Dostupnost ponavljajućih termina">{preview.isFetching ? <Skeleton lines={3} /> : preview.error ? <ErrorState message={apiErrorMessage(preview.error,'Pregled serije nije dostupan.')}
           action={<Button variant="secondary" type="button" onClick={() => preview.refetch()}>Pokušaj ponovo</Button>} /> : preview.data ? <RecurrencePreviewPanel preview={preview.data} policy={conflictPolicy} locale="sr-Latn-RS" /> : <p>Unesite klijenta, uslugu, zaposlenog, zonu i vremenski interval za pregled serije.</p>}</section>}
       </form>

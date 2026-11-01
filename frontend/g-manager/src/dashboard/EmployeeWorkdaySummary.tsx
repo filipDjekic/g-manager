@@ -66,12 +66,12 @@ export function EmployeeWorkdaySummary() {
         </Card>}
       </div>
       <details className="ui-advanced-filters" onToggle={event => setExpanded(event.currentTarget.open)}><summary>Ceo dnevni pregled i važni događaji</summary>
-        <p>Radno vreme {data.workingDayStart && formatBusinessTime(data.workingDayStart)}–{data.workingDayEnd && formatBusinessTime(data.workingDayEnd)} · {data.timezone}</p>
+        <p>Radno vreme {data.workingDayStart && formatBusinessTime(data.workingDayStart)}-{data.workingDayEnd && formatBusinessTime(data.workingDayEnd)} · {data.timezone}</p>
         <h3>Važni događaji</h3>{data.attentionNotifications.length ? <ul className="ui-task-list">{data.attentionNotifications.map(item => <li key={item.id}>
           <Badge tone={item.priority === 'HIGH' ? 'danger' : 'info'}>{item.priority === 'HIGH' ? 'Važno' : 'Obaveštenje'}</Badge><strong>{item.title}</strong><p>{item.body}</p>
         </li>)}</ul> : <p>Nema novih važnih događaja.</p>}
         <h3>Slobodni intervali dnevnog rasporeda</h3><p>Ovi intervali nisu potvrda dostupnosti konkretnog računara.</p>
-        <ul>{data.gaps.map(gap => <li key={gap.startTime}>{formatBusinessTime(gap.startTime)}–{formatBusinessTime(gap.endTime)}</li>)}</ul>
+        <ul>{data.gaps.map(gap => <li key={gap.startTime}>{formatBusinessTime(gap.startTime)}-{formatBusinessTime(gap.endTime)}</li>)}</ul>
       </details>
     </>}
   </section>

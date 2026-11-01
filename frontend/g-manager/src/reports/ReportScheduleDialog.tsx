@@ -23,7 +23,7 @@ export function ReportScheduleDialog({ payload, onClose, onSaved }: { payload: G
   }
   return <>{dismiss.confirmationDialog}<Modal open title="Zakaži izveštaj" onClose={dismiss.close} closeDisabled={busy}><form className="ui-form-grid" onSubmit={save}>
     <p>{reportLabels[payload.definitionKey]} · {payload.format}</p>
-    <p>Fiksni period: {formatBusinessDateTime(payload.from)} — {formatBusinessDateTime(payload.to)} (isključivi kraj). Svako zakazano pokretanje koristi ovaj period.</p>
+    <p>Fiksni period: {formatBusinessDateTime(payload.from)} - {formatBusinessDateTime(payload.to)} (isključivi kraj). Svako zakazano pokretanje koristi ovaj period.</p>
     <label>Učestalost<Select value={day} disabled={busy} onChange={event => setDay(event.target.value)}><option value="">Svakog dana</option>
       {['Ponedeljak','Utorak','Sreda','Četvrtak','Petak','Subota','Nedelja'].map((label, index) => <option key={label} value={index + 1}>{label}</option>)}</Select></label>
     <label>Lokalno vreme<Input type="time" required value={time} disabled={busy} onChange={event => setTime(event.target.value)} /></label>

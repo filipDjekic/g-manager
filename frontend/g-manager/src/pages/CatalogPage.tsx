@@ -152,7 +152,7 @@ export function CatalogPage() {
         }}><span aria-hidden="true">＋</span> Nova stavka</Button>}
       </div></>} />
     {permissions.manage && <details className="ui-secondary-section"><summary>Statistika ponude</summary>    <section className={`ui-stat-grid gm-catalog-kpis${metrics.length === 2 ? ' gm-catalog-kpis--public' : ''}`} aria-label="Statistika kataloga">
-      {metrics.map(metric => <StatCard label={<>{metric.label}</>} value={stats.isLoading ? <Skeleton lines={1} label={`Učitavanje: ${metric.label}`} /> : <>{metric.value == null ? '—' : metric.value.toLocaleString('sr-Latn-RS')}</>} icon={<CatalogIcon type={metric.type} />} tone={metric.tone} key={metric.label} />)}
+      {metrics.map(metric => <StatCard label={<>{metric.label}</>} value={stats.isLoading ? <Skeleton lines={1} label={`Učitavanje: ${metric.label}`} /> : <>{metric.value == null ? '-' : metric.value.toLocaleString('sr-Latn-RS')}</>} icon={<CatalogIcon type={metric.type} />} tone={metric.tone} key={metric.label} />)}
     </section>
     {stats.error && <div className="gm-catalog-inline-error" role="alert"><span>{apiErrorMessage(stats.error, 'Statistiku nije moguće učitati.')}</span>
       <Button type="button" variant="secondary" onClick={() => void stats.refetch()}>Pokušaj ponovo</Button></div>}
@@ -170,7 +170,7 @@ export function CatalogPage() {
           setPriceOpen(event.target.value === 'range'); if (event.target.value === 'all') applyFilter({ minPrice: '', maxPrice: '' })
         }}><option value="all">Sve cene</option><option value="range">Raspon cena</option></Select></label>
         <label>Sortiranje<Select aria-label="Sortiranje" value={sort+':'+direction} onChange={event => { const [sort,direction]=event.target.value.split(':'); applyFilter({sort,direction}) }}>
-          <option value="name:ASC">Naziv A–Ž</option><option value="name:DESC">Naziv Ž–A</option><option value="price:ASC">Cena rastuće</option><option value="price:DESC">Cena opadajuće</option>
+          <option value="name:ASC">Naziv A-Ž</option><option value="name:DESC">Naziv Ž-A</option><option value="price:ASC">Cena rastuće</option><option value="price:DESC">Cena opadajuće</option>
           <option value="createdAt:DESC">Najnovije</option><option value="createdAt:ASC">Najstarije</option>{sort==='type'&&<><option value="type:ASC">Tip rastuće</option><option value="type:DESC">Tip opadajuće</option></>}</Select></label>
         {(priceOpen || min !== undefined || max !== undefined) && <div className="gm-catalog-price-filters">
           <label>Minimalna cena (RSD)<Input aria-label={"Minimalna cena (RSD)"} type="number" min="0" step="0.01" value={url.state.minPrice}

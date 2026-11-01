@@ -28,7 +28,7 @@ export function CustomerFormDialog({ customer, onClose, onSaved, returnFocusRef,
   const valid = Boolean(name.trim() && email.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
   const close = () => {
     if (inFlight.current) return
-    if (activation) { confirm({ title: 'Da li je kod predat klijentu?', description: 'Aktivacioni kod se prikazuje samo jednom.', confirmLabel: 'Kod je predat — zatvori', variant: 'warning', onConfirm: onClose }); return }
+    if (activation) { confirm({ title: 'Da li je kod predat klijentu?', description: 'Aktivacioni kod se prikazuje samo jednom.', confirmLabel: 'Kod je predat - zatvori', variant: 'warning', onConfirm: onClose }); return }
     if (name !== (customer?.name ?? '') || email !== (customer?.email ?? '')) {
       confirm({ title: 'Odbaci unose?', description: 'Nesačuvani podaci neće ostati u formi.', confirmLabel: 'Odbaci', variant: 'warning', onConfirm: onClose })
     } else onClose()
@@ -56,7 +56,7 @@ export function CustomerFormDialog({ customer, onClose, onSaved, returnFocusRef,
     titleIcon={<NavigationIcon to="/customers" />} initialFocusRef={firstInput} returnFocusRef={returnFocusRef} onClose={close}
     footer={<div className="ui-actions customers-dialog-actions">
       {activation ? <><Button type="button" variant="secondary" onClick={close}>Zatvori</Button>{onContinue && createdCustomer &&
-        <Button onClick={() => { const choice = createdCustomer; setActivation(null); onContinue(choice) }}>Kod je predat — nastavi sesiju</Button>}</> : <>
+        <Button onClick={() => { const choice = createdCustomer; setActivation(null); onContinue(choice) }}>Kod je predat - nastavi sesiju</Button>}</> : <>
         <Button type="button" variant="secondary" disabled={busy} onClick={close}>Otkaži</Button>
         <Button type="submit" form={formId} className="customers-pink-button" loading={busy} disabled={!valid}>
           {customer ? 'Sačuvaj podatke' : 'Kreiraj klijenta'}</Button>

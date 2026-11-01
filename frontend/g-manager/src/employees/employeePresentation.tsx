@@ -56,7 +56,7 @@ export function EmployeeKpi({ title, value, kind, tone, description, loading }: 
   title: string; value: number | undefined; kind: Parameters<typeof EmployeeIcon>[0]['kind']
   tone: 'blue' | 'green' | 'purple' | 'pink'; description: string; loading: boolean
 }) {
-  return <StatCard label={<>{title}</>} value={loading ? <Skeleton lines={1} label={`Učitavanje: ${title}`} /> : <>{value === undefined ? '—' : new Intl.NumberFormat('sr-Latn-RS').format(value)}</>} icon={<EmployeeIcon kind={kind} />} description={<>{description}</>} tone={tone} aria-label={title} />
+  return <StatCard label={<>{title}</>} value={loading ? <Skeleton lines={1} label={`Učitavanje: ${title}`} /> : <>{value === undefined ? '-' : new Intl.NumberFormat('sr-Latn-RS').format(value)}</>} icon={<EmployeeIcon kind={kind} />} description={<>{description}</>} tone={tone} aria-label={title} />
 }
 export function EmployeeActionsMenu({ employee, canDeactivate, canDelete, disabled, onAction }: {
   employee: UserResponse; canDeactivate: boolean; canDelete: boolean; disabled: boolean
