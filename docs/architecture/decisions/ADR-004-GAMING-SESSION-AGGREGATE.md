@@ -1,38 +1,21 @@
-# ADR-004: Gaming session is a runtime aggregate
+# ADR-004: GamingSession kao runtime agregat
 
-## Status
+Status: prihvaćeno i implementirano, ne budući Stage ugovor.
 
-Accepted for future implementation. Stage 1 defines the contract; it does not create the runtime module.
+## Odluka i razlog
 
-## Context
+Rezervacija opisuje planirani interval, auth sesija refresh/device životni ciklus, a `GamingSession` stvarno korišćenje jedne stanice od jednog kupca. Agregat referencira postojeće User(CUSTOMER) i PhysicalResource(GAMING_PC) identitete i opcionu rezervaciju; ne preuzima njihovu semantiku.
 
-G-Manager reservations describe planned intervals and currently own booking conflicts. Web authentication sessions describe refresh-token/device lifetime. Neither is the authoritative runtime state of a customer using one gaming station.
+Start atomarno kreira ACTIVE. Dostignuti `endsAt` daje EXPIRED, a ovlašćeni ručni završetak TERMINATED uz razlog. Ne postoje dodatna CREATED/PENDING/COMPLETED gaming stanja. Produženje menja kraj istog ACTIVE agregata.
 
-## Decision
+Backend Clock je autoritativan. Countdown API daje `endsAt`, `serverTime` i izvedeno preostalo vreme. Client/browser interpolacija ne menja sesiju.
 
-The future `GamingSession` is a separate aggregate that references the existing `User(CUSTOMER)` and `PhysicalResource(GAMING_PC)` identities. It may reference a reservation, but does not replace or mutate reservation semantics.
+## Invarijante i posledice
 
-The minimal lifecycle is:
+- Start zaključava customer pa resource i proverava jednu aktivnu sesiju po kupcu i stanici.
+- Aktivnost kupca, gaming PC readiness, booking konflikt, trajanje i resource grant se proveravaju u transakciji.
+- Extend/terminate proveravaju verziju i autorizaciju nad aktuelnim resursom.
+- Session promena, station command, audit i outbox se čuvaju transakciono; operator vidi zasebno stanje fizičkog zaključavanja.
+- Gaming događaji imaju `GAMING_SESSION_*` prefiks, a auth sesije sopstveni događajni ugovor.
 
-```text
-ACTIVE -- endsAt reached --> EXPIRED
-ACTIVE -- authorized manual action --> TERMINATED
-```
-
-Start is an atomic command that immediately creates `ACTIVE`; therefore `CREATED`, `PENDING`, `CANCELLED` and `COMPLETED` are not introduced without a later concrete pre-start workflow. Natural expiry uses `EXPIRED`; manual or security termination uses `TERMINATED` with a reason.
-
-The backend clock is authoritative. APIs serving countdown state include `endsAt` and `serverTime`; clients may interpolate between synchronizations but may not extend time locally.
-
-The implementation must enforce, under deterministic row locking and in one transaction:
-
-- one active session per station;
-- one active session per customer;
-- positive duration within typed configuration limits;
-- active customer and active/bookable gaming PC;
-- authorization and location scope revalidation at every state-changing command.
-
-Runtime events use the `GAMING_SESSION_*` prefix. Existing refresh-token/device events use `AUTH_SESSION_*`; the unqualified word `SESSION` is not used for new event types.
-
-## Consequences
-
-Reservation, authentication and gaming runtime histories remain independently understandable. The system pays for one additional aggregate and projection joins, but avoids overloading reservation status and prevents ambiguous event/audit terminology.
+Izvori su [GamingSessionService](../../../gm/src/main/java/com/game_manager/gm/gamingsession/GamingSessionService.java) i [lifecycle ugovor](../../contracts/GAMING_SESSION_LIFECYCLE.md). Odsustvo konflikta u jednom zahtevu ne zamenjuje MySQL concurrency suite ili fizički lock test.

@@ -1,6 +1,6 @@
-# Machine enrollment, authentication and command protocol
+# Machine enrollment, autentifikacija i protokol
 
-Stage 7 odvaja station machine identitet od employee/customer naloga. Machine API
+Station machine identitet je odvojen od employee/customer naloga. Machine API
 je pod `/api/v1/machine`; zaštićeni endpointi prihvataju samo short-lived machine
 JWT sa `token_type=MACHINE`, audience `g-manager-machine`, station/key-version
 claim-ovima i `MACHINE_PROTOCOL` scope-om. Employee JWT nije zamena.
@@ -47,10 +47,9 @@ dobiti token, a već izdati token se pri svakom zahtevu ponovo proverava prema b
 
 Rate limit ključevi koriste machine identity ID (kod enrollment-a station ID), ne
 IP adresu. Payload-i, audit i logovi ne sadrže enrollment kod, nonce, JWT, potpis
-ili private key. Headless contract klijent je `MachineProtocolHarness`; njegov
-`PrivateKeyStore` je namerno samo interfejs sa testnom in-memory implementacijom.
-Windows-backed implementacija pripada Stage-u 8.
-Harness `base` URI treba da se završava sa `/api/v1/`.
+ili private key. Headless `MachineProtocolHarness` je testna podrška i njegov `base` URI završava sa `/api/v1/`. Implementirani .NET `MachineProtocolClient` koristi DPAPI store i BaseUrl sa origin `/`, jer sam dodaje `api/v1/machine/...`. Ne mešati njihove URL ugovore.
+
+Postoje i `POST /machine/session-login`, `/session-logout`, `GET /machine/configuration`, `/lease` i `POST /machine/enforcement/lock-ack`. Login proverava kupca aktivne sesije te stanice. Policy/lease imaju Ed25519 potpis i Client public-key pin. Komande uključuju `FORCE_LOCK` i marker `expired`. Videti [Client vodič](../operations/WINDOWS_CLIENT.md).
 
 ## Recovery
 

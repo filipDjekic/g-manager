@@ -1,17 +1,16 @@
-# Gaming station readiness contract
+# Spremnost gaming stanice
 
-`PhysicalResource(GAMING_PC)` je kanonski identitet stanice. `GamingStationProfile` je 1:1 operativna konfiguracija i ne duplira naziv, lokaciju, mapu ili booking identitet resursa.
+`PhysicalResource(GAMING_PC)` je kanonski identitet stanice. `GamingStationProfile` je 1:1 operativna konfiguracija; ne duplira naziv, lokaciju, mapu ili booking identitet resursa.
 
-## Status
+## Status i pristup
 
-- `AVAILABLE`, `MAINTENANCE` i `RETIRED` su jedina ručno upisiva stanja.
-- `RETIRED` je terminalno stanje.
-- `IN_SESSION` se izvodi isključivo iz aktivnog `GamingSession` projection porta; ne čuva se u station tabeli.
-- `OFFLINE` se izvodi iz `clientEnabled`, poslednjeg heartbeat-a i offline grace politike; ne upisuje se ručno.
-- Maintenance i retired stanica se odbijaju u backend booking proveri i prikazuju kao nedostupne na resource mapi.
+- `AVAILABLE`, `MAINTENANCE` i `RETIRED` su ručno upisiva stanja; `RETIRED` je terminalno.
+- `IN_SESSION` se izvodi iz aktivne gaming sesije, a `OFFLINE` iz Client/heartbeat/grace podataka. Ne upisuju se ručno kao osnovni status.
+- Booking/start proveravaju resurs, profil, raspoloživost i konkretne employee resource grant-ove. Maintenance/retired stanica je nedostupna.
+- Operativni board dodatno projektuje `ACTIVE`, `EXPIRED` i `LOCK_PENDING` prema runtime/enforcement stanju. Backend readiness nije potvrda fizičke spremnosti stanice.
 
 ## Application policy
 
-Application definition opisuje konkretan `LAUNCHER`, `GAME` ili `HELPER` proces kroz apsolutnu Windows `.exe` putanju i najmanje publisher ili SHA-256 identitet. Profile entry dodaje redosled, auto-start, required-process i argument override. Profil mora sadržati najmanje jednu `GAME` definiciju i svaka izmena povećava `configurationVersion`.
+Application definition opisuje konkretan `LAUNCHER`, `GAME` ili `HELPER`, apsolutnu `.exe` putanju i publisher ili SHA-256 trust. Profile entry definiše redosled, auto-start, required-process, argument override i dependency group. Profil sadrži najmanje jednu GAME definiciju; izmena povećava configuration version.
 
-Steam/Epic i sličan launcher nije dovoljan allowed-app ugovor: profil eksplicitno uključuje igre i potrebne helper/child procese. Budući Windows Client preuzima isti versioned profil; Stage 3 ne sadrži executable Client niti machine API.
+Steam/Epic launcher ne daje implicitno pravo child igri. Profil mora navesti konkretne igre i helpers. Implementirani Windows Client preuzima potpisanu konfiguraciju preko `/api/v1/machine/configuration`, proverava pin/verziju/trust i sprovodi policy kroz Service/AppLocker. [Client vodič](../operations/WINDOWS_CLIENT.md) razdvaja development od fizičkog enforcement-a.

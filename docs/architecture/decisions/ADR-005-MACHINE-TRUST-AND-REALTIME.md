@@ -1,48 +1,28 @@
-# ADR-005: Machine trust, durable polling and Windows enforcement boundary
+# ADR-005: Machine trust, durable polling i Windows granica
 
-## Status
+Status: prihvaćeno i implementirano u backendu i .NET Client-u; fizički rollout se proverava zasebno.
 
-Accepted as the protocol and trust contract for later stages. No machine endpoint or Windows executable is introduced in Stage 1.
+## Identitet i transport
 
-## Principal boundaries
+Browser koristi user JWT/refresh tok. Stanica ima zaseban machine identitet; jednokratni enrollment kod veže njen lokalno generisan Ed25519 public key za stanicu. Backend ne poseduje machine private key. Challenge potpis daje kratkotrajan machine JWT sa station/key-version/audience/scope proverenim prema aktuelnoj bazi.
 
-Three principals are distinct:
+Customer session login je postojeća machine-scoped operacija koja proverava korisnika aktivne gaming sesije. Nije nova web role niti poseban opšti customer-session JWT principal. Detalji su u [machine ugovoru](../../contracts/MACHINE_ENROLLMENT_AND_PROTOCOL.md).
 
-1. Browser principal — existing user JWT/refresh-token flow and role permissions.
-2. Customer-session principal — future short-lived proof limited to one customer and one active gaming session; it is not an employee/admin token.
-3. Machine principal — one enrolled station identity with narrow machine scopes; it never uses employee credentials.
+Browser operativa koristi outbox i SSE. Machine koristi HTTPS snapshot i durable poll sa monotono rastućim cursor-om i idempotentnim ACK-om; WebSocket nije uveden. Duplikati i reconnect se očekuju, a komande ostaju proverljive posle prekida veze.
 
-Enrollment uses a short-lived, one-time random token whose database representation is a hash. The station generates an asymmetric key pair locally. The backend stores only the public key, key version and revocation state. The private key is held by a Windows cryptographic provider (Certificate Store/DPAPI, TPM-backed where available), never committed or returned by the backend.
+## Windows granica
 
-Authentication uses a server nonce/challenge signed by the active station key and returns a short-lived machine access token with station ID, key version, audience and scopes. Nonces expire and cannot be replayed. Key rotation and revocation are audited.
+Service kao LocalSystem poseduje DPAPI LocalMachine identitet, potpisano stanje i enforcement. Shell radi pod standardnim nalogom, bez private key-a, i koristi named pipe sa peer/identity proverama. Development koristi CurrentUser i nema fizičko sprovođenje.
 
-## Real-time decision
+Konkretna implementacija koristi AppLocker i proveru zaštićenih executable putanja, publisher/hash trust i bounded signed lease. TPM/non-exportable crypto provider i WDAC deployment nisu implementirani mehanizmi ovog Client-a. Lokalni administrator je izvan aplikacione granice zaštite.
 
-- Employee browser updates reuse the existing transactional outbox and SSE infrastructure.
-- Machine communication uses authenticated HTTPS snapshot plus durable long-poll/poll from a monotonically increasing command cursor and idempotent acknowledgments.
-- WebSocket is not introduced in the first implementation because persisted commands, reconnect and acknowledgment are required even when a transient connection is absent. A later transport may deliver the same durable command contract without changing its semantics.
+| Pretnja | Kontrola u implementaciji |
+| --- | --- |
+| Ukraden enrollment/challenge | Kratak TTL, hash-at-rest, station scope i jednokratna potrošnja |
+| Machine kompromitovanje | Key verzija, revoke/rotation i proveravanje identiteta prema bazi |
+| Replay/redosled | Jednokratni potpisani challenge, command sequence, durable cursor i ACK |
+| Offline produženje/sat unazad | Potpisan finite lease, monotoni protek i trusted UTC floor |
+| Neodobrena aplikacija | Explicit app profile, signed trust, AppLocker i player SID scope |
+| Tampered update | HTTPS, SHA-256, Authenticode publisher pin i CMS file manifest |
 
-Every machine command has station scope, sequence, payload schema version and correlation ID. Duplicate, delayed and out-of-order delivery must converge through the cursor/state reducer.
-
-## Windows trust boundary
-
-The planned Client has two processes:
-
-- a privileged .NET Windows Service that owns machine identity, backend synchronization and enforcement actions;
-- a WPF fullscreen Shell under a restricted customer account, connected through an ACL-protected named pipe.
-
-The Shell has no machine private key. Neither process is the sole isolation boundary: Assigned Access/restricted-user configuration and WDAC/AppLocker provide OS application control. Browser UI hiding and process blacklists are not security controls.
-
-## Threat decisions
-
-| Threat | Required control |
-|---|---|
-| Stolen enrollment token | Short TTL, station scope, hash-at-rest, one-time consume |
-| Cloned machine identity | Non-exportable/TPM key where possible, key version, revoke/rotate |
-| Replay | Expiring one-time challenge and signed request binding |
-| Offline extension | Signed bounded lease; client cannot change `endsAt` |
-| Local clock rollback | Server offset plus monotonic elapsed time and bounded resync rules |
-| Duplicate/out-of-order command | Station sequence cursor and idempotent acknowledgment |
-| Local administrator | Explicitly outside app trust boundary; operational controls required |
-
-Production TLS, signing keys and code-signing certificates are external secrets and are never stored in the repository.
+Backend policy signing ključ i Windows code-signing sertifikat su zasebne tajne od machine ključa. Produkcioni TLS i signing materijal ostaju izvan repozitorijuma. [Client vodič](../../operations/WINDOWS_CLIENT.md) i [rollout](../../operations/GAMING_CLIENT_PRODUCTION_ROLLOUT.md) navode konkretne operacije i granice dokaza.

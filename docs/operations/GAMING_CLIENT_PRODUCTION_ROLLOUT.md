@@ -1,34 +1,40 @@
-# Gaming Client production rollout
+# Pilot rollout Windows Client-a
 
-This is the Stage 11 release gate. A release is pilot-approved only after every item below has dated evidence from the target MySQL environment and a representative managed Windows 10/11 Enterprise or Education station. Source implementation alone is not approval.
+Ovo su kriterijumi za proveru stvarnog izdanja na ciljnom MySQL okruženju i namenskoj upravljanoj Windows stanici. Izvorni kod, postojanje testova i raniji izveštaj ne predstavljaju potvrdu pilot spremnosti. Uputstva za rad su u [WINDOWS_CLIENT.md](WINDOWS_CLIENT.md), a konfiguracioni blokatori u [DEPLOYMENT.md](DEPLOYMENT.md).
 
-## Infrastructure and secrets
+## Infrastruktura i izdanje
 
-- Publish backend/frontend by immutable image digest. Set `STATION_POLICY_SIGNING_KEY_ID`; provide the Base64 PKCS#8 Ed25519 private key only through `secrets/station_policy_signing_private_key`.
-- Publish the Authenticode-signed Client ZIP over HTTPS and set `GAMING_CLIENT_VERSION`, `GAMING_CLIENT_MINIMUM_VERSION`, `GAMING_CLIENT_DOWNLOAD_URL`, `GAMING_CLIENT_SHA256` and the exact certificate subject in `GAMING_CLIENT_PACKAGE_SIGNING_SUBJECT`.
-- DNS and TLS must resolve from each station. Expose only HTTPS application traffic; keep MySQL, the management port and Prometheus on private networks. Permit outbound station traffic only to the backend/download origin and required game services.
-- Use a standard local customer account. The Service uses its virtual service account and has modify access only to `%ProgramData%\GManager\Client`; administrators/SYSTEM own installation and policy paths.
+- Backend/frontend image-i imaju nepromenljive digest reference, odgovarajući checkout migracija i uspešnu proveru šeme.
+- Backend policy signing private key je u secret store-u; Client ima samo odgovarajući public SPKI key i key ID. Machine identity key i code-signing sertifikat su zasebni.
+- Novi Client ZIP je Authenticode/CMS potpisan, stvarno objavljen preko HTTPS-a i odgovara `GAMING_CLIENT_VERSION`, minimum verziji, SHA-256 i signer subject-u. GitHub artifact sam ne objavljuje taj URL.
+- Stanica ima DNS, važeći TLS chain, odvojene Windows admin/player naloge i podržan AppLocker/Application Identity. Service je **LocalSystem**, Shell radi kao standardni igrač. Putanje igara nisu upisive tom korisniku.
+- MySQL, management i Prometheus ostaju privatni. Mrežni pristup backendu/download serveru i game servisima mora biti proveren iz stanice.
 
-## Provision and recovery
+## Funkcionalni i recovery dokazi
 
-Run `client/packaging/publish.ps1` with the CI-held code-signing certificate, transfer the one-time enrollment value over stdin, then run `install-service.ps1`. The installer creates recovery actions, restricted ACLs and a 15-minute signed update task. Update accepts only the configured signer and SHA-256; it preserves one local rollback copy and automatically restores it if the new Service does not remain healthy. Run `support-bundle.ps1` for support evidence: it exports only service state, file versions/hashes and event metadata, never identity DPAPI data, session snapshots, credentials, emails or log messages.
+- [ ] Staff customer lookup/create/activation → gaming start → Client login → countdown → approved application → produženje → istek → fizički lock ACK → AVAILABLE.
+- [ ] Parallel start, stale version, idempotency replay/425 i zabrana produženja terminalne sesije.
+- [ ] Network loss kraći/duži od lease grace-a, server restart, Service restart, Windows reboot i sat unazad.
+- [ ] Duplirane, istečene i out-of-order komande; cursor/pending ACK oporavak; nema ručnog pomeranja cursor-a.
+- [ ] Launcher, konkretna igra, helper i anti-cheat rade; neodobren child i downloadovani izvršni/script fajlovi ostaju blokirani.
+- [ ] Tampered policy/lease/manifest/ZIP, pogrešan key ID/publisher i unsafe putanja se odbijaju.
+- [ ] Maintenance radi bez backenda, prekida samo player sesiju, ističe i vraća zaštitu čak i nakon reboot-a/Service outage-a; interrupted session traži reconciliation.
+- [ ] Potpisani update, odlaganje tokom sesije, rollback pod greškom/prekidom, offline repair, uninstall/reinstall sa očuvanim identitetom i posebno provereno purge ponašanje.
+- [ ] Owned AppLocker/trust restore čuva tuđa pravila; konflikt ili legacy instalacija bez backup-a zahteva administratorsko razrešenje.
 
-For command lag, offline or lock-pending alarms, use Gaming operativa station history and record its Support ID. Confirm physical lock only after an employee inspects the machine. Backup uses the complete schema; `restore-drill.sh` explicitly requires all nine session/machine tables after restore. Retention removes expired nonces/tokens, stale heartbeat rows and old machine audit metadata according to `STATION_*_RETENTION_DAYS`.
+## Bezbednost i operativa
 
-## Security and release evidence
+[ops/security/machine-api-check.ps1](../../ops/security/machine-api-check.ps1) radi osnovnu neautentifikovanu proveru granice i header-a. Ne zamenjuje authenticated replay, wrong-station, rate-limit i malformed-payload provere. Za kasnije pokretanje iz korena:
 
-- Review trust boundaries: browser/operator is untrusted for authorization; machine JWT is station-scoped; enrollment is single-use; commands are durable and monotonic; lease/policy signatures are verified client-side; OS application control remains the execution boundary.
-- Archive backend, frontend and Client dependency reports/SBOMs from CI. Run `ops/security/machine-api-check.ps1` against staging and complete an authenticated rate-limit, replay, wrong-station, expired-token and malformed-payload penetration review without production customer data.
-- Rotate the policy signing key with overlap: install the new public key/key ID, publish with the new private key, prove all clients accept it, then revoke the old key. Separately rotate one machine identity using the enrollment rotation flow and verify the previous identity stops authenticating after overlap.
-- Exercise Client upgrade and automatic rollback on the representative station. Review Assigned Access and AppLocker/WDAC first in audit mode, then enforced mode, including every real game, launcher, helper and anti-cheat executable.
+```powershell
+.\ops\security\machine-api-check.ps1 -BaseUrl https://staging.example/
+```
 
-## Pilot checklist
+Pregledati dependency/CodeQL/SBOM izveštaje i potpis paketa. Proveriti machine identity revoke/rotation i desetominutni overlap. Policy public pin i code-signing pin menjaju se zasebnim kontrolisanim postupkom; trenutni Client nije automatski policy multi-key keyring.
 
-- [ ] MySQL previous-release-to-latest and empty-schema migrations passed.
-- [ ] Employee customer lookup/create -> station start -> Client login/snapshot -> countdown -> extension -> update -> expiry -> lock acknowledgement -> AVAILABLE passed.
-- [ ] Parallel-start/extension conflict, command replay, offline grace, restart, soak and upgrade/rollback scenarios passed.
-- [ ] Prometheus test injection proved command-lag, offline, lock-pending, expired-unacknowledged, enrollment and authentication alerts and routing.
-- [ ] Encrypted backup restore includes machine tables and the restored backend is ready.
-- [ ] Code signature, SBOM/vulnerability policy, threat-model and machine API review are approved.
-- [ ] Signing-key/certificate rotation and rollback drills have dated evidence.
-- [ ] Owner, operations and security approvers signed the controlled-pilot decision.
+- [ ] Encrypted DB backup/restore uključuje session/machine tabele; vraćeni backend je ready, a zaseban object backup je potvrđen download/checksum proverom.
+- [ ] Prometheus detektuje command lag, offline, lock-pending, expired-unacknowledged, enrollment/auth greške. Operativni kanal prima probni alarm; Alertmanager nije isporučen Compose-om.
+- [ ] Support bundle je pregledan i ne sadrži identity DPAPI podatke, credentials ili session snapshot-e; incident beleži Support ID/request ID.
+- [ ] Odgovorni operator je dokumentovao verziju, datum, ciljnu Windows/OS/game konfiguraciju, rezultate i recovery postupak pre šireg rollout-a.
+
+Ne označavati ovu listu završenom samo na osnovu statičkog pregleda. Nisu potvrđeni aktuelni potpisani artefakt, stvarno objavljeni URL, ciljni hardware test ili produkcioni runner konfiguracija.

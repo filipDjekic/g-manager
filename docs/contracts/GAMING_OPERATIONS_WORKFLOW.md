@@ -1,8 +1,8 @@
-# Employee gaming operations workflow
+# Operativni tok gaming stanica
 
 Employee operativa koristi jednu stranicu `/gaming-sessions`. Board podatke dobija
-iz `GET /api/v1/gaming-operations/board`; endpoint vraća samo stanice iz location
-scope-a prijavljenog korisnika. Opcioni `locationId` se dodatno proverava na
+iz `GET /api/v1/gaming-operations/board`; endpoint vraća stanice iz dozvoljenog resource
+scope-a. EMPLOYEE zahteva aktivne resource dodele; ADMIN/OWNER imaju globalni scope. Opcioni `locationId` se dodatno proverava na
 backend-u i nije način za proširenje scope-a.
 
 Svaki board response ima jedan `serverTime`. `remainingSeconds` je izveden na
@@ -23,7 +23,7 @@ Operativni tok je:
 Board može prikazati `AVAILABLE`, `ACTIVE`, `MAINTENANCE`, `RETIRED`, `OFFLINE`,
 `EXPIRED` i `LOCK_PENDING`. Backend izračunava `allowedActions`; sakrivanje dugmeta
 nije authorization kontrola, jer session servisi ponovo proveravaju permission,
-location, zaključani agregat i verziju.
+resource grant, zaključani agregat i verziju.
 
 Session outbox događaji invalidiraju board query preko SSE-a. Periodični 30-sekundni
 resync ostaje fallback za prekid SSE veze, tako da promena ne zahteva page reload.

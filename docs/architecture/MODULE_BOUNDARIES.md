@@ -1,6 +1,7 @@
 # G-Manager module boundaries
 
-Status: važi od Stage-a 2  
+Status: aktuelna pravila, pregledano 1. novembra 2026.
+
 Arhitektonski stil: jedan deployable modularni monolit, package-by-feature.
 
 ## Pravila
@@ -19,7 +20,7 @@ Arhitektonski stil: jedan deployable modularni monolit, package-by-feature.
    Spring Security implementacije.
 6. `auth` implementira login/refresh i `SessionRevocationPort`. `user` ne zavisi
    od `auth`, čime je uklonjen prethodni ciklus.
-7. Cross-module zavisnost mora pratiti graf ispod. Nova povratna zavisnost koja
+7. Cross-module zavisnost mora čuvati odsustvo ciklusa. Nova povratna zavisnost koja
    pravi ciklus zahteva facade/port i ADR, ne ArchUnit izuzetak.
 8. Transakcione poslovne granice ostaju u servisima/application writer-ima.
 9. Frontend stranice pristupaju mreži samo kroz `src/api`. Direktan `axios`
@@ -27,7 +28,9 @@ Arhitektonski stil: jedan deployable modularni monolit, package-by-feature.
 10. Frontend `types` su transportni ugovori; page/layout komponente ne kreiraju
     zasebne HTTP klijente.
 
-## Trenutni dependency graf
+## Osnovni dependency tok
+
+Dijagram prikazuje osnovne web module, a ne potpun import graf svih paketa. Ostali moduli su u [arhitektonskom pregledu](OVERVIEW.md).
 
 ```mermaid
 flowchart LR
@@ -66,8 +69,7 @@ flowchart LR
   idempotency --> common
 ```
 
-Graf je usmeren i bez ciklusa. ArchUnit ga proverava na nivou prvog paketa ispod
-`com.game_manager.gm`.
+ArchUnit proverava odsustvo ciklusa na nivou prvog paketa ispod `com.game_manager.gm`, ne tačnu listu grana ilustrativnog dijagrama. `bootstrap` povezuje security adaptere. `common.scheduling` izlaže `StationStatePort`, `ClientStatePort`, `GamingRuntimePort` i `ResourceAvailabilityPort`; adapteri u vlasničkim modulima omogućavaju saradnju bez povratnih ciklusa.
 
 ## Javni cross-module contracts
 

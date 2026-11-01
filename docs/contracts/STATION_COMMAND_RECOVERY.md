@@ -1,17 +1,17 @@
-# Station command sequence and recovery
+# Station command sequence i oporavak
 
-`station_commands` je durable server-to-machine projekcija uvedena u Stage-u 5.
+`station_commands` je durable server-to-machine projekcija.
 Svaka station ima strogo rastući `sequence`; jedinstvenost `(station_id, sequence)`
 je zaštićena u bazi, a cursor red se zaključava pri alokaciji broja. Session promena,
 cursor i komanda se commit-uju u istoj transakciji.
 
 Command tipovi u v1 su `SESSION_STARTED`, `SESSION_EXTENDED` i
-`SESSION_TERMINATED`. Prirodni istek koristi `SESSION_TERMINATED` sa
+`SESSION_TERMINATED` i `FORCE_LOCK`. Prirodni istek koristi `SESSION_TERMINATED` sa
 `payload.status=EXPIRED`. Payload sadrži identitete i runtime vremena, nikada
 credential, password, access/refresh token ili machine private key.
 
 `available_at` određuje kada se komanda može preuzeti. `acknowledged_at` je null
-dok Client ne potvrdi primenu; ack API dolazi u machine Stage-u. Client mora čuvati
+dok Client ne potvrdi primenu kroz postojeći machine ACK API. Client mora čuvati
 poslednji potvrđeni cursor, tražiti samo veće sequence vrednosti, primenjivati ih
 redosledom i bezbedno ignorisati već primenjeni sequence.
 

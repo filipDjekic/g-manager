@@ -1,6 +1,6 @@
-# Gaming session lifecycle
+# Životni ciklus gaming sesije
 
-Stage 4 uvodi autoritativni `GamingSession` agregat za rad zaposlenih. Vreme servera
+Implementiran je autoritativni `GamingSession` agregat za rad osoblja. Vreme servera
 je jedini izvor istine; frontend ne menja status na osnovu lokalnog tajmera.
 
 ## Stanja i prelazi
@@ -11,12 +11,12 @@ je jedini izvor istine; frontend ne menja status na osnovu lokalnog tajmera.
 | `ACTIVE` | extend | `ACTIVE` | Menja `endsAt` istog agregata; ne kreira novu sesiju. |
 | `ACTIVE` | terminate | `TERMINATED` | Zahteva razlog i postavlja `endedAt` iz backend `Clock`-a. |
 
-`EXPIRED` je terminalno stanje koje Stage 5 worker postavlja kada `endsAt` više nije
+`EXPIRED` je terminalno stanje koje background worker postavlja kada `endsAt` više nije
 u budućnosti. Worker zaključava dospele redove u batch-u i ponovljeno izvršenje je
 bez efekta. Terminalna sesija se ne može produžiti niti ponovo završiti.
 
 Start transakcija zaključava customer red pre resource reda. Nakon zaključavanja
-ponovo proverava customer, station readiness, location scope i postojeću aktivnu
+ponovo proverava customer, station readiness, resource grant i postojeću aktivnu
 sesiju za customer i station. Ovaj redosled je obavezan za sve buduće start tokove.
 Extension i termination zaključavaju session red i zahtevaju aktuelnu `version`.
 
@@ -31,7 +31,7 @@ Osnovna putanja je `/api/v1/gaming-sessions`.
 - `POST /{id}/terminate` — telo: `reason`, `version`; zahteva
   `GAMING_SESSION_TERMINATE`.
 - `GET /{id}` i `GET /` — detalj i aktivne sesije dostupne actor-ovom location
-  scope-u; zahtevaju `GAMING_SESSION_READ`.
+scope-u dozvoljenih resursa; zahtevaju `GAMING_SESSION_READ`.
 
 Sve POST komande zahtevaju `Idempotency-Key`. Ponovljen identičan zahtev vraća
 sačuvan odgovor; ponovna upotreba ključa za drugačiji zahtev se odbija. Customer
@@ -52,3 +52,5 @@ Uspešne promene pišu management audit zapise i outbox događaje:
 
 Payload ne sadrži tajne. Start beleži customer, resource, location i kraj;
 extension prethodni i novi kraj; termination vreme završetka i razlog.
+
+`GET /me` daje CUSTOMER own pregled; `/customer/{customerId}` istoriju uz staff scope, a `/stream` SSE događaje. Default trajanje je 120 minuta, minimum 15, maksimum 480; pojedinačno produženje najviše 120 minuta uz ukupni maksimum od početka. Videti [konfiguraciju](../reference/CONFIGURATION.md).

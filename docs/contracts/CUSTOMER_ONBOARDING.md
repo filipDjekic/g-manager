@@ -1,4 +1,4 @@
-# Staff-managed customer onboarding
+# Kreiranje i aktivacija kupca
 
 Customer je postojeći `User` sa rolom `CUSTOMER`; ne postoji paralelni customer identitet.
 
@@ -11,3 +11,5 @@ Customer je postojeći `User` sa rolom `CUSTOMER`; ne postoji paralelni customer
 5. Ponovna upotreba, istekao kod i kod neaktivnog/non-customer naloga vraćaju isti generički odgovor.
 
 Javna registracija ne postoji. `EMPLOYEE`, `ADMIN` i `OWNER` imaju uske customer create/update/deactivate dozvole; request nikada ne prima rolu. Puni employee/admin/owner user-management ostaje na postojećem `/api/v1/users` ugovoru.
+
+`CUSTOMER_ACTIVATION_TTL_HOURS` podrazumevano iznosi 24. Aktivacioni podatak predati kupcu kontrolisanim kanalom: ugrađeni email adapter je sandbox, pa API odgovor ne dokazuje poslatu poruku. Videti [bezbednost](../reference/SECURITY_ACCESS.md).

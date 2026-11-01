@@ -1,61 +1,22 @@
 # G-Manager frontend
 
-React 19, TypeScript i Vite klijent za G-Manager.
+React 19/TypeScript/Vite SPA sa React Router-om, TanStack Query-jem, Zustand store-ovima i API adapterima u `src/api`. Rute i capability guards su u `src/App.tsx`. Backend ostaje autoritativan za dozvole i poslovna pravila.
 
-## Preduslovi
+[Glavni Quick Start](../../README.md#quick-start-backend-i-frontend-na-hostu) opisuje zajedničko pokretanje. Za frontend su potrebni Node prema `engines` i npm prema `packageManager` u [package.json](package.json); CI koristi Node 22.23.3/npm 11.19.1.
 
-- Node.js 22.13+ ili 24+ (Docker i CI koriste 22.23.3);
-- npm 11.19.1 (`npm install --global npm@11.19.1`), usklađen sa Docker-om i CI-jem;
-- pokrenut G-Manager backend na `http://localhost:8080`.
-
-## Lokalno pokretanje
-
-PowerShell:
+Iz ovog direktorijuma, nakon starta backend-a:
 
 ```powershell
-cd frontend/g-manager
 npm ci
 npm run dev
 ```
 
-Bash:
+`.env` je opcion, sa [primerom](.env.example) `VITE_API_URL=/api/v1`. Vite prosleđuje `/api` i `/media` na localhost:8080. `VITE_*` vrednosti su javne i ulaze u bundle pri build-u; ne stavljati tajne. Docker izdanje služi Nginx i nije Vite development server.
 
-```bash
-cd frontend/g-manager
-npm ci
-npm run dev
-```
+- [Lokalni razvoj](../../docs/development/LOCAL_SETUP.md)
+- [Konfiguracija](../../docs/reference/CONFIGURATION.md)
+- [API i authorization](../../docs/reference/API.md)
+- [Testiranje, lint, typecheck, build i E2E](../../docs/development/TESTING.md)
+- [Arhitektura i PWA ograničenja](../../docs/architecture/OVERVIEW.md)
 
-Aplikacija je dostupna na `http://localhost:5173`. Development server
-prosleđuje `/api` i `/media` zahteve backendu.
-
-`VITE_API_URL` nije obavezan za standardni lokalni razvoj. Ako frontend pristupa
-backendu na drugom origin-u, kopirati
-`frontend/g-manager/.env.example` u `frontend/g-manager/.env` i podesiti pun
-API URL. Frontend `.env` ne sme sadržati backend tajne kao što je `JWT_SECRET`.
-
-## Provere
-
-```bash
-npm run lint
-npm run typecheck
-npm test
-npm run test:coverage
-npm run build:budget
-npm run sbom
-npm audit
-npm run test:e2e
-npm run test:e2e:pwa
-```
-
-Sve projektne backend i frontend provere mogu se pokrenuti iz korena:
-
-```powershell
-.\scripts\verify.cmd
-```
-
-ili:
-
-```bash
-./scripts/verify.sh
-```
+Komande i testovi nisu izvršavani tokom reorganizacije dokumentacije.
