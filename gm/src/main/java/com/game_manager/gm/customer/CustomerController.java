@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,7 +33,8 @@ public class CustomerController {
     @PostMapping
     public ResponseEntity<CustomerOnboardingResponse> create(
             @Valid @RequestBody CreateCustomerRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(customerAccountService.create(request));
+        return ResponseEntity.status(HttpStatus.CREATED).cacheControl(CacheControl.noStore())
+                .body(customerAccountService.create(request));
     }
 
     @PatchMapping("/{id}")

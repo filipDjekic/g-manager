@@ -29,8 +29,8 @@ Stranica **„Klijenti“** služi pronalaženju osobe, pregledu istorije i prip
 1. Prvo pretražite postojećeg klijenta po imenu ili email adresi. Filter **„Status“** prikazuje aktivne ili neaktivne naloge.
 2. Ako nalog ne postoji, kliknite **„Novi klijent“**.
 3. Unesite **„Ime i prezime“** i **„Email adresa“**, pa izaberite **„Kreiraj klijenta“**.
-4. U potvrdi pročitajte rok aktivacije. Kliknite **„Kopiraj kod“** ili ručno kopirajte prikazani „Aktivacioni kod“ i predajte ga klijentu.
-5. Objasnite da na stranici prijave treba otvoriti **„Aktivirajte nalog“**, uneti kod i izabrati lozinku.
+4. U potvrdi pročitajte vreme isteka: kod važi tačno jedan sat. Kliknite **„Kopiraj kod“** ili ručno kopirajte četiri prikazana znaka (`A-Z`, `0-9`, npr. `A7K2`) i predajte ih klijentu.
+5. Objasnite da na stranici prijave treba otvoriti **„Aktivirajte nalog“**, uneti isti email, kod i izabrati lozinku. Kod se koristi samo jednom; više pokušaja može privremeno ograničiti aktivaciju do 15 minuta.
 6. Zatvorite potvrdu kada je kod preuzet. Ako je kreiranje otvoreno tokom pripreme sesije, koristite **„Kod je predat - nastavi sesiju“**.
 
 **Rezultat:** klijent ima nalog i jednokratni kod; web prijava je moguća tek posle aktivacije. Kreiran aktivan nalog može se koristiti za operativni izbor klijenta i pre aktivacije, ali prijava na njegov nalog i na Gaming Client zahteva aktivaciju.

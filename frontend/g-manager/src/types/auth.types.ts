@@ -42,6 +42,7 @@ export interface LoginRequest {
 }
 
 export interface ActivateCustomerRequest {
+  email: string
   activationSecret: string
   password: string
 }
@@ -57,6 +58,7 @@ export interface SessionInfo {
 }
 
 export type SecurityEventType =
+  | 'ACTIVATION_SUCCESS' | 'ACTIVATION_FAILURE'
   | 'LOGIN_SUCCESS' | 'LOGIN_FAILURE' | 'TOKEN_REFRESH' | 'TOKEN_REUSE'
   | 'SESSION_REVOKED' | 'ALL_SESSIONS_REVOKED' | 'LOGOUT'
 

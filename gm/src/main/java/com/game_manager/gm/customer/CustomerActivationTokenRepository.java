@@ -19,4 +19,14 @@ public interface CustomerActivationTokenRepository
     @Query("update CustomerActivationToken t set t.consumedAt = :now "
             + "where t.userId = :userId and t.consumedAt is null")
     int consumeActiveForUser(@Param("userId") UUID userId, @Param("now") java.time.Instant now);
+
+    @Modifying
+    @Query(value = "delete from customer_activation_tokens where consumed_at <= :cutoff limit 1000",
+            nativeQuery = true)
+    int deleteConsumedBefore(@Param("cutoff") java.time.Instant cutoff);
+
+    @Modifying
+    @Query(value = "delete from customer_activation_tokens "
+            + "where consumed_at is null and expires_at <= :cutoff limit 1000", nativeQuery = true)
+    int deleteExpiredUnusedBefore(@Param("cutoff") java.time.Instant cutoff);
 }

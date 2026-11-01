@@ -12,7 +12,10 @@ export function userFacingApiError(
     'Accepted waitlist entry cannot be cancelled': 'Prihvaćena prijava ne može se otkazati. Rezervaciju možete zasebno otkazati u Mojim terminima.',
     'Waitlist entry was changed; refresh and try again': 'Prijava se promenila. Osvežite listu čekanja i pokušajte ponovo.',
   }
-  let text = message ? waitlistMessages[message] ?? message : fallback
+  const activationMessages: Record<string, string> = {
+    'Activation code is invalid or expired': 'Aktivacioni kod nije važeći ili je istekao. Proverite email i kod ili se obratite osoblju.',
+  }
+  let text = message ? activationMessages[message] ?? waitlistMessages[message] ?? message : fallback
   if (status === 409) {
     text = `${text} Osvežite podatke pre ponovnog pokušaja.`
   } else if (status === 429) {

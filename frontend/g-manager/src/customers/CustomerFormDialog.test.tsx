@@ -18,7 +18,7 @@ describe('customer onboarding and profile persistence', () => {
   beforeEach(() => useAuthStore.setState({ user: authUser('OWNER'), accessToken: 'token', isInitializing: false }))
 
   it('keeps the one-time activation code in the dialog until it is handed off', async () => {
-    const secret = crypto.randomUUID()
+    const secret = 'A7K2'
     server.use(http.post('/api/v1/customers', async ({ request }) => {
       expect(await request.json()).toEqual({ name: 'New customer', email: 'new@example.test' })
       return HttpResponse.json({ ...customer, name: 'New customer', email: 'new@example.test', activationSecret: secret, activationExpiresAt: '2028-03-16T10:00:00Z' })
@@ -30,6 +30,8 @@ describe('customer onboarding and profile persistence', () => {
     await user.click(screen.getByRole('button', { name: 'Kreiraj klijenta' }))
     const code = await screen.findByLabelText('Aktivacioni kod')
     expect(code).toHaveValue(secret); expect(code).toHaveFocus(); expect(onSaved).toHaveBeenCalledOnce()
+    expect(code).toHaveClass('customers-activation-code')
+    expect(screen.getByText(/Važi 1 sat/)).toBeVisible()
     expect(JSON.stringify(localStorage)).not.toContain(secret); expect(JSON.stringify(sessionStorage)).not.toContain(secret)
     await user.click(screen.getByRole('button', { name: 'Kopiraj kod' }))
     expect(await screen.findByText('Kod je kopiran. Predajte ga klijentu.')).toBeVisible()
@@ -57,7 +59,7 @@ describe('customer onboarding and profile persistence', () => {
   })
 
   it('requires explicit acknowledgement before closing an unrepeatable activation code', async () => {
-    server.use(http.post('/api/v1/customers', () => HttpResponse.json({ ...customer, activationSecret: crypto.randomUUID(), activationExpiresAt: '2028-03-16T10:00:00Z' })))
+    server.use(http.post('/api/v1/customers', () => HttpResponse.json({ ...customer, activationSecret: 'M4P8', activationExpiresAt: '2028-03-16T10:00:00Z' })))
     const { onClose } = form(), user = userEvent.setup()
     await user.type(screen.getByLabelText('Ime i prezime'), 'Ada')
     await user.type(screen.getByLabelText('Email adresa'), customer.email)

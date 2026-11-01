@@ -28,9 +28,10 @@ Izvori su [application.yml](../../gm/src/main/resources/application.yml), [local
 | `COOKIE_SECURE` | Osnovni YAML true | `local` fiksira false, `prod` true; promenljiva sama ne menja profile override |
 | `UPLOAD_ROOT` | `data/uploads` | Relativno prema working directory-ju; Compose mount koristi `/data/uploads` |
 | `CANCELLATION_CUTOFF_MINUTES` | 60 | CUSTOMER otkazivanje potvrđene rezervacije; naziv nije `RESERVATION_CANCELLATION_CUTOFF_MINUTES` |
-| `CUSTOMER_ACTIVATION_TTL_HOURS` | 24 | Rok jednokratne customer aktivacije |
 
 Access token traje 15 minuta, refresh token 14 dana prema `app.jwt` YAML vrednostima. `app.idempotency` definiše TTL 24h, timeout obrade 120s i cleanup cron `0 0 3 * * *`. Ova podešavanja nemaju zasebne `${...}` alias-e u YAML-u; menjaju se Spring konfiguracijom.
+
+Customer aktivacioni kod uvek važi tačno jedan sat. `CUSTOMER_ACTIVATION_TTL_HOURS` je uklonjen. Kodovi i ključevi deljenog SQL limitera koriste HMAC-SHA-256 sa odvojenim domenima i postojećim `JWT_SECRET`; sve instance moraju imati isti ključ. Rotacija ključa poništava izdate kodove. Za limite, čišćenje i prelaz sa starih kodova videti [ugovor aktivacije](../contracts/CUSTOMER_ONBOARDING.md).
 
 ## Produkcija i secrets
 

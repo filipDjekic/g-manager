@@ -6,7 +6,8 @@ export const loginSchema = z.object({
 })
 
 export const activationSchema = z.object({
-  activationSecret: z.string().trim().min(1, 'Aktivacioni kod je obavezan.').max(100),
+  email: z.email('Unesite ispravnu email adresu.').max(180),
+  activationSecret: z.string().regex(/^[a-zA-Z0-9]{4}$/, 'Aktivacioni kod mora imati tačno 4 slova ili cifre.').toUpperCase(),
   password: z.string().min(8, 'Lozinka mora imati najmanje 8 karaktera.').max(100, 'Lozinka može imati najviše 100 karaktera.'),
 })
 

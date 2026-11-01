@@ -21,20 +21,20 @@ class RateLimitServiceTest {
     }
 
     @Test
-    void expiresIdleKeysWithoutResettingLongerWindowsOrBoundaryAttempts() {
+    void expiresShorterWindowsWithoutEvictingBoundaryAttempts() {
         java.util.concurrent.atomic.AtomicReference<java.time.Instant> now =
                 new java.util.concurrent.atomic.AtomicReference<>(java.time.Instant.parse("2026-01-01T00:00:00Z"));
         Clock clock = org.mockito.Mockito.mock(Clock.class);
         org.mockito.Mockito.when(clock.instant()).thenAnswer(invocation -> now.get());
         RateLimitService service = new RateLimitService(clock);
         service.checkLogin("test", "test@example.test");
-        service.checkActivation("test");
+        service.checkMachine(UUID.randomUUID(), "poll");
         now.set(now.get().plusSeconds(600));
         service.removeExpiredBuckets();
-        org.assertj.core.api.Assertions.assertThat(service.trackedKeyCount()).isEqualTo(2);
+        org.assertj.core.api.Assertions.assertThat(service.trackedKeyCount()).isOne();
         now.set(now.get().plusNanos(1));
         service.removeExpiredBuckets();
-        org.assertj.core.api.Assertions.assertThat(service.trackedKeyCount()).isOne();
+        org.assertj.core.api.Assertions.assertThat(service.trackedKeyCount()).isZero();
         now.set(now.get().plusSeconds(3600));
         service.removeExpiredBuckets();
         org.assertj.core.api.Assertions.assertThat(service.trackedKeyCount()).isZero();
@@ -74,19 +74,6 @@ class RateLimitServiceTest {
         }
 
         assertThatThrownBy(() -> service.checkLogin("127.0.0.1", "limited@example.com"))
-                .isInstanceOf(ApplicationException.class)
-                .extracting("status")
-                .isEqualTo(org.springframework.http.HttpStatus.TOO_MANY_REQUESTS);
-    }
-
-    @Test
-    void limitsRegistrationsByIpToTenPerHour() {
-        RateLimitService service = new RateLimitService(Clock.systemUTC());
-        for (int attempt = 0; attempt < 10; attempt++) {
-            service.checkActivation("192.0.2.1");
-        }
-
-        assertThatThrownBy(() -> service.checkActivation("192.0.2.1"))
                 .isInstanceOf(ApplicationException.class)
                 .extracting("status")
                 .isEqualTo(org.springframework.http.HttpStatus.TOO_MANY_REQUESTS);

@@ -69,7 +69,7 @@
 .customers-form, .customers-activation { display: grid; gap: var(--space-4); min-width: 0; }
 .customers-form > p, .customers-activation > p { margin: 0; color: var(--color-text-muted); font-size: var(--font-size-sm); }
 .customers-dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-3); }
-.customers-activation-code { resize: none; overflow-wrap: anywhere; word-break: break-all; }
+.customers-activation .customers-activation-code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 2rem; font-weight: 700; letter-spacing: .3em; text-align: center; }
 .customers-activation-expiry { display: grid; gap: var(--space-1); padding-top: var(--space-3); border-top: 1px solid var(--color-border); font-size: var(--font-size-sm); }
 .customers-activation-expiry > span { color: var(--color-text-muted); }
 .customers-activation .customers-copy-status { min-height: 1.3em; color: var(--color-text-secondary); }

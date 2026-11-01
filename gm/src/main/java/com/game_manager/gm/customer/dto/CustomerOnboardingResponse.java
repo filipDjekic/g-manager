@@ -12,4 +12,8 @@ public record CustomerOnboardingResponse(
         String activationSecret,
         Instant activationExpiresAt
 ) {
+    @Override
+    public String toString() {
+        return "CustomerOnboardingResponse[id=" + id + ", activationSecret=REDACTED]";
+    }
 }

@@ -10,6 +10,8 @@ export const securityEventPresentation: Record<SecurityEventType, {
 }> = {
   LOGIN_SUCCESS: { label: 'Uspešna prijava', detail: 'Zabeležena je uspešna prijava na nalog.', icon: 'login', tone: 'success' },
   LOGIN_FAILURE: { label: 'Neuspešna prijava', detail: 'Zabeležen je neuspešan pokušaj prijave.', icon: 'error', tone: 'danger' },
+  ACTIVATION_SUCCESS: { label: 'Aktivacija naloga', detail: 'Nalog je aktiviran i lozinka je postavljena.', icon: 'shield', tone: 'success' },
+  ACTIVATION_FAILURE: { label: 'Neuspešna aktivacija', detail: 'Zabeležen je neuspešan pokušaj aktivacije.', icon: 'error', tone: 'danger' },
   TOKEN_REFRESH: { label: 'Osvežavanje sesije', detail: 'Zabeleženo je osvežavanje sesije.', icon: 'refresh', tone: 'info' },
   TOKEN_REUSE: { label: 'Otkrivena ponovna upotreba tokena', detail: 'Zabeležena je ponovna upotreba tokena. Proverite aktivne prijave.', icon: 'alert', tone: 'warning' },
   SESSION_REVOKED: { label: 'Sesija opozvana', detail: 'Zabeleženo je opozivanje jedne sesije.', icon: 'logout', tone: 'warning' },
@@ -34,7 +36,7 @@ export function matchesSecurityFilter(event: SecurityEventInfo, filter: Security
     case 'failure': return event.type === 'LOGIN_FAILURE'
     case 'logout': return event.type === 'LOGOUT'
     case 'changes': return ['TOKEN_REFRESH', 'SESSION_REVOKED', 'ALL_SESSIONS_REVOKED'].includes(event.type)
-    case 'other': return event.type === 'TOKEN_REUSE'
+    case 'other': return ['TOKEN_REUSE', 'ACTIVATION_SUCCESS', 'ACTIVATION_FAILURE'].includes(event.type)
   }
 }
 

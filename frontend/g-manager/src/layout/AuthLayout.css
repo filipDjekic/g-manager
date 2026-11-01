@@ -246,3 +246,9 @@
   .gm-auth-layout .gm-auth-description, .gm-auth-layout .gm-auth-brand-line { display:none; }
   .gm-auth-layout .gm-auth-intro { padding:var(--space-6); }
 }
+.gm-auth-layout input.gm-activation-code {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 1.5rem;
+  letter-spacing: .25em;
+  font-weight: 700;
+}

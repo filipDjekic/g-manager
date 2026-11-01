@@ -83,6 +83,10 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
     java.util.List<EmployeeAnalyticsRow> activeEmployeesForAnalytics();
     @Query("select u from User u where lower(u.email) = lower(:email) and u.deletedAt is null")
     Optional<User> findByEmailIgnoreCase(@Param("email") String email);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from User u where lower(u.email) = lower(:email) and u.deletedAt is null")
+    Optional<User> findByEmailForUpdate(@Param("email") String email);
     boolean existsByEmailIgnoreCase(String email);
     boolean existsByEmailIgnoreCaseAndDeletedAtIsNull(String email);
     boolean existsByEmailIgnoreCaseAndIdNotAndDeletedAtIsNull(String email, UUID id);

@@ -37,11 +37,11 @@ Gaming start/extend/terminate zahtevaju odgovarajući permission i resurs. Termi
 ## Web identitet i zaštita zahteva
 
 - Lozinke se čuvaju kao BCrypt hash; DTO-i ne vraćaju hash.
-- Javna registracija je isključena. Osoblje kreira CUSTOMER i dobija jednokratni activation secret; baza čuva SHA-256 hash i TTL. Nema potvrđenog stvarnog email transporta za automatsku dostavu linka.
+- Javna registracija je isključena. Osoblje kreira CUSTOMER i jednokratno dobija četvoroznakovni kod (`A-Z0-9`) koji važi jedan sat. Aktivacija zahteva email i novu lozinku; baza čuva samo HMAC-SHA-256 hash. Nema potvrđenog stvarnog email transporta za automatsku dostavu linka. V42 opoziva stare neiskorišćene duge kodove.
 - Access JWT traje 15 minuta i frontend ga čuva u memoriji. Refresh token traje 14 dana, ima hash-at-rest i rotaciju; reuse rotiranog tokena opoziva aktivne refresh sesije.
 - `gm_refresh` i `gm_csrf` su HttpOnly, SameSite Strict; produkcioni profil fiksira Secure. Refresh/logout zahtevaju `X-XSRF-TOKEN` iz `/auth/csrf`.
 - Stateful cookie zaštita i stateless bearer zahtevi nisu isti tok. CORS je eksplicitna allow-list sa credentials podrškom; nije zamena za authorization.
-- Rate limit postoji za login/activation i operativne/machine tokove. Ne pretpostavljati distribuirani globalni limiter između više backend instanci.
+- Aktivacija ima distribuirani SQL limiter: najviše 10 pokušaja po IP-u, 5 po email-u i 100 ukupno u fiksnom prozoru od 15 minuta, nezavisno od backend instance. Odbijeni pokušaji ne produžavaju blokadu. Ostali login/operativni/machine limiteri ostaju u memoriji instance. Detalji su u [ugovoru aktivacije](../contracts/CUSTOMER_ONBOARDING.md).
 - Rute koje nisu eksplicitno odobrene završavaju sa deny-all. Servisi ponavljaju ownership/scope provere, uključujući download i deep link otvaranje.
 
 ## Javni resursi i observability

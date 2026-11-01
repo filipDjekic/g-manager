@@ -6,15 +6,17 @@ U aplikaciji je vaša uloga označena kao **„Klijent“**. Svoj nalog koristit
 
 ## Dobijanje i aktivacija naloga
 
-Nalog kreira osoblje igraonice. Dajte mu ime i email adresu koju ćete koristiti za prijavu. Osoblje vam predaje jednokratni aktivacioni kod i rok do kog važi. Nema samostalne registracije.
+Nalog kreira osoblje igraonice. Dajte mu ime i email adresu koju ćete koristiti za prijavu. Osoblje vam predaje jednokratni aktivacioni kod od tačno četiri slova/cifre (npr. `A7K2`) i vreme isteka. Kod važi jedan sat od kreiranja. Nema samostalne registracije.
 
 1. Otvorite adresu aplikacije koju ste dobili od igraonice.
 2. Na stranici **„Prijava“** kliknite **„Aktivirajte nalog“**.
-3. U **„Aktivacioni kod“** unesite ceo kod koji ste dobili.
+3. Unesite **„Email adresa“** koji ste predali osoblju i u **„Aktivacioni kod“** sva četiri znaka. Mala slova se automatski pretvaraju u velika.
 4. Unesite **„Nova lozinka“** i istu vrednost u **„Potvrda lozinke“**. Lozinka mora imati 8–100 karaktera.
 5. Kliknite **„Aktiviraj nalog“**.
 
 **Rezultat:** vraćate se na „Prijava“ uz poruku da je nalog aktiviran. Prijavite se svojom email adresom i novom lozinkom kroz **„Prijavi se“**.
+
+Kod se može upotrebiti samo jednom. Posle više pokušaja aktivacija se privremeno ograničava do isteka prozora od 15 minuta; sačekajte pre ponovnog pokušaja.
 
 **Ako ne uspe:** kod može biti pogrešan, istekao ili već iskorišćen, ili nalog može biti deaktiviran. Proverite unos i obratite se osoblju. Ne postoji dugme za samostalno ponovno izdavanje koda ili vraćanje zaboravljene lozinke. Nemojte čekati automatski email kao uslov za aktivaciju.
 

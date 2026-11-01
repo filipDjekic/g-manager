@@ -8,6 +8,7 @@ import com.game_manager.gm.auth.dto.SecurityEventResponse;
 import com.game_manager.gm.common.error.ApplicationException;
 import com.game_manager.gm.common.config.GManagerProperties;
 import com.game_manager.gm.customer.CustomerAccountService;
+import com.game_manager.gm.customer.CustomerActivationGuard;
 import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -43,13 +44,17 @@ public class AuthController {
     private final boolean secureCookie;
     private final Duration refreshTtl;
     private final CustomerAccountService customerAccountService;
+    private final CustomerActivationGuard activationGuard;
+    private final SecurityEventRecorder securityEvents;
 
     public AuthController(
             AuthService authService,
             RateLimitService rateLimitService,
             SessionMetadataFactory metadataFactory,
             GManagerProperties properties,
-            CustomerAccountService customerAccountService
+            CustomerAccountService customerAccountService,
+            CustomerActivationGuard activationGuard,
+            SecurityEventRecorder securityEvents
     ) {
         this.authService = authService;
         this.rateLimitService = rateLimitService;
@@ -57,6 +62,8 @@ public class AuthController {
         this.secureCookie = properties.jwt().secureCookie();
         this.refreshTtl = Duration.ofDays(properties.jwt().refreshTokenDays());
         this.customerAccountService = customerAccountService;
+        this.activationGuard = activationGuard;
+        this.securityEvents = securityEvents;
     }
 
     @GetMapping("/csrf")
@@ -68,9 +75,20 @@ public class AuthController {
     @PostMapping("/activate")
     ResponseEntity<Void> activate(@Valid @RequestBody ActivateCustomerRequest request,
             HttpServletRequest servletRequest) {
-        rateLimitService.checkActivation(clientIp(servletRequest));
-        customerAccountService.activate(request.activationSecret(), request.password());
-        return ResponseEntity.noContent().build();
+        if (!activationGuard.reserveAttempt(clientIp(servletRequest), request.email())) {
+            throw new ApplicationException(HttpStatus.TOO_MANY_REQUESTS, "Too many attempts. Try again later.");
+        }
+        SessionRequestMetadata metadata = metadataFactory.from(servletRequest);
+        try {
+            customerAccountService.activate(request.email(), request.activationSecret(), request.password(),
+                    metadata.ipHash());
+        } catch (ApplicationException exception) {
+            if (exception.getStatus() == HttpStatus.BAD_REQUEST) {
+                securityEvents.record(null, null, SecurityEventType.ACTIVATION_FAILURE, metadata);
+            }
+            throw exception;
+        }
+        return ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build();
     }
 
     @Hidden

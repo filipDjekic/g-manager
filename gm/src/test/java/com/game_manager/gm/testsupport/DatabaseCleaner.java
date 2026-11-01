@@ -43,6 +43,7 @@ public final class DatabaseCleaner {
                 }
                 return null;
             });
+            resetActivationGuards(jdbc);
             return;
         }
         jdbc.execute("SET REFERENTIAL_INTEGRITY FALSE");
@@ -51,5 +52,11 @@ public final class DatabaseCleaner {
         } finally {
             jdbc.execute("SET REFERENTIAL_INTEGRITY TRUE");
         }
+        resetActivationGuards(jdbc);
+    }
+
+    private static void resetActivationGuards(JdbcTemplate jdbc) {
+        jdbc.update("delete from customer_activation_guards where guard_key not in ('global', 'generation')");
+        jdbc.update("update customer_activation_guards set attempts = 0");
     }
 }

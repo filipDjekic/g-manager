@@ -2,6 +2,9 @@ package com.game_manager.gm.customer;
 
 import com.game_manager.gm.audit.AuditVisibility;
 import com.game_manager.gm.audit.AuditWriter;
+import com.game_manager.gm.auth.SecurityEvent;
+import com.game_manager.gm.auth.SecurityEventRepository;
+import com.game_manager.gm.auth.SecurityEventType;
 import com.game_manager.gm.common.error.ApplicationException;
 import com.game_manager.gm.common.security.AuthenticatedUser;
 import com.game_manager.gm.common.security.CurrentUserProvider;
@@ -15,15 +18,11 @@ import com.game_manager.gm.events.OutboxWriter;
 import com.game_manager.gm.user.User;
 import com.game_manager.gm.user.UserRepository;
 import com.game_manager.gm.user.dto.UserResponse;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
-import java.util.HexFormat;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -45,7 +44,9 @@ public class CustomerAccountService {
     private final SessionRevocationPort sessionRevocation;
     private final AuditWriter audit;
     private final OutboxWriter outbox;
-    private final CustomerOnboardingProperties properties;
+    private final CustomerActivationCodeGenerator activationCodes;
+    private final CustomerActivationHash activationHash;
+    private final SecurityEventRepository securityEvents;
     private final Clock clock;
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -57,7 +58,6 @@ public class CustomerAccountService {
         if (users.existsByEmailIgnoreCase(email)) {
             throw new ApplicationException(HttpStatus.CONFLICT, "Email is already in use");
         }
-        String secret = newSecret();
         User customer = new User();
         customer.setName(request.name().trim());
         customer.setEmail(email);
@@ -67,16 +67,18 @@ public class CustomerAccountService {
         customer.setMustChangePassword(true);
         customer = users.save(customer);
 
-        Instant expiresAt = clock.instant().plus(Duration.ofHours(
-                properties.activationTtlHours()));
+        String secret = activationCodes.generate();
+        Instant expiresAt = clock.instant().plus(Duration.ofHours(1));
         CustomerActivationToken token = new CustomerActivationToken();
         token.setUserId(customer.getId());
-        token.setTokenHash(hash(secret));
+        token.setTokenHash(activationHash.hash("code", secret));
         token.setExpiresAt(expiresAt);
         token.setCreatedBy(actor.id());
         activationTokens.save(token);
         audit.write("CUSTOMER_CREATED", "USER", customer.getId(), null,
                 auditData(customer), "Staff onboarding", AuditVisibility.MANAGEMENT);
+        audit.write("CUSTOMER_ACTIVATION_ISSUED", "USER", customer.getId(), null,
+                Map.of("expiresAt", expiresAt.toString()), null, AuditVisibility.MANAGEMENT);
         outbox.write(DomainEventType.USER_CREATED, "USER", customer.getId(),
                 Map.of("role", Role.CUSTOMER.name(), "activationRequired", true));
         return new CustomerOnboardingResponse(customer.getId(), customer.getName(), customer.getEmail(),
@@ -123,20 +125,35 @@ public class CustomerAccountService {
     }
 
     @Transactional
-    public void activate(String activationSecret, String password) {
-        Instant now = clock.instant();
+    public void activate(String email, String activationSecret, String password, String ipHash) {
+        // Validate the secret without a Bean Validation rejected value: Spring's DEBUG
+        // exception logs can otherwise include the submitted code despite DTO redaction.
+        if (activationSecret == null || !activationSecret.matches("[A-Z0-9]{4}")) {
+            throw new ApplicationException(HttpStatus.BAD_REQUEST, INVALID_ACTIVATION);
+        }
+        // Match deactivate/update lock order: user first, then activation token.
+        User customer = users.findByEmailForUpdate(normalizeEmail(email))
+                .filter(value -> value.getRole() == Role.CUSTOMER && value.isActive()
+                        && value.isMustChangePassword())
+                .orElseThrow(() -> new ApplicationException(HttpStatus.BAD_REQUEST, INVALID_ACTIVATION));
         CustomerActivationToken token = activationTokens.findByHashForUpdate(
-                        hash(activationSecret))
+                        activationHash.hash("code", activationSecret))
+                .filter(value -> value.getUserId().equals(customer.getId()))
                 .filter(value -> value.getConsumedAt() == null)
-                .filter(value -> value.getExpiresAt().isAfter(now))
+                .filter(value -> value.getExpiresAt().isAfter(clock.instant()))
                 .orElseThrow(() -> new ApplicationException(HttpStatus.BAD_REQUEST, INVALID_ACTIVATION));
-        User customer = users.findByIdForUpdate(token.getUserId())
-                .filter(value -> value.getRole() == Role.CUSTOMER && value.isActive())
-                .orElseThrow(() -> new ApplicationException(HttpStatus.BAD_REQUEST, INVALID_ACTIVATION));
-        customer.setPasswordHash(passwordEncoder.encode(password));
+        String passwordHash = passwordEncoder.encode(password);
+        Instant now = clock.instant();
+        // Password hashing or waiting for locks must not extend the one-hour deadline.
+        if (!token.getExpiresAt().isAfter(now)) {
+            throw new ApplicationException(HttpStatus.BAD_REQUEST, INVALID_ACTIVATION);
+        }
+        customer.setPasswordHash(passwordHash);
         customer.setMustChangePassword(false);
         users.save(customer);
         activationTokens.consumeActiveForUser(customer.getId(), now);
+        securityEvents.save(new SecurityEvent(customer.getId(), null,
+                SecurityEventType.ACTIVATION_SUCCESS, "Customer activation", ipHash));
         outbox.write(DomainEventType.USER_PASSWORD_CHANGED, "USER", customer.getId(),
                 Map.of("activation", true));
     }
@@ -151,15 +168,6 @@ public class CustomerAccountService {
         byte[] bytes = new byte[32];
         secureRandom.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-    }
-
-    private static String hash(String value) {
-        try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                    .digest(value.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException("SHA-256 is not available", exception);
-        }
     }
 
     private static String normalizeEmail(String email) {

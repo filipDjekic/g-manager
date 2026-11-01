@@ -22,7 +22,7 @@ export function ActivatePage() {
   const submitting = useRef(false)
   const form = useForm<ActivationValues>({
     resolver: zodResolver(activationFormSchema),
-    defaultValues: { activationSecret: '', password: '', confirmPassword: '' },
+    defaultValues: { email: '', activationSecret: '', password: '', confirmPassword: '' },
   })
   const password = useWatch({ control: form.control, name: 'password' })
 
@@ -34,7 +34,7 @@ export function ActivatePage() {
       await form.handleSubmit(async (values) => {
         setError('')
         try {
-          await authApi.activate({ activationSecret: values.activationSecret, password: values.password })
+          await authApi.activate({ email: values.email.trim(), activationSecret: values.activationSecret, password: values.password })
           navigate('/login', { replace: true, state: { activated: true } })
         } catch (cause) {
           applyApiFieldErrors(cause, form.setError, form.setFocus)
@@ -58,13 +58,24 @@ export function ActivatePage() {
           </svg>
         </span>
         <h1 id="activation-title">Aktivacija naloga</h1>
-        <p id="activation-description">Unesite aktivacioni kod i kreirajte lozinku za svoj nalog.</p>
+        <p id="activation-description">Unesite email i četvoroznakovni kod koji ste dobili od osoblja. Kod važi jedan sat.</p>
       </header>
+      <AuthField id="activation-email" label="Email adresa" icon="email" type="email" required
+        autoComplete="email" autoCapitalize="none" maxLength={180} spellCheck={false}
+        readOnly={form.formState.isSubmitting} error={form.formState.errors.email?.message}
+        {...form.register('email')} />
       <AuthField id="activation-secret" label="Aktivacioni kod" icon="key" required
-        placeholder="Unesite aktivacioni kod" autoComplete="one-time-code" autoCapitalize="none"
+        className="gm-activation-code" placeholder="A7K2" autoComplete="one-time-code" autoCapitalize="characters"
+        minLength={4} maxLength={4} pattern="[A-Z0-9]{4}" inputMode="text"
         spellCheck={false} readOnly={form.formState.isSubmitting}
         error={form.formState.errors.activationSecret?.message}
-        {...form.register('activationSecret')} />
+        {...form.register('activationSecret', {
+          onChange: event => {
+            const value = event.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 4)
+            event.target.value = value
+            form.setValue('activationSecret', value)
+          },
+        })} />
       <AuthField id="activation-password" label="Nova lozinka" icon="lock" required
         autoComplete="new-password" autoCapitalize="none" spellCheck={false}
         readOnly={form.formState.isSubmitting} error={form.formState.errors.password?.message}
