@@ -1,8 +1,9 @@
-import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
+import type { ReactNode, RefObject } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from './Button'
 import { Drawer } from './Dialogs'
 import { formatBusinessTime } from '../../reservations/dateTime'
+import { useContentWidth } from './useContentWidth'
 
 export function SegmentedControl<T extends string>({ label, value, options, onChange }: {
   label: string; value: T; options: { value: T; label: string; count?: number }[]; onChange: (value: T) => void
@@ -41,28 +42,6 @@ export function FreshnessStatus({ time, error, connected, paused, stale }: {
     <span>{error || stale ? 'Podaci mogu biti zastareli' : paused ? 'Osvežavanje pauzirano' : connected ? 'Veza uživo' : 'Periodično osvežavanje'}</span>
     {time && <time dateTime={time}>Poslednja potvrda {formatBusinessTime(time)}</time>}
   </div>
-}
-
-export function useContentWidth(minimumRem = 68, enabled = true) {
-  const ref = useRef<HTMLElement>(null), [wide, setWide] = useState(false)
-  useLayoutEffect(() => {
-    const element = ref.current
-    if (!element || !enabled) return
-    const measure = () => {
-      const style = getComputedStyle(element)
-      const width = element.clientWidth - parseFloat(style.paddingLeft || '0') - parseFloat(style.paddingRight || '0')
-      setWide(width >= minimumRem * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16))
-    }
-    measure()
-    if (typeof ResizeObserver === 'undefined') {
-      window.addEventListener('resize', measure)
-      return () => window.removeEventListener('resize', measure)
-    }
-    const observer = new ResizeObserver(measure)
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [minimumRem, enabled])
-  return { ref, wide }
 }
 
 export function MasterDetailLayout({ children, detail, title, open, onClose, inline, className = '', panelClassName = '', drawerClassName = '', returnFocusRef, panelRef, closeDisabled = false }: {

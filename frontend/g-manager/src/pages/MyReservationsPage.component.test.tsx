@@ -2,7 +2,7 @@ import { ToastProvider } from '../components/ui'
 import { useAuthStore } from '../auth/authStore'
 import { authUser } from '../test/fixtures'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { HttpResponse, delay, http } from 'msw'
 import { MemoryRouter } from 'react-router-dom'
@@ -35,7 +35,7 @@ async function selectDate(user: ReturnType<typeof userEvent.setup>) {
   await screen.findByRole('option', { name: /Masaža/ })
   await user.selectOptions(screen.getByLabelText('Usluga'), 'service-1')
   await user.selectOptions(screen.getByLabelText('Zaposleni'), 'ANY')
-  await user.type(screen.getByLabelText('Datum'), '2028-03-16')
+  await user.type(within(screen.getByRole('dialog', { name: 'Nova rezervacija' })).getByLabelText('Datum'), '2028-03-16')
 }
 
 describe('MyReservationsPage slot booking', () => {
@@ -62,7 +62,7 @@ describe('MyReservationsPage slot booking', () => {
     slot.focus()
     await user.keyboard(' ')
     expect(slot).toBeChecked()
-    expect(screen.getByRole('heading', { name: 'Proverite rezervaciju' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: '3 · Proverite i pošaljite zahtev' })).toBeVisible()
     expect(screen.getByText('Bilo koji slobodan zaposleni', { selector: 'dd' })).toBeVisible()
   })
 
@@ -88,7 +88,7 @@ describe('MyReservationsPage slot booking', () => {
     await screen.findByRole('option', { name: /Masaža/ })
   await user.selectOptions(screen.getByLabelText('Usluga'), 'service-1')
     await user.selectOptions(screen.getByLabelText('Zaposleni'), 'employee-1')
-    await user.type(screen.getByLabelText('Datum'), '2028-03-16')
+    await user.type(within(screen.getByRole('dialog', { name: 'Nova rezervacija' })).getByLabelText('Datum'), '2028-03-16')
     const occupied = await screen.findByRole('radio', { name: /Zauzet/ })
     expect(screen.getByRole('radio', { name: /Slobodan/ })).toBeVisible()
     await user.click(occupied)
@@ -119,7 +119,7 @@ describe('MyReservationsPage slot booking', () => {
     await screen.findByRole('option', { name: /Masaža/ })
   await user.selectOptions(screen.getByLabelText('Usluga'), 'service-1')
     await user.selectOptions(screen.getByLabelText('Zaposleni'), 'employee-1')
-    await user.type(screen.getByLabelText('Datum'), '2028-03-16')
+    await user.type(within(screen.getByRole('dialog', { name: 'Nova rezervacija' })).getByLabelText('Datum'), '2028-03-16')
     await user.click(await screen.findByRole('radio'))
     await user.click(screen.getByText('Ponavljajući termin', { selector: 'summary' }))
     expect(screen.getByRole('button', { name: 'Kreiraj seriju' })).toBeDisabled()

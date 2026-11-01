@@ -109,7 +109,7 @@ class JobFrameworkIntegrationTest {
             List<JobRecord> combined = new java.util.ArrayList<>(first.get());
             combined.addAll(second.get());
             assertThat(combined).extracting(JobRecord::id).doesNotHaveDuplicates();
-            assertThat(combined).isNotEmpty();
+            assertThat(combined).hasSize(2);
         }
 
         UUID recoverable = jobService.enqueue("test", Map.of(), null);

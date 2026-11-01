@@ -26,13 +26,13 @@ function setup(){const client=new QueryClient({defaultOptions:{queries:{retry:fa
 describe('Gaming operations board',()=>{
   beforeEach(()=>{useAuthStore.setState({user:authUser('OWNER'),accessToken:'test-token',isInitializing:false});vi.clearAllMocks();vi.mocked(gamingSessionApi.board).mockResolvedValue(response());vi.mocked(customerApi.list).mockResolvedValue({content:[],page:0,size:8,totalElements:0,totalPages:0});vi.mocked(connectGamingSessionStream).mockReturnValue(()=>{})})
   it('renders every operational station state and authoritative countdown',async()=>{setup();await screen.findByText('Stanica 6');for(const label of labels)expect(screen.getAllByText(label).some(element=>element.tagName!=='OPTION')).toBe(true);expect(screen.getAllByLabelText(/Preostalo vreme 1h 0m/)[0]).toBeVisible()})
-  it('extends the same active session and immediately refreshes its projection',async()=>{vi.mocked(gamingSessionApi.extend).mockResolvedValue({} as never);setup();const user=userEvent.setup();await user.click(await within(await screen.findByRole('complementary', {name:'Detalji stanice'})).findByRole('button',{name:'+60 min'}));
+  it('extends the same active session and immediately refreshes its projection',async()=>{vi.mocked(gamingSessionApi.extend).mockResolvedValue({} as never);setup();const user=userEvent.setup();await user.click((await screen.findAllByRole('button',{name:'Pregled stanice Stanica 1'}))[0]);await user.click(await within(await screen.findByRole('dialog', {name:'Detalji računara'})).findByRole('button',{name:'+60 min'}));
     await waitFor(()=>expect(gamingSessionApi.extend).toHaveBeenCalledWith('session-1',60,4,expect.any(String)));await waitFor(()=>expect(gamingSessionApi.board).toHaveBeenCalledTimes(2))})
   it('retries an ambiguous extension with the original version and idempotency key after the board changes',async()=>{
     const changed=response();changed.stations[1].sessionVersion=5
     vi.mocked(gamingSessionApi.board).mockResolvedValueOnce(response()).mockResolvedValue(changed)
     vi.mocked(gamingSessionApi.extend).mockRejectedValueOnce(Object.assign(new Error('Network Error'), { isAxiosError: true, code: 'ERR_NETWORK' })).mockResolvedValue({} as never)
-    setup();const user=userEvent.setup();await user.click(await within(await screen.findByRole('complementary', {name:'Detalji stanice'})).findByRole('button',{name:'+60 min'}))
+    setup();const user=userEvent.setup();await user.click((await screen.findAllByRole('button',{name:'Pregled stanice Stanica 1'}))[0]);await user.click(await within(await screen.findByRole('dialog', {name:'Detalji računara'})).findByRole('button',{name:'+60 min'}))
     const retry=await screen.findByRole('button',{name:'Proveri prethodnu komandu'})
     await waitFor(()=>expect(retry).toBeEnabled());expect(screen.getAllByRole('button',{name:'+60 min'}).every(button=>button.hasAttribute('disabled'))).toBe(true)
     const original=vi.mocked(gamingSessionApi.extend).mock.calls[0]

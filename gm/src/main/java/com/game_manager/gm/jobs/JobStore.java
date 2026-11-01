@@ -49,21 +49,35 @@ public class JobStore {
     @Transactional(propagation = Propagation.REQUIRES_NEW,
             isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public List<JobRecord> claim(String workerId, int limit, Instant now, Duration lease) {
-        List<JobRecord> jobs = jdbcTemplate.query("""
-                SELECT id, job_type, payload, correlation_id, attempts, max_attempts, timeout_seconds,
-                       lease_token, lease_expires_at
+        // Sorting a locking read can lock every eligible row before MySQL applies LIMIT.
+        // Sort without locks, then claim by primary key so competing workers can skip only
+        // the rows actually owned by another worker. Recheck eligibility under that lock.
+        List<String> candidates = jdbcTemplate.queryForList("""
+                SELECT id
                 FROM background_jobs
                 WHERE (status IN ('QUEUED', 'RETRY') AND available_at <= ?)
                    OR (status IN ('RUNNING', 'CANCEL_REQUESTED') AND lease_expires_at < ?)
-                ORDER BY priority DESC, created_at
-                LIMIT ? FOR UPDATE SKIP LOCKED
-                """, this::map, Timestamp.from(now), Timestamp.from(now), limit);
+                ORDER BY priority DESC, created_at, id
+                """, String.class, Timestamp.from(now), Timestamp.from(now));
         java.util.ArrayList<JobRecord> claimed = new java.util.ArrayList<>();
-        for (JobRecord job : jobs) {
-            if (job.leaseToken() != null && isCancellationRequested(job.id(), job.leaseToken())) {
-                cancelExpired(job, now);
-            } else {
-                claimed.add(claimOne(job, workerId, now, lease));
+        for (String candidate : candidates) {
+            if (claimed.size() >= limit) {
+                break;
+            }
+            List<JobRecord> jobs = jdbcTemplate.query("""
+                    SELECT id, job_type, payload, correlation_id, attempts, max_attempts, timeout_seconds,
+                           lease_token, lease_expires_at
+                    FROM background_jobs
+                    WHERE id=? AND ((status IN ('QUEUED', 'RETRY') AND available_at <= ?)
+                       OR (status IN ('RUNNING', 'CANCEL_REQUESTED') AND lease_expires_at < ?))
+                    FOR UPDATE SKIP LOCKED
+                    """, this::map, candidate, Timestamp.from(now), Timestamp.from(now));
+            for (JobRecord job : jobs) {
+                if (job.leaseToken() != null && isCancellationRequested(job.id(), job.leaseToken())) {
+                    cancelExpired(job, now);
+                } else {
+                    claimed.add(claimOne(job, workerId, now, lease));
+                }
             }
         }
         return List.copyOf(claimed);

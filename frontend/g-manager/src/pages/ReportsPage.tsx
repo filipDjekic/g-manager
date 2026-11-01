@@ -44,20 +44,18 @@ export function ReportsPage() {
     setTemplateRange(saved.templateRange ?? null); setDefinition(saved.definition); setFormat(saved.format); setFrom(saved.from); setTo(saved.to)
   })
 
-  const refresh = useCallback(async () => {
-    try {
-      const results = await Promise.allSettled([
+  const refresh = useCallback(() =>
+    Promise.allSettled([
         reportApi.definitions(), reportApi.list(), manage ? reportApi.schedules() : Promise.resolve([]), reportApi.templates(),
-      ] as const)
+      ] as const).then(results => {
       if (results[0].status === 'fulfilled') setDefinitions(results[0].value)
       if (results[1].status === 'fulfilled') setItems(results[1].value)
       if (results[2].status === 'fulfilled') setSchedules(results[2].value)
       if (results[3].status === 'fulfilled') setTemplates(results[3].value)
       const failure = results.find(value => value.status === 'rejected')
       setError(failure?.status === 'rejected' ? apiErrorMessage(failure.reason, 'Deo izveštaja nije dostupan. Osvežite pregled.') : '')
-    } catch (cause) { setError(apiErrorMessage(cause, 'Izveštaji nisu dostupni.')) }
-    finally { setLoading(false) }
-  }, [manage])
+      }).catch(cause => setError(apiErrorMessage(cause, 'Izveštaji nisu dostupni.')))
+      .finally(() => setLoading(false)), [manage])
 
   useEffect(() => { void refresh() }, [refresh])
   const hasPending = items.some(item => ['QUEUED','RUNNING'].includes(item.status))

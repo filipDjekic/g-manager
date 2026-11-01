@@ -30,32 +30,36 @@ describe('CatalogPage role composition', () => {
   it('gives customers a simple active offer without management chrome and carries CTA selection', async () => {
     useAuthStore.setState({ user: authUser('CUSTOMER', { permissions: roleCapabilities.CUSTOMER }), accessToken: 'token', isInitializing: false })
     server.use(http.get('/api/v1/catalog', ({ request }) => {
-      expect(new URL(request.url).searchParams.get('active')).toBeNull()
-      return HttpResponse.json({ content: [item('PRODUCT'), item('SERVICE')], page: 0, size: 20, totalElements: 2, totalPages: 1 })
+      const params = new URL(request.url).searchParams
+      expect(params.get('active')).toBeNull()
+      const content = [item('PRODUCT'), item('SERVICE')].filter(value => value.type === params.get('type'))
+      return HttpResponse.json({ content, page: 0, size: 10, totalElements: content.length, totalPages: 1 })
     }))
     renderPage()
 
-    expect(await screen.findByRole('heading', { name: 'Usluge i proizvodi', level: 1 })).toBeVisible()
+    expect(await screen.findByRole('heading', { name: 'Ponuda', level: 1 })).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Nova stavka' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Sačuvani prikazi')).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/Izaberi stavku/)).not.toBeInTheDocument()
-    await userEvent.click(await screen.findByRole('link', { name: 'Dodaj u korpu' }))
+    await userEvent.click(screen.getByRole('tab', { name: 'Proizvodi' }))
+    const orderLink = await screen.findByRole('link', { name: 'Dodaj u korpu' })
+    expect(orderLink).toHaveAttribute('href', '/my-orders?productId=product-1')
+    await userEvent.click(orderLink)
     expect(await screen.findByText('Korpa')).toBeVisible()
-    expect(sessionStorage.getItem('gmanager.catalog-selection')).toBe('product-1')
   })
 
   it('retains management filters, bulk selection and create dialog', async () => {
     useAuthStore.setState({ user: authUser('OWNER', { permissions: roleCapabilities.OWNER }), accessToken: 'token', isInitializing: false })
     server.use(
-      http.get('/api/v1/catalog', () => HttpResponse.json({ content: [item('PRODUCT')], page: 0, size: 20, totalElements: 1, totalPages: 1 })),
+      http.get('/api/v1/catalog', () => HttpResponse.json({ content: [item('SERVICE')], page: 0, size: 10, totalElements: 1, totalPages: 1 })),
       http.get('/api/v1/saved-views', () => HttpResponse.json([])),
     )
     renderPage()
 
-    expect(await screen.findByRole('heading', { name: 'Usluge i proizvodi', level: 1 })).toBeVisible()
+    expect(await screen.findByRole('heading', { name: 'Ponuda i cene', level: 1 })).toBeVisible()
     await userEvent.selectOptions(screen.getByLabelText('Cena'), 'range')
     expect(screen.getByLabelText('Minimalna cena (RSD)')).toBeVisible()
-    expect(await screen.findByLabelText('Izaberi stavku Šampon')).toBeVisible()
+    expect(await screen.findByLabelText('Izaberi stavku Masaža')).toBeVisible()
     await userEvent.click(screen.getByRole('button', { name: 'Nova stavka' }))
     expect(screen.getByRole('dialog', { name: 'Nova stavka' })).toBeVisible()
   })

@@ -1,15 +1,13 @@
-import { RouteStatePage } from './pages/RouteStatePage'
 import { lazy, Suspense, useEffect, type ComponentType } from 'react'
 import { createBrowserRouter, Navigate, Route, Routes, RouterProvider } from 'react-router-dom'
 import { NavigationSafety } from './forms/NavigationSafety'
-import { initializeSession } from './api/client'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { CapabilityGuard } from './auth/CapabilityGuard'
 import { RouteAccessibility } from './accessibility/RouteAccessibility'
 import './App.css'
 import './styles/product.css'
 import { useFeatureStore } from './feature/featureStore'
-import { FeatureUnavailable } from './feature/FeatureUnavailable'
+import { reportFrontendError } from './observability/errorReporter'
 import { useAuthStore } from './auth/authStore'
 import { homeForUser } from './layout/navigation'
 
@@ -18,6 +16,8 @@ const lazyPage = <T extends Record<K, ComponentType>, K extends keyof T>(
 ) => lazy(() => loader().then((module) => ({ default: module[name] })))
 
 const AppShell = lazyPage(() => import('./layout/AppShell'), 'AppShell')
+const RouteStatePage = lazy(() => import('./pages/RouteStatePage').then(module => ({ default: module.RouteStatePage })))
+const FeatureUnavailable = lazyPage(() => import('./feature/FeatureUnavailable'), 'FeatureUnavailable')
 const LoginPage = lazyPage(() => import('./pages/LoginPage'), 'LoginPage')
 const ActivatePage = lazyPage(() => import('./pages/ActivatePage'), 'ActivatePage')
 const SessionPage = lazyPage(() => import('./pages/SessionPage'), 'SessionPage')
@@ -56,7 +56,10 @@ function HomeRedirect() {
 function AppRoutes() {
   const reportsEnabled = useFeatureStore((state) => state.flags.REPORTS)
   useEffect(() => {
-    void initializeSession()
+    void import('./api/client').then(({ initializeSession }) => initializeSession()).catch(error => {
+      reportFrontendError(error, 'session.initialize')
+      useAuthStore.getState().finishInitialization()
+    })
   }, [])
 
   return (

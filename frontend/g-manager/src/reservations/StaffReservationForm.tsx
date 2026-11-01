@@ -19,7 +19,7 @@ export function StaffReservationForm(props: StaffBookingProps) {
     employeeId, setEmployeeId, locationId, setLocationId, areaId, setAreaId, resourceId,
     setResourceId, range, setRange, note, setNote, review, setReview,
     repeat, setRepeat, frequency, setFrequency, interval, setInterval, occurrences,
-    setOccurrences, conflictPolicy, setConflictPolicy, seriesResult, submitting, initializedService, services,
+    setOccurrences, conflictPolicy, setConflictPolicy, seriesResult, submitting: submittingRef, initializedService: initializedServiceRef, services,
     service, customer, employees, locations, areas, scope, settings,
     rules, needsResource, start, end, inputError, duration, options,
     compatible, resource, validScope, validResource, plan, applyAlternative, preview,
@@ -41,13 +41,13 @@ export function StaffReservationForm(props: StaffBookingProps) {
       {scope.error && <ErrorState message="Dodele stanica nisu dostupne." action={<Button variant="secondary" type="button" onClick={() => scope.refetch()}>Pokušaj ponovo</Button>} />}
       {!scope.isLoading && !scope.error && !scope.data?.allResources && !scope.data?.resourceIds.length && <EmptyState title="Nemate dodeljene stanice" description="Administrator treba da vam dodeli stanicu pre kreiranja rezervacije." />}
       <form id={formId} className="ui-form-grid form-grid reservation-editor reservation-create-form" onSubmit={event => {
-        event.preventDefault(); if (submitting.current || create.isPending) return
-        if (canSubmit || frozen) {if (!repeat || review) {submitting.current = true; create.mutate()} else setReview(true)}
+        event.preventDefault(); if (submittingRef.current || create.isPending) return
+        if (canSubmit || frozen) {if (!repeat || review) {submittingRef.current = true; create.mutate()} else setReview(true)}
       }}>
         {!review ? <>
           <CustomerPicker value={customerId} required inline disabled={blocked} onChange={(id,name) => {setCustomerId(id);setCustomerName(name ?? '')}} />
           <label>Usluga<Select aria-label={"Usluga"} required disabled={blocked || services.isLoading || !!services.error} value={serviceId} onChange={event => {
-            initializedService.current = ''; setServiceId(event.target.value);setResourceId('')
+            initializedServiceRef.current = ''; setServiceId(event.target.value);setResourceId('')
           }}><option value="">Izaberite uslugu</option>{services.data?.map(item => <option key={item.id} value={item.id}>{item.name}{item.durationMinutes ? ` · ${item.durationMinutes} min` : ''}</option>)}</Select></label>
           {services.error && <ErrorState message="Usluge nisu dostupne." action={<Button variant="secondary" type="button" onClick={() => services.refetch()}>Pokušaj ponovo</Button>} />}
           <label>Zaposleni<Select aria-label={"Zaposleni"} disabled={blocked || employees.isLoading || !!employees.error} value={employeeId} onChange={event => setEmployeeId(event.target.value)}>

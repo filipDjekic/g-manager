@@ -48,7 +48,9 @@ class JwtServiceTest {
 
     @Test
     void signedTokensWithMissingRequiredClaimsAreRejectedWithoutNullPointerExceptions() {
-        String secret = "test-secret-with-at-least-32-utf8-bytes";
+        byte[] testSigningKey = new byte[32];
+        new java.security.SecureRandom().nextBytes(testSigningKey);
+        String secret = java.util.Base64.getEncoder().encodeToString(testSigningKey);
         JwtService service = new JwtService(properties(secret));
         var key = io.jsonwebtoken.security.Keys.hmacShaKeyFor(secret.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         var expiry = java.util.Date.from(java.time.Instant.now().plusSeconds(60));

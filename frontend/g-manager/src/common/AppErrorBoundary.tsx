@@ -1,4 +1,5 @@
-import { PageLayout, Button, Card } from '../components/ui'
+import { PageLayout, Card } from '../components/ui/Layout'
+import { Button } from '../components/ui/Button'
 import { Component, type ReactNode } from 'react'
 import { reportFrontendError } from '../observability/errorReporter'
 

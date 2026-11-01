@@ -89,7 +89,9 @@ export function CommandPalette() {
           {query.trim().length >= 2 ? 'Nema dozvoljenih rezultata.' : 'Nema nedavnih ili omiljenih stavki.'}</p>}
         <div id="global-search-results" role="grid" aria-label="Rezultati pretrage">
           {Object.entries(groups).map(([type, grouped]) => <section role="rowgroup" aria-labelledby={`search-group-${type}`} key={type}>
-            <h3 id={`search-group-${type}`}>{labels[type as SearchResourceType]}</h3>{grouped.map((item) => {
+            <div role="row"><div role="columnheader" aria-colspan={2}>
+              <h3 id={`search-group-${type}`}>{labels[type as SearchResourceType]}</h3>
+            </div></div>{grouped.map((item) => {
               const index = items.indexOf(item)
               return <div key={`${item.type}-${item.id}`} className="search-result" role="row" id={`search-result-${item.type}-${item.id}`} aria-selected={index === active}>
                 <div role="gridcell">

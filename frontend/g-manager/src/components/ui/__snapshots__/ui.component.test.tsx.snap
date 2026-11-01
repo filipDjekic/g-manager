@@ -6,35 +6,41 @@ exports[`UI component system > renders the complete representative catalog witho
     <header
       class="ui-page-header"
     >
-      <div>
-        <nav
-          aria-label="Putanja"
-          class="ui-breadcrumbs"
+      <div
+        class="ui-page-heading"
+      >
+        <div
+          class="ui-page-title"
         >
-          <ol>
-            <li>
-              <a
-                href="/"
-              >
-                Početna
-              </a>
-            </li>
-            <li>
-              <span
-                aria-current="page"
-              >
-                Komponente
-              </span>
-            </li>
-          </ol>
-        </nav>
-        <h1>
-          Komponente
-        </h1>
+          <nav
+            aria-label="Putanja"
+            class="ui-breadcrumbs"
+          >
+            <ol>
+              <li>
+                <a
+                  href="/"
+                >
+                  Početna
+                </a>
+              </li>
+              <li>
+                <span
+                  aria-current="page"
+                >
+                  Komponente
+                </span>
+              </li>
+            </ol>
+          </nav>
+          <h1>
+            Komponente
+          </h1>
+        </div>
       </div>
     </header>
     <section
-      class="ui-card "
+      class="ui-card ui-card--standard "
     >
       <div
         class="ui-field"
@@ -90,19 +96,19 @@ exports[`UI component system > renders the complete representative catalog witho
         />
       </div>
       <button
-        class="ui-button ui-button--primary "
+        class="ui-button ui-button--primary ui-button--medium"
         type="button"
       >
         Sačuvaj
       </button>
       <button
-        class="ui-button ui-button--secondary "
+        class="ui-button ui-button--secondary ui-button--medium"
         type="button"
       >
         Odustani
       </button>
       <button
-        class="ui-button ui-button--danger "
+        class="ui-button ui-button--danger ui-button--medium"
         type="button"
       >
         Obriši
@@ -110,7 +116,7 @@ exports[`UI component system > renders the complete representative catalog witho
     </section>
     <div
       aria-label="Primer tabele"
-      class="ui-table-shell"
+      class="ui-table-shell "
       role="region"
       tabindex="0"
     >

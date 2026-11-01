@@ -4,6 +4,10 @@ import { addDays } from '../calendar/calendarModel'
 import { businessLocalToInstant } from '../reservations/dateTime'
 
 export const server = setupServer(
+  http.get('/api/v1/dashboard/today', () => HttpResponse.json({
+    date: '2026-08-15', timezone: 'Europe/Belgrade', workingDayStart: null, workingDayEnd: null,
+    appointments: [], gaps: [], unclaimedOrders: [], assignedOrders: [], attentionNotifications: [],
+  })),
   http.get('/api/v1/reservations', () => HttpResponse.json({ content: [], page: 0, size: 10, totalElements: 0, totalPages: 0 })),
   http.get('/api/v1/resources/locations', () => HttpResponse.json([])),
   http.get('/api/v1/resources/reservation-filters', () => HttpResponse.json([])),

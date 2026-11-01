@@ -1,8 +1,9 @@
-import { useSyncExternalStore } from 'react'
+import { lazy, Suspense, useSyncExternalStore } from 'react'
 import { useBlocker } from 'react-router-dom'
 import { useAuthStore } from '../auth/authStore'
-import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { subscribeUnsavedWork, unsavedWorkState } from './useDirtyGuard'
+
+const ConfirmDialog = lazy(() => import('../components/ui/ConfirmDialog').then(module => ({ default: module.ConfirmDialog })))
 
 export function NavigationSafety() {
   const user = useAuthStore(value => value.user)
@@ -13,7 +14,8 @@ export function NavigationSafety() {
     const contextChanged = currentLocation.search !== nextLocation.search || currentLocation.hash !== nextLocation.hash
     return !!user && currentWork !== 'clean' && (pathChanged || contextChanged && currentWork !== 'dirty')
   })
-  return <ConfirmDialog open={blocker.state === 'blocked'}
+  if (blocker.state !== 'blocked') return null
+  return <Suspense fallback={null}><ConfirmDialog open
     title={state === 'pending' ? 'Prethodni zahtev čeka proveru' : state === 'handoff' ? 'Sačuvajte jednokratni rezultat' : 'Napusti stranicu?'}
     description={state === 'pending'
       ? 'Ishod slanja još nije potvrđen. Ostanite na stranici i proverite isti zahtev pre nastavka.'
@@ -21,5 +23,5 @@ export function NavigationSafety() {
       : 'Imate nesačuvane izmene. Ako nastavite, unosi na ovoj stranici biće odbačeni.'}
     variant="warning" confirmLabel="Napusti stranicu" cancelLabel="Ostani na stranici"
     disabled={state === 'pending' || state === 'handoff'} onClose={() => blocker.reset?.()}
-    onConfirm={() => blocker.proceed?.()} />
+    onConfirm={() => blocker.proceed?.()} /></Suspense>
 }

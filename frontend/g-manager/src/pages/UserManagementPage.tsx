@@ -1,4 +1,5 @@
-import { MasterDetailLayout, useContentWidth } from '../components/ui/WorkspacePatterns'
+import { MasterDetailLayout } from '../components/ui/WorkspacePatterns'
+import { useContentWidth } from '../components/ui/useContentWidth'
 import { useResettableState } from '../components/useResettableState'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'

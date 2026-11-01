@@ -9,6 +9,7 @@ export function ActionMenu({ label, actions, children = '⋯', disabled, classNa
 }) {
   const trigger = useRef<HTMLButtonElement>(null), menu = useRef<HTMLDivElement>(null), id = useId()
   const [open, setOpen] = useState(false), [position, setPosition] = useState({ top: 0, left: 0 })
+  const [portalContainer, setPortalContainer] = useState<Element | null>(null)
   const close = (restore = false) => { setOpen(false); if (restore) trigger.current?.focus({ preventScroll: true }) }
   useLayoutEffect(() => {
     if (!open || !trigger.current || !menu.current) return
@@ -38,11 +39,12 @@ export function ActionMenu({ label, actions, children = '⋯', disabled, classNa
   return <>
     <Button ref={trigger} type="button" variant={compact ? 'ghost' : 'secondary'} iconOnly={compact} size={compact ? 'small' : 'medium'} className={className}
       disabled={disabled || !actions.length} aria-label={label} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? id : undefined}
-      onClick={() => setOpen(value => !value)} onKeyDown={event => { if (['ArrowDown', 'ArrowUp'].includes(event.key)) { event.preventDefault(); setOpen(true) } }}>{children}</Button>
-    {open && createPortal(<div ref={menu} id={id} role="menu" aria-label={label} className="ui-menu ui-action-menu" style={position} onKeyDown={keyboard}
+      onClick={event => { setPortalContainer(event.currentTarget.closest('[role="dialog"]') ?? document.body); setOpen(value => !value) }}
+      onKeyDown={event => { if (['ArrowDown', 'ArrowUp'].includes(event.key)) { event.preventDefault(); setPortalContainer(event.currentTarget.closest('[role="dialog"]') ?? document.body); setOpen(true) } }}>{children}</Button>
+    {open && portalContainer && createPortal(<div ref={menu} id={id} role="menu" aria-label={label} className="ui-menu ui-action-menu" style={position} onKeyDown={keyboard}
       onBlur={event => { if (!menu.current?.contains(event.relatedTarget as Node)) setOpen(false) }}>
       {actions.map(action => <button key={action.label} type="button" role="menuitem" tabIndex={-1} disabled={action.disabled} className={action.danger ? 'is-danger' : undefined}
         onClick={() => { const target = trigger.current; close(true); if (target) action.onClick(target) }}>{action.label}</button>)}
-    </div>, trigger.current?.closest('[role="dialog"]') ?? document.body)}
+    </div>, portalContainer)}
   </>
 }

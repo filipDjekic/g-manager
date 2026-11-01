@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { MemoryRouter } from 'react-router-dom'
@@ -49,8 +49,8 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('table', { name: /Dnevni prihod/ })).toHaveTextContent('300')
     expect(screen.getAllByRole('link', { name: 'Otvori rezervacije' }).find(link => link.getAttribute('href')?.includes('status=PENDING'))).toHaveAttribute('href', expect.stringContaining('status=PENDING'))
     expect(screen.getByRole('table', { name: /Potvrđeni i završeni/ })).toHaveTextContent('Ana')
-    await waitFor(async () => expect((await axe(container)).violations
-      .filter(({ impact }) => impact === 'serious' || impact === 'critical')).toHaveLength(0))
+    expect((await axe(container)).violations
+      .filter(({ impact }) => impact === 'serious' || impact === 'critical')).toHaveLength(0)
   })
 
   it('lets an employee act on today work and renders an actionable empty state', async () => {
@@ -72,14 +72,14 @@ describe('DashboardPage', () => {
     )
     renderPage()
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Moj radni dan' })).toBeVisible())
-    await screen.findByText('Tretman')
-    expect(screen.getByText('Tretman')).toBeVisible()
-    expect(screen.getAllByText('10:00')[0]).toBeVisible()
-    expect(screen.getAllByText('11:00')[0]).toBeVisible()
+    expect(await screen.findByRole('heading', { name: 'Radni ekran' })).toBeVisible()
+    await screen.findByText(/Tretman · do 11:00/)
+    expect(screen.getByText(/Tretman · do 11:00/)).toBeVisible()
+    expect(screen.getByText('10:00 · Mila')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Odbij' })).toBeVisible()
     await userEvent.click(screen.getByRole('button', { name: 'Potvrdi' }))
-    expect(await screen.findByRole('heading', { name: 'Danas nema termina' })).toBeVisible()
-    expect(screen.getByText('Nema novih obaveštenja za danas.')).toBeVisible()
+    expect(await screen.findByRole('heading', { name: 'Nema današnjih termina' })).toBeVisible()
+    await userEvent.click(screen.getByText('Ceo dnevni pregled i važni događaji', { selector: 'summary' }))
+    expect(screen.getByText('Nema novih važnih događaja.')).toBeVisible()
   })
 })

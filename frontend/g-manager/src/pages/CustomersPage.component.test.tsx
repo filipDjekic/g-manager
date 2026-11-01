@@ -37,7 +37,7 @@ describe('CustomersPage', () => {
     expect(await screen.findByText('Mila Jović')).toBeVisible()
     expect(screen.getByRole('region', { name: 'Lista klijenata' })).toHaveTextContent('mila@example.test')
     const detailsButton = screen.getByRole('button', { name: 'Prikaži profil: Mila Jović' })
-    expect(container.querySelector('.responsive-table td[data-label="Klijent"]')).toBeTruthy()
+    expect(container.querySelector('.customers-table td[data-label="Klijent"]')).toContainElement(detailsButton)
     await userEvent.click(detailsButton)
     expect(screen.getByRole('button', { name: 'Zatvori' })).toHaveFocus()
     await userEvent.click(await screen.findByRole('tab', { name: 'CRM' }))

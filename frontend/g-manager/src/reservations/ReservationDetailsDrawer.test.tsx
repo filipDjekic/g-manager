@@ -38,6 +38,7 @@ describe('ReservationDetailsDrawer', () => {
     expect(screen.queryByText('reservation-1')).not.toBeInTheDocument()
     expect(screen.queryByText('Kontakt')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Potvrdi' })).not.toBeInTheDocument()
+    await user.click(screen.getByText('Istorija rezervacije', { selector: 'summary' }))
     expect(screen.getByText(/Na čekanju → Potvrđena/)).toBeVisible()
 
     await user.click(screen.getByRole('button', { name: 'Otkaži' }))

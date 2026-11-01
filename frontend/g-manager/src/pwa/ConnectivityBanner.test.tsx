@@ -13,6 +13,6 @@ describe('ConnectivityBanner', () => {
   it('labels an explicitly stale read cache', () => {
     render(<ConnectivityBanner />)
     fireEvent(window, new CustomEvent('gmanager:stale-read', { detail: Date.UTC(2026, 0, 1) }))
-    expect(screen.getByRole('status')).toHaveTextContent('lokalnog read-only cache-a')
+    expect(screen.getByRole('status')).toHaveTextContent('lokalnog cache-a, samo za čitanje')
   })
 })

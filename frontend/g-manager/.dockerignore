@@ -4,3 +4,10 @@ coverage
 playwright-report
 test-results
 .git
+.env
+.env.*
+*.log
+bom.json
+audit-*.json
+artifacts
+.npm-cache

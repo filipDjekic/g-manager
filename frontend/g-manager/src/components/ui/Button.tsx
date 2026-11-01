@@ -1,13 +1,6 @@
 import { forwardRef, type ButtonHTMLAttributes } from 'react'
-
-export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'success' | 'warning' | 'ghost'
-export type ControlSize = 'small' | 'medium' | 'large'
-
-export function buttonClassName({ variant = 'primary', size = 'medium', iconOnly = false, className = '' }: {
-  variant?: ButtonVariant; size?: ControlSize; iconOnly?: boolean; className?: string
-} = {}) {
-  return `ui-button ui-button--${variant} ui-button--${size}${iconOnly ? ' ui-button--icon' : ''} ${className}`.trim()
-}
+import { buttonClassName, type ButtonVariant, type ControlSize } from './buttonClassName'
+export type { ButtonVariant, ControlSize } from './buttonClassName'
 
 export const Button = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant; size?: ControlSize; loading?: boolean; iconOnly?: boolean

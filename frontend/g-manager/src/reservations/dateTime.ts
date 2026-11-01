@@ -1,10 +1,13 @@
 const businessZone = 'Europe/Belgrade'
+// A weekly calendar converts hundreds of instants. Reuse the immutable formatter
+// instead of rebuilding ICU locale/time-zone data for every quarter-hour slot.
+const businessPartsFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: businessZone, year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+})
 
 export function businessInstantToLocal(value: string): string {
-  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
-    timeZone: businessZone, year:'numeric', month:'2-digit', day:'2-digit',
-    hour:'2-digit', minute:'2-digit', hourCycle:'h23',
-  }).formatToParts(new Date(value)).map(part=>[part.type,part.value]))
+  const parts = Object.fromEntries(businessPartsFormatter.formatToParts(new Date(value)).map(part=>[part.type,part.value]))
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`
 }
 
@@ -15,18 +18,9 @@ export function businessLocalToInstant(value: string): string {
   const desiredUtc = Date.UTC(
     Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute),
   )
-  const formatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: businessZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  })
   let candidate = desiredUtc
   for (let attempt = 0; attempt < 4; attempt++) {
-    const parts = Object.fromEntries(formatter.formatToParts(new Date(candidate))
+    const parts = Object.fromEntries(businessPartsFormatter.formatToParts(new Date(candidate))
       .filter(part => part.type !== 'literal').map(part => [part.type, Number(part.value)]))
     const represented = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute)
     if (represented === desiredUtc) {

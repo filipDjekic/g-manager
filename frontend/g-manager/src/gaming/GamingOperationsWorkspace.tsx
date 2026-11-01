@@ -75,7 +75,7 @@ export function GamingOperationsWorkspace({ workday = false }: { workday?: boole
   const selectedStation = stations.find((station) => station.resourceId === selectedResourceId)
   const selectStation = useCallback((station: GamingStationCard) => setSelectedResourceId(station.resourceId), [setSelectedResourceId])
   const handlers = useMemo(() => ({ onStart: openStart, onExtend: extend, onEnd: openEnd, onCustom: openCustom,
-    onHistory: setHistoryStation, onRecovery: openRecovery }), [openStart, extend, openEnd, openCustom, openRecovery])
+    onHistory: setHistoryStation, onRecovery: openRecovery }), [openStart, extend, openEnd, openCustom, openRecovery, setHistoryStation])
 
   useEffect(() => {
     if (!board.data || board.error) return

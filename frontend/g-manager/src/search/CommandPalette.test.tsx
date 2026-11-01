@@ -24,7 +24,8 @@ describe('CommandPalette', () => {
     const input = screen.getByRole('combobox', { name: 'Pretraži G-Manager' })
     expect(input).toHaveFocus()
     await user.type(input, '123')
-    expect(baseElement.querySelector('#search-result-ORDER-123')).toHaveAttribute('aria-current', 'true')
+    expect(baseElement.querySelector('#search-result-ORDER-123')).toHaveAttribute('aria-selected', 'true')
+    expect(input).toHaveAttribute('aria-activedescendant', 'search-result-ORDER-123')
     expect((await axe(baseElement)).violations.filter(({ impact }) => impact === 'serious' || impact === 'critical').map(({ id }) => id)).toEqual([])
 
     await user.keyboard('{Enter}')

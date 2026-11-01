@@ -31,6 +31,7 @@ h1:focus { outline: none; }
   color: var(--color-text-secondary);
   background: var(--color-bg);
 }
+.ui-page-layout.screen-message { display: grid; max-width: none; }
 .screen-message > .ui-card { width: min(var(--reading-width), 100%); }
 .shell-content .screen-message { min-height: calc(100dvh - var(--topbar-height)); }
 .saved-view-bar, .selection-bar {

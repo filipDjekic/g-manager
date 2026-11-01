@@ -1,4 +1,4 @@
-import { Button } from './'
+import { Button } from './Button'
 import { useRef, useState, type ReactNode } from 'react'
 import { ToastContext, type ToastTone } from './toastContext'
 import './ui.css'

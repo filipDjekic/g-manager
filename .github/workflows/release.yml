@@ -118,8 +118,8 @@ jobs:
           TRIVY_USERNAME: ${{ github.actor }}
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          docker run --rm -e TRIVY_USERNAME -e TRIVY_PASSWORD aquasec/trivy:0.59.1 image --severity HIGH,CRITICAL --exit-code 1 '${{ steps.images.outputs.backend }}'
-          docker run --rm -e TRIVY_USERNAME -e TRIVY_PASSWORD aquasec/trivy:0.59.1 image --severity HIGH,CRITICAL --exit-code 1 '${{ steps.images.outputs.frontend }}'
+          docker run --rm -e TRIVY_USERNAME -e TRIVY_PASSWORD aquasec/trivy:0.76.1 image --severity HIGH,CRITICAL --exit-code 1 '${{ steps.images.outputs.backend }}'
+          docker run --rm -e TRIVY_USERNAME -e TRIVY_PASSWORD aquasec/trivy:0.76.1 image --severity HIGH,CRITICAL --exit-code 1 '${{ steps.images.outputs.frontend }}'
 
   deploy:
     name: Deploy and prove rollback
