@@ -47,19 +47,20 @@ function Update-ManagementStatus {
         $value=Read-ClientConfig
         $service=Get-Service GManagerClient -ErrorAction SilentlyContinue
         $serviceStatus=if($service){[string]$service.Status}else{'Nije instaliran'}
-        $connection='Nepoznata';$mode='Nepoznato'
+        $connection='Nepoznata';$mode='Nepoznato';$enforcement='Nepotvrđen'
         # Reading health avoids blocking the WPF dispatcher while a pipe or backend is unavailable.
         $healthPath=Join-Path $script:ClientState 'health.json'
         if(Test-Path -LiteralPath $healthPath){
-            $health=Get-Content -LiteralPath $healthPath -Raw|ConvertFrom-Json
+            $health=Get-Content -Encoding UTF8 -LiteralPath $healthPath -Raw|ConvertFrom-Json
+            if($health.PSObject.Properties.Name -contains 'enforcementVerified' -and $health.enforcementVerified -and [DateTimeOffset]::Parse($health.timestamp) -gt [DateTimeOffset]::UtcNow.AddSeconds(-30)){$enforcement='Windows provera uspešna'}
             $connection=if([DateTimeOffset]::Parse($health.timestamp) -lt [DateTimeOffset]::UtcNow.AddSeconds(-30)){'Zastareo health signal'}elseif($health.errorCode -in @('BACKEND_UNAVAILABLE','BACKEND_TIMEOUT')){'Server nije dostupan'}elseif($health.PSObject.Properties.Name -contains 'serverConnected' -and $health.serverConnected -eq $true){'Povezan'}elseif($health.initialized){'Nepotvrđena veza; pokrenite Diagnostics'}else{'Inicijalizacija'}
         }
         $lease=Get-Maintenance
-        $mode=if($lease){'Aktivno do '+(Get-Content -LiteralPath (Join-Path $script:ClientState 'maintenance.json') -Raw|ConvertFrom-Json).ExpiresAt}else{'Isključeno'}
+        $mode=if($lease){'Aktivno do '+(Get-Content -Encoding UTF8 -LiteralPath (Join-Path $script:ClientState 'maintenance.json') -Raw|ConvertFrom-Json).ExpiresAt}else{'Isključeno'}
         $enrolled=if(Test-Path -LiteralPath (Join-Path $script:ClientState 'identity.dpapi')){'Identitet sačuvan'}else{'Enrollment potreban'}
         $update='Nepoznato';$updatePath=Join-Path $script:ClientState 'update-status.json'
-        if(Test-Path -LiteralPath $updatePath){$update=(Get-Content -LiteralPath $updatePath -Raw|ConvertFrom-Json).status}
-        $controls.Status.Text="Installed version: $($value.Client.Version)`nService: $serviceStatus`nBackend: $connection`nEnrollment: $enrolled`nMaintenance: $mode`nUpdate: $update"
+        if(Test-Path -LiteralPath $updatePath){$update=(Get-Content -Encoding UTF8 -LiteralPath $updatePath -Raw|ConvertFrom-Json).status}
+        $controls.Status.Text="Installed version: $($value.Client.Version)`nService: $serviceStatus`nWindows enforcement: $enforcement`nBackend: $connection`nEnrollment: $enrolled`nMaintenance: $mode`nUpdate: $update"
     }catch{$controls.Status.Text='Status nije dostupan. Pokrenite Diagnostics ili recovery CLI iz administratorske sesije.'}
 }
 function Start-ManagementAction([string]$Action) {

@@ -10,6 +10,8 @@ Ovo su kriterijumi za proveru stvarnog izdanja na ciljnom MySQL okruženju i nam
 - Stanica ima DNS, važeći TLS chain, odvojene Windows admin/player naloge i podržan AppLocker/Application Identity. Service je **LocalSystem**, Shell radi kao standardni igrač. Putanje igara nisu upisive tom korisniku.
 - MySQL, management i Prometheus ostaju privatni. Mrežni pristup backendu/download serveru i game servisima mora biti proveren iz stanice.
 
+Za svako izdanje Windows-a zasebno popuniti [Home/Pro i Enterprise/Education acceptance matricu](WINDOWS_CLIENT_ACCEPTANCE.md). Capability i mock testovi nisu dokaz fizičkog enforcement-a.
+
 ## Funkcionalni i recovery dokazi
 
 - [ ] Staff customer lookup/create/activation → gaming start → Client login → countdown → approved application → produženje → istek → fizički lock ACK → AVAILABLE.

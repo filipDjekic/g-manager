@@ -16,6 +16,12 @@ try {
     if($Command -eq 'diagnostics'){
         Get-CimInstance Win32_Service -Filter "Name='GManagerClient'"|Select-Object Name,State,StartMode,ExitCode|Format-List
         Get-ScheduledTask -TaskName 'GManagerClient*' -ErrorAction SilentlyContinue|Select-Object TaskName,State|Format-Table
+        Get-Service AppIDSvc -ErrorAction SilentlyContinue|Select-Object Name,Status,StartType|Format-List
+        Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'|Select-Object EditionID,CurrentBuildNumber,UBR|Format-List
+        foreach($name in @('windows-capabilities.json','enforcement-verification.json')){
+            $path=Join-Path $script:ClientState $name
+            if(Test-Path -LiteralPath $path -ErrorAction SilentlyContinue){try{Get-Content -Encoding UTF8 -LiteralPath $path -Raw -ErrorAction Stop|Write-Output}catch{Write-Output 'Za enforcement dijagnostiku koristite zaseban administratorski nalog.'}}
+        }
         try{[void](Invoke-ClientPipe 'status');Write-Output 'Lokalna komunikacija: dostupna'}catch{Write-Output 'Lokalna komunikacija: nije dostupna'}
         return
     }
@@ -32,22 +38,14 @@ try {
         if($Command -eq 'watchdog'){
             Resolve-ClientTransaction
             $uninstall=Join-Path $script:ClientState 'uninstall.json'
-            if((Test-Path -LiteralPath $uninstall) -and (Get-Content -LiteralPath $uninstall -Raw|ConvertFrom-Json).phase -eq 'Restoring'){
+            if((Test-Path -LiteralPath $uninstall) -and (Get-Content -Encoding UTF8 -LiteralPath $uninstall -Raw|ConvertFrom-Json).phase -eq 'Restoring'){
                 & (Join-Path $PSScriptRoot 'uninstall-service.ps1') -Resume;return
             }
             if(Get-Maintenance){return}
-            if(Test-Path -LiteralPath $leasePath){
-                Stop-PlayerSessions $config.Client.PlayerSid
-                Suspend-LocalSession
-                Write-AtomicJson $leasePath @{ExpiresAt=[DateTimeOffset]::MinValue.ToString('o')}
-                Write-AtomicJson (Join-Path $script:ClientState 'allowed-paths.json') @()
-                Invoke-Policy 'Apply'
-                Remove-Item -LiteralPath $leasePath -Force
-                Write-Operation 'MAINTENANCE_EXPIRED' 'LOCKED'
-            }
+            Restore-ExpiredClientMaintenance $config.Client.PlayerSid
             $healthPath=Join-Path $script:ClientState 'health.json'
             $stale=$true
-            if(Test-Path -LiteralPath $healthPath){$health=Get-Content -LiteralPath $healthPath -Raw|ConvertFrom-Json;$stale=[DateTimeOffset]::Parse($health.timestamp) -lt [DateTimeOffset]::UtcNow.AddSeconds(-30)}
+            if(Test-Path -LiteralPath $healthPath){$health=Get-Content -Encoding UTF8 -LiteralPath $healthPath -Raw|ConvertFrom-Json;$stale=[DateTimeOffset]::Parse($health.timestamp) -lt [DateTimeOffset]::UtcNow.AddSeconds(-30)}
             if($stale){
                 Stop-ClientService -Force
                 Stop-PlayerSessions $config.Client.PlayerSid
@@ -80,11 +78,7 @@ try {
                 if($Command -eq 'exit'){Stop-ClientShell;Write-Operation 'SHELL_EXIT_COMPLETE' 'SERVICE_RUNNING_MAINTENANCE'}
                 Write-Host "Održavanje je uključeno do $($expiry.LocalDateTime). Za rad koristite zaseban Windows administratorski nalog."
             }else{
-                Stop-PlayerSessions $config.Client.PlayerSid
-                Write-AtomicJson $leasePath @{ExpiresAt=[DateTimeOffset]::MinValue.ToString('o')}
-                Write-AtomicJson (Join-Path $script:ClientState 'allowed-paths.json') @()
-                Invoke-Policy 'Apply'
-                Remove-Item -LiteralPath $leasePath -Force
+                Restore-ClientLockdown $config.Client.PlayerSid
                 Start-ClientService
                 Write-Operation 'MAINTENANCE_DISABLED' 'LOCKED'
                 Write-Host 'Održavanje je završeno. Zaštita je ponovo aktivna.'
@@ -96,13 +90,17 @@ try {
             Stop-ClientService -Force
             Stop-PlayerSessions $config.Client.PlayerSid
             Suspend-LocalSession
-            if($Command -eq 'repair'){Repair-ClientFiles $config}
+            if($Command -eq 'repair'){
+                $cache=Join-Path $script:ClientState 'dll-paths.json';Assert-NoReparse $cache
+                if(Test-Path -LiteralPath $cache){Remove-Item -LiteralPath $cache -Force}
+                Repair-ClientFiles $config
+            }
             Write-AtomicJson (Join-Path $script:ClientState 'allowed-paths.json') @()
             Invoke-Policy 'Apply'
             Register-RecoveryTasks
             Start-ClientService
             Assert-Healthy
-            if($Command -eq 'repair'){$deployment=Get-Content -LiteralPath (Join-Path $script:ClientState 'deployment.json') -Raw|ConvertFrom-Json;$deployment.phase='Complete';Write-AtomicJson (Join-Path $script:ClientState 'deployment.json') $deployment}
+            if($Command -eq 'repair'){$deployment=Get-Content -Encoding UTF8 -LiteralPath (Join-Path $script:ClientState 'deployment.json') -Raw|ConvertFrom-Json;$deployment.phase='Complete';Write-AtomicJson (Join-Path $script:ClientState 'deployment.json') $deployment}
             Write-Operation ($Command.ToUpperInvariant()+'_COMPLETE') 'HEALTHY'
             Write-Host 'Servis je pokrenut. Identitet stanice je sačuvan.'
         }

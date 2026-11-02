@@ -1,6 +1,12 @@
 ﻿using GManager.Client.Protocol;
 using GManager.Client.Service;
 
+if (args.FirstOrDefault() == "--enforcement-probe")
+{
+    Environment.ExitCode = WindowsEnforcementProbe.Run(args);
+    return;
+}
+
 var environment = ClientEnvironment.Load(args, out var settings);
 bool enroll = args.Contains("--enroll-stdin", StringComparer.OrdinalIgnoreCase);
 var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings { Args = [], ContentRootPath = AppContext.BaseDirectory });

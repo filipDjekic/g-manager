@@ -14,7 +14,7 @@ try{
         & dotnet publish (Join-Path $client "src\GManager.Client.$project") -c Release -r $Runtime --self-contained -p:Version=$Version -o (Join-Path $stage $project.ToLowerInvariant())
         if($LASTEXITCODE -ne 0){throw "Publish nije uspeo: $project"}
     }
-    $settings=Get-Content -LiteralPath (Join-Path $stage 'service\appsettings.json') -Raw|ConvertFrom-Json
+    $settings=Get-Content -Encoding UTF8 -LiteralPath (Join-Path $stage 'service\appsettings.json') -Raw|ConvertFrom-Json
     $settings.Client.Version=$Version
     $settings.Client|Add-Member -MemberType NoteProperty -Name Mode -Value 'Production' -Force
     $settings|ConvertTo-Json -Depth 10|Set-Content -LiteralPath (Join-Path $stage 'service\appsettings.json') -Encoding UTF8
@@ -29,7 +29,7 @@ try{
     }
     $files=@(Get-ChildItem -LiteralPath $stage -Recurse -File|Sort-Object FullName|ForEach-Object {@{path=$_.FullName.Substring($stage.Length+1);sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()}})
     $release=Join-Path $stage 'release.json'
-    @{version=$Version;mode='Production';runtime=$Runtime;files=$files}|ConvertTo-Json -Depth 10|Set-Content -LiteralPath $release -Encoding UTF8
+    @{version=$Version;mode='Production';runtime=$Runtime;minimumWindowsBuild=19041;primaryWindowsBuild=19045;enforcementProtocol=1;files=$files}|ConvertTo-Json -Depth 10|Set-Content -LiteralPath $release -Encoding UTF8
     Add-Type -AssemblyName System.Security
     $cms=[Security.Cryptography.Pkcs.SignedCms]::new([Security.Cryptography.Pkcs.ContentInfo]::new([IO.File]::ReadAllBytes($release)),$true)
     $signer=[Security.Cryptography.Pkcs.CmsSigner]::new($certificate)

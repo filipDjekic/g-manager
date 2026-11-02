@@ -6,7 +6,7 @@ if(!(Enter-ClientMutex $mutex)){throw 'Druga administratorska operacija je u tok
 try{
     $journalPath=Join-Path $script:ClientState 'uninstall.json'
     if($Resume){
-        $plan=Get-Content -LiteralPath $journalPath -Raw|ConvertFrom-Json
+        $plan=Get-Content -Encoding UTF8 -LiteralPath $journalPath -Raw|ConvertFrom-Json
         if($plan.phase -eq 'Complete'){return}
         $PurgeData=[bool]$plan.purgeData
     }else{
@@ -43,11 +43,16 @@ try{
     Remove-OwnedPublisher
     if($PurgeData){
         # Only our recorded files are removed. Audit and policy ownership journal remain for review/recovery.
-        foreach($name in @('identity.dpapi','snapshot.json','station-policy.json','client.json','health.json','allowed-paths.json','deployment.json','update-status.json')){
+        foreach($name in @('identity.dpapi','snapshot.json','station-policy.json','client.json','health.json','allowed-paths.json','trusted-applications.json','dll-paths.json','windows-capabilities.json','enforcement-verification.json','deployment.json','update-status.json')){
             $path=Join-Path $script:ClientState $name;Assert-NoReparse $path;if(Test-Path -LiteralPath $path){Remove-Item -LiteralPath $path -Force}
         }
     }
     Write-Host 'G-Manager servis, zadaci, instalacija i sopstvena Windows pravila su uklonjeni. Backend podaci stanice nisu menjani.'
+    $policyJournalPath=Join-Path $script:ClientState 'policy-journal.json'
+    if(Test-Path -LiteralPath $policyJournalPath){
+        $policyJournal=Get-Content -Encoding UTF8 -LiteralPath $policyJournalPath -Raw|ConvertFrom-Json
+        if($policyJournal.PSObject.Properties.Name -contains 'serviceRestoreNeedsReboot' -and $policyJournal.serviceRestoreNeedsReboot){Write-Host 'Originalni AppIDSvc startup je vraćen za sledeći restart Windows-a. Trenutni zaštićeni Windows servis nije prisilno zaustavljan.'}
+    }
     if(!$PurgeData){Write-Host 'DPAPI identitet i lokalni podaci su sačuvani za ponovnu instalaciju.'}
 }catch{Write-Operation 'UNINSTALL_FAILED' $_.Exception.GetType().Name;throw}
 finally{$mutex.ReleaseMutex();$mutex.Dispose()}

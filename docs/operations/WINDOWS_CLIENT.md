@@ -35,7 +35,7 @@ Razvojni podaci su u `%LOCALAPPDATA%\GManager\Development`, zaštićeni DPAPI Cu
 
 **Prvo izdanje i instalacija - administrator**
 
-Produkcija: Windows 10 build 19041+ / Windows 11 Enterprise/Education, AppLocker/Application Identity i Scheduled Tasks; zaseban aktivan lokalni standardni nalog igrača i zaseban administratorski nalog za održavanje. OS i igre moraju već biti podržani na tom računaru. Naloge i njihove lozinke održava Windows administrator; Client ne uključuje Windows autologon i ne skladišti te lozinke.
+Produkcioni cilj: Windows 10 22H2 (19045), Home/Pro; Windows 10 2004+ (19041+) i postojeća Windows 11 izdanja ostaju kandidati kada prođu iste capability i enforcement provere. Potrebni su 64-bitni Windows PowerShell 5.1, AppLocker/Application Identity i Scheduled Tasks; zaseban aktivan lokalni standardni nalog igrača i zaseban administratorski nalog za održavanje. OS i igre moraju već biti podržani na tom računaru. Naloge i njihove lozinke održava Windows administrator; Client ne uključuje Windows autologon i ne skladišti te lozinke.
 
 Na release računaru pripremite izdanje sa važećim code-signing sertifikatom, zatim objavite ZIP i metapodatke na konfigurisanom HTTPS serveru:
 
@@ -57,6 +57,10 @@ Za lokalni CA dodajte `-LocalCaCertificate "C:\Deploy\root-ca.cer" -ExpectedCaSh
 
 U Stations napravite/izaberite stanicu, uključite Client, dodelite postojeći profil aplikacija i generišite jednokratni INITIAL token kroz „Identitet klijenta”. Unesite token u skrivenom installer prompt-u; prenosi se kroz stdin, bez fajla ili argumenta komandne linije. Ponovna instalacija na isti server i Windows nalog zadržava postojeći DPAPI identitet. Promena servera/naloga zahteva plansku migraciju/rotaciju identiteta.
 
+Najjednostavniji početak je desni klik na raspakovani `GManager-Setup.cmd` → **Run as administrator**. Installer traži javne deployment podatke i enrollment token. Pre enrollment-a proverava edition/build, ugrađene AppLocker cmdlet-e, lokalnu i efektivnu politiku, AppIDSvc i event log. Posle instalacije kroz S4U task kao stvarni standardni igrač pokreće dozvoljeni EXE/DLL, pokušava zabranjeni EXE/DLL i interpreter/MSI hostove i zahteva korelisane AppLocker 8004 događaje. Ne čuva Windows lozinku. Potom opoziva privremene probe dozvole i ponovo proverava efektivnu politiku. Neuspeh prekida instalaciju i pokreće rollback; WPF fullscreen, AuditOnly i simulirani `Test-AppLockerPolicy` rezultat nisu zamene za ovu probu.
+
+Home sistem bez AppLocker PowerShell modula se odbija čak i kada AppIDSvc postoji. Installer ne kopira Enterprise komponente, ne instalira RSAT i ne koristi neprovereni Registry/SRP fallback. Zato podrška nije potvrđena za svaki Home/Pro računar samo na osnovu build-a. Potrebni su prolaz installer probe i zasebna [fizička acceptance provera](WINDOWS_CLIENT_ACCEPTANCE.md).
+
 Instalacioni direktorijum je `%ProgramFiles%\GManager Client`, a zaštićeni podaci `%ProgramData%\GManager\Client`. Servis je automatski SYSTEM policy broker; igre pokreće Shell kao standardni korisnik, bez elevacije. Shell task se pokreće pri prijavi izabranog Windows naloga. Update se proverava svakih 15 minuta; recovery na boot-u i svakog minuta.
 
 **Status i bezbedna dijagnostika - bez elevacije gde Windows politika dozvoljava**
@@ -76,7 +80,7 @@ Zaštićeni nalog igrača nema opšti pristup CMD/PowerShell-u. Druge standardne
 "%ProgramFiles%\GManager Client\gmanagerctl.cmd" maintenance disable
 ```
 
-Podrazumevani istek je 15 minuta, maksimum 60. Pre oslobađanja sopstvenih AppLocker pravila Client zaustavlja customer rad i odjavljuje Windows sesije samo izabranog igrača. Administratorska sesija ostaje dostupna. Igre instalirajte iz zasebne administratorske sesije. Održavanje ne ukida tuđe GPO/MDM/WDAC politike.
+Podrazumevani istek je 15 minuta, maksimum 60. Client zaustavlja customer rad i odjavljuje Windows sesije samo izabranog igrača. Tokom održavanja ostaje zaključana player politika bez dozvoljenih igara, uključujući reboot i Service outage. Pravila targetuju player SID, pa zasebna administratorska sesija ostaje dostupna bez uklanjanja ograničenja. Igre instalirajte iz zasebne administratorske sesije. Održavanje ne ukida tuđe GPO/MDM/WDAC politike.
 
 Ako je gaming sesija prekinuta održavanjem/recovery postupkom, njen ID ostaje lokalno blokiran, a status prijavljuje `SESSION_RECONCILIATION_REQUIRED`. Osoblje zatvara/usaglašava serverovu sesiju kroz postojeći autorizovani Gaming Sessions interfejs pre nastavka rada. Lokalni CLI ne menja naplatu, backend identitet ni poslovne podatke bez ovlašćenja. Najbolje je prethodno završiti gaming sesiju tim interfejsom.
 
@@ -114,7 +118,9 @@ powershell.exe -NoProfile -ExecutionPolicy AllSigned -File "%ProgramData%\GManag
 
 Audit: `management.jsonl`, `policy-events.jsonl`, `operational.jsonl`; transakcije: `deployment.json`, `policy-journal.json`, `uninstall.json`. Ne brišite journal pre završetka oporavka. Izmenjeno pravilo sa istim ownership GUID-em zaustavlja automatski rollback i traži razrešenje konflikta, bez brisanja administratorove izmene.
 
-G-Manager čuva originalnu **lokalnu** AppLocker politiku i sopstvene GUID-eve; ne uvozi Effective/domain politiku u lokalni GPO, ne briše tuđa pravila, ne prepisuje Chrome/Registry politike i ne menja ACL-ove direktorijuma igara. Aplikacije moraju imati trust uslove i biti u direktorijumima koji nisu upisivi neprivilegovanom korisniku; nebezbedne putanje se odbijaju. Tuđa AuditOnly pravila zahtevaju administratorsku pripremu; ne uključuju se automatski.
+G-Manager čuva originalnu **lokalnu** AppLocker politiku i sopstvene GUID-eve; ne uvozi Effective/domain politiku u lokalni GPO, ne briše tuđa pravila, ne prepisuje Chrome ili tuđe Registry politike i ne menja ACL-ove direktorijuma igara. Aplikacije moraju imati trust uslove i biti u direktorijumima koji nisu upisivi neprivilegovanom korisniku; nebezbedne putanje se odbijaju. Tuđa AuditOnly/NotConfigured pravila zahtevaju administratorsku pripremu; ne uključuju se automatski. AppIDSvc startup čuva se u journal-u pre uključivanja automatskog pokretanja; uninstall vraća sopstvenu izmenu ili prijavljuje konflikt sa naknadnim tuđim politikama.
+
+Windows može odbiti vraćanje zaštićenog AppIDSvc servisa na Manual preko SCM-a. Tada uninstall, posle uklanjanja sopstvenih pravila i provere ownership-a/konflikata, vraća samo originalne AppIDSvc startup vrednosti u Registry-ju za sledeći boot i prijavljuje potreban restart. Ne zaustavlja prisilno zaštićeni Windows servis. Ovo je vraćanje evidentiranog podešavanja, bez Registry fallback-a za AppLocker enforcement.
 
 Legacy instalacije starih skripti, koje su već globalno menjale Chrome/NTFS/AppLocker bez originalnog journal-a, zahtevaju administratorsko vraćanje iz originalnog backup-a. Installer to prepoznaje i odbija nagađanje izgubljenih prethodnih podešavanja; sačuvajte `identity.dpapi`. Nova instalacija i njene naredne reinstalacije/rollback koriste trajni ownership journal.
 
@@ -151,11 +157,11 @@ Izvorne izmene ne ažuriraju raniji ZIP. Novo izdanje i dalje mora napraviti rel
 
 Ne kopirati nijedan private key u dokumentaciju ili Client paket. Backend nema automatski multi-key policy keyring: Client konfiguracija pin-uje jedan public key/key ID. Promenu planirati uz kompatibilnu Client konfiguraciju i proveru na stanici; machine identity overlap nije policy-signing key overlap.
 
-Produkcioni cilj skripti je Windows 10/11 Enterprise/Education sa Application Identity/AppLocker podrškom i standardnim nalogom igrača. Home i unmanaged Pro nisu release cilj ovog procesa. Windows Server može služiti laboratoriji. Nema implementiranog TPM-backed identity store-a niti WDAC deploy adaptera; DPAPI i AppLocker su konkretna implementacija.
+Windows 10 Home/Pro/Enterprise/Education (2004+, primarno 22H2/19045) i Windows 11 prolaze iste capability i enforcement provere. Neophodna je stvarna AppLocker podrška posle KB5024351 ili kumulativnog ažuriranja koje ga zamenjuje; instalirani KB broj nije dokaz enforcement-a. Windows Server nije podržan workstation cilj installer-a. Detaljna matrica i ograničenja su u [Windows acceptance postupku](WINDOWS_CLIENT_ACCEPTANCE.md). Nema implementiranog TPM-backed identity store-a niti WDAC deploy adaptera; DPAPI i AppLocker su konkretna implementacija.
 
 Profil eksplicitno navodi `LAUNCHER`, `GAME` i `HELPER` izvršne fajlove. Dozvoljeni launcher ne dozvoljava automatski child igru. Svaka putanja mora biti apsolutna, imati publisher ili SHA-256 trust uslov, opcion minimum file version, i nalaziti se u direktorijumu koji nije upisiv neprivilegovanom korisniku. Dependency group povezuje launcher, igre i helpers; Shell šalje application code, a putanje/argumente Service uzima iz verifikovanog snapshot-a.
 
-`apply-policy.ps1` beleži originalnu **lokalnu** AppLocker politiku i owned rule GUID-eve pre izmene. Pravila targetuju samo odabrani player SID; scripts/MSI ostaju ograničeni. Tuđa pravila/GPO/MDM i administratorske sesije ostaju van Client ownership-a. Unsafe putanje se odbijaju; skripta ne popravlja automatski ACL igre. Politika sa manjom verzijom se ne vraća kao običan downgrade: pripremiti novu višu konfiguracionu verziju.
+`apply-policy.ps1` i potpisani `windows-enforcement.ps1` beleže originalnu **lokalnu** AppLocker politiku i owned rule GUID-eve pre izmene. Pravila targetuju samo odabrani player SID; Exe, Script, Msi, Dll i Appx kolekcije su Enforced. Script/MSI i packaged apps nemaju player izuzetke; interpreter/installer hostovi nisu dozvoljene igre. DLL izuzeci su konkretni provereni fajlovi, bez opšteg Windows/Program Files wildcard-a. Tuđa pravila/GPO/MDM i administratorske sesije ostaju van Client ownership-a. Unsafe putanje se odbijaju; skripta ne popravlja automatski ACL igre. Politika sa manjom verzijom se ne vraća kao običan downgrade: pripremiti novu višu konfiguracionu verziju.
 
 ## Prekidi i oporavak
 
@@ -194,3 +200,11 @@ powershell.exe -NoProfile -ExecutionPolicy AllSigned -File "%ProgramFiles%\GMana
 Output roditeljski direktorijum mora postojati. Skripta uzima service state, verzije/hash-eve, event metapodatke i poslednje operational zapise; pregledati ZIP pre deljenja. Ne uključuje `identity.dpapi` niti sirove session snapshot-e. Ne slati private keys ili customer credentials.
 
 Automatske .NET provere i ručna acceptance matrica su u [TESTING.md](../development/TESTING.md) i [rollout vodiču](GAMING_CLIENT_PRODUCTION_ROLLOUT.md). Stvarni AppLocker, NTFS, reboot, network/power loss i game/anti-cheat ponašanje ostaju proverljivi tek na namenskom hardveru.
+
+**Enforcement dijagnostika i provere**
+
+`windows-capabilities.json` beleži izdanje/build i dostupnost komponenti; `enforcement-verification.json` razlikuje stvarnu EXE/DLL/host probu od obavezne interaktivne acceptance provere. Dokaz je vezan za boot, OS build/revision, player SID i Client verziju. Service pri oporavku ponavlja fizičku probu; promene sesije proveravaju efektivnu politiku i koriste samo važeći dokaz. Health, heartbeat i LOCK_ACK ne potvrđuju enforcement kada provera nije uspešna. Neuspeh primene odjavljuje player sesije i zadržava retryable ownership journal.
+
+`dll-paths.json` je zaštićen cache tačno proverenih DLL putanja, vezan za OS revision, Client verziju i autorizovane EXE fajlove. Repair obnavlja ovaj cache. Game direktorijumi sa writable poddirektorijumima se odbijaju, umesto automatske promene njihovih ACL-ova.
+
+Izolovani PowerShell testovi pokreću se i kroz .NET suite; proveravaju capability matricu, sva pravila, stvarni transakcioni kod uz mockovane Windows API-je, obe write-failure tačke, rollback, održavanje i health gate. Njihov prolaz ne predstavlja fizičku Home/Pro sertifikaciju. Konkretne preostale provere i rezultat lokalne read-only capability provere navedeni su u [acceptance dokumentu](WINDOWS_CLIENT_ACCEPTANCE.md).

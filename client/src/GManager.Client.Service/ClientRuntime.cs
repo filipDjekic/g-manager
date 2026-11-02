@@ -73,12 +73,14 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
         }
         if(enabled)
         {
+            if(!policy.CheckApplicationIdentity()) { ErrorCode="WINDOWS_ENFORCEMENT_UNAVAILABLE"; policy.ReapplyLocked(); }
             if(!maintenance) { policy.StopCustomerProcesses(); events.Write("MAINTENANCE_ENTER","LOCAL_ADMIN"); }
             maintenance=true;
             State=ClientViewState.Locked("Lokalni Windows administrator održava računar") with { Mode=ClientMode.Maintenance,Heading="Održavanje stanice" };
         }
         else
         {
+            if(!policy.CheckApplicationIdentity()) { ErrorCode="WINDOWS_ENFORCEMENT_UNAVAILABLE"; LockLocal("Application Identity unavailable"); }
             if(maintenance) {
                 maintenance=false;
                 ProtectedIdentityStore.AtomicWrite(MaintenancePath,JsonSerializer.SerializeToUtf8Bytes(new { ExpiresAt=DateTimeOffset.MinValue }));
@@ -89,7 +91,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
         }
         ProtectedIdentityStore.AtomicWrite(Path.Combine(environment.StateDirectory,"health.json"),JsonSerializer.SerializeToUtf8Bytes(new {
             timestamp=DateTimeOffset.UtcNow, mode=State.Mode.ToString(), version=environment.Version, initialized,
-            development=environment.Development, errorCode=ErrorCode, serverConnected=ServerConnected,
+            development=environment.Development, enforcementVerified=policy.EnforcementVerified, errorCode=ErrorCode, serverConnected=ServerConnected,
             deadline=recovery?.Lease.GraceEndsAt
         }));
     }
@@ -236,7 +238,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
     }
     async Task AckPendingLock(CancellationToken ct)
     {
-        if(environment.Development || maintenance || recovery?.PendingLockSequence is not long sequence || recovery.PendingLockSessionId is not Guid sessionId || !recovery.LocallyLocked) return;
+        if(environment.Development || maintenance || !policy.EnforcementVerified || recovery?.PendingLockSequence is not long sequence || recovery.PendingLockSessionId is not Guid sessionId || !recovery.LocallyLocked) return;
         if(recovery.Lease.Directive=="ACTIVE" && recovery.Lease.SessionId!=sessionId) { recovery=recovery with { PendingLockSequence=null,PendingLockSessionId=null }; return; }
         await protocol.LockAckAsync(token!,sessionId,sequence,recovery.Lease.LeaseId,"Client locally locked",ct);
         recovery=recovery with { PendingLockSequence=null,PendingLockSessionId=null };
@@ -261,6 +263,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
         if(locallyLocked && State.Mode==ClientMode.Locked) { policy.SetSessionActive(false); return; }
         policy.StopCustomerProcesses();
         policy.SetSessionActive(false);
+        policy.StopCustomerProcesses(); // Close a process that raced the policy transition.
         if(State.Mode!=ClientMode.Locked) events.Write("LOCAL_LOCK",reason);
         State=ClientViewState.Locked("Zaključano · "+reason);
         if(recovery is not null) recovery=recovery with { LocallyLocked=true };
@@ -268,7 +271,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
         }
     }
     Heartbeat Heartbeat()=>new(environment.Version,maintenance?"MAINTENANCE":State.Mode==ClientMode.Active?"SESSION_ACTIVE":"LOCKED",recovery?.AppliedSequence??0,
-        environment.Development || maintenance?"UNKNOWN":State.Mode==ClientMode.Active?"UNLOCKED":"LOCKED",recovery?.Lease.SessionId,recovery?.Lease.LeaseId,policy.CurrentVersion,
+        environment.Development || maintenance || !policy.EnforcementVerified?"UNKNOWN":State.Mode==ClientMode.Active?"UNLOCKED":"LOCKED",recovery?.Lease.SessionId,recovery?.Lease.LeaseId,policy.CurrentVersion,
         environment.Development?"DEVELOPMENT":"INSTALLED",UpdateStatus(),maintenance,ErrorCode);
     string? UpdateStatus()
     {

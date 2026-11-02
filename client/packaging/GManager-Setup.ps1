@@ -25,14 +25,16 @@ $mutex=[Threading.Mutex]::new($false,'Global\GManager.Client.Deployment')
 if(!(Enter-ClientMutex $mutex)){throw 'Instalacija ili ažuriranje je već u toku.'}
 $addedCertificate=$null
 try {
-    $os=Get-CimInstance Win32_OperatingSystem
     if(!(Test-Path -LiteralPath (Join-Path $script:ClientState 'client.json')) -and (Get-Service GManagerClient -ErrorAction SilentlyContinue)){
         throw 'Zatečena je legacy instalacija bez originalnog policy journal-a. Administrator prvo mora vratiti prethodne lokalne AppLocker/Chrome/NTFS postavke iz sopstvene rezervne kopije; identitet.dpapi sačuvajte. Installer neće nagađati originalnu Windows politiku.'
     }
-    if([int]$os.BuildNumber -lt 19041 -or $os.ProductType -ne 1){throw 'Potreban je Windows 10 (19041+) ili Windows 11 Enterprise/Education.'}
-    $edition=(Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion').EditionID
-    if($edition -notmatch '^(Enterprise|Education|IoTEnterprise)'){throw 'Produkcija zahteva podržan Enterprise/Education Windows sa AppLocker podrškom.'}
-    foreach($cmd in @('Get-AppLockerPolicy','Set-AppLockerPolicy','Register-ScheduledTask','Get-LocalUser')){if(!(Get-Command $cmd -ErrorAction SilentlyContinue)){throw "Nedostaje Windows komponenta: $cmd"}}
+    # Load only the capability module covered by the expected publisher signature.
+    $capabilityModule=Join-Path $PackageDirectory 'service\windows-enforcement.ps1'
+    Assert-Signature $capabilityModule $SigningSubject $SigningThumbprint
+    . $capabilityModule
+    $capabilities=Get-GManagerWindowsCapabilities
+    Write-Host "Windows $($capabilities.Edition), build $($capabilities.Build).$($capabilities.Revision)"
+    Assert-GManagerWindowsCapabilities $capabilities
     if(!$PlayerAccount){$PlayerAccount=Read-Host 'Postojeći standardni lokalni Windows nalog igrača'}
     $player=Get-LocalUser -Name $PlayerAccount
     if(!$player.Enabled){throw 'Windows nalog igrača mora biti aktivan.'}
@@ -53,13 +55,14 @@ try {
         $installedConfig=Read-ClientConfig
         if($installedConfig.Package.SigningThumbprint -ine $SigningThumbprint){
             $uninstallPath=Join-Path $script:ClientState 'uninstall.json'
-            if((Get-Service GManagerClient -ErrorAction SilentlyContinue) -or !(Test-Path -LiteralPath $uninstallPath) -or (Get-Content -LiteralPath $uninstallPath -Raw|ConvertFrom-Json).phase -ne 'Complete'){throw 'Promena signing sertifikata zahteva uninstall bez -PurgeData, zatim instalaciju novog pouzdanog izdanja. Identitet ostaje sačuvan.'}
+            if((Get-Service GManagerClient -ErrorAction SilentlyContinue) -or !(Test-Path -LiteralPath $uninstallPath) -or (Get-Content -Encoding UTF8 -LiteralPath $uninstallPath -Raw|ConvertFrom-Json).phase -ne 'Complete'){throw 'Promena signing sertifikata zahteva uninstall bez -PurgeData, zatim instalaciju novog pouzdanog izdanja. Identitet ostaje sačuvan.'}
         }
     }
     $architecture=(Get-CimInstance Win32_Processor|Select-Object -First 1).Architecture
     if(![Environment]::Is64BitProcess -or ($manifest.runtime -eq 'win-x64' -and $architecture -ne 9) -or ($manifest.runtime -eq 'win-arm64' -and $architecture -ne 12) -or $manifest.runtime -notin @('win-x64','win-arm64')){throw 'Arhitektura paketa ne odgovara Windows-u. Koristite 64-bitni PowerShell i odgovarajući win-x64/win-arm64 release.'}
     New-ProtectedDirectory (Split-Path $script:ClientState -Parent)
     New-ProtectedDirectory $script:ClientState
+    Write-AtomicJson (Join-Path $script:ClientState 'windows-capabilities.json') $capabilities
     Write-Operation 'INSTALL_BEGIN' 'LOCAL_ADMIN'
     if(!$BackendUrl){$BackendUrl=Read-Host 'HTTPS adresa G-Manager servera'}
     $backend=Assert-Https $BackendUrl
@@ -68,7 +71,7 @@ try {
         if([Security.Cryptography.X509Certificates.X509Certificate2]::GetCertContentType([IO.File]::ReadAllBytes((Resolve-Path -LiteralPath $LocalCaCertificate).Path)) -ne [Security.Cryptography.X509Certificates.X509ContentType]::Cert){throw 'Dozvoljen je samo javni CA sertifikat; PFX i privatni ključevi nisu dozvoljeni.'}
         $certificate=[Security.Cryptography.X509Certificates.X509Certificate2]::new((Resolve-Path -LiteralPath $LocalCaCertificate).Path)
         $ownedCaPath=Join-Path $script:ClientState 'installed-ca.json'
-        if(Test-Path -LiteralPath $ownedCaPath){$ownedCa=Get-Content -LiteralPath $ownedCaPath -Raw|ConvertFrom-Json;if($ownedCa.phase -ne 'Removed' -and $ownedCa.thumbprint -ine $certificate.Thumbprint){throw 'Rotacija lokalnog CA zahteva prethodnu deinstalaciju bez brisanja identiteta, pa novu instalaciju.'}}
+        if(Test-Path -LiteralPath $ownedCaPath){$ownedCa=Get-Content -Encoding UTF8 -LiteralPath $ownedCaPath -Raw|ConvertFrom-Json;if($ownedCa.phase -ne 'Removed' -and $ownedCa.thumbprint -ine $certificate.Thumbprint){throw 'Rotacija lokalnog CA zahteva prethodnu deinstalaciju bez brisanja identiteta, pa novu instalaciju.'}}
         $sha=[Security.Cryptography.SHA256]::Create();try{$actual=([BitConverter]::ToString($sha.ComputeHash($certificate.RawData))).Replace('-','')}finally{$sha.Dispose()}
         if(!$ExpectedCaSha256 -or $actual -ine $ExpectedCaSha256.Replace(':','')){throw 'SHA-256 fingerprint lokalnog CA sertifikata se ne podudara.'}
         $constraints=$certificate.Extensions|Where-Object { $_.Oid.Value -eq '2.5.29.19' }
@@ -126,20 +129,20 @@ try {
     Assert-Healthy
     Write-AtomicJson (Join-Path $script:ClientState 'update-status.json') @{status='CURRENT';timestamp=[DateTimeOffset]::UtcNow.ToString('o')}
     $caRecord=Join-Path $script:ClientState 'installed-ca.json'
-    if(Test-Path -LiteralPath $caRecord){$ownedCa=Get-Content -LiteralPath $caRecord -Raw|ConvertFrom-Json;if($ownedCa.phase -eq 'Pending'){$ownedCa.phase='Added';Write-AtomicJson $caRecord $ownedCa}}
+    if(Test-Path -LiteralPath $caRecord){$ownedCa=Get-Content -Encoding UTF8 -LiteralPath $caRecord -Raw|ConvertFrom-Json;if($ownedCa.phase -eq 'Pending'){$ownedCa.phase='Added';Write-AtomicJson $caRecord $ownedCa}}
     $publisherPath=Join-Path $script:ClientState 'publisher.json'
-    if(Test-Path -LiteralPath $publisherPath){$publisher=Get-Content -LiteralPath $publisherPath -Raw|ConvertFrom-Json;if($publisher.phase -eq 'Pending'){$publisher.phase='Added';Write-AtomicJson $publisherPath $publisher}}
+    if(Test-Path -LiteralPath $publisherPath){$publisher=Get-Content -Encoding UTF8 -LiteralPath $publisherPath -Raw|ConvertFrom-Json;if($publisher.phase -eq 'Pending'){$publisher.phase='Added';Write-AtomicJson $publisherPath $publisher}}
     Write-Operation 'INSTALL_COMPLETE' $manifest.version
-    $journal=Get-Content -LiteralPath (Join-Path $script:ClientState 'deployment.json') -Raw|ConvertFrom-Json;$journal.phase='Complete';Write-AtomicJson (Join-Path $script:ClientState 'deployment.json') $journal
+    $journal=Get-Content -Encoding UTF8 -LiteralPath (Join-Path $script:ClientState 'deployment.json') -Raw|ConvertFrom-Json;$journal.phase='Complete';Write-AtomicJson (Join-Path $script:ClientState 'deployment.json') $journal
     Start-ScheduledTask -TaskName 'GManagerClientShell' -ErrorAction SilentlyContinue
     Write-Host "G-MANAGER · Finish. Instalacija je završena. Za upravljanje: `"$script:ClientRoot\gmanagerctl.cmd`" status"
 }catch{
     $failure=$_
     if(Test-Path -LiteralPath (Join-Path $script:ClientState 'deployment.json')){try{Resolve-ClientTransaction}catch{Write-Warning 'Rollback nije završen. Koristite ProgramData\GManager\Client\recovery\gmanagerctl.ps1 repair -Recovery.'}}
     $caRecord=Join-Path $script:ClientState 'installed-ca.json'
-    if(Test-Path -LiteralPath $caRecord){$ownedCa=Get-Content -LiteralPath $caRecord -Raw|ConvertFrom-Json;if($ownedCa.phase -eq 'Pending'){Remove-OwnedCa}}
+    if(Test-Path -LiteralPath $caRecord){$ownedCa=Get-Content -Encoding UTF8 -LiteralPath $caRecord -Raw|ConvertFrom-Json;if($ownedCa.phase -eq 'Pending'){Remove-OwnedCa}}
     $publisherPath=Join-Path $script:ClientState 'publisher.json'
-    if(Test-Path -LiteralPath $publisherPath){$publisher=Get-Content -LiteralPath $publisherPath -Raw|ConvertFrom-Json;if($publisher.phase -eq 'Pending'){Remove-OwnedPublisher}}
+    if(Test-Path -LiteralPath $publisherPath){$publisher=Get-Content -Encoding UTF8 -LiteralPath $publisherPath -Raw|ConvertFrom-Json;if($publisher.phase -eq 'Pending'){Remove-OwnedPublisher}}
     if(Test-Path -LiteralPath $script:ClientState){Write-Operation 'INSTALL_FAILED' $failure.Exception.GetType().Name}
     throw $failure
 }finally{$mutex.ReleaseMutex();$mutex.Dispose()}

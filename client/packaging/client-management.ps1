@@ -29,11 +29,11 @@ function Write-AtomicJson([string]$Path,$Value) {
     $stream=[IO.FileStream]::new($Path+'.tmp',[IO.FileMode]::Create,[IO.FileAccess]::Write,[IO.FileShare]::None,4096,[IO.FileOptions]::WriteThrough)
     try{$stream.Write($bytes,0,$bytes.Length);$stream.Flush($true)}finally{$stream.Dispose()}
     for($attempt=0;;$attempt++){
-        try{if(Test-Path -LiteralPath $Path){[IO.File]::Replace($Path+'.tmp',$Path,$null)}else{[IO.File]::Move($Path+'.tmp',$Path)};break}
+        try{if(Test-Path -LiteralPath $Path){[IO.File]::Replace($Path+'.tmp',$Path,[System.Management.Automation.Language.NullString]::Value)}else{[IO.File]::Move($Path+'.tmp',$Path)};break}
         catch [IO.IOException]{if($attempt -ge 9){throw};Start-Sleep -Milliseconds 25}
     }
 }
-function Read-ClientConfig { Get-Content -LiteralPath (Join-Path $script:ClientState 'client.json') -Raw|ConvertFrom-Json }
+function Read-ClientConfig { Get-Content -Encoding UTF8 -LiteralPath (Join-Path $script:ClientState 'client.json') -Raw|ConvertFrom-Json }
 function Write-Operation([string]$Operation,[string]$Result) {
     $record=@{timestamp=[DateTimeOffset]::UtcNow.ToString('o');eventCode=$Operation;state=$Result;actor=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value}|ConvertTo-Json -Compress
     Add-Content -LiteralPath (Join-Path $script:ClientState 'management.jsonl') -Value $record -Encoding UTF8
@@ -85,7 +85,7 @@ function Assert-Package([string]$Directory,[string]$Subject,[string]$Thumbprint)
     $cms=[Security.Cryptography.Pkcs.SignedCms]::new([Security.Cryptography.Pkcs.ContentInfo]::new([IO.File]::ReadAllBytes($manifestPath)),$true)
     $cms.Decode([IO.File]::ReadAllBytes($signaturePath));$cms.CheckSignature($false)
     if($cms.SignerInfos.Count -ne 1 -or $cms.SignerInfos[0].Certificate.Subject -cne $Subject -or $cms.SignerInfos[0].Certificate.Thumbprint -ine $Thumbprint){throw 'Release manifest nema očekivani potpis izdavača.'}
-    $manifest=Get-Content -LiteralPath $manifestPath -Raw|ConvertFrom-Json
+    $manifest=Get-Content -Encoding UTF8 -LiteralPath $manifestPath -Raw|ConvertFrom-Json
     if($manifest.mode -ne 'Production' -or $manifest.version -notmatch '^\d+\.\d+\.\d+(\.\d+)?$'){throw 'Produkcioni paket ne sme sadržati development konfiguraciju.'}
     $expected=@('release.json','release.p7s')
     foreach($item in Get-ChildItem -LiteralPath $Directory -Recurse -Force){Assert-NoReparse $item.FullName}
@@ -98,8 +98,8 @@ function Assert-Package([string]$Directory,[string]$Subject,[string]$Thumbprint)
         $expected+= $entry.path.Replace('/','\')
     }
     foreach($file in Get-ChildItem -LiteralPath $Directory -Recurse -File){Assert-NoReparse $file.FullName;$relative=$file.FullName.Substring($Directory.TrimEnd('\').Length+1);if($relative -notin $expected){throw "Datoteka nije navedena u potpisanom manifestu: $relative"}}
-    foreach($required in @('service\GManager.Client.Service.exe','shell\GManager.Client.Shell.exe','service\apply-policy.ps1','gmanagerctl.ps1','client-management.ps1','update-client.ps1','uninstall-service.ps1','GManager-Setup.ps1','gmanagerctl.cmd')){if($required -notin $expected){throw "Nedostaje obavezna datoteka: $required"}}
-    $settings=Get-Content -LiteralPath (Join-Path $Directory 'service\appsettings.json') -Raw|ConvertFrom-Json
+    foreach($required in @('service\GManager.Client.Service.exe','shell\GManager.Client.Shell.exe','service\apply-policy.ps1','service\windows-enforcement.ps1','gmanagerctl.ps1','client-management.ps1','update-client.ps1','uninstall-service.ps1','GManager-Setup.ps1','gmanagerctl.cmd')){if($required -notin $expected){throw "Nedostaje obavezna datoteka: $required"}}
+    $settings=Get-Content -Encoding UTF8 -LiteralPath (Join-Path $Directory 'service\appsettings.json') -Raw|ConvertFrom-Json
     if($settings.Client.Mode -ne 'Production' -or $settings.Client.Version -ne $manifest.version){throw 'Release konfiguracija nije produkciona.'}
     return $manifest
 }
@@ -147,12 +147,28 @@ function Start-ClientService {
 }
 function Invoke-Policy([string]$Action) {
     $scriptPath=Join-Path $script:ClientState 'recovery\apply-policy.ps1'
-    Invoke-Native $script:PowerShell @('-NoProfile','-NonInteractive','-ExecutionPolicy','AllSigned','-File',$scriptPath,'-Action',$Action,'-StateDirectory',$script:ClientState)
+    Invoke-Native $script:PowerShell @('-NoProfile','-NonInteractive','-ExecutionPolicy','AllSigned','-File',$scriptPath,'-Action',$Action,'-StateDirectory',$script:ClientState,'-VerifyEnforcement')
 }
 function Get-Maintenance {
     $path=Join-Path $script:ClientState 'maintenance.json'
     if(!(Test-Path -LiteralPath $path)){return $false}
-    return [DateTimeOffset]::Parse((Get-Content -LiteralPath $path -Raw|ConvertFrom-Json).ExpiresAt) -gt [DateTimeOffset]::UtcNow
+    return [DateTimeOffset]::Parse((Get-Content -Encoding UTF8 -LiteralPath $path -Raw|ConvertFrom-Json).ExpiresAt) -gt [DateTimeOffset]::UtcNow
+}
+function Restore-ClientLockdown([string]$PlayerSid) {
+    Stop-PlayerSessions $PlayerSid
+    Suspend-LocalSession
+    $leasePath=Join-Path $script:ClientState 'maintenance.json'
+    Write-AtomicJson $leasePath @{ExpiresAt=[DateTimeOffset]::MinValue.ToString('o')}
+    Write-AtomicJson (Join-Path $script:ClientState 'allowed-paths.json') @()
+    Invoke-Policy 'Apply'
+    # A failed policy application leaves an expired lease and retryable recovery state.
+    Remove-Item -LiteralPath $leasePath -Force
+}
+function Restore-ExpiredClientMaintenance([string]$PlayerSid) {
+    if((Test-Path -LiteralPath (Join-Path $script:ClientState 'maintenance.json')) -and !(Get-Maintenance)){
+        Restore-ClientLockdown $PlayerSid
+        Write-Operation 'MAINTENANCE_EXPIRED' 'LOCKED'
+    }
 }
 function Register-RecoveryTasks {
     $cli=Join-Path $script:ClientState 'recovery\gmanagerctl.ps1'
@@ -170,8 +186,11 @@ function Register-MaintenanceExpiry([DateTimeOffset]$Expiry) {
 }
 function Save-RecoveryTools([string]$PackageDirectory,[string]$Subject,[string]$Thumbprint) {
     $recovery=Join-Path $script:ClientState 'recovery';New-ProtectedDirectory $recovery
-    foreach($name in @('client-management.ps1','gmanagerctl.ps1','update-client.ps1','uninstall-service.ps1','support-bundle.ps1')){Copy-Item -LiteralPath (Join-Path $PackageDirectory $name) -Destination $recovery -Force}
+    # Stage the signed dependency before any script that imports it.
+    Copy-Item -LiteralPath (Join-Path $PackageDirectory 'service\windows-enforcement.ps1') -Destination $recovery -Force
+    Assert-Signature (Join-Path $recovery 'windows-enforcement.ps1') $Subject $Thumbprint
     Copy-Item -LiteralPath (Join-Path $PackageDirectory 'service\apply-policy.ps1') -Destination $recovery -Force
+    foreach($name in @('client-management.ps1','gmanagerctl.ps1','update-client.ps1','uninstall-service.ps1','support-bundle.ps1')){Copy-Item -LiteralPath (Join-Path $PackageDirectory $name) -Destination $recovery -Force}
     $panel=Join-Path $PackageDirectory 'GManager-Management.ps1'
     if(Test-Path -LiteralPath $panel){Copy-Item -LiteralPath $panel -Destination $recovery -Force}
     foreach($file in Get-ChildItem -LiteralPath $recovery -Filter '*.ps1'){Assert-Signature $file.FullName $Subject $Thumbprint}
@@ -179,7 +198,7 @@ function Save-RecoveryTools([string]$PackageDirectory,[string]$Subject,[string]$
 function Resolve-ClientTransaction {
     $path=Join-Path $script:ClientState 'deployment.json'
     if(!(Test-Path -LiteralPath $path)){return}
-    $journal=Get-Content -LiteralPath $path -Raw|ConvertFrom-Json
+    $journal=Get-Content -Encoding UTF8 -LiteralPath $path -Raw|ConvertFrom-Json
     if($journal.phase -in @('Complete','RolledBack')){return}
     Write-Operation 'DEPLOYMENT_RECOVERY' $journal.phase
     Stop-ClientShell
@@ -201,14 +220,15 @@ function Resolve-ClientTransaction {
     if($journal.hadInstallation){Start-ClientService}
     Write-AtomicJson (Join-Path $script:ClientState 'update-status.json') @{status='ROLLED_BACK';timestamp=[DateTimeOffset]::UtcNow.ToString('o')}
 }
-function Assert-Healthy {
-    $until=[DateTime]::UtcNow.AddSeconds(45)
+function Assert-Healthy([int]$TimeoutSeconds=240) {
+    $until=[DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
     $expectedVersion=(Read-ClientConfig).Client.Version
     do{
         $healthPath=Join-Path $script:ClientState 'health.json'
         if((Get-Service GManagerClient -ErrorAction SilentlyContinue).Status -eq 'Running' -and (Test-Path -LiteralPath $healthPath)){
-            $health=Get-Content -LiteralPath $healthPath -Raw|ConvertFrom-Json
-            if([DateTimeOffset]::Parse($health.timestamp) -gt [DateTimeOffset]::UtcNow.AddSeconds(-5) -and $health.initialized -and $health.version -eq $expectedVersion -and !$health.development -and $health.errorCode -in @($null,'BACKEND_UNAVAILABLE','BACKEND_TIMEOUT','SESSION_RECONCILIATION_REQUIRED')){return}
+            $health=Get-Content -Encoding UTF8 -LiteralPath $healthPath -Raw|ConvertFrom-Json
+            $verified=$health.PSObject.Properties.Name -contains 'enforcementVerified' -and $health.enforcementVerified
+            if([DateTimeOffset]::Parse($health.timestamp) -gt [DateTimeOffset]::UtcNow.AddSeconds(-5) -and $health.initialized -and $health.version -eq $expectedVersion -and !$health.development -and $verified -and $health.errorCode -in @($null,'BACKEND_UNAVAILABLE','BACKEND_TIMEOUT','SESSION_RECONCILIATION_REQUIRED')){return}
         }
         Start-Sleep -Seconds 1
     }while([DateTime]::UtcNow -lt $until)
@@ -268,7 +288,7 @@ namespace GManager {
 function Suspend-LocalSession {
     $path=Join-Path $script:ClientState 'snapshot.json'
     if(Test-Path -LiteralPath $path){
-        $snapshot=Get-Content -LiteralPath $path -Raw|ConvertFrom-Json
+        $snapshot=Get-Content -Encoding UTF8 -LiteralPath $path -Raw|ConvertFrom-Json
         if($snapshot.Lease.SessionId){
             $snapshot|Add-Member -MemberType NoteProperty -Name BlockedSessionId -Value $snapshot.Lease.SessionId -Force
             $snapshot|Add-Member -MemberType NoteProperty -Name LocallyLocked -Value $true -Force
@@ -280,7 +300,7 @@ function Suspend-LocalSession {
 function Remove-OwnedCa {
     $recordPath=Join-Path $script:ClientState 'installed-ca.json'
     if(!(Test-Path -LiteralPath $recordPath)){return}
-    $record=Get-Content -LiteralPath $recordPath -Raw|ConvertFrom-Json
+    $record=Get-Content -Encoding UTF8 -LiteralPath $recordPath -Raw|ConvertFrom-Json
     if($record.phase -eq 'Removed'){return}
     if($record.thumbprint -notmatch '^[A-Fa-f0-9]{40}$'){throw 'Neispravna evidencija CA sertifikata.'}
     $path="Cert:\LocalMachine\Root\$($record.thumbprint)"
@@ -309,7 +329,7 @@ function Trust-PackagePublisher([string]$PackageDirectory,[string]$Subject,[stri
 function Remove-OwnedPublisher {
     $path=Join-Path $script:ClientState 'publisher.json'
     if(!(Test-Path -LiteralPath $path)){return}
-    $record=Get-Content -LiteralPath $path -Raw|ConvertFrom-Json
+    $record=Get-Content -Encoding UTF8 -LiteralPath $path -Raw|ConvertFrom-Json
     if($record.phase -eq 'Removed'){return}
     if($record.thumbprint -notmatch '^[a-fA-F0-9]{40}$'){throw 'Neispravna evidencija izdavača.'}
     $cert="Cert:\LocalMachine\TrustedPublisher\$($record.thumbprint)"

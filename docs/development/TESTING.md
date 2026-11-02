@@ -55,6 +55,8 @@ Windows Client, iz `client/` na Windows-u sa .NET 10 SDK:
 dotnet restore GManager.Client.slnx
 dotnet build GManager.Client.slnx -c Release --no-restore -warnaserror
 dotnet test GManager.Client.slnx -c Release --no-build
+# Isti izolovani Windows/packaging ugovori bez dodatne test zavisnosti:
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File tests\windows-enforcement.Tests.ps1
 ```
 
 Potpunije lokalne CI skripte su `.\scripts\ci.ps1` (uključuje .NET) i `bash scripts/ci.sh` (backend/frontend). PowerShell opcije `-SkipMySql` i `-SkipE2E`, odnosno Bash `SKIP_MYSQL=true` i `SKIP_E2E=true`, preskaču te korake i smanjuju obuhvat. CI skripte rade build i dependency upite; nisu samo read-only provera dokumentacije.
@@ -72,7 +74,7 @@ Potpunije lokalne CI skripte su `.\scripts\ci.ps1` (uključuje .NET) i `bash scr
 | Gaming/protocol | Paralelni start, jedan customer/stanica, produženje/version, istek, terminalni status, replay challenge/command, pogrešna stanica, lock ACK i reconciliation |
 | Windows | Potpisani paket, standardni nalog, dozvoljene i zabranjene aplikacije, offline grace, sat unazad, restart/reboot, maintenance expiry, update rollback i uninstall/reinstall |
 
-Za fizičke Windows scenarije koristiti namensku stanicu i [rollout vodič](../operations/GAMING_CLIENT_PRODUCTION_ROLLOUT.md). Statički pregled/test klase ne potvrđuju stvarno zaustavljanje procesa ili fizički LOCK_ACK.
+PowerShell suite koristi privatne privremene direktorijume i mockovane Windows policy/service/task API-je. Ne menja AppLocker ni sistemske servise. Pokriva Home/Pro/Enterprise/Education capability matricu, neuspešan enforcement/probe, ownership konflikte, reinstalaciju, prekinuti update/rollback, maintenance expiry i uninstall policy restore. Za fizičke scenarije koristiti [Home/Pro acceptance matricu](../operations/WINDOWS_CLIENT_ACCEPTANCE.md), namensku stanicu i [rollout vodič](../operations/GAMING_CLIENT_PRODUCTION_ROLLOUT.md). Statički pregled/test klase ne potvrđuju stvarno zaustavljanje procesa ili fizički LOCK_ACK.
 
 ## CI i release
 
