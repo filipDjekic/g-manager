@@ -23,7 +23,7 @@
         <jacoco.version>0.8.14</jacoco.version>
         <checkstyle.version>10.21.4</checkstyle.version>
         <cyclonedx.version>2.9.1</cyclonedx.version>
-        <aws-sdk.version>2.31.54</aws-sdk.version>
+        <aws-sdk.version>2.57.7</aws-sdk.version>
         <poi.version>5.4.1</poi.version>
         <pdfbox.version>3.0.4</pdfbox.version>
     </properties>
