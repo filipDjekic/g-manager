@@ -2,13 +2,11 @@ package com.game_manager.gm.customer;
 
 import com.game_manager.gm.audit.AuditVisibility;
 import com.game_manager.gm.audit.AuditWriter;
-import com.game_manager.gm.auth.SecurityEvent;
-import com.game_manager.gm.auth.SecurityEventRepository;
-import com.game_manager.gm.auth.SecurityEventType;
 import com.game_manager.gm.common.error.ApplicationException;
 import com.game_manager.gm.common.security.AuthenticatedUser;
 import com.game_manager.gm.common.security.CurrentUserProvider;
 import com.game_manager.gm.common.security.Role;
+import com.game_manager.gm.common.security.SecurityEventPort;
 import com.game_manager.gm.common.security.SessionRevocationPort;
 import com.game_manager.gm.customer.dto.CreateCustomerRequest;
 import com.game_manager.gm.customer.dto.CustomerOnboardingResponse;
@@ -46,7 +44,7 @@ public class CustomerAccountService {
     private final OutboxWriter outbox;
     private final CustomerActivationCodeGenerator activationCodes;
     private final CustomerActivationHash activationHash;
-    private final SecurityEventRepository securityEvents;
+    private final SecurityEventPort securityEvents;
     private final Clock clock;
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -152,8 +150,7 @@ public class CustomerAccountService {
         customer.setMustChangePassword(false);
         users.save(customer);
         activationTokens.consumeActiveForUser(customer.getId(), now);
-        securityEvents.save(new SecurityEvent(customer.getId(), null,
-                SecurityEventType.ACTIVATION_SUCCESS, "Customer activation", ipHash));
+        securityEvents.recordActivationSuccess(customer.getId(), ipHash);
         outbox.write(DomainEventType.USER_PASSWORD_CHANGED, "USER", customer.getId(),
                 Map.of("activation", true));
     }

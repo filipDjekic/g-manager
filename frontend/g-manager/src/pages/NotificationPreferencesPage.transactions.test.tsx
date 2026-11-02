@@ -1,9 +1,10 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { createMemoryRouter, Outlet, RouterProvider } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { notificationApi } from '../api/notificationApi'
 import { useAuthStore } from '../auth/authStore'
+import { NavigationSafety } from '../forms/NavigationSafety'
 import { authUser } from '../test/fixtures'
 import type { NotificationPreference } from '../types/notification.types'
 import { NotificationPreferencesPage } from './NotificationPreferencesPage'
@@ -12,9 +13,10 @@ vi.mock('../api/notificationApi', () => ({ notificationApi: { preferences: vi.fn
 const security: NotificationPreference = { type: 'SECURITY_SESSION_STARTED', mandatory: true, inAppEnabled: true, emailEnabled: true }
 const optional: NotificationPreference[] = ['RESERVATION_CREATED', 'ORDER_CREATED'].map(type => ({ type: type as NotificationPreference['type'], mandatory: false, inAppEnabled: true, emailEnabled: false }))
 function page() {
-  return render(<MemoryRouter initialEntries={['/home', '/preferences']}><Routes>
-    <Route path="home" element={<p>Home</p>} /><Route path="preferences" element={<NotificationPreferencesPage />} />
-  </Routes></MemoryRouter>)
+  const router = createMemoryRouter([{ element: <><NavigationSafety /><Outlet /></>, children: [
+    { path: '/home', element: <p>Home</p> }, { path: '/preferences', element: <NotificationPreferencesPage /> },
+  ] }], { initialEntries: ['/home', '/preferences'] })
+  return render(<RouterProvider router={router} />)
 }
 describe('notification preference transactions', () => {
   beforeEach(() => {
@@ -69,6 +71,43 @@ describe('notification preference transactions', () => {
     expect(notificationApi.savePreference).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: 'Nazad' }))
     expect(screen.getByText('Home')).toBeVisible()
+  })
+
+  it('protects unsaved channel changes when navigating back and leaves only after confirmation', async () => {
+    page(); const user = userEvent.setup()
+    const email = await screen.findByRole('checkbox', { name: 'Email: sva neobavezna obaveštenja' })
+    await user.click(email)
+    await user.click(screen.getByRole('button', { name: 'Nazad' }))
+    let dialog = await screen.findByRole('dialog', { name: 'Napusti stranicu?' })
+    const stay = within(dialog).getByRole('button', { name: 'Ostani na stranici' })
+    expect(stay).toHaveFocus()
+    await user.click(stay)
+    expect(email).toBeChecked()
+    expect(screen.getByText('Nesačuvane izmene: 2.')).toBeVisible()
+    expect(screen.queryByText('Home')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Nazad' }))
+    dialog = await screen.findByRole('dialog', { name: 'Napusti stranicu?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Napusti stranicu' }))
+    expect(await screen.findByText('Home')).toBeVisible()
+    expect(notificationApi.savePreference).not.toHaveBeenCalled()
+  })
+
+  it('keeps back navigation disabled until a preference save is acknowledged', async () => {
+    let acknowledge!: (value: NotificationPreference) => void
+    vi.mocked(notificationApi.savePreference).mockImplementationOnce(() => new Promise(resolve => { acknowledge = resolve }))
+    page(); const user = userEvent.setup()
+    const table = await screen.findByRole('table')
+    await user.click(within(table).getByRole('checkbox', { name: 'Nova rezervacija - email' }))
+    await user.click(screen.getByRole('button', { name: 'Sačuvaj promene' }))
+    const back = screen.getByRole('button', { name: 'Nazad' })
+    expect(back).toBeDisabled()
+    await user.click(back)
+    expect(screen.queryByText('Home')).not.toBeInTheDocument()
+    await act(async () => acknowledge({ ...optional[0], emailEnabled: true }))
+    expect(back).toBeEnabled()
+    await user.click(back)
+    expect(await screen.findByText('Home')).toBeVisible()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('recovers from a load error and supports an empty preference response', async () => {

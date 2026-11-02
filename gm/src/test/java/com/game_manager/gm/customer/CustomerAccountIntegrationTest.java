@@ -44,6 +44,7 @@ class CustomerAccountIntegrationTest {
     @Autowired CustomerActivationHash activationHash;
     @Autowired CustomerActivationCleanup cleanup;
     @Autowired CustomerActivationGuard guard;
+    @Autowired CustomerAccountService accounts;
     @Autowired JdbcTemplate jdbc;
     @Autowired PlatformTransactionManager transactions;
     private final ObjectMapper json = new ObjectMapper();
@@ -208,6 +209,29 @@ class CustomerAccountIntegrationTest {
         } finally { start.countDown(); }
         assertThat(jdbc.queryForObject("select count(*) from security_events where user_id = ? "
                         + "and event_type = 'ACTIVATION_SUCCESS'", Integer.class, created.get("id").asText())).isOne();
+    }
+
+    @Test
+    void activationAndItsSecurityEventRollBackTogether() throws Exception {
+        JsonNode created = createCustomer(login(user(Role.EMPLOYEE)));
+        UUID id = UUID.fromString(created.get("id").asText());
+        String email = created.get("email").asText(), code = created.get("activationSecret").asText();
+        String passwordHash = users.findById(id).orElseThrow().getPasswordHash();
+        new TransactionTemplate(transactions).executeWithoutResult(status -> {
+            accounts.activate(email, code, "CustomerPass1!", "0".repeat(64));
+            users.flush();
+            assertThat(jdbc.queryForObject("select count(*) from security_events where user_id = ? "
+                    + "and event_type = 'ACTIVATION_SUCCESS'", Integer.class, id.toString())).isOne();
+            status.setRollbackOnly();
+        });
+        User customer = users.findById(id).orElseThrow();
+        assertThat(customer.isMustChangePassword()).isTrue();
+        assertThat(customer.getPasswordHash()).isEqualTo(passwordHash);
+        assertThat(jdbc.queryForObject("select count(*) from security_events where user_id = ? "
+                + "and event_type = 'ACTIVATION_SUCCESS'", Integer.class, id.toString())).isZero();
+        activate(email, code, "192.0.2.1").andExpect(status().isNoContent());
+        assertThat(jdbc.queryForObject("select count(*) from security_events where user_id = ? "
+                + "and event_type = 'ACTIVATION_SUCCESS'", Integer.class, id.toString())).isOne();
     }
 
     @Test

@@ -5,10 +5,10 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 import com.game_manager.gm.audit.AuditWriter;
-import com.game_manager.gm.auth.SecurityEventRepository;
 import com.game_manager.gm.common.error.ApplicationException;
 import com.game_manager.gm.common.security.CurrentUserProvider;
 import com.game_manager.gm.common.security.Role;
+import com.game_manager.gm.common.security.SecurityEventPort;
 import com.game_manager.gm.common.security.SessionRevocationPort;
 import com.game_manager.gm.events.OutboxWriter;
 import com.game_manager.gm.user.User;
@@ -37,7 +37,7 @@ class CustomerActivationExpiryTest {
     @Mock OutboxWriter outbox;
     @Mock CustomerActivationCodeGenerator codes;
     @Mock CustomerActivationHash hashes;
-    @Mock SecurityEventRepository securityEvents;
+    @Mock SecurityEventPort securityEvents;
     @Mock Clock clock;
     @InjectMocks CustomerAccountService service;
     private CustomerActivationToken token;

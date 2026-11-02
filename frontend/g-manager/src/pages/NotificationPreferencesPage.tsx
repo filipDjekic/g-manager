@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { apiErrorMessage } from '../api/client'
 import { notificationApi } from '../api/notificationApi'
 import { useAuthStore } from '../auth/authStore'
@@ -22,6 +23,7 @@ export function NotificationPreferencesPage() {
 }
 
 function PreferencesWorkspace({ actorId }: { actorId: string }) {
+  const navigate = useNavigate()
   const [saved, setSaved] = useState<NotificationPreference[]>([])
   const [draft, setDraft] = useState<NotificationPreference[]>([])
   const [loading, setLoading] = useState(true)
@@ -118,7 +120,8 @@ function PreferencesWorkspace({ actorId }: { actorId: string }) {
   }
 
   return <PageLayout className="gm-notification-preferences">
-    <NotificationPreferencesHeading />
+    <NotificationPreferencesHeading actions={<Button type="button" variant="secondary" disabled={saving}
+      onClick={() => navigate(-1)}><NotificationIcon kind="arrow" />Nazad</Button>} />
     <div className="gm-notification-draft-status" role="status" aria-live="polite" data-dirty={dirty}>
       <span>{saving ? 'Čuvanje podešavanja…' : dirty ? `Nesačuvane izmene: ${changes.length}.`
         : loading ? 'Učitavanje podešavanja…' : loadError ? 'Podešavanja nisu dostupna.' : 'Nema nesačuvanih izmena.'}</span>
