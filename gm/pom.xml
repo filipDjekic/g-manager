@@ -20,7 +20,7 @@
         <jjwt.version>0.12.5</jjwt.version>
         <archunit.version>1.4.2</archunit.version>
         <testcontainers.version>2.0.3</testcontainers.version>
-        <jacoco.version>0.8.14</jacoco.version>
+        <jacoco.version>0.8.16</jacoco.version>
         <checkstyle.version>10.21.4</checkstyle.version>
         <cyclonedx.version>2.9.1</cyclonedx.version>
         <aws-sdk.version>2.31.54</aws-sdk.version>
