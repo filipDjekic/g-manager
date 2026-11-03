@@ -107,7 +107,13 @@ services:
     read_only: true
     tmpfs: [/var/cache/nginx:size=32m,noexec,nosuid, /tmp:size=16m,noexec,nosuid]
     ports: ["127.0.0.1:${APP_PORT:-8080}:8080"]
-    volumes: ["${CLIENT_RELEASES_DIR:?Client release directory required}:/usr/share/nginx/html/downloads/gmanager-client:ro"]
+    volumes:
+      - type: bind
+        source: ${CLIENT_RELEASES_DIR:?Client release directory required}
+        target: /usr/share/nginx/html/downloads/gmanager-client
+        read_only: true
+        bind:
+          create_host_path: false
     networks: [edge]
     depends_on: { backend: { condition: service_healthy } }
     security_opt: [no-new-privileges:true]

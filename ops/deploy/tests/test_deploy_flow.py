@@ -24,7 +24,8 @@ class DeploymentFlowTest(unittest.TestCase):
         self.state=self.root/'state';self.state.mkdir();self.secrets=self.root/'secrets';self.secrets.mkdir(mode=0o700)
         for name in ('jwt_secret','db_username','db_password','db_root_password','backup_db_password','migration_db_password','backup_encryption_key','station_policy_signing_private_key','backup_coordination_key','restic_password','restore_verifier_password','restic_access_key','restic_secret_key'):
             path=self.secrets/name;path.write_text('gmanager' if name=='db_username' else 'disposable-fixture-value-at-least-32-bytes');os.chown(path,-1,10001);path.chmod(0o440)
-        self.config=test_release.ReleaseConfigTest().valid()|dict(APP_RELEASE='before',DEPLOY_STATE_DIR=str(self.state),DEPLOY_SECRETS_DIR=str(self.secrets),CLIENT_RELEASES_DIR=str(self.root/'published'),ENABLE_TLS='false',ENABLE_MONITORING='false',GAMING_CLIENT_SHA256=hashlib.sha256(b'published-fixture').hexdigest())
+        self.published=self.root/'published client packages';self.published.mkdir()
+        self.config=test_release.ReleaseConfigTest().valid()|dict(APP_RELEASE='before',DEPLOY_STATE_DIR=str(self.state),DEPLOY_SECRETS_DIR=str(self.secrets),CLIENT_RELEASES_DIR=str(self.published),ENABLE_TLS='false',ENABLE_MONITORING='false',GAMING_CLIENT_SHA256=hashlib.sha256(b'published-fixture').hexdigest())
         self.current=self.state/'current.json';self.current.write_text(json.dumps(self.config))
         binary=self.root/'bin';binary.mkdir();self.trace=self.root/'docker-calls.jsonl'
         self.executable(binary/'docker', '''import json,os,sys
@@ -66,3 +67,15 @@ if '--write-out' in args: print('302' if os.environ.get('REDIRECT_PACKAGE') else
         (self.secrets/'db_password').unlink()
         result=self.run_script('deploy.sh');self.assertNotEqual(result.returncode,0)
         self.assertFalse(self.trace.exists());self.assertEqual(json.loads(self.current.read_text())['APP_RELEASE'],'before')
+
+    def test_invalid_client_release_directory_stops_before_any_docker_or_migration(self):
+        file=self.root/'ordinary-file';file.write_text('not a directory')
+        link=self.root/'linked-directory';link.symlink_to(self.published,target_is_directory=True)
+        for path in (self.root/'absent-directory',file,link):
+            with self.subTest(path=path):
+                result=self.run_script('deploy.sh',CLIENT_RELEASES_DIR=str(path))
+                self.assertNotEqual(result.returncode,0,result.stderr)
+                self.assertIn('Existing Client release directory required',result.stderr)
+                self.assertFalse(self.trace.exists())
+                self.assertFalse((self.state/'previous.json').exists())
+                self.assertEqual(json.loads(self.current.read_text())['APP_RELEASE'],'before')

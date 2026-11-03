@@ -13,15 +13,21 @@ import com.game_manager.gm.common.security.Role;
 import com.game_manager.gm.user.User;
 import com.game_manager.gm.user.UserRepository;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -41,6 +47,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@Import(DashboardIntegrationTest.FixedClockConfiguration.class)
 class DashboardIntegrationTest {
     private static final ZoneId ZONE = ZoneId.of("Europe/Belgrade");
 
@@ -51,14 +58,30 @@ class DashboardIntegrationTest {
     @Autowired private CatalogRepository catalogRepository;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private JdbcTemplate jdbcTemplate;
+    @Autowired private Clock clock;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @TestConfiguration(proxyBeanMethods = false)
+    static class FixedClockConfiguration {
+        @Bean
+        @Primary
+        Clock dashboardClock() {
+            return testsupport.TestClock.fixedUtc();
+        }
+    }
+
+    @BeforeEach
+    void cleanDatabase() {
+        jdbcTemplate.update("DELETE FROM dashboard_widget_preferences");
+        testsupport.DatabaseCleaner.clean(jdbcTemplate);
+    }
 
     @Test
     void managementSummaryUsesDatabaseAggregatesAndReturnsAllStatuses() throws Exception {
         User admin = createUser(Role.ADMIN);
         User customer = createUser(Role.CUSTOMER);
         User employee = createUser(Role.EMPLOYEE);
-        LocalDate today = LocalDate.now(ZONE);
+        LocalDate today = today();
         String url = "/api/v1/dashboard/summary?from=%s&to=%s".formatted(today, today);
         JsonNode baseline = json(mockMvc.perform(get(url)
                         .header("Authorization", bearer(login(admin))))
@@ -107,7 +130,7 @@ class DashboardIntegrationTest {
         JsonNode result = json(mockMvc.perform(get("/api/v1/dashboard/today")
                         .header("Authorization", bearer(login(employee))))
                 .andExpect(status().isOk()).andReturn());
-        assertThat(result.get("date").asText()).isEqualTo(LocalDate.now(ZONE).toString());
+        assertThat(result.get("date").asText()).isEqualTo(today().toString());
         assertThat(result.get("timezone").asText()).isEqualTo("Europe/Belgrade");
         assertThat(result.get("appointments").size()).isEqualTo(baseline.get("appointments").size() + 2);
         assertThat(result.get("appointments").toString()).contains(pending.getId().toString())
@@ -124,7 +147,7 @@ class DashboardIntegrationTest {
     void roleAndDateRangeValidationAreEnforced() throws Exception {
         User customer = createUser(Role.CUSTOMER);
         User employee = createUser(Role.EMPLOYEE);
-        LocalDate today = LocalDate.now(ZONE);
+        LocalDate today = today();
 
         mockMvc.perform(get("/api/v1/dashboard/today")
                         .header("Authorization", bearer(login(customer))))
@@ -147,7 +170,7 @@ class DashboardIntegrationTest {
     void trendsComparisonBucketsDrilldownTotalsAndCsvUseTheSameBusinessRange() throws Exception {
         User owner = createUser(Role.OWNER); User customer = createUser(Role.CUSTOMER);
         User employee = createUser(Role.EMPLOYEE);
-        LocalDate current = LocalDate.now(ZONE).minusDays(3); LocalDate previous = current.minusDays(1);
+        LocalDate current = today().minusDays(3); LocalDate previous = current.minusDays(1);
         Instant currentInstant = current.atTime(12, 0).atZone(ZONE).toInstant();
         Instant previousInstant = previous.atTime(12, 0).atZone(ZONE).toInstant();
         Order currentOrder = createOrder(customer, OrderStatus.COMPLETED, new BigDecimal("300.00"), null);
@@ -188,7 +211,7 @@ class DashboardIntegrationTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].threshold").value(75));
         mockMvc.perform(get("/api/v1/dashboard/widget-preferences").header("Authorization", adminToken))
                 .andExpect(status().isOk()).andExpect(jsonPath("$").isEmpty());
-        LocalDate today = LocalDate.now(ZONE);
+        LocalDate today = today();
         for (String path : java.util.List.of("trends", "workload", "export")) {
             mockMvc.perform(get("/api/v1/dashboard/" + path).queryParam("from", today.toString()).queryParam("to", today.toString())
                             .header("Authorization", bearer(login(employee))))
@@ -206,7 +229,7 @@ class DashboardIntegrationTest {
         createReservation(customer, employee, ReservationStatus.CONFIRMED);
         jdbcTemplate.update("update working_hours set active=true, open_time=?, close_time=? where day_of_week=?",
                 java.sql.Time.valueOf("08:00:00"), java.sql.Time.valueOf("20:00:00"),
-                LocalDate.now(ZONE).getDayOfWeek().name());
+                today().getDayOfWeek().name());
         createOrder(customer, OrderStatus.CREATED, new BigDecimal("100.00"), null);
         createOrder(customer, OrderStatus.IN_PROGRESS, new BigDecimal("200.00"), employee.getId());
         String ownerToken = bearer(login(owner));
@@ -240,8 +263,8 @@ class DashboardIntegrationTest {
         reservation.setCustomerId(customer.getId());
         reservation.setEmployeeId(employee.getId());
         reservation.setServiceId(createService().getId());
-        reservation.setStartTime(Instant.now().plus(1, ChronoUnit.HOURS));
-        reservation.setEndTime(Instant.now().plus(2, ChronoUnit.HOURS));
+        reservation.setStartTime(clock.instant().plus(1, ChronoUnit.HOURS));
+        reservation.setEndTime(clock.instant().plus(2, ChronoUnit.HOURS));
         reservation.setStatus(status);
         return reservationRepository.saveAndFlush(reservation);
     }
@@ -263,7 +286,14 @@ class DashboardIntegrationTest {
         order.setStatus(status);
         order.setHandledBy(handledBy);
         order.setTotalPrice(total);
-        return orderRepository.saveAndFlush(order);
+        Order saved = orderRepository.saveAndFlush(order);
+        // JPA auditing uses wall-clock time; dashboard fixture rows use the test business date.
+        jdbcTemplate.update("UPDATE orders SET created_at=? WHERE id=?", clock.instant(), saved.getId());
+        return saved;
+    }
+
+    private LocalDate today() {
+        return LocalDate.now(clock.withZone(ZONE));
     }
 
     private User createUser(Role role) {

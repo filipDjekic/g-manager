@@ -42,6 +42,7 @@ jobs:
       - name: Validate production topology and scripts
         run: |
           docker compose -f ops/deploy/compose.yml -f ops/deploy/compose.tls.yml -f ops/deploy/compose.monitoring.yml config --no-interpolate --quiet
+          python3 -B ops/deploy/tests/check_compose.py
           for script in ops/deploy/*.sh ops/backup/*.sh gm/ops/container-entrypoint.sh; do bash -n "$script"; done
       - name: Validate private monitoring configuration
         run: |

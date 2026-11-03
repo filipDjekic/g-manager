@@ -5,11 +5,13 @@ import com.game_manager.gm.common.security.Role;
 import com.game_manager.gm.user.User;
 import com.game_manager.gm.user.UserRepository;
 import jakarta.servlet.http.Cookie;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -39,6 +41,14 @@ class AuthFlowIntegrationTest {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private JdbcTemplate jdbc;
+
+    @BeforeEach
+    void cleanDatabase() {
+        testsupport.DatabaseCleaner.clean(jdbc);
+    }
 
     @Test
     void loginRotateLogoutAndDetectRefreshReuse() throws Exception {
@@ -164,7 +174,44 @@ class AuthFlowIntegrationTest {
     void provisionsInitialOwnerWithoutStoringPlaintextPassword() throws Exception {
         String email = "owner-" + UUID.randomUUID() + "@example.com";
         String password = "OwnerPass1!";
-        InitialOwnerProvisioner provisioner = new InitialOwnerProvisioner(
+        InitialOwnerProvisioner provisioner = provisioner(email, password);
+
+        assertThat(userRepository.existsByRole(Role.OWNER)).isFalse();
+        provisioner.run(null);
+
+        User owner = userRepository.findByEmailIgnoreCase(email).orElseThrow();
+        assertThat(owner.getRole()).isEqualTo(Role.OWNER);
+        assertThat(owner.isActive()).isTrue();
+        assertThat(owner.getPasswordHash()).startsWith("$2");
+        assertThat(passwordEncoder.matches(password, owner.getPasswordHash())).isTrue();
+        assertThat(owner.getPasswordHash()).isNotEqualTo(password);
+
+        provisioner.run(null);
+        User unchanged = userRepository.findByEmailIgnoreCase(email).orElseThrow();
+        assertThat(unchanged.getId()).isEqualTo(owner.getId());
+        assertThat(unchanged.getPasswordHash()).isEqualTo(owner.getPasswordHash());
+        assertThat(userRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void existingInactiveOwnerPreventsAnotherBootstrapWithoutChangingTheAccount() {
+        User existing = new User("Existing owner", "existing-owner@example.test",
+                passwordEncoder.encode("ExistingPass1!"), Role.OWNER, false, null);
+        userRepository.saveAndFlush(existing);
+        String email = "another-owner@example.test";
+
+        provisioner(email, "AnotherPass1!").run(null);
+
+        assertThat(userRepository.findByEmailIgnoreCase(email)).isEmpty();
+        User unchanged = userRepository.findById(existing.getId()).orElseThrow();
+        assertThat(unchanged.getRole()).isEqualTo(Role.OWNER);
+        assertThat(unchanged.isActive()).isFalse();
+        assertThat(unchanged.getPasswordHash()).isEqualTo(existing.getPasswordHash());
+        assertThat(userRepository.count()).isEqualTo(1);
+    }
+
+    private InitialOwnerProvisioner provisioner(String email, String password) {
+        return new InitialOwnerProvisioner(
                 userRepository,
                 passwordEncoder,
                 new GManagerProperties(
@@ -186,13 +233,6 @@ class AuthFlowIntegrationTest {
                                 "System Owner", email, password))
         );
 
-        provisioner.run(null);
-
-        User owner = userRepository.findByEmailIgnoreCase(email).orElseThrow();
-        assertThat(owner.getRole().name()).isEqualTo("OWNER");
-        assertThat(owner.isActive()).isTrue();
-        assertThat(passwordEncoder.matches(password, owner.getPasswordHash())).isTrue();
-        assertThat(owner.getPasswordHash()).isNotEqualTo(password);
     }
 
     private void register(String email) {

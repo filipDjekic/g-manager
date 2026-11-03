@@ -1,6 +1,7 @@
 package com.game_manager.gm.reservation;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -10,7 +11,7 @@ import org.junit.jupiter.api.*;import org.springframework.beans.factory.annotati
 
 @SpringBootTest @AutoConfigureMockMvc @ActiveProfiles("test")
 class RecurrenceIntegrationTest {
- @Autowired MockMvc mvc;@Autowired UserRepository users;@Autowired CatalogRepository catalog;@Autowired WorkingHoursRepository hours;@Autowired PasswordEncoder encoder;@Autowired JdbcTemplate jdbc;private final ObjectMapper mapper=new ObjectMapper();private static final ZoneId ZONE=ZoneId.of("Europe/Belgrade");
+ @Autowired MockMvc mvc;@Autowired UserRepository users;@Autowired CatalogRepository catalog;@Autowired WorkingHoursRepository hours;@Autowired WorkingHoursExceptionRepository exceptions;@Autowired WorkingHoursService workingHours;@Autowired PasswordEncoder encoder;@Autowired JdbcTemplate jdbc;private final ObjectMapper mapper=new ObjectMapper();private static final ZoneId ZONE=ZoneId.of("Europe/Belgrade");
  @BeforeEach void clean(){DatabaseCleaner.clean(jdbc);}
 
  @Test void monthlyPreviewPreservesLocalRuleAcrossMonthAndDstAndBatchIsIdempotent()throws Exception{User customer=user(Role.CUSTOMER),owner=user(Role.OWNER),employee=user(Role.EMPLOYEE);CatalogItem item=service();configure(DayOfWeek.SUNDAY);configure(DayOfWeek.WEDNESDAY);Instant start=ZonedDateTime.of(LocalDate.of(2027,1,31),LocalTime.of(10,0),ZONE).toInstant();String token=login(customer),body=body(item,employee,start,"MONTHLY",1,3,"ALL_OR_NOTHING");
@@ -22,12 +23,26 @@ class RecurrenceIntegrationTest {
   assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM reservations WHERE recurrence_series_id=? AND status='CANCELLED'",Integer.class,created.get("seriesId").asText())).isEqualTo(1);assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM reservations WHERE recurrence_series_id=? AND status='PENDING'",Integer.class,created.get("seriesId").asText())).isEqualTo(2);
  }
 
- @Test void partialConflictsAreExplicitAndLimitsRejectUnboundedGeneration()throws Exception{User customer=user(Role.CUSTOMER),employee=user(Role.EMPLOYEE);CatalogItem item=service();LocalDate monday=LocalDate.now().plusDays(30).with(java.time.temporal.TemporalAdjusters.nextOrSame(DayOfWeek.MONDAY));configure(DayOfWeek.MONDAY);Instant start=ZonedDateTime.of(monday,LocalTime.of(10,0),ZONE).toInstant();String token=login(customer);
+ @Test void partialConflictsAreExplicitAndLimitsRejectUnboundedGeneration()throws Exception{User customer=user(Role.CUSTOMER),employee=user(Role.EMPLOYEE);CatalogItem item=service();LocalDate monday=futureMonday();configure(DayOfWeek.MONDAY);Instant start=ZonedDateTime.of(monday,LocalTime.of(10,0),ZONE).toInstant();String token=login(customer);
   reserve(token,item,employee,start.plus(7,java.time.temporal.ChronoUnit.DAYS));String skip=body(item,employee,start,"WEEKLY",1,3,"SKIP_CONFLICTS");JsonNode result=node(mvc.perform(post("/api/v1/reservations/recurrence").header("Authorization",bearer(token)).header("Idempotency-Key",UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON).content(skip)).andExpect(status().isCreated()).andReturn());assertThat(result.get("created").size()).isEqualTo(2);assertThat(result.get("skipped").size()).isEqualTo(1);
   int before=jdbc.queryForObject("SELECT COUNT(*) FROM reservations",Integer.class);mvc.perform(post("/api/v1/reservations/recurrence").header("Authorization",bearer(token)).header("Idempotency-Key",UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON).content(body(item,employee,start,"WEEKLY",1,3,"ALL_OR_NOTHING"))).andExpect(status().isConflict());assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM reservations",Integer.class)).isEqualTo(before);
   mvc.perform(post("/api/v1/reservations/recurrence").header("Authorization",bearer(token)).header("Idempotency-Key",UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON).content(body(item,employee,start.plus(28,java.time.temporal.ChronoUnit.DAYS),"WEEKLY",1,21,"SKIP_CONFLICTS"))).andExpect(status().isBadRequest());
   mvc.perform(post("/api/v1/reservations/recurrence/preview").header("Authorization",bearer(token)).contentType(MediaType.APPLICATION_JSON).content(body(item,employee,start,"MONTHLY",4,20,"SKIP_CONFLICTS"))).andExpect(status().isBadRequest());
  }
+
+ @Test void cleanupRemovesClosedDatesBeforeRecurringReservations()throws Exception{
+  configure(DayOfWeek.MONDAY);LocalDate monday=futureMonday();Instant start=ZonedDateTime.of(monday,LocalTime.of(10,0),ZONE).toInstant();
+  WorkingHoursException closed=new WorkingHoursException();closed.setDate(monday.plusWeeks(1));closed.setFullDayClosed(true);exceptions.saveAndFlush(closed);
+  Instant conflict=start.plus(7,java.time.temporal.ChronoUnit.DAYS);
+  assertThatThrownBy(()->workingHours.validateWithinWorkingHours(conflict,conflict.plusSeconds(3600))).hasMessageContaining("outside working hours");
+  DatabaseCleaner.clean(jdbc);
+  assertThat(exceptions.findByDate(monday.plusWeeks(1))).isEmpty();
+  User customer=user(Role.CUSTOMER),employee=user(Role.EMPLOYEE);CatalogItem item=service();
+  JsonNode result=node(mvc.perform(post("/api/v1/reservations/recurrence").header("Authorization",bearer(login(customer))).header("Idempotency-Key",UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON).content(body(item,employee,start,"WEEKLY",1,3,"ALL_OR_NOTHING"))).andExpect(status().isCreated()).andReturn());
+  assertThat(result.get("created").size()).isEqualTo(3);assertThat(result.get("skipped").size()).isZero();
+ }
+
+ private LocalDate futureMonday(){return LocalDate.now(ZONE).plusDays(30).with(java.time.temporal.TemporalAdjusters.nextOrSame(DayOfWeek.MONDAY));}
 
  private void reserve(String token,CatalogItem item,User employee,Instant start)throws Exception{mvc.perform(post("/api/v1/reservations").header("Authorization",bearer(token)).header("Idempotency-Key",UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON).content("{\"serviceId\":\""+item.getId()+"\",\"employeeId\":\""+employee.getId()+"\",\"startTime\":\""+start+"\"}")).andExpect(status().isCreated());}
  private String body(CatalogItem item,User employee,Instant start,String frequency,int interval,int occurrences,String policy){return "{\"serviceId\":\""+item.getId()+"\",\"employeeId\":\""+employee.getId()+"\",\"startTime\":\""+start+"\",\"frequency\":\""+frequency+"\",\"interval\":"+interval+",\"occurrences\":"+occurrences+",\"conflictPolicy\":\""+policy+"\"}";}

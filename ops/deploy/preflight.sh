@@ -7,6 +7,8 @@ secrets=$(python3 "$(dirname "$0")/release_config.py" get "$release" DEPLOY_SECR
 [[ $(stat -c '%a' "$secrets") = 700 ]] || { echo 'Secret directory requires mode 0700' >&2;exit 2; }
 required=(jwt_secret db_username db_password db_root_password backup_db_password migration_db_password backup_encryption_key station_policy_signing_private_key backup_coordination_key restic_password restore_verifier_password)
 get(){ python3 "$(dirname "$0")/release_config.py" get "$release" "$1"; }
+releases=$(get CLIENT_RELEASES_DIR)
+[[ -d "$releases" && ! -L "$releases" ]] || { echo 'Existing Client release directory required; symlinks are forbidden' >&2;exit 2; }
 if [ "$(get DOCUMENT_STORAGE_BACKEND)" = s3 ];then required+=(document_s3_access_key document_s3_secret_key);fi
 if [ "$(get AI_PROVIDER)" = http ];then required+=(ai_api_key);fi
 if [ "$(get ENABLE_MONITORING)" != false ];then required+=(alert_webhook_url alert_webhook_token grafana_admin_password);fi

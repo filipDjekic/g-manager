@@ -15,7 +15,7 @@ public final class DatabaseCleaner {
             "station_reconciliation_audit", "station_client_enforcement", "station_session_login_attempts", "station_heartbeats", "station_auth_challenges", "station_commands", "gaming_sessions", "reservations", "reservation_recurrence_series",
             "station_enrollment_tokens", "station_machine_identities", "customer_activation_tokens", "station_command_sequences", "gaming_station_profiles", "application_profile_entries",
             "application_profiles", "application_definitions",
-            "user_resource_assignments", "user_location_assignments", "location_floor_plans", "physical_resources", "areas", "locations",
+            "working_hours_exceptions", "user_resource_assignments", "user_location_assignments", "location_floor_plans", "physical_resources", "areas", "locations",
             "refresh_tokens", "security_events", "users");
 
     private DatabaseCleaner() {
