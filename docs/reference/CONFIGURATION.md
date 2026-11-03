@@ -59,14 +59,14 @@ Za S3 dodatno učitava `DOCUMENT_S3_ACCESS_KEY[_FILE]`, `DOCUMENT_S3_SECRET_KEY[
 | Oblast | Promenljive i default vrednosti |
 | --- | --- |
 | Documents | `DOCUMENT_STORAGE_BACKEND=local`, `DOCUMENT_MAX_FILE_BYTES=5242880`, `DOCUMENT_MAX_FILES_PER_RESOURCE=20`, `DOCUMENT_DELETE_RETENTION_DAYS=30` |
-| S3 | `DOCUMENT_S3_ENDPOINT` opcion, `DOCUMENT_S3_REGION=us-east-1`, `DOCUMENT_S3_BUCKET`, `DOCUMENT_S3_ACCESS_KEY`, `DOCUMENT_S3_SECRET_KEY`; S3 zahteva region/bucket/kredencijale; deploy Compose defaultuje na S3 i zahteva bucket |
+| S3 | `DOCUMENT_S3_ENDPOINT` opcion, `DOCUMENT_S3_REGION=us-east-1`, `DOCUMENT_S3_BUCKET`, `DOCUMENT_S3_ACCESS_KEY`, `DOCUMENT_S3_SECRET_KEY`; S3 zahteva region/bucket/kredencijale; deploy Compose defaultuje na local; S3 zahteva bucket kada je uključen |
 | Upload HTTP limit | `spring.servlet.multipart.max-file-size` i `max-request-size` su oba 5MB; promena samo document limita ne povećava ovaj limit niti Nginx limit |
 | Outbox | `OUTBOX_ENABLED=true`, `OUTBOX_BATCH_SIZE=50`, `OUTBOX_POLL_INTERVAL_MILLIS=1000`, `OUTBOX_LEASE_SECONDS=60`, `OUTBOX_MAX_ATTEMPTS=5`, `OUTBOX_INITIAL_BACKOFF_SECONDS=5`, `OUTBOX_RETENTION_DAYS=30` |
 | Jobs | `JOBS_ENABLED=true`, `JOBS_WORKER_COUNT=4`, `JOBS_QUEUE_CAPACITY=20`, `JOBS_CLAIM_BATCH_SIZE=4`, `JOBS_POLL_INTERVAL_MILLIS=1000`, `JOBS_LEASE_SECONDS=60`, `JOBS_TIMEOUT_SECONDS=300`, `JOBS_MAX_ATTEMPTS=5`, `JOBS_INITIAL_BACKOFF_SECONDS=10`, `JOBS_SHUTDOWN_WAIT_SECONDS=30` |
 | Retention | `REFRESH_TOKEN_RETENTION_DAYS=30`, `AUDIT_RETENTION_DAYS=365` |
 | Notifications | `NOTIFICATION_EMAIL_ENABLED=false`, `NOTIFICATION_DELIVERY_BATCH_SIZE=25`, `NOTIFICATION_MAX_DELIVERY_ATTEMPTS=5`, `NOTIFICATION_INITIAL_BACKOFF_SECONDS=10`, `NOTIFICATION_RETENTION_DAYS=90`, `NOTIFICATION_SSE_TIMEOUT_SECONDS=1800` |
 
-Email flag uključuje delivery pipeline sa sandbox adapterom, ne stvarni SMTP transport. Produkcioni Compose ne prosleđuje svaku opcionu promenljivu iz ove tabele; za odstupanje od default-a potreban je eksplicitan deployment environment/override.
+U prod profilu email flag uključuje stvarni SMTP adapter (SMTP_HOST/PORT/USERNAME/PASSWORD/FROM, obavezni STARTTLS i server identity). Van prod profila adapter ostaje sandbox. Produkcioni Compose ne prosleđuje svaku opcionu promenljivu iz ove tabele; za odstupanje od default-a potreban je eksplicitan deployment environment/override.
 
 ## Gaming i Client distribucija
 
@@ -89,3 +89,7 @@ Za stvarnu distribuciju podesiti `RELEASED`, numeričku verziju, HTTPS URL, prav
 `AI_PROVIDER=disabled`, `AI_ENDPOINT` i `AI_API_KEY` su prazni, `AI_MODEL=not-configured`. HTTP provider zahteva odgovarajuću konfiguraciju i posebno uključen `AI_ASSISTANT`. Limiti: `AI_TIMEOUT_MILLIS=3000`, `AI_MAX_INPUT_TOKENS=200`, `AI_MAX_OUTPUT_TOKENS=300`, `AI_DAILY_TOKEN_LIMIT=10000`, `AI_CIRCUIT_FAILURE_THRESHOLD=3`, `AI_CIRCUIT_OPEN_SECONDS=60`, `AI_METADATA_RETENTION_DAYS=90`, `AI_CLEANUP_CRON=0 30 3 * * *`.
 
 Frontend koristi `VITE_API_URL` (default `/api/v1`) i `VITE_RELEASE` za release oznaku. Dockerfile fiksira isti-origin API putanju pri build-u. Promena runtime container environment-a ne menja već izgrađeni JS. Odvojeni API origin zahteva usklađivanje CORS, CSP `connect-src`, cookie i frontend build konfiguracije; isporučeni Nginx je predviđen za isti origin.
+
+## Produkcioni runtime — FAZA 4
+
+Trajni host direktorijumi, kompletni GitHub secrets/variables i bootstrap opisani su u [DEPLOYMENT.md](../operations/DEPLOYMENT.md); ne čuvati tajne u javnom JSON-u. Dodatni trust parametri su GAMING_CLIENT_PACKAGE_SIGNING_THUMBPRINT i STATION_POLICY_SIGNING_PUBLIC_KEY. BACKUP_STATUS_FILE je zaštićen status scheduler-a, BACKUP_COORDINATION_KEY_FILE interna koordinaciona tajna; BACKUP_INTERVAL_SECONDS/RETENTION_DAYS/RESTORE_INTERVAL podešavaju ciklus i alarme. Prod zahteva app.documents.scanner=clamav, sa CLAMAV_HOST/PORT; transportni scan ERROR ostaje u karantinu i ponavlja se posle minutnog backoff-a. Nema automatskog odobravanja fajla zbog scanner outage-a.

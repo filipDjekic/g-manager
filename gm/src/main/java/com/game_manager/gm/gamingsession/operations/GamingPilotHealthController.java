@@ -8,12 +8,13 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController @RequestMapping("/api/v1/gaming-operations/health")
 public class GamingPilotHealthController {
-    private final JdbcTemplate jdbc;private final GamingLedgerHealth ledger;private final Clock clock;
-    public GamingPilotHealthController(JdbcTemplate jdbc,GamingLedgerHealth ledger,Clock clock){this.jdbc=jdbc;this.ledger=ledger;this.clock=clock;}
-    public record Status(Instant checkedAt,String backend,String database,String financialLedger){}
+    private final JdbcTemplate jdbc;private final GamingLedgerHealth ledger;private final Clock clock;private final com.game_manager.gm.common.operations.BackupHealth backup;
+    public GamingPilotHealthController(JdbcTemplate jdbc,GamingLedgerHealth ledger,Clock clock,com.game_manager.gm.common.operations.BackupHealth backup){this.jdbc=jdbc;this.ledger=ledger;this.clock=clock;this.backup=backup;}
+    public record Status(Instant checkedAt,String backend,String database,String financialLedger,String backup){}
     @GetMapping @PreAuthorize("hasAuthority('GAMING_FINANCE_MANAGE')")
     public Status status(){
-        try {jdbc.queryForObject("SELECT 1",Integer.class);return new Status(clock.instant(),"UP","UP",ledger.health().getStatus().getCode());}
-        catch(org.springframework.dao.DataAccessException e){return new Status(clock.instant(),"UP","DOWN","UNKNOWN");}
+        String backupStatus=backup.health().getStatus().getCode();
+        try {jdbc.queryForObject("SELECT 1",Integer.class);return new Status(clock.instant(),"UP","UP",ledger.health().getStatus().getCode(),backupStatus);}
+        catch(org.springframework.dao.DataAccessException e){return new Status(clock.instant(),"UP","DOWN","UNKNOWN",backupStatus);}
     }
 }

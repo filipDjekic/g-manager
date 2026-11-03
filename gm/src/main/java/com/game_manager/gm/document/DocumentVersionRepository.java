@@ -4,4 +4,6 @@ interface DocumentVersionRepository extends JpaRepository<DocumentVersion,UUID> 
  Optional<DocumentVersion> findByIdAndDocumentId(UUID id,UUID documentId);
  @Query("select min(v.createdAt) from DocumentVersion v where v.scanStatus='PENDING'") Optional<Instant> oldestPending();
  List<DocumentVersion> findByScanStatus(ScanStatus status);
+ List<DocumentVersion> findTop50ByScanStatusOrderByCreatedAtAsc(ScanStatus status);
+ List<DocumentVersion> findTop50ByScanStatusAndScanDetailAndScannedAtBeforeOrderByScannedAtAsc(ScanStatus status,String detail,Instant before);
 }

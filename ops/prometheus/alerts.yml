@@ -62,7 +62,7 @@ groups:
         labels: { severity: warning }
         annotations: { summary: "Repeated machine authentication failures", runbook_url: "https://github.com/filipDjekic/g-manager/blob/main/ops/runbooks/observability.txt" }
       - alert: GManagerObservabilityTest
-        expr: vector(1)
+        expr: gmanager_alert_delivery_test == 1
         for: 0m
         labels: { severity: test }
         annotations: { summary: "Synthetic alert validating the alert delivery path" }
@@ -94,3 +94,44 @@ groups:
         annotations:
           summary: Database connection pool cannot serve requests
           runbook_url: https://github.com/filipDjekic/g-manager/blob/main/ops/runbooks/observability.txt
+
+      - alert: GManagerFrontendDown
+        expr: probe_success{job="frontend"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: "Frontend health probe failed" }
+      - alert: GManagerBackupFailed
+        expr: gmanager_backup_failed > 0 and gmanager_backup_expected == 1
+        for: 10m
+        labels: { severity: critical }
+        annotations: { summary: "Scheduled database/document backup failed; inspect protected backup status" }
+      - alert: GManagerBackupStale
+        expr: (time() - gmanager_backup_last_success > gmanager_backup_max_age) and gmanager_backup_expected == 1
+        for: 10m
+        labels: { severity: critical }
+        annotations: { summary: "No recent successful coordinated backup" }
+      - alert: GManagerOffsiteBackupStale
+        expr: (time() - gmanager_backup_last_offsite > gmanager_backup_max_age) and gmanager_backup_expected == 1
+        for: 10m
+        labels: { severity: critical }
+        annotations: { summary: "Off-site backup is missing or stale" }
+      - alert: GManagerRestoreDrillStale
+        expr: (time() - gmanager_backup_last_restore > gmanager_backup_restore_max_age) and gmanager_backup_expected == 1
+        for: 10m
+        labels: { severity: warning }
+        annotations: { summary: "Scheduled off-site restore drill is overdue" }
+      - alert: GManagerAlertDeliveryFailed
+        expr: increase(alertmanager_notifications_failed_total[15m]) > 0
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: "Alert delivery is failing; check the configured receiver and host monitoring" }
+      - alert: GManagerDocumentScannerUnavailable
+        expr: increase(gmanager_document_scan_total{result="error"}[5m]) > 0
+        for: 1m
+        labels: { severity: warning }
+        annotations: { summary: "Document scanning failed; files remain quarantined and transport outages retry after backoff" }
+      - alert: GManagerBackendNotReady
+        expr: probe_success{job="backend-readiness"} == 0
+        for: 1m
+        labels: { severity: critical }
+        annotations: { summary: "Backend readiness or MySQL connectivity failed; metrics availability alone is insufficient" }

@@ -80,6 +80,7 @@ public class SecurityConfig {
                                 "/actuator/health/readiness", "/actuator/prometheus").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/actuator/metrics/**").hasAuthority("METRICS_READ")
+                        .requestMatchers("/internal/backup", "/internal/backup/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/media/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/stations/client-package").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/auth/csrf").permitAll()
@@ -147,6 +148,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/stations/*/machine-identity/**",
                                 "/api/v1/stations/*/machine-identity")
                             .hasAuthority("MACHINE_IDENTITY_MANAGE")
+                        .requestMatchers("/api/v1/stations/*/client-updates").hasAuthority("STATION_MAINTENANCE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/stations/**", "/api/v1/stations")
                             .hasAuthority("STATION_READ")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/stations/*/profile")

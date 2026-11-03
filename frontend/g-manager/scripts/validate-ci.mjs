@@ -11,6 +11,15 @@ const protectionSource = readFileSync(resolve(root, '.github/branch-protection.j
 
 function validate(workflowSource, releaseWorkflowSource = releaseSource) {
   const workflow = parseDocument(workflowSource).toJS()
+  const release = parseDocument(releaseWorkflowSource).toJS()
+  if (!Object.hasOwn(workflow.on, 'workflow_call') || release.jobs.quality?.uses !== './.github/workflows/ci.yml') throw new Error('Release must run the complete reusable CI workflow')
+  for (const name of ['gaming-client', 'images', 'deploy']) {
+    if (!['quality', 'prepare'].every(gate => release.jobs[name]?.needs?.includes(gate))) throw new Error('Every release mutation must depend on CI and approved release preparation')
+  }
+  if (!release.jobs.prepare?.steps?.some(step => step.run?.includes('check_release_policy.py client-signing')) || release.jobs.prepare.permissions?.actions !== 'read') throw new Error('Release must verify actual environment approval configuration')
+  if (release.jobs['gaming-client'].environment !== 'client-signing' || !release.jobs.deploy.environment) throw new Error('Signing and deployment require protected environments')
+  if (!releaseWorkflowSource.includes('publish_client.py') || !releaseWorkflowSource.includes('Verify published Client URL and exact bytes') || !releaseWorkflowSource.includes('sha256sum --check --status')) throw new Error('Release must publish and verify the HTTPS Client bytes')
+  if (releaseWorkflowSource.includes('client/artifacts/GManager.Client.*')) throw new Error('Release artifacts require an explicit file allowlist')
   const protection = JSON.parse(protectionSource)
   const required = new Set(protection.required_status_checks.contexts)
   const jobNames = new Set(Object.values(workflow.jobs).map((job) => job.name))
@@ -74,6 +83,11 @@ if (process.argv.includes('--self-test')) {
   const invalidWorkflows = [
     [source.replace(/@[a-f0-9]{40}/, '@v4'), releaseSource],
     [source, releaseSource.replace(/@[a-f0-9]{40}/, '@v4')],
+    [source, releaseSource.replace('uses: ./.github/workflows/ci.yml', 'uses: ./.github/workflows/skip.yml')],
+    [source, releaseSource.replace('needs: [quality, prepare, gaming-client, images]', 'needs: [prepare, gaming-client, images]')],
+    [source, releaseSource.replace('environment: client-signing', 'environment: unprotected')],
+    [source, releaseSource.replace('publish_client.py', 'not-publishing.py')],
+    [source, releaseSource.replace('check_release_policy.py client-signing', 'unchecked.py client-signing')],
     [source.replace('      actions: read', '      actions: none'), releaseSource],
     [source.replace('      pull-requests: read', '      pull-requests: none'), releaseSource],
     [source.replace(/NPM_VERSION: '[\d.]+'/, "NPM_VERSION: '0.0.0'"), releaseSource],

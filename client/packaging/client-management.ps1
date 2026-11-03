@@ -65,6 +65,10 @@ function Assert-Https([string]$Url) {
     if(!$uri.IsAbsoluteUri -or $uri.Scheme -ne 'https' -or $uri.UserInfo -or $uri.Fragment){throw 'Adresa mora biti apsolutni HTTPS URL bez kredencijala.'}
     return $uri
 }
+function Assert-ReleaseCompatibility($Manifest,[int]$WindowsBuild) {
+    if($Manifest.PSObject.Properties.Name -notcontains 'minimumWindowsBuild' -or $WindowsBuild -lt [int]$Manifest.minimumWindowsBuild){throw 'Ova verzija zahteva noviji Windows build. Instalacija nije započeta.'}
+    if($Manifest.PSObject.Properties.Name -notcontains 'enforcementProtocol' -or $Manifest.enforcementProtocol -ne 1){throw 'Paket koristi nepodržan enforcement protokol.'}
+}
 function Get-HttpsJson([string]$Url) {
     [void](Assert-Https $Url)
     Invoke-RestMethod -Uri $Url -UseBasicParsing -MaximumRedirection 0 -TimeoutSec 20
@@ -222,7 +226,7 @@ function Resolve-ClientTransaction {
     if($journal.hadInstallation){Start-ClientService}
     Write-AtomicJson (Join-Path $script:ClientState 'update-status.json') @{status='ROLLED_BACK';timestamp=[DateTimeOffset]::UtcNow.ToString('o')}
 }
-function Assert-Healthy([int]$TimeoutSeconds=240) {
+function Assert-Healthy([int]$TimeoutSeconds=240,[switch]$RequireConnected) {
     $until=[DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
     $expectedVersion=(Read-ClientConfig).Client.Version
     do{
@@ -230,7 +234,7 @@ function Assert-Healthy([int]$TimeoutSeconds=240) {
         if((Get-Service GManagerClient -ErrorAction SilentlyContinue).Status -eq 'Running' -and (Test-Path -LiteralPath $healthPath)){
             $health=Get-Content -Encoding UTF8 -LiteralPath $healthPath -Raw|ConvertFrom-Json
             $verified=$health.PSObject.Properties.Name -contains 'enforcementVerified' -and $health.enforcementVerified
-            if([DateTimeOffset]::Parse($health.timestamp) -gt [DateTimeOffset]::UtcNow.AddSeconds(-5) -and $health.initialized -and $health.version -eq $expectedVersion -and !$health.development -and $verified -and $health.errorCode -in @($null,'BACKEND_UNAVAILABLE','BACKEND_TIMEOUT','SESSION_RECONCILIATION_REQUIRED')){return}
+            if([DateTimeOffset]::Parse($health.timestamp) -gt [DateTimeOffset]::UtcNow.AddSeconds(-5) -and $health.initialized -and $health.version -eq $expectedVersion -and !$health.development -and $verified -and (!$RequireConnected -or ($health.PSObject.Properties.Name -contains 'serverConnected' -and $health.serverConnected -eq $true)) -and $health.errorCode -in @($null,'BACKEND_UNAVAILABLE','BACKEND_TIMEOUT','SESSION_RECONCILIATION_REQUIRED')){return}
         }
         Start-Sleep -Seconds 1
     }while([DateTime]::UtcNow -lt $until)

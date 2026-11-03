@@ -25,12 +25,38 @@ permissions:
   packages: write
 
 jobs:
+  quality:
+    name: Release quality gates
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+      packages: read
+      pull-requests: read
+
   prepare:
     name: Validate release version
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with: { fetch-depth: 0 }
+      - name: Require configured approval protection before signing or deployment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEPLOY_ENV: ${{ inputs.environment || 'production' }}
+        run: python3 ops/deploy/check_release_policy.py client-signing "$DEPLOY_ENV"
+      - name: Require an approved default-branch commit
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          git fetch origin "$DEFAULT_BRANCH"
+          git merge-base --is-ancestor "$GITHUB_SHA" "origin/$DEFAULT_BRANCH" || { echo '::error::Release commit must be on the approved default branch.'; exit 1; }
       - id: version
         name: Normalize and validate release version
         env:
@@ -46,11 +72,13 @@ jobs:
 
   gaming-client:
     name: Signed Windows Gaming Client
-    needs: prepare
+    needs: [prepare, quality]
     runs-on: windows-2025
+    environment: client-signing
     outputs:
       sha256: ${{ steps.package.outputs.sha256 }}
       signing-subject: ${{ steps.package.outputs.signing-subject }}
+      signing-thumbprint: ${{ steps.package.outputs.signing-thumbprint }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
@@ -82,13 +110,30 @@ jobs:
           if ($manifest.version -ne $env:RELEASE_VERSION) { throw 'Signed package version does not match release version.' }
           "sha256=$($manifest.sha256)" >> $env:GITHUB_OUTPUT
           "signing-subject=$($manifest.signingSubject)" >> $env:GITHUB_OUTPUT
+          "signing-thumbprint=$($manifest.signingThumbprint)" >> $env:GITHUB_OUTPUT
+          . client/packaging/client-management.ps1
+          $verify=Join-Path $env:RUNNER_TEMP 'signed-client-verification'
+          Expand-ClientPackage client/artifacts/GManager.Client.zip $verify
+          [void](Assert-Package $verify $manifest.signingSubject $manifest.signingThumbprint)
       - name: Upload signed client candidate
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        with: { name: gmanager-client-signed, path: 'client/artifacts/GManager.Client.*', if-no-files-found: error }
+        with:
+          name: gmanager-client-signed
+          path: |
+            client/artifacts/GManager.Client.zip
+            client/artifacts/GManager.Client.manifest.json
+            client/artifacts/GManager.Client.zip.sha256
+          if-no-files-found: error
+          retention-days: 30
+      - name: Delete ephemeral signing certificate and private key
+        if: always()
+        shell: pwsh
+        run: |
+          if ($env:SIGNING_THUMBPRINT) { Remove-Item -LiteralPath "Cert:\CurrentUser\My\$env:SIGNING_THUMBPRINT" -DeleteKey -Force -ErrorAction SilentlyContinue }
 
   images:
     name: Build, SBOM and image policy
-    needs: prepare
+    needs: [prepare, quality]
     runs-on: ubuntu-24.04
     outputs:
       backend: ${{ steps.images.outputs.backend }}
@@ -123,72 +168,97 @@ jobs:
 
   deploy:
     name: Deploy and prove rollback
-    needs: [prepare, gaming-client, images]
+    needs: [quality, prepare, gaming-client, images]
     runs-on: [self-hosted, gmanager-deploy]
     environment: ${{ inputs.environment || 'production' }}
     timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: read
+      packages: read
     env:
       BACKEND_IMAGE: ${{ needs.images.outputs.backend }}
       FRONTEND_IMAGE: ${{ needs.images.outputs.frontend }}
       APP_RELEASE: ${{ github.sha }}
       DEPLOY_ENV: ${{ inputs.environment || 'production' }}
       CANONICAL_ORIGIN: ${{ vars.CANONICAL_ORIGIN }}
-      DOCUMENT_STORAGE_BACKEND: s3
+      DOCUMENT_STORAGE_BACKEND: ${{ vars.DOCUMENT_STORAGE_BACKEND || 'local' }}
       DOCUMENT_S3_ENDPOINT: ${{ vars.DOCUMENT_S3_ENDPOINT }}
       DOCUMENT_S3_REGION: ${{ vars.DOCUMENT_S3_REGION }}
       DOCUMENT_S3_BUCKET: ${{ vars.DOCUMENT_S3_BUCKET }}
-      MIGRATION_DB_PASSWORD: ${{ secrets.MIGRATION_DB_PASSWORD }}
+      DEPLOY_STATE_DIR: ${{ vars.DEPLOY_STATE_DIR }}
+      DEPLOY_SECRETS_DIR: ${{ vars.DEPLOY_SECRETS_DIR }}
+      CLIENT_RELEASES_DIR: ${{ vars.CLIENT_RELEASES_DIR }}
+      INITIAL_OWNER_EMAIL: ${{ vars.INITIAL_OWNER_EMAIL }}
+      INITIAL_OWNER_NAME: ${{ vars.INITIAL_OWNER_NAME }}
+      ENABLE_TLS: ${{ vars.ENABLE_TLS || 'true' }}
+      ENABLE_MONITORING: ${{ vars.ENABLE_MONITORING || 'true' }}
+      RESTIC_REPOSITORY: ${{ vars.RESTIC_REPOSITORY }}
+      BACKUP_INTERVAL_SECONDS: ${{ vars.BACKUP_INTERVAL_SECONDS || '86400' }}
+      BACKUP_RETENTION_DAYS: ${{ vars.BACKUP_RETENTION_DAYS || '30' }}
+      STATION_POLICY_SIGNING_PUBLIC_KEY: ${{ vars.STATION_POLICY_SIGNING_PUBLIC_KEY }}
+      SMTP_HOST: ${{ vars.SMTP_HOST }}
+      SMTP_PORT: ${{ vars.SMTP_PORT || '587' }}
+      NOTIFICATION_EMAIL_ENABLED: ${{ vars.NOTIFICATION_EMAIL_ENABLED || 'false' }}
       AI_PROVIDER: ${{ vars.AI_PROVIDER }}
       AI_ENDPOINT: ${{ vars.AI_ENDPOINT }}
       AI_MODEL: ${{ vars.AI_MODEL }}
       STATION_POLICY_SIGNING_KEY_ID: ${{ vars.STATION_POLICY_SIGNING_KEY_ID }}
       GAMING_CLIENT_VERSION: ${{ needs.prepare.outputs.version }}
       GAMING_CLIENT_MINIMUM_VERSION: ${{ vars.GAMING_CLIENT_MINIMUM_VERSION }}
-      GAMING_CLIENT_DOWNLOAD_URL: ${{ vars.GAMING_CLIENT_DOWNLOAD_URL }}
+      GAMING_CLIENT_DOWNLOAD_URL: ${{ vars.CANONICAL_ORIGIN }}/downloads/gmanager-client/${{ needs.prepare.outputs.version }}/GManager.Client.zip
       GAMING_CLIENT_SHA256: ${{ needs.gaming-client.outputs.sha256 }}
       GAMING_CLIENT_PACKAGE_SIGNING_SUBJECT: ${{ needs.gaming-client.outputs.signing-subject }}
+      GAMING_CLIENT_PACKAGE_SIGNING_THUMBPRINT: ${{ needs.gaming-client.outputs.signing-thumbprint }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: Validate deployed client package and deployment settings
+      - name: Publish immutable Client candidate on the protected distribution host
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          for name in CANONICAL_ORIGIN DOCUMENT_S3_BUCKET STATION_POLICY_SIGNING_KEY_ID GAMING_CLIENT_MINIMUM_VERSION GAMING_CLIENT_DOWNLOAD_URL GAMING_CLIENT_SHA256 GAMING_CLIENT_PACKAGE_SIGNING_SUBJECT MIGRATION_DB_PASSWORD; do
-            [[ -n "${!name:-}" ]] || { echo "::error::$name is required in the selected environment."; exit 1; }
-          done
-          [[ "$GAMING_CLIENT_DOWNLOAD_URL" == https://* ]] || { echo '::error::GAMING_CLIENT_DOWNLOAD_URL must use HTTPS.'; exit 1; }
-          curl --fail --location --silent --show-error "$GAMING_CLIENT_DOWNLOAD_URL" -o "$RUNNER_TEMP/GManager.Client.zip"
-          echo "$GAMING_CLIENT_SHA256  $RUNNER_TEMP/GManager.Client.zip" | sha256sum --check
-      - name: Materialize runner-only secrets
-        working-directory: ops/deploy
+          test -n "$CLIENT_RELEASES_DIR" && test -n "$DEPLOY_SECRETS_DIR"
+          [[ "$CLIENT_RELEASES_DIR" = /* && "$DEPLOY_SECRETS_DIR" = /* ]]
+          [[ "$DEPLOY_SECRETS_DIR/" != "$GITHUB_WORKSPACE/"* ]] || { echo '::error::Secrets must remain outside the checkout.'; exit 1; }
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name gmanager-client-signed --dir "$RUNNER_TEMP/client-candidate"
+          python3 ops/deploy/publish_client.py "$RUNNER_TEMP/client-candidate" "$CLIENT_RELEASES_DIR"
+      - name: Provision protected persistent host secrets
         env:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           DB_USERNAME: ${{ secrets.DB_USERNAME }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DB_ROOT_PASSWORD: ${{ secrets.DB_ROOT_PASSWORD }}
+          BACKUP_DB_PASSWORD: ${{ secrets.BACKUP_DB_PASSWORD }}
           S3_ACCESS_KEY: ${{ secrets.DOCUMENT_S3_ACCESS_KEY }}
           S3_SECRET_KEY: ${{ secrets.DOCUMENT_S3_SECRET_KEY }}
           BACKUP_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           STATION_POLICY_SIGNING_PRIVATE_KEY: ${{ secrets.STATION_POLICY_SIGNING_PRIVATE_KEY }}
+          MIGRATION_DB_PASSWORD: ${{ secrets.MIGRATION_DB_PASSWORD }}
+          INITIAL_OWNER_PASSWORD: ${{ secrets.INITIAL_OWNER_PASSWORD }}
+          BACKUP_COORDINATION_KEY: ${{ secrets.BACKUP_COORDINATION_KEY }}
+          RESTIC_PASSWORD: ${{ secrets.RESTIC_PASSWORD }}
+          RESTORE_VERIFIER_PASSWORD: ${{ secrets.RESTORE_VERIFIER_PASSWORD }}
+          RESTIC_ACCESS_KEY_ID: ${{ secrets.RESTIC_ACCESS_KEY_ID }}
+          RESTIC_SECRET_ACCESS_KEY: ${{ secrets.RESTIC_SECRET_ACCESS_KEY }}
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+          ALERT_WEBHOOK_TOKEN: ${{ secrets.ALERT_WEBHOOK_TOKEN }}
+          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
         run: |
-          install -d -m 0700 secrets
-          printf %s "$JWT_SECRET" > secrets/jwt_secret
-          printf %s "$DB_USERNAME" > secrets/db_username
-          printf %s "$DB_PASSWORD" > secrets/db_password
-          printf %s "$DB_ROOT_PASSWORD" > secrets/db_root_password
-          printf %s "$S3_ACCESS_KEY" > secrets/document_s3_access_key
-          printf %s "$S3_SECRET_KEY" > secrets/document_s3_secret_key
-          printf %s "$BACKUP_KEY" > secrets/backup_encryption_key
-          printf %s "$AI_API_KEY" > secrets/ai_api_key
-          printf %s "$STATION_POLICY_SIGNING_PRIVATE_KEY" > secrets/station_policy_signing_private_key
-          chmod 0600 secrets/*
+          python3 ops/deploy/provision_secrets.py
       - name: Deploy through migration, restore and smoke gates
-        run: ./ops/deploy/deploy.sh
+        run: bash ops/deploy/deploy.sh
       - name: Staging rollback rehearsal and candidate redeploy
         if: env.DEPLOY_ENV == 'staging'
         run: |
-          test -f ops/deploy/releases/previous.env
-          ./ops/deploy/rollback.sh
-          ./ops/deploy/deploy.sh
+          if test -f "$DEPLOY_STATE_DIR/previous.json"; then
+            bash ops/deploy/rollback.sh
+            bash ops/deploy/deploy.sh
+          else
+            echo 'Initial staging release: rollback rehearsal remains required before production approval.'
+          fi
       - name: Staging load smoke
         if: env.DEPLOY_ENV == 'staging'
         env:
@@ -201,6 +271,10 @@ jobs:
       - name: Passive DAST baseline
         if: env.DEPLOY_ENV == 'staging'
         run: docker run --rm zaproxy/zap-stable:2.16.1 zap-baseline.py -t "$CANONICAL_ORIGIN" -m 3
-      - name: Remove materialized secrets
-        if: always()
-        run: find ops/deploy/secrets -type f -delete
+      - name: Verify published Client URL and exact bytes
+        run: |
+          file=$(mktemp)
+          trap 'rm -f -- "$file"' EXIT
+          http_status=$(curl --fail --silent --show-error --proto '=https' --max-time 180 --write-out '%{http_code}' "$GAMING_CLIENT_DOWNLOAD_URL" -o "$file")
+          test "$http_status" = 200
+          printf '%s  %s\n' "$GAMING_CLIENT_SHA256" "$file" | sha256sum --check --status

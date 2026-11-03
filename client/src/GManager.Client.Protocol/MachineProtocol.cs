@@ -14,6 +14,7 @@ public interface IMachineProtocolClient {
  Task<CustomerSession> LoginAsync(string bearer,string email,string password,CancellationToken ct);
  Task<CustomerSession> GuestLoginAsync(string bearer,Guid sessionId,CancellationToken ct) => throw new NotSupportedException("Guest login is unavailable");
  Task LogoutAsync(string bearer,Guid sessionId,CancellationToken ct);
+ Task ClaimUpdateAsync(string bearer,Guid? requestId,CancellationToken ct);
 }
 public sealed record EnrollmentResult(Guid IdentityId,Guid StationId,long KeyVersion,string Algorithm);
 public sealed record MachineToken(string Token,DateTimeOffset ExpiresAt,string TokenType);
@@ -22,11 +23,13 @@ public sealed record SignedStationPolicy(string Payload,string Algorithm,string 
 public sealed record StationPolicy(Guid StationId,Guid ProfileId,long ConfigurationVersion,DateTimeOffset IssuedAt,IReadOnlyList<PolicyApplication> Applications);
 public sealed record PolicyApplication(string Code,string Name,string Type,string ExecutablePath,string? Publisher,string? PublisherCertificateThumbprint,string? ExecutableSha256,string? MinimumFileVersion,string? Arguments,bool RequiredProcess,bool AutoStart,int LaunchOrder,string? DependencyGroup);
 public sealed record SignedSessionLease(string Payload,string Algorithm,string KeyId,string Signature);
-public sealed record SessionLease(Guid LeaseId,Guid StationId,Guid? SessionId,Guid? CustomerId,DateTimeOffset? SessionEndsAt,long ConfigurationVersion,DateTimeOffset IssuedAt,DateTimeOffset ExpiresAt,DateTimeOffset GraceEndsAt,long CommandCursor,string Directive);
+public sealed record SessionLease(Guid LeaseId,Guid StationId,Guid? SessionId,Guid? CustomerId,DateTimeOffset? SessionEndsAt,long ConfigurationVersion,DateTimeOffset IssuedAt,DateTimeOffset ExpiresAt,DateTimeOffset GraceEndsAt,long CommandCursor,string Directive,ClientUpdateDirective? ClientUpdate=null);
+public sealed record ClientUpdateDirective(Guid Id,string Version,DateTimeOffset NotBefore,DateTimeOffset ExpiresAt);
 public sealed record MachineCommand(long Sequence,string Type,int PayloadVersion,string Payload,DateTimeOffset AvailableAt,bool Expired=false);
-public sealed record Heartbeat(string ClientVersion,string Status,long LastCommandSequence,string EnforcementStatus,Guid? SessionId,Guid? LeaseId,long ConfigurationVersion,string? InstallationStatus=null,string? UpdateStatus=null,bool? MaintenanceActive=null,string? ErrorCode=null);
+public sealed record Heartbeat(string ClientVersion,string Status,long LastCommandSequence,string EnforcementStatus,Guid? SessionId,Guid? LeaseId,long ConfigurationVersion,string? InstallationStatus=null,string? UpdateStatus=null,bool? MaintenanceActive=null,string? ErrorCode=null,Guid? UpdateRequestId=null);
 internal sealed record ChallengeRequest(Guid IdentityId);internal sealed record Challenge(Guid ChallengeId,Guid IdentityId,string Nonce,DateTimeOffset ExpiresAt,string SigningFormat);internal sealed record TokenRequest(Guid IdentityId,Guid ChallengeId,string Nonce,string Signature);
 public sealed class MachineProtocolClient(HttpClient http):IMachineProtocolClient {
+ public async Task ClaimUpdateAsync(string bearer,Guid? requestId,CancellationToken ct)=>_ = await Post<object>("api/v1/machine/client-update/claim",new{requestId},bearer,ct);
  public async Task<EnrollmentResult> EnrollAsync(string token,IChallengeSigner signer,string version,CancellationToken ct)=>await Post<EnrollmentResult>("api/v1/machine/enroll",new{enrollmentToken=token,publicKeyBase64=signer.PublicKeyBase64,clientVersion=version},null,ct);
  public async Task<MachineToken> AuthenticateAsync(Guid id,IChallengeSigner signer,CancellationToken ct){var c=await Post<Challenge>("api/v1/machine/auth/challenge",new ChallengeRequest(id),null,ct);var value=$"{c.ChallengeId}:{c.IdentityId}:{c.Nonce}";return await Post<MachineToken>("api/v1/machine/auth/token",new TokenRequest(id,c.ChallengeId,c.Nonce,signer.Sign(value)),null,ct);}
  public Task<SessionSnapshot> SnapshotAsync(string bearer,CancellationToken ct)=>Get<SessionSnapshot>("api/v1/machine/snapshot",bearer,ct);

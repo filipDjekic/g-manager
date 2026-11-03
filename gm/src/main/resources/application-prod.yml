@@ -1,4 +1,6 @@
 app:
+  documents:
+    scanner: clamav
   ai:
     provider: ${AI_PROVIDER:disabled}
     endpoint: ${AI_ENDPOINT:}

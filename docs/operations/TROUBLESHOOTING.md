@@ -40,9 +40,9 @@ curl.exe --fail http://localhost:8080/actuator/health/readiness
 | 425 | Isti idempotency zahtev još traje; pratiti `Retry-After`, zadržati isti ključ za istu komandu |
 | 429 | Pročitati Retry-After ako postoji; zaustaviti nekontrolisani retry i proveriti rate limit/opterećenje |
 | Izveštaj ostaje QUEUED | Proveriti `JOBS_ENABLED`, lease/worker kapacitet, job attempts, storage i vlasništvo zahteva |
-| Email ne stiže | Ugrađeni adapter je sandbox; flag nije SMTP konfiguracija |
+| Email ne stiže | U prod profilu podesiti SMTP_HOST/PORT i username/password/from secrets; obavezni STARTTLS, važeći server sertifikat i NOTIFICATION_EMAIL_ENABLED=true. Lokalni adapter ostaje sandbox |
 | Document 423 / nedostupna slika | Proveriti scan stanje, worker i storage. Ne menjati ručno u CLEAN bez odgovarajuće provere |
-| Upload 413 preko Nginx-a | Proveriti proxy body limit i backend multipart limit; Nginx config nema eksplicitni `client_max_body_size`. Povećanje samo document limita nije dovoljno |
+| Upload 413 preko Nginx-a | Proveriti proxy body limit i backend multipart limit; produkcioni Nginx ima `client_max_body_size 6m`. Povećanje samo document limita nije dovoljno |
 | Nema SSE osvežavanja | Proveriti bearer header, konekciju i proxy buffering/timeout; stream rute imaju posebnu Nginx konfiguraciju, periodični resync ostaje fallback |
 | Star frontend/offline prikaz | Service worker postoji van development režima. Završiti/sačuvati izmene pre aktivacije update-a; proveriti origin storage i da nije prikazan stale-read banner |
 
@@ -65,6 +65,6 @@ Lokalni bezbedni status i elevated radnje opisani su u [Client vodiču](WINDOWS_
 
 ## Produkcioni deploy i monitoring
 
-`BACKUP_FILE` interpolation, hardkodovan DB korisnik, secret/output dozvole, nedostajući OWNER bootstrap i rollback release quoting su poznati problemi u [deployment vodiču](DEPLOYMENT.md). Ne koristiti volume reset kao popravku produkcije. Za storage/DB incident slediti [backup/recovery](BACKUP_RECOVERY.md).
+Za preflight, trajne 0440/group-10001 secrets, JSON release istoriju i OWNER bootstrap pratiti [deployment vodič](DEPLOYMENT.md). Ne koristiti volume reset kao popravku produkcije. Backup nalog nema DML prava; proveriti BACKUP_DB_PASSWORD i grant-ove pri prelasku na postojeći volumen. Za storage/DB incident slediti [backup/recovery](BACKUP_RECOVERY.md).
 
-Ako Prometheus target ne radi, uporediti konfigurisan `host.docker.internal:9091` sa stvarnim profilom, management bind adresom i mrežom. Root local profil nema management na 9091; prod Compose ga ne mapira na host. Postoje Grafana dashboard i alert pravila, ali nema uključene Alertmanager isporuke. Samo definisano pravilo ne dokazuje da operator prima alarm.
+Ako Prometheus target ne radi, uporediti konfigurisan `host.docker.internal:9091` sa stvarnim profilom, management bind adresom i mrežom. Root local profil nema management na 9091; prod Compose ga ne mapira na host. Produkcioni compose.monitoring.yml koristi backend:9091 i frontend blackbox, uz Alertmanager HTTPS webhook/bearer secrets; proveriti stvarni prijem i notifications_failed metriku. Samo definisano pravilo ne dokazuje da operator prima alarm.

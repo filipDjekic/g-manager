@@ -11,9 +11,9 @@ public final class MachineDtos {private MachineDtos(){}
  public record MachineTokenResponse(String token,Instant expiresAt,String tokenType){@Override public String toString(){return "MachineTokenResponse[REDACTED]";}}
  public record HeartbeatRequest(@NotBlank @Size(max=60)String clientVersion,@NotNull MachineClientStatus status,@PositiveOrZero long lastCommandSequence,StationEnforcementStatus enforcementStatus,UUID sessionId,UUID leaseId,@PositiveOrZero Long configurationVersion,
    @Pattern(regexp="INSTALLED|DEVELOPMENT") String installationStatus,
-   @Pattern(regexp="CURRENT|DOWNLOADING|FAILED|ROLLED_BACK|UNKNOWN") String updateStatus,
-   Boolean maintenanceActive,@Size(max=80) @Pattern(regexp="[A-Z0-9_]+") String errorCode){
-   public HeartbeatRequest(String clientVersion,MachineClientStatus status,long lastCommandSequence,StationEnforcementStatus enforcementStatus,UUID sessionId,UUID leaseId,Long configurationVersion){this(clientVersion,status,lastCommandSequence,enforcementStatus,sessionId,leaseId,configurationVersion,null,null,null,null);}
+   @Pattern(regexp="CURRENT|DEFERRED|DOWNLOADING|FAILED|ROLLED_BACK|UNKNOWN") String updateStatus,
+   Boolean maintenanceActive,@Size(max=80) @Pattern(regexp="[A-Z0-9_]+") String errorCode,UUID updateRequestId){
+   public HeartbeatRequest(String clientVersion,MachineClientStatus status,long lastCommandSequence,StationEnforcementStatus enforcementStatus,UUID sessionId,UUID leaseId,Long configurationVersion){this(clientVersion,status,lastCommandSequence,enforcementStatus,sessionId,leaseId,configurationVersion,null,null,null,null,null);}
  }
  public record MachineSnapshotResponse(Instant serverTime,UUID stationId,UUID identityId,long keyVersion,String stationStatus,UUID sessionId,Instant sessionEndsAt,long commandCursor){}
  public record MachineCommandResponse(long sequence,String type,int payloadVersion,String payload,Instant availableAt,boolean expired){

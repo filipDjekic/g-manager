@@ -5,7 +5,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 public final class DatabaseCleaner {
     private static final List<String> TABLES = List.of(
-            "station_preparation", "gaming_wallet_ledger", "gaming_financial_operations", "gaming_charges", "gaming_time_packages", "gaming_tariffs",
+            "legacy_media_inventory", "document_versions", "documents", "station_client_updates", "station_preparation", "gaming_wallet_ledger", "gaming_financial_operations", "gaming_charges", "gaming_time_packages", "gaming_tariffs",
             "outbox_consumer_receipts", "outbox_events",
             "background_job_attempts", "background_jobs",
             "idempotency_keys", "audit_events", "notification_delivery_attempts",

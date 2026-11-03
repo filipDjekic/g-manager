@@ -3,5 +3,6 @@
 !backup.sh
 !backup-loop.sh
 !backup-set.sh
+!scheduled-backup.sh
 !restore-drill.sh
 !ledger-check.sql

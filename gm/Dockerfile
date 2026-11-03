@@ -21,8 +21,8 @@ WORKDIR /app
 COPY --from=build /workspace/target/gm-*.jar app.jar
 COPY ops/container-entrypoint.sh /app/container-entrypoint.sh
 RUN chmod 0555 /app/container-entrypoint.sh \
-    && mkdir -p /data/uploads /tmp/gmanager \
-    && chown -R gmanager:gmanager /app /data /tmp/gmanager
+    && mkdir -p /data/uploads /tmp/gmanager /backup-status \
+    && chown -R gmanager:gmanager /app /data /tmp/gmanager /backup-status
 USER 10001:10001
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -Djava.io.tmpdir=/tmp/gmanager" \
     SPRING_PROFILES_ACTIVE=prod \

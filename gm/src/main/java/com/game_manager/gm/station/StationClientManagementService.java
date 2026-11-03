@@ -17,10 +17,13 @@ public class StationClientManagementService {
     private final ClientStatePort heartbeats;
     private final GamingStationProfileRepository stations;
     private final Clock clock;
+    private final com.game_manager.gm.resource.ResourceAccessService access;
+    private final com.game_manager.gm.common.security.CurrentUserProvider currentUser;
 
     @Transactional(readOnly = true)
     @PreAuthorize("hasAuthority('STATION_READ')")
     public ClientManagementStatus status(UUID resourceId) {
+        access.requireManage(currentUser.requireCurrentUser(),resourceId,com.game_manager.gm.common.security.Permission.STATION_READ);
         GamingStationProfile station = stations.findByResourceId(resourceId)
                 .orElseThrow(() -> new ApplicationException(HttpStatus.NOT_FOUND, "Station not found"));
         return heartbeats.heartbeat(resourceId).map(value -> new ClientManagementStatus(

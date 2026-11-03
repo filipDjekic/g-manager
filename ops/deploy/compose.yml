@@ -1,7 +1,7 @@
 name: gmanager-${DEPLOY_ENV:-staging}
 services:
   mysql:
-    image: mysql:8.4.5
+    image: mysql:8.4@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
     restart: unless-stopped
     command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
     environment:
@@ -9,8 +9,7 @@ services:
       MYSQL_USER_FILE: /run/secrets/db_username
       MYSQL_PASSWORD_FILE: /run/secrets/db_password
       MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
-      MIGRATION_DB_PASSWORD: ${MIGRATION_DB_PASSWORD:?MIGRATION_DB_PASSWORD is required}
-    secrets: [db_username, db_password, db_root_password]
+    secrets: [db_username, db_password, db_root_password, migration_db_password, restore_verifier_password, backup_db_password]
     volumes: [mysql_data:/var/lib/mysql]
     configs:
       - source: mysql_init
@@ -18,19 +17,21 @@ services:
         mode: 0555
     networks: [data]
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$(cat /run/secrets/db_root_password) --silent"]
+      test: ["CMD-SHELL", "MYSQL_PWD=$$(cat /run/secrets/db_root_password) mysqladmin ping -h 127.0.0.1 -uroot --silent"]
       interval: 10s
       timeout: 5s
       retries: 20
 
-  migrate:
-    image: flyway/flyway:11.7.2
+  migrate: &migrate
+    image: flyway/flyway:11.7.2@sha256:8ace7d9825bb3ad1d6e14ee27b3a830b638ac841ba424b99b2d92aa65a99d484
     profiles: [migration]
-    command: ["-connectRetries=30", "-validateMigrationNaming=true", "validate", "migrate", "info"]
+    user: "10001:10001"
+    entrypoint: ["/bin/sh", "-ec"]
+    command: ['export FLYWAY_PASSWORD=$$(cat /run/secrets/migration_db_password); exec /flyway/flyway -connectRetries=30 -validateMigrationNaming=true validate migrate info']
+    secrets: [migration_db_password]
     environment:
       FLYWAY_URL: jdbc:mysql://mysql:3306/gmanager?useSSL=false&serverTimezone=UTC
       FLYWAY_USER: gmanager_migrator
-      FLYWAY_PASSWORD: ${MIGRATION_DB_PASSWORD:?MIGRATION_DB_PASSWORD is required}
       FLYWAY_LOCATIONS: filesystem:/flyway/sql
     volumes:
       - ../../gm/src/main/resources/db/migration:/flyway/sql:ro
@@ -39,20 +40,30 @@ services:
       mysql: { condition: service_healthy }
     restart: "no"
 
+  migrate-restored:
+    <<: *migrate
+    profiles: [operations]
+    environment:
+      FLYWAY_URL: jdbc:mysql://mysql:3306/gmanager_restore_drill?useSSL=false&serverTimezone=UTC
+      FLYWAY_USER: gmanager_migrator
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+
   backend:
     image: ${BACKEND_IMAGE:?BACKEND_IMAGE digest is required}
     restart: unless-stopped
     read_only: true
     tmpfs: [/tmp/gmanager:size=128m,noexec,nosuid]
-    environment:
+    environment: &backend_environment
       SPRING_PROFILES_ACTIVE: prod
       DB_URL: jdbc:mysql://mysql:3306/gmanager?useSSL=false&serverTimezone=UTC
       CANONICAL_ORIGIN: ${CANONICAL_ORIGIN:?CANONICAL_ORIGIN is required}
       APP_RELEASE: ${APP_RELEASE:?APP_RELEASE is required}
-      DOCUMENT_STORAGE_BACKEND: ${DOCUMENT_STORAGE_BACKEND:-s3}
+      BACKEND_IMAGE: ${BACKEND_IMAGE:?BACKEND_IMAGE digest is required}
+      FRONTEND_IMAGE: ${FRONTEND_IMAGE:?FRONTEND_IMAGE digest is required}
+      DOCUMENT_STORAGE_BACKEND: ${DOCUMENT_STORAGE_BACKEND:-local}
       DOCUMENT_S3_ENDPOINT: ${DOCUMENT_S3_ENDPOINT:-}
       DOCUMENT_S3_REGION: ${DOCUMENT_S3_REGION:-us-east-1}
-      DOCUMENT_S3_BUCKET: ${DOCUMENT_S3_BUCKET:?DOCUMENT_S3_BUCKET is required}
+      DOCUMENT_S3_BUCKET: ${DOCUMENT_S3_BUCKET:-}
       MANAGEMENT_SERVER_ADDRESS: 0.0.0.0
       AI_PROVIDER: ${AI_PROVIDER:-disabled}
       AI_ENDPOINT: ${AI_ENDPOINT:-}
@@ -64,12 +75,31 @@ services:
       GAMING_CLIENT_DOWNLOAD_URL: ${GAMING_CLIENT_DOWNLOAD_URL:?GAMING_CLIENT_DOWNLOAD_URL is required}
       GAMING_CLIENT_SHA256: ${GAMING_CLIENT_SHA256:?GAMING_CLIENT_SHA256 is required}
       GAMING_CLIENT_PACKAGE_SIGNING_SUBJECT: ${GAMING_CLIENT_PACKAGE_SIGNING_SUBJECT:?GAMING_CLIENT_PACKAGE_SIGNING_SUBJECT is required}
-    secrets: [jwt_secret, db_username, db_password, document_s3_access_key, document_s3_secret_key, ai_api_key, station_policy_signing_private_key]
-    volumes: [document_data:/data/uploads]
+      GAMING_CLIENT_PACKAGE_SIGNING_THUMBPRINT: ${GAMING_CLIENT_PACKAGE_SIGNING_THUMBPRINT:?publisher thumbprint is required}
+      STATION_POLICY_SIGNING_PUBLIC_KEY: ${STATION_POLICY_SIGNING_PUBLIC_KEY:-}
+      INITIAL_OWNER_EMAIL: ${INITIAL_OWNER_EMAIL:-}
+      INITIAL_OWNER_NAME: ${INITIAL_OWNER_NAME:-Initial Owner}
+      BACKUP_COORDINATION_KEY_FILE: /run/secrets/backup_coordination_key
+      BACKUP_STATUS_FILE: /backup-status/status.json
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_RESTORE_INTERVAL: ${BACKUP_RESTORE_INTERVAL:-7}
+      CLAMAV_HOST: clamav
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      NOTIFICATION_EMAIL_ENABLED: ${NOTIFICATION_EMAIL_ENABLED:-false}
+    secrets: [jwt_secret, db_username, db_password, document_s3_access_key, document_s3_secret_key, ai_api_key, station_policy_signing_private_key, initial_owner_password, backup_coordination_key, smtp_username, smtp_password, smtp_from]
+    volumes: [document_data:/data/uploads, backup_output:/backup-status:ro]
     networks: [data, edge]
-    depends_on: { mysql: { condition: service_healthy } }
+    depends_on: { mysql: { condition: service_healthy }, clamav: { condition: service_healthy } }
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]
+
+  clamav:
+    image: clamav/clamav:stable@sha256:6d87c712e3391e13c1ba6e05dfb074d4b1ddb5a6834b23bb9da990d2a4ef042a
+    restart: unless-stopped
+    volumes: [clamav_data:/var/lib/clamav]
+    networks: [data, edge]
+    security_opt: [no-new-privileges:true]
 
   frontend:
     image: ${FRONTEND_IMAGE:?FRONTEND_IMAGE digest is required}
@@ -77,6 +107,7 @@ services:
     read_only: true
     tmpfs: [/var/cache/nginx:size=32m,noexec,nosuid, /tmp:size=16m,noexec,nosuid]
     ports: ["127.0.0.1:${APP_PORT:-8080}:8080"]
+    volumes: ["${CLIENT_RELEASES_DIR:?Client release directory required}:/usr/share/nginx/html/downloads/gmanager-client:ro"]
     networks: [edge]
     depends_on: { backend: { condition: service_healthy } }
     security_opt: [no-new-privileges:true]
@@ -86,37 +117,48 @@ services:
     build: ../backup
     profiles: [operations]
     command: ["/backup/backup.sh"]
-    environment:
+    environment: &backup_environment
       DB_HOST: mysql
       DB_NAME: gmanager
-      DB_USER: gmanager
-      DB_PASSWORD_FILE: /run/secrets/db_password
+      DB_USER: gmanager_backup
+      DB_PASSWORD_FILE: /run/secrets/backup_db_password
       BACKUP_KEY_FILE: /run/secrets/backup_encryption_key
       BACKUP_OUTPUT_DIR: /backup/output
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
-    secrets: [db_password, backup_encryption_key]
-    volumes: [../backup/output:/backup/output]
-    networks: [data]
+    secrets: [db_username, backup_db_password, backup_encryption_key, backup_coordination_key, restic_password, restic_access_key, restic_secret_key, restore_verifier_password]
+    volumes: [backup_output:/backup/output, document_data:/documents:ro]
+    networks: [data, edge]
     depends_on: { mysql: { condition: service_healthy } }
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]
 
   backup-scheduler:
     <<: *backup
-    profiles: [backup-scheduled]
+    profiles: []
     command: ["/backup/backup-loop.sh"]
     restart: unless-stopped
+    stop_grace_period: 90s
     environment:
-      DB_HOST: mysql
-      DB_NAME: gmanager
-      DB_USER: gmanager
-      DB_PASSWORD_FILE: /run/secrets/db_password
-      BACKUP_KEY_FILE: /run/secrets/backup_encryption_key
-      BACKUP_OUTPUT_DIR: /backup/output
-      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      <<: *backup_environment
       BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      BACKUP_RESTORE_INTERVAL: ${BACKUP_RESTORE_INTERVAL:-7}
+      BACKUP_COORDINATION_URL: http://backend:8080/internal/backup
+      BACKUP_COORDINATION_KEY_FILE: /run/secrets/backup_coordination_key
+      DOCUMENT_BACKUP_ROOT: /documents
+      DOCUMENT_STORAGE_BACKEND: ${DOCUMENT_STORAGE_BACKEND:-local}
+      RESTIC_REPOSITORY: ${RESTIC_REPOSITORY:-}
+      RESTIC_PASSWORD_FILE: /run/secrets/restic_password
+      AWS_ACCESS_KEY_ID_FILE: /run/secrets/restic_access_key
+      AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/restic_secret_key
+      BACKUP_HOST: ${PUBLIC_HOST:-gmanager}
+      RESTORE_DB_USER_FILE: /run/secrets/db_username
+      RESTORE_ADMIN_USER: gmanager_restore_verifier
+      RESTORE_PASSWORD_FILE: /run/secrets/restore_verifier_password
+      RESTORE_SKIP_GRANT: "true"
+      RESTORE_ISOLATED: "true"
     healthcheck:
-      test: ["CMD-SHELL", "test -f /backup/output/last-success && test $$(( $$(date -u +%s) - $$(cat /backup/output/last-success) )) -lt $$(( $${BACKUP_INTERVAL_SECONDS} + 3600 ))"]
+      test: ["CMD-SHELL", "test -f /backup/output/scheduled-success && test $$(( $$(date -u +%s) - $$(cat /backup/output/scheduled-success) )) -lt $$(( $${BACKUP_INTERVAL_SECONDS} + 3600 ))"]
       interval: 60s
       timeout: 5s
       retries: 3
@@ -126,15 +168,10 @@ services:
     <<: *backup
     command: ["/backup/backup-set.sh"]
     environment:
-      DB_HOST: mysql
-      DB_NAME: gmanager
-      DB_USER: gmanager
-      DB_PASSWORD_FILE: /run/secrets/db_password
-      BACKUP_KEY_FILE: /run/secrets/backup_encryption_key
-      BACKUP_OUTPUT_DIR: /backup/output
+      <<: *backup_environment
       DOCUMENT_BACKUP_ROOT: /documents
       BACKUP_WRITES_QUIESCED: ${BACKUP_WRITES_QUIESCED:-false}
-    volumes: [../backup/output:/backup/output, document_data:/documents:ro]
+    volumes: [backup_output:/backup/output, document_data:/documents:ro]
 
   restore-drill:
     build: ../backup
@@ -147,8 +184,9 @@ services:
       BACKUP_FILE: ${BACKUP_FILE:-/backup/output/select-backup.sql.gz.enc}
       RESTORE_DB_NAME: gmanager_restore_drill
       RESTORE_ISOLATED: "true"
-    secrets: [db_root_password, backup_encryption_key]
-    volumes: [../backup/output:/backup/output:ro]
+      RESTORE_DB_USER_FILE: /run/secrets/db_username
+    secrets: [db_root_password, backup_encryption_key, db_username]
+    volumes: [backup_output:/backup/output:ro]
     networks: [data]
     depends_on: { mysql: { condition: service_healthy } }
     security_opt: [no-new-privileges:true]
@@ -160,16 +198,17 @@ services:
     read_only: true
     tmpfs: [/tmp/gmanager:size=128m,noexec,nosuid]
     environment:
-      SPRING_PROFILES_ACTIVE: prod
+      <<: *backend_environment
       DB_URL: jdbc:mysql://mysql:3306/gmanager_restore_drill?useSSL=false&serverTimezone=UTC
-      CANONICAL_ORIGIN: ${CANONICAL_ORIGIN:?CANONICAL_ORIGIN is required}
       APP_RELEASE: ${APP_RELEASE:?APP_RELEASE is required}-restore-drill
       DOCUMENT_STORAGE_BACKEND: local
+      AI_PROVIDER: disabled
+      INITIAL_OWNER_EMAIL: ""
+      SMTP_HOST: ""
+      NOTIFICATION_EMAIL_ENABLED: "false"
       OUTBOX_ENABLED: "false"
       JOBS_ENABLED: "false"
-      MANAGEMENT_SERVER_ADDRESS: 0.0.0.0
-      STATION_POLICY_SIGNING_KEY_ID: ${STATION_POLICY_SIGNING_KEY_ID:?STATION_POLICY_SIGNING_KEY_ID is required}
-    secrets: [jwt_secret, db_username, db_password, station_policy_signing_private_key]
+    secrets: [jwt_secret, db_username, db_password, station_policy_signing_private_key, backup_coordination_key]
     networks: [data]
     depends_on: { mysql: { condition: service_healthy } }
     security_opt: [no-new-privileges:true]
@@ -182,16 +221,29 @@ networks:
 volumes:
   mysql_data: {}
   document_data: {}
+  backup_output: {}
+  clamav_data: {}
 secrets:
-  jwt_secret: { file: ./secrets/jwt_secret }
-  db_username: { file: ./secrets/db_username }
-  db_password: { file: ./secrets/db_password }
-  db_root_password: { file: ./secrets/db_root_password }
-  document_s3_access_key: { file: ./secrets/document_s3_access_key }
-  document_s3_secret_key: { file: ./secrets/document_s3_secret_key }
-  backup_encryption_key: { file: ./secrets/backup_encryption_key }
-  ai_api_key: { file: ./secrets/ai_api_key }
-  station_policy_signing_private_key: { file: ./secrets/station_policy_signing_private_key }
+  jwt_secret: { file: "${DEPLOY_SECRETS_DIR:-./secrets}/jwt_secret" }
+  db_username: { file: "${DEPLOY_SECRETS_DIR:-./secrets}/db_username" }
+  db_password: { file: "${DEPLOY_SECRETS_DIR:-./secrets}/db_password" }
+  db_root_password: { file: "${DEPLOY_SECRETS_DIR:-./secrets}/db_root_password" }
+  backup_db_password: { file: "${DEPLOY_SECRETS_DIR:-./secrets}/backup_db_password" }
+  document_s3_access_key: { file: "${DEPLOY_SECRETS_DIR:-./secrets}/document_s3_access_key" }
+  document_s3_secret_key: { file: "${DEPLOY_SECRETS_DIR:-./secrets}/document_s3_secret_key" }
+  backup_encryption_key: { file: "${DEPLOY_SECRETS_DIR:-./secrets}/backup_encryption_key" }
+  ai_api_key: { file: "${DEPLOY_SECRETS_DIR:-./secrets}/ai_api_key" }
+  station_policy_signing_private_key: { file: "${DEPLOY_SECRETS_DIR:-./secrets}/station_policy_signing_private_key" }
+  migration_db_password: { file: "${DEPLOY_SECRETS_DIR:-./secrets}/migration_db_password" }
+  initial_owner_password: { file: "${DEPLOY_SECRETS_DIR:-./secrets}/initial_owner_password" }
+  backup_coordination_key: { file: "${DEPLOY_SECRETS_DIR:-./secrets}/backup_coordination_key" }
+  restic_password: { file: "${DEPLOY_SECRETS_DIR:-./secrets}/restic_password" }
+  restore_verifier_password: { file: "${DEPLOY_SECRETS_DIR:-./secrets}/restore_verifier_password" }
+  restic_access_key: { file: "${DEPLOY_SECRETS_DIR:-./secrets}/restic_access_key" }
+  smtp_username: { file: "${DEPLOY_SECRETS_DIR:-./secrets}/smtp_username" }
+  smtp_password: { file: "${DEPLOY_SECRETS_DIR:-./secrets}/smtp_password" }
+  smtp_from: { file: "${DEPLOY_SECRETS_DIR:-./secrets}/smtp_from" }
+  restic_secret_key: { file: "${DEPLOY_SECRETS_DIR:-./secrets}/restic_secret_key" }
 configs:
   mysql_init:
     file: ./mysql-init.sh

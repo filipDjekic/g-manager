@@ -8,7 +8,7 @@ import { ResourceMenu } from '../resources/ResourceMenu'
 import { formatBusinessDateTime } from '../reservations/dateTime'
 import type { AuthUser } from '../types/auth.types'
 import { StationIcon, StationIllustration } from './stationPresentation'
-import { connectionStatus, stationStatus, stationWarnings, type StationView } from './stationPresentation.model'
+import { connectionStatus, stationStatus, stationWarnings, isNewerClientVersion, type StationView } from './stationPresentation.model'
 export function StationOperationLinks({ station, user, disabled, compact = false }: { station: StationView; user: AuthUser | null; disabled: boolean; compact?: boolean }) {
   if (!hasCapability(user, 'GAMING_SESSION_READ') || !station.live) return null
   const actions = ([['START', 'Pokreni sesiju'], ['TERMINATE', 'Završi sesiju'], ['EXTEND', 'Produži sesiju'],
@@ -45,7 +45,7 @@ export function StationCard({ station, user, now, selected, disabled, handlers }
     <StationIllustration />
     <div className="gm-stations-card-location"><span>{station.locationName || 'Lokal nije dostupan'}</span><span>{station.areaName || 'Zona nije dostupna'}</span></div>
     <dl className="gm-stations-card-facts"><div><dt>Profil aplikacija</dt><dd>{station.applicationProfileName || 'Nije dodeljen'}</dd></div>
-      <div><dt>Gaming Client</dt><dd><Badge tone={connection.tone}>{connection.label}</Badge>{station.clientVersion && <small>v{station.clientVersion}</small>}</dd></div></dl>
+      <div><dt>Gaming Client</dt><dd><Badge tone={connection.tone}>{connection.label}</Badge>{station.clientVersion && <small>v{station.clientVersion}</small>}{isNewerClientVersion(station.availableClientVersion, station.clientVersion) && <Badge tone="warning">Dostupno v{station.availableClientVersion}</Badge>}</dd></div></dl>
     <SessionPreview station={station} user={user} now={now} />
     {warnings.length > 0 && <div className="gm-stations-card-warnings">{warnings.map(warning => <p key={warning}>{warning}</p>)}</div>}
     <footer><Button type="button" variant="secondary" onClick={event => handlers.details(station, 'OVERVIEW', event.currentTarget)}>Detalji</Button>
@@ -64,7 +64,7 @@ export function StationsTable({ stations, user, now, selectedId, disabled, handl
           <span><strong>{station.resourceName}</strong><small>{station.resourceCode}</small></span></Button></td>
         <td data-label="Lokal i zona">{station.locationName || 'Nije dostupan'}<small>{station.areaName || 'Zona nije dostupna'}</small></td>
         <td data-label="Operativni status"><Badge tone={status.tone}>{status.label}</Badge>{stationWarnings(station).map(warning => <small className="gm-stations-table-warning" key={warning}>{warning}</small>)}</td>
-        <td data-label="Konekcija"><Badge tone={connection.tone}>{connection.label}</Badge></td>
+        <td data-label="Konekcija"><Badge tone={connection.tone}>{connection.label}</Badge><small>{station.clientVersion || 'Verzija nije prijavljena'}</small>{isNewerClientVersion(station.availableClientVersion, station.clientVersion) && <Badge tone="warning">Dostupno v{station.availableClientVersion}</Badge>}</td>
         <td data-label="Profil aplikacija">{station.applicationProfileName || 'Nije dodeljen'}</td>
         <td data-label="Aktivna sesija"><SessionPreview station={station} user={user} now={now} /></td>
         <td data-label="Poslednji kontakt">{station.lastHeartbeatAt ? <time dateTime={station.lastHeartbeatAt}>{formatBusinessDateTime(station.lastHeartbeatAt, false, 'sr-Latn-RS')}</time> : 'Nema kontakta'}</td>

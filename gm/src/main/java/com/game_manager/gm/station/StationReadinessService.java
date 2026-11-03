@@ -33,6 +33,7 @@ public class StationReadinessService {
     private final AuditWriter audit;
     private final com.game_manager.gm.common.scheduling.ClientStatePort enforcement;
     private final com.game_manager.gm.common.scheduling.ClientStatePort heartbeats;
+    private final com.game_manager.gm.common.scheduling.ClientUpdatePort clientUpdates;
 
     @Transactional(readOnly = true)
     @PreAuthorize("hasAuthority('STATION_READ')")
@@ -78,8 +79,9 @@ public class StationReadinessService {
         if(!stations.findByResourceId(resourceId).map(GamingStationProfile::isClientEnabled).orElse(false))
             throw new ApplicationException(HttpStatus.CONFLICT,"Guest sessions require an enabled, online Windows Client");
     }
-    @Transactional(readOnly = true)
+    @Transactional
     public void requireReadyForSession(UUID resourceId) {
+        if(clientUpdates.installing(resourceId))throw new ApplicationException(HttpStatus.CONFLICT,"Gaming Client installation is in progress");
         if (!preparation.ready(resourceId)) throw new ApplicationException(HttpStatus.CONFLICT,"Privacy preparation is required before the next session");
         GamingStationProfile station = stations.findByResourceId(resourceId)
                 .orElseThrow(() -> new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,

@@ -48,7 +48,7 @@ export function StationsPage() {
     refetchInterval: operations.visible && (!canOperate || board.isError) ? 15000 : false, refetchIntervalInBackground: false })
   const definitions = useQuery({ queryKey: ['stations', 'applications', user?.id], queryFn: stationApi.definitions, enabled: canRead })
   const profiles = useQuery({ queryKey: ['stations', 'profiles', user?.id], queryFn: stationApi.profiles, enabled: canRead })
-  const clientPackage = useQuery({ queryKey: ['stations', 'client-package', user?.id], queryFn: stationApi.clientPackage, enabled: canRead && section === 'package' })
+  const clientPackage = useQuery({ queryKey: ['stations', 'client-package', user?.id], queryFn: stationApi.clientPackage, enabled: canRead && (section === 'package' || maintain), staleTime: 60000 })
   // The existing board owns SSE and polling. Its fresh snapshots also refresh station configuration/heartbeat metadata.
   useEffect(() => { if (canOperate && board.dataUpdatedAt) void client.invalidateQueries({ queryKey: ['stations', 'overview'] }) }, [canOperate, board.dataUpdatedAt, client])
   const [search, setSearch] = useResettableState(() => state.search, state.search), [moreFilters, setMoreFilters] = useState(Boolean(state.profileId || state.connection))
@@ -70,14 +70,14 @@ const setUrl = url.set
     const liveById = new Map((canOperate ? board.data?.stations ?? [] : []).map(value => [value.resourceId, value]))
     return (stations.data ?? []).map<StationView>(value => {
       const live = liveById.get(value.resourceId)
-      return { ...value, live, locationName: value.locationName ?? live?.locationName, areaName: value.areaName ?? live?.areaName,
+      return { ...value, live, availableClientVersion: !clientPackage.isError && clientPackage.data?.status === 'RELEASED' ? clientPackage.data.version : undefined, locationName: value.locationName ?? live?.locationName, areaName: value.areaName ?? live?.areaName,
         operationalStatus: live?.operationalStatus === 'AVAILABLE' || live?.operationalStatus === 'MAINTENANCE' || live?.operationalStatus === 'RETIRED' ? live.operationalStatus : value.operationalStatus,
         effectiveStatus: live?.effectiveStatus === 'AVAILABLE' || live?.effectiveStatus === 'MAINTENANCE' || live?.effectiveStatus === 'RETIRED' || live?.effectiveStatus === 'IN_SESSION' || live?.effectiveStatus === 'OFFLINE' ? live.effectiveStatus : value.effectiveStatus,
         // Live session absence clears an older overview snapshot after termination.
         activeSessionId: live ? live.sessionId : value.activeSessionId, lastHeartbeatAt: live ? live.lastHeartbeatAt : value.lastHeartbeatAt,
         clientVersion: live?.clientVersion ?? value.clientVersion, clientEnabled: live?.clientEnabled ?? value.clientEnabled }
     }).sort((a, b) => a.resourceName.localeCompare(b.resourceName, 'sr-Latn-RS', { numeric: true }))
-  }, [stations.data, board.data, canOperate])
+  }, [stations.data, board.data, canOperate, clientPackage.data, clientPackage.isError])
   const locations = useMemo(() => [...new Map(allStations.map(value => [value.locationId, value.locationName || value.locationId])).entries()], [allStations])
   const areas = useMemo(() => [...new Map(allStations.filter(value => !state.locationId || value.locationId === state.locationId)
     .map(value => [value.areaId, value.areaName || value.areaId])).entries()], [allStations, state.locationId])

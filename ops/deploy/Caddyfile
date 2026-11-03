@@ -1,0 +1,9 @@
+{$PUBLIC_HOST} {
+    encode zstd gzip
+    reverse_proxy frontend:8080 {
+        header_up X-Forwarded-Proto https
+    }
+    # Management and backup coordination are never published at the HTTPS edge.
+    @private path /actuator* /internal*
+    respond @private 404
+}

@@ -3,7 +3,17 @@ import { apiErrorMessage } from '../api/client'
 import { stationLabels, stationTones, needsAttention } from '../gaming/presentation'
 import type { StationOverview } from '../types/station.types'
 import type { GamingStationCard } from '../types/gamingSession.types'
-export interface StationView extends StationOverview { live?: GamingStationCard }
+export interface StationView extends StationOverview { live?: GamingStationCard; availableClientVersion?: string }
+export function isNewerClientVersion(available?: string, installed?: string) {
+  const numeric = /^\d+\.\d+\.\d+(\.\d+)?$/
+  if (!available || !numeric.test(available)) return false
+  if (!installed || !numeric.test(installed)) return true
+  const target = available.split('.').map(Number), current = installed.split('.').map(Number)
+  for (let i = 0; i < 4; i++) {
+    if ((target[i] || 0) !== (current[i] || 0)) return (target[i] || 0) > (current[i] || 0)
+  }
+  return false
+}
 export type StationTab = 'OVERVIEW' | 'CONFIGURATION' | 'APPLICATIONS' | 'HISTORY'
 export const applicationTypeLabels = { GAME: 'Igra', LAUNCHER: 'Pokretač', HELPER: 'Pomoćna aplikacija' }
 export const operationalLabels = { AVAILABLE: 'Dostupna', MAINTENANCE: 'Održavanje', RETIRED: 'Van upotrebe' }

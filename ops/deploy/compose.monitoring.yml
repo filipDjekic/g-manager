@@ -1,0 +1,62 @@
+services:
+  prometheus:
+    image: prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996
+    restart: unless-stopped
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=30d"]
+    volumes:
+      - ../prometheus/production.yml:/etc/prometheus/prometheus.yml:ro
+      - ../prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    networks: [data, monitoring]
+    ports: ["127.0.0.1:9090:9090"]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+  alertmanager:
+    image: prom/alertmanager:v0.28.1@sha256:27c475db5fb156cab31d5c18a4251ac7ed567746a2483ff264516437a39b15ba
+    restart: unless-stopped
+    group_add: ["10001"]
+    command: ["--config.file=/etc/alertmanager/alertmanager.yml", "--cluster.listen-address="]
+    secrets: [alert_webhook_url, alert_webhook_token]
+    volumes:
+      - ../prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    networks: [monitoring, edge]
+    ports: ["127.0.0.1:9093:9093"]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+  grafana:
+    image: grafana/grafana:12.1.0@sha256:6ac590e7cabc2fbe8d7b8fc1ce9c9f0582177b334e0df9c927ebd9670469440f
+    restart: unless-stopped
+    group_add: ["10001"]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    secrets: [grafana_admin_password]
+    volumes:
+      - ../grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports: ["127.0.0.1:3001:3000"]
+    networks: [monitoring]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+  blackbox:
+    image: prom/blackbox-exporter:v0.27.0@sha256:a50c4c0eda297baa1678cd4dc4712a67fdea713b832d43ce7fcc5f9bea05094d
+    restart: unless-stopped
+    command: ["--config.file=/etc/blackbox.yml"]
+    volumes: ["../prometheus/blackbox.yml:/etc/blackbox.yml:ro"]
+    networks: [edge, monitoring]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+networks:
+  monitoring: { internal: true }
+volumes:
+  prometheus_data: {}
+  alertmanager_data: {}
+  grafana_data: {}
+secrets:
+  alert_webhook_url: { file: "${DEPLOY_SECRETS_DIR:-./secrets}/alert_webhook_url" }
+  alert_webhook_token: { file: "${DEPLOY_SECRETS_DIR:-./secrets}/alert_webhook_token" }
+  grafana_admin_password: { file: "${DEPLOY_SECRETS_DIR:-./secrets}/grafana_admin_password" }

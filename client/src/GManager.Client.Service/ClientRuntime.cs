@@ -121,6 +121,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
                     if(environment.Development){exception.Data[OperationalEventWriter.CurrentVersionKey]=policy.CurrentVersion;exception.Data[OperationalEventWriter.ReceivedVersionKey]=lease.ConfigurationVersion;}
                     throw exception;
                 }
+                PersistUpdateDirective(lease.ClientUpdate);
                 cryptographicPhase=CryptographicFailurePhase.LocalAction;
                 lock(stateSync) recovery=new(envelope,lease,recovery?.AppliedSequence??0,trusted.Now(),recovery?.PendingLockSequence,recovery?.PendingLockSessionId,recovery?.LocallyLocked??true,recovery?.BlockedSessionId,recovery?.PendingCommandAckSequence);
                 await ReconcileCommands(ct);
@@ -157,6 +158,14 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
             await gate.WaitAsync(ct);
             try {
                 if(request.Type=="prepare-update" && !maintenance && recovery is not null && !LeaseDeadlinePolicy.MustLock(recovery.Lease,trusted.Now())) return new(false,"Aktivna gaming sesija mora biti završena pre ažuriranja.",State);
+                if(request.Type=="prepare-update" && !environment.Development) {
+                    if(Identity is null)return new(false,"Stanica nije registrovana.",State);
+                    try {
+                        await EnsureToken(ct);
+                        var intent=recovery?.Lease.ClientUpdate;
+                        await protocol.ClaimUpdateAsync(token!,intent is not null && intent.ExpiresAt>trusted.Now()?intent.Id:null,ct);
+                    } catch(HttpRequestException) {return new(false,"Server nije odobrio instalaciju. Proverite sesije i vezu pre ponovnog pokušaja.",State);}
+                }
                 preparingUntil=trusted.Now().AddSeconds(30);
                 LockLocal("Local administrator");
                 if(request.Type=="prepare-maintenance" && recovery?.Lease.SessionId is Guid sessionId) {
@@ -305,7 +314,19 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
     }
     Heartbeat Heartbeat()=>new(environment.Version,maintenance?"MAINTENANCE":State.Mode==ClientMode.Active?"SESSION_ACTIVE":"LOCKED",recovery?.AppliedSequence??0,
         environment.Development || maintenance || !policy.EnforcementVerified?"UNKNOWN":State.Mode==ClientMode.Active?"UNLOCKED":"LOCKED",recovery?.Lease.SessionId,recovery?.Lease.LeaseId,policy.CurrentVersion,
-        environment.Development?"DEVELOPMENT":"INSTALLED",UpdateStatus(),maintenance,ErrorCode);
+        environment.Development?"DEVELOPMENT":"INSTALLED",UpdateStatus(),maintenance,ErrorCode,UpdateRequestId());
+    void PersistUpdateDirective(ClientUpdateDirective? value)
+    {
+        if(value is not null && (value.Id==Guid.Empty || !Version.TryParse(value.Version,out _) || value.NotBefore>=value.ExpiresAt))
+            throw new InvalidDataException("Invalid signed update request");
+        if(environment.Development)return;
+        ProtectedIdentityStore.AtomicWrite(Path.Combine(environment.StateDirectory,"update-request.json"),JsonSerializer.SerializeToUtf8Bytes(value));
+    }
+    Guid? UpdateRequestId()
+    {
+        try {using var status=JsonDocument.Parse(File.ReadAllBytes(Path.Combine(environment.StateDirectory,"update-status.json")));return status.RootElement.TryGetProperty("requestId",out var id)&&id.TryGetGuid(out var value)?value:null;}
+        catch(Exception ex) when(ex is IOException or JsonException or InvalidOperationException or FormatException){return null;}
+    }
     string? UpdateStatus()
     {
         try { using var status=JsonDocument.Parse(File.ReadAllBytes(Path.Combine(environment.StateDirectory,"update-status.json"))); return status.RootElement.GetProperty("status").GetString(); }

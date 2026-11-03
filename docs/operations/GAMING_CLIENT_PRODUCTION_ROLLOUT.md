@@ -1,3 +1,5 @@
+> FAZA 4: implementirani su povezani signing/publish/HTTPS hash gate, grafički Setup, per-station signed update, server claim protiv paid-start trke, trajni release/rollback JSON, ClamAV/SMTP i koordinisani restic backup/monitoring. Ovo nije potvrda stvarnog produkcionog postavljanja. Pre prijema ponoviti sve kriterijume ispod i potvrditi: prvi/upgrade deploy, prethodni image rollback, stvarni S3 restore, prijem webhook alarma, SMTP kada je uključen, potpisani Home/Pro install, dva uzastopna canary update-a i prekid napajanja pri update-u.
+
 # Pilot rollout Windows Client-a
 
 Ovo su kriterijumi za proveru stvarnog izdanja na ciljnom MySQL okruženju i namenskoj upravljanoj Windows stanici. Izvorni kod, postojanje testova i raniji izveštaj ne predstavljaju potvrdu pilot spremnosti. Uputstva za rad su u [WINDOWS_CLIENT.md](WINDOWS_CLIENT.md), a konfiguracioni blokatori u [DEPLOYMENT.md](DEPLOYMENT.md).

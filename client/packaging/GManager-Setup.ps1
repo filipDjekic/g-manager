@@ -7,9 +7,10 @@
     [string]$SigningThumbprint,
     [string]$PlayerAccount,
     [string]$LocalCaCertificate,
-    [string]$ExpectedCaSha256
+    [string]$ExpectedCaSha256,
+    [Security.SecureString]$EnrollmentToken
 )
-trap { [Console]::Error.WriteLine('G-Manager Setup: '+$_.Exception.Message); exit 1 }
+$ErrorActionPreference='Stop'
 if(!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){throw 'Pokrenite GManager-Setup.cmd kroz Run as administrator iz zasebnog Windows administratorskog naloga.'}
 Write-Host 'G-MANAGER · Welcome / System Check'
 Write-Host 'Pripremite odobrene javne deployment podatke. Lozinke i privatni ključevi se ne unose u paket.'
@@ -50,6 +51,7 @@ try {
 	}
     $PackageDirectory=(Resolve-Path -LiteralPath $PackageDirectory).Path
     $manifest=Assert-Package $PackageDirectory $SigningSubject $SigningThumbprint
+    Assert-ReleaseCompatibility $manifest $capabilities.Build
     $existingConfigPath=Join-Path $script:ClientState 'client.json'
     if(Test-Path -LiteralPath $existingConfigPath){
         $installedConfig=Read-ClientConfig
@@ -106,7 +108,7 @@ try {
     Invoke-Native 'sc.exe' @('sdset','GManagerClient','D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCLCSWLOCRRC;;;BU)')
     if(!(Test-Path -LiteralPath (Join-Path $script:ClientState 'identity.dpapi'))){
         Write-Host 'G-MANAGER · Station Enrollment'
-        $secret=Read-Host 'Jednokratni enrollment token' -AsSecureString
+        $secret=$EnrollmentToken;if(!$secret){$secret=Read-Host 'Jednokratni enrollment token' -AsSecureString}
         $ptr=[Runtime.InteropServices.Marshal]::SecureStringToBSTR($secret)
         try{
             $info=[Diagnostics.ProcessStartInfo]::new((Join-Path $script:ClientRoot 'service\GManager.Client.Service.exe'),'--enroll-stdin');$info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardInput=$true
@@ -126,7 +128,7 @@ try {
     Register-ScheduledTask -TaskName 'GManagerClientUpdate' -Action $updateAction -Trigger $updateTrigger -User SYSTEM -RunLevel Highest -Force|Out-Null
     Start-ClientService
     Write-Host 'G-MANAGER · Verification'
-    Assert-Healthy
+    Assert-Healthy -RequireConnected
     Write-AtomicJson (Join-Path $script:ClientState 'update-status.json') @{status='CURRENT';timestamp=[DateTimeOffset]::UtcNow.ToString('o')}
     $caRecord=Join-Path $script:ClientState 'installed-ca.json'
     if(Test-Path -LiteralPath $caRecord){$ownedCa=Get-Content -Encoding UTF8 -LiteralPath $caRecord -Raw|ConvertFrom-Json;if($ownedCa.phase -eq 'Pending'){$ownedCa.phase='Added';Write-AtomicJson $caRecord $ownedCa}}

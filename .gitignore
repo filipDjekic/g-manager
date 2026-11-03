@@ -40,6 +40,7 @@ client/artifacts/audit/
 *.bak
 /client/**/TestResults/
 /artifacts/pilot/
+/artifacts/production/
 
 # Uploaded runtime files
 /data/uploads/

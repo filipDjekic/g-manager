@@ -26,9 +26,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/stations/client-package")
 public class GamingClientDistributionController {
     private final String version, status, downloadUrl, sha256, signingSubject, minimumVersion;
+    @Value("${GAMING_CLIENT_PACKAGE_SIGNING_THUMBPRINT:}") private String signingThumbprint="";
+    @Value("${STATION_POLICY_SIGNING_PUBLIC_KEY:}") private String policySigningPublicKey="";
+    @Value("${app.gaming-client.policy-signing-key-id:unconfigured}") private String policySigningKeyId="unconfigured";
     private final HttpClient downloads = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(3))
-            .followRedirects(HttpClient.Redirect.NORMAL)
+            .followRedirects(HttpClient.Redirect.NEVER)
             .build();
 
     public GamingClientDistributionController(
@@ -45,7 +48,8 @@ public class GamingClientDistributionController {
     @GetMapping
     public Map<String, String> packageInfo() {
         return Map.of("version", version, "minimumVersion", minimumVersion, "status", status,
-                "downloadUrl", downloadUrl, "sha256", sha256, "signingSubject", signingSubject);
+                "downloadUrl", downloadUrl, "sha256", sha256, "signingSubject", signingSubject,
+                "signingThumbprint",signingThumbprint,"policySigningPublicKey",policySigningPublicKey,"policySigningKeyId",policySigningKeyId);
     }
 
     // The configured HTTPS publisher is checked server-side so browser CORS/CSP

@@ -1,3 +1,5 @@
+> Ažuriranje 3. novembra 2026, FAZA 4: nalazi ispod ostaju istorijski snimak od 1. novembra. Aktuelna implementacija popravlja release JSON/quoting i secrets, Bash pozive, DB grant-ove, OWNER bootstrap, stvarno objavljivanje Client-a, TLS/monitoring, automatski off-site backup i produkcioni ClamAV/SMTP. Važeći postupci su u [deployment](operations/DEPLOYMENT.md), [backup](operations/BACKUP_RECOVERY.md) i [Windows](operations/WINDOWS_CLIENT.md) vodičima. Fizički pilot i stvarni produkcioni deployment nisu potvrđeni ovom izmenom.
+
 # Pregled dokumentacije i konfiguracionih nedostataka
 
 Datum: **1. novembar 2026.** Obuhvat: postojeći Markdown fajlovi, frontend/backend kod i manifesti, profili, SQL migracije/seed, Docker/CI/release, backup i .NET Client packaging/recovery. Svi raniji Markdown fajlovi uključeni su u inventar sadržaja, naslova, putanja/linkova i duplikata. Istorijski zahtevi nisu korišćeni kao dokaz implementacije.

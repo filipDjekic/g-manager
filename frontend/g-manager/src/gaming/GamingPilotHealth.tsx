@@ -11,6 +11,7 @@ export function GamingPilotHealth({ visible }: { visible:boolean }) {
   return <details onToggle={event => setOpen(event.currentTarget.open)}><summary>Dijagnostika sistema</summary>
     {health.isError ? <Alert tone="danger">Stanje servera i baze nije potvrđeno. Proverite vezu i servis.</Alert> : health.data ? <>
       <p>Server: {label(health.data.backend)} · Baza: {label(health.data.database)} · Finansijska evidencija: {label(health.data.financialLedger)}</p>
+      {health.data.backup && <p>Backup: {label(health.data.backup)}</p>}
       <p>Provereno: {formatBusinessDateTime(health.data.checkedAt)}{!visible && ' · Provera je pauzirana'}</p>
     </> : <p>{open ? 'Provera je u toku…' : 'Otvorite za proveru.'}</p>}
   </details>

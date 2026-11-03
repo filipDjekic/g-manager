@@ -1,4 +1,5 @@
 import { StationSetupSteps } from './StationSetupSteps'
+import { StationClientUpdates } from './StationClientUpdates'
 import { useResettableState } from '../components/useResettableState'
 import { useQuery } from '@tanstack/react-query'
 import { useId, type RefObject } from 'react'
@@ -30,7 +31,7 @@ export function StationDetails({ station, user, now, initialTab, profiles, defin
   const [tab, setTab] = useResettableState<StationTab>(() => initialTab, `${station.resourceId}:${initialTab}`), id = useId()
   const management = useQuery({ queryKey: ['stations', station.resourceId, 'client-status'], queryFn: () => stationApi.clientStatus(station.resourceId),
     enabled: Boolean(station.stationProfileId) && hasCapability(user, 'STATION_READ'), refetchInterval: 15_000 })
-  const client = management.data
+  const client = management.isError ? undefined : management.data
   const updateLabels: Record<string, string> = { CURRENT: 'Ažuran', DOWNLOADING: 'Preuzimanje', FAILED: 'Neuspešno ažuriranje', ROLLED_BACK: 'Vraćena prethodna verzija', UNKNOWN: 'Nije poznato' }
   const canHistory = hasCapability(user, 'GAMING_SESSION_READ') && Boolean(station.live)
   const history = useQuery({ queryKey: ['gaming-operations', 'history', station.resourceId], queryFn: () => gamingSessionApi.history(station.resourceId), enabled: canHistory && tab === 'HISTORY' })
@@ -80,6 +81,7 @@ export function StationDetails({ station, user, now, initialTab, profiles, defin
             </div> : <p className="gm-stations-form-note">{station.activeSessionId ? 'Stanica ima aktivnu sesiju. Detalji nisu dostupni u vašem operativnom opsegu.' : 'Nema aktivne sesije.'}</p>}
           </>}
           {tab === 'CONFIGURATION' && <>
+            {hasCapability(user, 'STATION_MAINTENANCE') && station.clientEnabled && <StationClientUpdates stationId={station.resourceId} installedVersion={station.clientVersion} />}
             <StationSetupSteps station={station} user={user} handlers={handlers}/>
             <dl className="gm-stations-detail-fields"><div><dt>Operativno stanje</dt><dd>{operationalLabels[station.operationalStatus]}</dd></div>
               <div><dt>Profil aplikacija</dt><dd>{station.applicationProfileName || 'Nije dodeljen'}</dd></div>

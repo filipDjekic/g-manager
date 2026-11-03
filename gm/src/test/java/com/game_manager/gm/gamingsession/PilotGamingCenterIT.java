@@ -160,7 +160,7 @@ class PilotGamingCenterIT {
         assertLedger();
         // Execute the actual encrypted backup/restore tools against this container only.
         var image=new org.testcontainers.images.builder.ImageFromDockerfile();
-        for(String script:List.of("Dockerfile","backup.sh","restore-drill.sh","backup-loop.sh","backup-set.sh","ledger-check.sql"))
+        for(String script:List.of("Dockerfile","backup.sh","restore-drill.sh","backup-loop.sh","backup-set.sh","scheduled-backup.sh","ledger-check.sql"))
             image.withFileFromPath(script,java.nio.file.Path.of("..","ops","backup",script).toAbsolutePath());
         try(var backup=new org.testcontainers.containers.GenericContainer<>(image)
                 .withNetworkMode("container:"+MYSQL.getContainerId()).withCommand("sleep","infinity")

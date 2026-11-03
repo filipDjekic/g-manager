@@ -1,5 +1,18 @@
 # Upravljanje G-Manager Windows Client-om
 
+## Grafička instalacija i upravljani update — FAZA 4
+
+Preuzmite produkcioni paket iz web aplikacije, proverite očekivanog izdavača i raspakujte ZIP. Iz zasebnog administratorskog Windows naloga pokrenite `GManager-Setup.cmd` preko **Run as administrator**. Potpisani WPF wizard traži HTTPS origin, proverava TLS/publisher i javni policy pin, zatim standardni nalog igrača i jednokratni enrollment kod. Kod ostaje SecureString unutar procesa; ne stavljati ga u CLI, URL ili log. Privatni policy/signing ključ se ne kopira na stanicu.
+
+Wizard koristi postojeći transakcioni Setup: capability proveru Home/Pro, potpis/CMS/SHA, Service/Shell, lokalne zaštite, autostart i rollback. Finish zahteva svežu potvrdu stvarne backend komunikacije i lokalnog enforcement-a. Neuspeh ostavlja kontrolisani recovery journal; pregledati rezultat pre ponavljanja. Fizičku lock/game/reboot proveru izvršiti pre kupaca.
+
+Za staru instaliranu verziju koja još nema upravljanu signed-update direktivu prvo lokalno instalirati odobrenu verziju ove faze, pa potvrditi canary. Postojeći identitet se čuva. OWNER/ADMIN na stranici stanice, u konfiguraciji, vidi instaliranu/dostupnu verziju i istoriju poslednjih 20 zahteva. Unesite razlog i početno odlaganje za jednu canary stanicu. Sledeće stanice odobravati posle njenog uspeha. Zahtev nosi samo odobrenu verziju i vreme, nikakvu komandu ili proizvoljan URL.
+
+Service čuva direktivu iz potpisanog lease-a; zaštićeni updater proverava raspored, HTTPS/SHA/Authenticode/CMS i Windows build/protocol. Pre zamene Service traži serverski claim koji se transakciono nadmeće sa session start-om: aktivna plaćena sesija odbija instalaciju, a kratkotrajni INSTALLING claim blokira novog kupca. Failed/rolled-back zahtev se automatski ne vrti u petlji. Novi zahtev ili lokalni administrator pokreće naredni kontrolisani pokušaj. Posle isteka claim-a ostale postojeće lock/readiness provere i dalje važe.
+
+Ručni update ostaje lokalna elevated radnja kroz postojeći `gmanagerctl.cmd update`; koristi iste trust/paid-session provere. Health neuspeh pokreće rollback, power-loss koristi postojeći journal/candidate/previous oporavak, identitet ostaje izvan binarnog direktorijuma. UI status posle neuspelog osvežavanja nije potvrda uspeha.
+
+
 Ovo je centralni vodič za kod u [client/](../../client), [packaging skripte](../../client/packaging) i njihov operativni ugovor. Izvorni kod nije dokaz da postojeći ZIP odgovara checkout-u ili da je fizička stanica proverena. Komande ispod nisu izvršavane tokom pregleda dokumentacije. Za backend preduslove pogledajte [deployment](DEPLOYMENT.md), a za prihvatanje izdanja [pilot rollout](GAMING_CLIENT_PRODUCTION_ROLLOUT.md).
 
 ## Arhitektura i priprema za razvoj

@@ -1,4 +1,4 @@
-# Isolated contract tests: no AppLocker, account, service, task or system-registry mutations.
+﻿# Isolated contract tests: no AppLocker, account, service, task or system-registry mutations.
 # Windows APIs are mocked below; these results do NOT certify physical enforcement.
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
@@ -222,6 +222,15 @@ try{
     Reject {Assert-Healthy -TimeoutSeconds 0} 'Running service without enforcement proof must not complete installation/update'
     $health.enforcementVerified=$true;Write-AtomicJson (Join-Path $script:ClientState 'health.json') $health
     Assert-Healthy -TimeoutSeconds 0
+    Reject {Assert-Healthy -TimeoutSeconds 0 -RequireConnected} 'First installation must prove backend communication'
+    $health.serverConnected=$true
+    Write-AtomicJson (Join-Path $script:ClientState 'health.json') $health
+    Assert-Healthy -TimeoutSeconds 0 -RequireConnected
+    $release=[pscustomobject]@{minimumWindowsBuild=19041;enforcementProtocol=1}
+    Assert-ReleaseCompatibility $release 19045
+    Reject {Assert-ReleaseCompatibility $release 18363} 'Update must reject an unsupported Windows build before replacing files'
+    $release.enforcementProtocol=2
+    Reject {Assert-ReleaseCompatibility $release 19045} 'Update must reject an unknown enforcement protocol'
     $health.version='9.9.9';Write-AtomicJson (Join-Path $script:ClientState 'health.json') $health
     Reject {Assert-Healthy -TimeoutSeconds 0} 'Stale version health must fail'
 }finally{

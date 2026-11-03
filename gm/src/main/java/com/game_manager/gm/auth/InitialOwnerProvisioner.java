@@ -39,7 +39,7 @@ public class InitialOwnerProvisioner implements ApplicationRunner {
         if (email.isBlank() || password.length() < 8) {
             throw new IllegalStateException("Initial owner requires a valid email and password of at least 8 characters");
         }
-        if (userRepository.existsByEmailIgnoreCase(email)) {
+        if (userRepository.existsByRole(Role.OWNER) || userRepository.existsByEmailIgnoreCase(email)) {
             return;
         }
         User owner = new User();

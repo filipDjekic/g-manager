@@ -1,12 +1,13 @@
 name: CI
 
 on:
+  workflow_call:
   pull_request:
   push:
     branches: [main]
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}-${{ github.workflow == 'Release' && github.run_id || '' }}
   cancel-in-progress: true
 
 permissions:
@@ -18,6 +19,35 @@ env:
   NPM_VERSION: '11.19.1'
 
 jobs:
+  infrastructure:
+    name: Production infrastructure contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Public release metadata and artifact contracts
+        run: python3 -B -m unittest discover -s ops/deploy/tests -p 'test_*.py'
+      - name: Isolated deployment, rollback and publication failure contracts
+        run: |
+          docker build -t gmanager-infrastructure-test ops/backup
+          docker run --rm --user 0 --entrypoint python3 -v "$PWD:/workspace:ro" -w /workspace gmanager-infrastructure-test -B -m unittest discover -s ops/deploy/tests -p 'test_*.py'
+      - name: Actual antivirus clean and EICAR checks in a disposable container
+        run: python3 -B ops/deploy/tests/check_clamav.py
+      - name: Actual alert delivery to a disposable private receiver
+        run: python3 -B ops/deploy/tests/check_alert_delivery.py
+      - name: Versioned download and private-route checks against actual Nginx
+        run: python3 -B ops/deploy/tests/check_downloads.py
+      - name: Initial document and backup volume ownership
+        run: python3 -B ops/deploy/tests/check_volume_ownership.py
+      - name: Validate production topology and scripts
+        run: |
+          docker compose -f ops/deploy/compose.yml -f ops/deploy/compose.tls.yml -f ops/deploy/compose.monitoring.yml config --no-interpolate --quiet
+          for script in ops/deploy/*.sh ops/backup/*.sh gm/ops/container-entrypoint.sh; do bash -n "$script"; done
+      - name: Validate private monitoring configuration
+        run: |
+          docker run --rm --entrypoint promtool -v "$PWD/ops/prometheus:/etc/prometheus:ro" prom/prometheus:v3.5.0 check config /etc/prometheus/production.yml
+          docker run --rm --entrypoint amtool -v "$PWD/ops/prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro" prom/alertmanager:v0.28.1 check-config /etc/alertmanager/alertmanager.yml
+
   gaming-client:
     name: Gaming Client quality and dependency policy
     runs-on: windows-2025

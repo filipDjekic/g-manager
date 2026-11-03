@@ -16,6 +16,21 @@ namespace GManager.Client.Tests;
 // without changing Windows policy, logging off a player or claiming a physical lock.
 public sealed class PilotRecoveryTests
 {
+    [Theory] [InlineData("id")] [InlineData("version")] [InlineData("deadline")]
+    public async Task InvalidSignedUpdateIntentCannotLeaveAnActiveLeaseUsable(string malformed)
+    {
+        using var f=new Fixture();await f.Login();var now=f.Clock.GetUtcNow();
+        var intent=new ClientUpdateDirective(malformed=="id"?Guid.Empty:Guid.NewGuid(),malformed=="version"?"invalid":"4.0.0",now,malformed=="deadline"?now:now.AddDays(1));
+        f.Protocol.CurrentLease=f.Protocol.CurrentLease with {ClientUpdate=intent};
+        await f.Runtime.Refresh(TestContext.Current.CancellationToken);
+        Assert.Equal(ClientMode.Locked,f.Runtime.State.Mode);Assert.Equal("POLICY_FAILED",f.Runtime.ErrorCode);
+    }
+    [Fact] public async Task LocalUpdatePreparationCannotInterruptAnActivePaidSession()
+    {
+        using var f=new Fixture();await f.Login();
+        var response=await f.Runtime.Handle(new("prepare-update","isolated-update"),true,TestContext.Current.CancellationToken);
+        Assert.False(response.Success);Assert.Equal(ClientMode.Active,f.Runtime.State.Mode);
+    }
     [Fact] public async Task LostCommandAckIsPersistedAndRetriedAfterServiceRestart()
     {
         using var f=new Fixture(); f.Protocol.FailAck=true;
@@ -136,6 +151,7 @@ public sealed class PilotRecoveryTests
     }
     sealed class FakeProtocol:IMachineProtocolClient
     {
+        public Task ClaimUpdateAsync(string bearer,Guid? requestId,CancellationToken ct)=>Task.CompletedTask;
         readonly Fixture f; public SessionLease CurrentLease; public MachineCommand Command;
         public string? Failure; public bool FailAck,PrunedAck; public int AckAttempts,Authentications;
         public FakeProtocol(Fixture fixture) { f=fixture; var now=f.Clock.GetUtcNow();

@@ -18,9 +18,10 @@ try{
     $settings.Client.Version=$Version
     $settings.Client|Add-Member -MemberType NoteProperty -Name Mode -Value 'Production' -Force
     $settings|ConvertTo-Json -Depth 10|Set-Content -LiteralPath (Join-Path $stage 'service\appsettings.json') -Encoding UTF8
-    foreach($name in @('GManager-Setup.ps1','GManager-Setup.cmd','GManager-Management.ps1','install-service.ps1','uninstall-service.ps1','update-client.ps1','support-bundle.ps1','pilot-diagnostics.ps1','gmanagerctl.ps1','gmanagerctl.cmd','client-management.ps1')){
+    foreach($name in @('GManager-Setup.ps1','GManager-SetupWizard.ps1','GManager-Setup.cmd','GManager-Management.ps1','install-service.ps1','uninstall-service.ps1','update-client.ps1','support-bundle.ps1','pilot-diagnostics.ps1','gmanagerctl.ps1','gmanagerctl.cmd','client-management.ps1')){
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $stage
     }
+    if(Get-ChildItem -LiteralPath $stage -Recurse -File|Where-Object {$_.Extension -in @('.pfx','.p12','.key','.pem')}){throw 'Privatni klju? ili sertifikat nije dozvoljen u paketu.'}
     $certificate=Get-Item -LiteralPath "Cert:\CurrentUser\My\$CertificateThumbprint"
     if(!$certificate.HasPrivateKey -or $certificate.NotAfter -lt (Get-Date)){throw 'Potreban je važeći code-signing sertifikat sa privatnim ključem na release računaru.'}
     foreach($file in Get-ChildItem -LiteralPath $stage -Recurse -File|Where-Object { $_.Extension -in @('.exe','.ps1') -or $_.Name -like 'GManager.*.dll' }){
@@ -39,6 +40,7 @@ try{
     $zip=Join-Path $artifacts 'GManager.Client.zip'
     Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -Force
     @{version=$Version;sha256=(Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant();signingSubject=$certificate.Subject;signingThumbprint=$certificate.Thumbprint}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $artifacts 'GManager.Client.manifest.json') -Encoding UTF8
+    (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()+'  GManager.Client.zip'|Set-Content -LiteralPath (Join-Path $artifacts 'GManager.Client.zip.sha256') -Encoding ASCII
     Write-Host "Potpisani produkcioni paket: $zip"
 }finally{
     $resolvedStage=[IO.Path]::GetFullPath($stage);$resolvedArtifacts=[IO.Path]::GetFullPath($artifacts).TrimEnd('\')+'\'

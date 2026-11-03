@@ -11,6 +11,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificationExecutor<User> {
+    boolean existsByRole(com.game_manager.gm.common.security.Role role);
+
     interface DisplayName {
         UUID getId();
         String getName();
