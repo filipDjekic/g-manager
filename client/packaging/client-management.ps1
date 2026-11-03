@@ -191,6 +191,8 @@ function Save-RecoveryTools([string]$PackageDirectory,[string]$Subject,[string]$
     Assert-Signature (Join-Path $recovery 'windows-enforcement.ps1') $Subject $Thumbprint
     Copy-Item -LiteralPath (Join-Path $PackageDirectory 'service\apply-policy.ps1') -Destination $recovery -Force
     foreach($name in @('client-management.ps1','gmanagerctl.ps1','update-client.ps1','uninstall-service.ps1','support-bundle.ps1')){Copy-Item -LiteralPath (Join-Path $PackageDirectory $name) -Destination $recovery -Force}
+    $pilot=Join-Path $PackageDirectory 'pilot-diagnostics.ps1'
+    if(Test-Path -LiteralPath $pilot){Copy-Item -LiteralPath $pilot -Destination $recovery -Force}
     $panel=Join-Path $PackageDirectory 'GManager-Management.ps1'
     if(Test-Path -LiteralPath $panel){Copy-Item -LiteralPath $panel -Destination $recovery -Force}
     foreach($file in Get-ChildItem -LiteralPath $recovery -Filter '*.ps1'){Assert-Signature $file.FullName $Subject $Thumbprint}

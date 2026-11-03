@@ -32,6 +32,12 @@ jobs:
         working-directory: client
       - run: dotnet test GManager.Client.slnx -c Release --no-build
         working-directory: client
+      - name: Windows enforcement and recovery contracts (isolated OS calls)
+        shell: powershell
+        working-directory: client
+        run: |
+          & .\tests\windows-enforcement.Tests.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Reject vulnerable NuGet packages
         shell: pwsh
         run: |
@@ -114,7 +120,7 @@ jobs:
   mysql:
     name: MySQL migration
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
@@ -125,12 +131,19 @@ jobs:
       - name: Verify migrations and MySQL concurrency
         run: ./mvnw verify -Pmysql-it
         working-directory: gm
+      - name: Backup safety contracts without database access
+        run: |
+          docker build -t gmanager-backup-safety ops/backup
+          docker run --rm --mount "type=bind,source=$PWD/ops/backup/test-safety.sh,target=/tmp/test-safety.sh,readonly" gmanager-backup-safety bash /tmp/test-safety.sh
       - name: Upload MySQL reports
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: mysql-reports-${{ github.sha }}
-          path: gm/target/failsafe-reports/
+          path: |
+            gm/target/failsafe-reports/
+            gm/target/backend-performance-*.json
+            gm/target/backend-api-inventory.json
           if-no-files-found: warn
           retention-days: 14
 

@@ -171,6 +171,8 @@ public class SecurityConfig {
                                 "/api/v1/gaming-sessions").hasAuthority("GAMING_SESSION_READ")
                         .requestMatchers(HttpMethod.GET, "/api/v1/gaming-operations/board")
                             .hasAuthority("GAMING_SESSION_READ")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/gaming-operations/health")
+                            .hasAuthority("GAMING_FINANCE_MANAGE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/gaming-operations/stations/*/history")
                             .hasAuthority("GAMING_SESSION_READ")
                         .requestMatchers(HttpMethod.POST, "/api/v1/gaming-sessions")

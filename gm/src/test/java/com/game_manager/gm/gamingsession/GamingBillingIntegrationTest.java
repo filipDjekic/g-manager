@@ -39,6 +39,9 @@ class GamingBillingIntegrationTest extends GamingSessionIntegrationTest {
         var body=new HashMap<String,Object>();body.put("resourceId",station.resource().getId());body.put("durationMinutes",60);
         if(customer==null) {
             var profile=stations.findByResourceId(station.resource().getId()).orElseThrow();profile.setClientEnabled(true);profile.setLastHeartbeatAt(Instant.now());stations.saveAndFlush(profile);
+            // Synthetic protocol readiness for finance-only tests, never evidence of a physical Windows lock.
+            if(jdbc.queryForObject("SELECT COUNT(*) FROM station_client_enforcement WHERE station_id=?",Integer.class,station.resource().getId().toString())==0)
+                jdbc.update("INSERT INTO station_client_enforcement (station_id,enforcement_status,created_at,updated_at,version) VALUES (?,'LOCKED',?,?,0)",station.resource().getId().toString(),Timestamp.from(Instant.now()),Timestamp.from(Instant.now()));
         }
         body.put(customer==null?"guestName":"customerId",customer==null?"Guest desk 1":customer);
         body.put("purchase",purchaseBody(60,method,amount));return body;
@@ -129,6 +132,11 @@ class GamingBillingIntegrationTest extends GamingSessionIntegrationTest {
         var started=postCommand("/api/v1/gaming-sessions",token,startBody(station,null,"CASH","200"),201);String id=started.get("id").asText();
         call(get("/api/v1/gaming-billing/sessions/"+id),token(employee),null,403);
         call(get("/api/v1/gaming-billing/customers/"+owner.getId()),token(customer),null,403);
+        var health=call(get("/api/v1/gaming-operations/health"),token,null,200);
+        assertThat(health.get("database").asText()).isEqualTo("UP");
+        call(get("/api/v1/gaming-operations/health"),token(user(Role.ADMIN)),null,200);
+        call(get("/api/v1/gaming-operations/health"),token(employee),null,403);
+        call(get("/api/v1/gaming-operations/health"),token(customer),null,403);
         postCommand("/api/v1/gaming-sessions/"+id+"/terminate",token,Map.of("version",started.get("version").asLong(),"reason","Finished"),200);
         String original=call(get("/api/v1/gaming-billing/sessions/"+id),token,null,200).get("transactions").get(0).get("id").asText();
         var refund=Map.of("paymentId",original,"amount","100","reason","Authorized goodwill refund");
@@ -190,6 +198,15 @@ class GamingBillingIntegrationTest extends GamingSessionIntegrationTest {
         wallet=postCommand("/api/v1/gaming-billing/customers/"+customer.getId()+"/refunds",token,Map.of("paymentId",original,"amount","60","reason","Returning unused credit after account deactivation"),200);
         assertThat(wallet.get("balance").decimalValue()).isEqualByComparingTo("60.00");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM gaming_wallet_ledger WHERE operation_id IS NULL AND amount<>0",Integer.class)).isZero();
+    }
+
+    @Test void financialInvariantAlarmDetectsCorruptRestoredCreditWithoutRewritingMoney() throws Exception {
+        var owner=user(Role.OWNER);var customer=user(Role.CUSTOMER);var station=station();String token=token(owner);
+        postCommand("/api/v1/gaming-billing/customers/"+customer.getId()+"/topups",token,Map.of("resourceId",station.resource().getId(),"payment",payment("CASH","120"),"reason","Isolated reconciliation fixture"),200);
+        assertThat(call(get("/api/v1/gaming-operations/health"),token,null,200).get("financialLedger").asText()).isEqualTo("UP");
+        jdbc.update("UPDATE gaming_wallet_ledger SET amount=-amount WHERE customer_id=?",customer.getId().toString());
+        assertThat(call(get("/api/v1/gaming-operations/health"),token,null,200).get("financialLedger").asText()).isEqualTo("DEGRADED");
+        assertThat(jdbc.queryForObject("SELECT SUM(amount) FROM gaming_wallet_ledger WHERE customer_id=?",java.math.BigDecimal.class,customer.getId().toString())).isEqualByComparingTo("-120");
     }
 
 }

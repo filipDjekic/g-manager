@@ -15,6 +15,7 @@ public interface ClientStatePort {
     record History(Instant occurredAt, String action, String resultingStatus, Long commandSequence, String details) {}
     Map<UUID, State> states(Collection<UUID> stationIds);
     Optional<Heartbeat> heartbeat(UUID stationId);
+    default Map<UUID,Heartbeat> heartbeats(Collection<UUID> stationIds) { return Map.of(); }
     List<History> history(UUID stationId);
     boolean safeForNewSession(UUID stationId);
     void commandIssued(UUID stationId, UUID sessionId, String commandType, long sequence);

@@ -9,7 +9,7 @@ function Rows({ rows }: { rows: Record<string, string | number>[] }) {
   rows = rows.filter(Boolean)
   if (!rows.length) return <p>Nema stavki za izabrani period.</p>
   const keys = Object.keys(rows[0])
-  return <TableShell label="Gaming finansijski pregled"><thead><tr>{keys.map(k => <th key={k}>{labels[k] ?? k}</th>)}</tr></thead><tbody>{rows.map((r, i) => <tr key={i}>{keys.map(k => <td key={k}>{values[String(r[k])] ?? String(r[k] ?? '')}</td>)}</tr>)}</tbody></TableShell>
+  return <TableShell label="Gaming finansijski pregled"><table className="ui-data-table"><thead><tr>{keys.map(k => <th scope="col" key={k}>{labels[k] ?? k}</th>)}</tr></thead><tbody>{rows.map((r, i) => <tr key={i}>{keys.map(k => <td key={k}>{values[String(r[k])] ?? String(r[k] ?? '')}</td>)}</tr>)}</tbody></table></TableShell>
 }
 export function GamingFinanceReport() {
   const [from, setFrom] = useState(() => reportPreset('month').from), [to, setTo] = useState(() => reportPreset('month').to)

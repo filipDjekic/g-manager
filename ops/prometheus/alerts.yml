@@ -64,8 +64,33 @@ groups:
       - alert: GManagerObservabilityTest
         expr: vector(1)
         for: 0m
+        labels: { severity: test }
+        annotations: { summary: "Synthetic alert validating the alert delivery path" }
+      - alert: GManagerGamingLedgerInconsistent
+        expr: gmanager_gaming_ledger_violations > 0
+        for: 0m
+        labels: { severity: critical }
+        annotations: { summary: "Financial ledger requires operator investigation; do not rewrite ledger rows" }
+      - alert: GManagerFinancialRequestFailed
+        expr: sum(increase(gmanager_http_requests_seconds_count{method="POST",route=~"/api/v1/gaming-billing/.*|/api/v1/gaming-sessions.*",outcome="SERVER_ERROR"}[5m])) > 0
+        for: 0m
+        labels: { severity: critical }
+        annotations: { summary: "A financial/session request failed; reconcile using the same idempotency key" }
+      - alert: GManagerClientRecoveryFailed
+        expr: gmanager_machine_clients_failed > 0
+        for: 1m
+        labels: { severity: critical }
+        annotations: { summary: "A Gaming Client reports an enforcement or recovery error" }
+      - alert: GManagerClientUpdateFailed
+        expr: gmanager_machine_updates_failed > 0
+        for: 1m
+        labels: { severity: warning }
+        annotations: { summary: "A Gaming Client reports a failed update" }
+      - alert: GManagerDatabaseUnavailable
+        expr: hikaricp_connections_timeout_total > 0 and increase(hikaricp_connections_timeout_total[5m]) > 0
+        for: 1m
         labels:
-          severity: test
+          severity: critical
         annotations:
-          summary: Synthetic alert validating the alert delivery path
+          summary: Database connection pool cannot serve requests
           runbook_url: https://github.com/filipDjekic/g-manager/blob/main/ops/runbooks/observability.txt

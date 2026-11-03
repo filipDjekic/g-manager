@@ -25,7 +25,8 @@ class GamingOperationsBoardServiceTest {
         when(locations.assignedResources(actor)).thenReturn(Set.of(assigned.resourceId()));
         when(sessions.findLatestCandidates(List.of(assigned.resourceId()))).thenReturn(List.of());
         when(commands.findByStationIdInOrderByStationIdAscSequenceDesc(List.of(assigned.resourceId()))).thenReturn(List.of());
-        var enforcement=mock(com.game_manager.gm.common.scheduling.ClientStatePort.class);when(enforcement.states(any())).thenReturn(Map.of());
+        var enforcement=mock(com.game_manager.gm.common.scheduling.ClientStatePort.class);
+        when(enforcement.states(any())).thenReturn(Map.of(assigned.resourceId(),new com.game_manager.gm.common.scheduling.ClientStatePort.State(null,"LOCKED",NOW)));
         var preparation=mock(StationPreparationService.class);when(preparation.ready(any())).thenReturn(true);
         GamingOperationsBoardService service=new GamingOperationsBoardService(preparation,mock(com.game_manager.gm.gamingsession.billing.GamingBillingService.class),readiness,sessions,commands,users,locations,current,Clock.fixed(NOW,ZoneOffset.UTC),mock(StationCommandWriter.class),enforcement);
 
@@ -34,6 +35,34 @@ class GamingOperationsBoardServiceTest {
         assertThat(response.serverTime()).isEqualTo(NOW);assertThat(response.stations()).singleElement().satisfies(card->{
             assertThat(card.locationId()).isEqualTo(assigned.locationId());assertThat(card.status()).isEqualTo(GamingStationBoardStatus.AVAILABLE);
             assertThat(card.allowedActions()).containsExactly(GamingStationAction.START);});
+    }
+
+    @Test void availableStationRequiresConfirmedEnforcementAndHealthyClientBeforeOfferingStart() {
+        var readiness=mock(StationReadinessService.class);var sessions=mock(GamingSessionRepository.class);
+        var commands=mock(StationCommandRepository.class);var users=mock(UserRepository.class);
+        var locations=mock(GamingSessionLocationPolicy.class);var current=mock(CurrentUserProvider.class);
+        var actor=new AuthenticatedUser(UUID.randomUUID(),"owner@example.test",Role.OWNER);
+        var station=station(UUID.randomUUID(),UUID.randomUUID());
+        var enforcement=mock(com.game_manager.gm.common.scheduling.ClientStatePort.class);
+        when(current.requireCurrentUser()).thenReturn(actor);when(readiness.overview()).thenReturn(List.of(station));
+        var service=new GamingOperationsBoardService(mock(StationPreparationService.class),mock(com.game_manager.gm.gamingsession.billing.GamingBillingService.class),
+                readiness,sessions,commands,users,locations,current,Clock.fixed(NOW,ZoneOffset.UTC),mock(StationCommandWriter.class),enforcement);
+        var missing=service.board(null).stations().getFirst();
+        assertThat(missing.status()).isEqualTo(GamingStationBoardStatus.CLIENT_ERROR);
+        assertThat(missing.allowedActions()).doesNotContain(GamingStationAction.START);
+        when(enforcement.states(any())).thenReturn(Map.of(station.resourceId(),new com.game_manager.gm.common.scheduling.ClientStatePort.State(null,"UNKNOWN",null)));
+        assertThat(service.board(null).stations().getFirst().allowedActions()).doesNotContain(GamingStationAction.START);
+        when(enforcement.states(any())).thenReturn(Map.of(station.resourceId(),new com.game_manager.gm.common.scheduling.ClientStatePort.State(null,"LOCKED",NOW)));
+        assertThat(service.board(null).stations().getFirst().allowedActions()).contains(GamingStationAction.START);
+        when(enforcement.heartbeats(any())).thenReturn(Map.of(station.resourceId(),new com.game_manager.gm.common.scheduling.ClientStatePort.Heartbeat("1.0",NOW,"INSTALLED","FAILED",false,"RECOVERY_FAILED")));
+        var failed=service.board(null).stations().getFirst();
+        assertThat(failed.status()).isEqualTo(GamingStationBoardStatus.CLIENT_ERROR);
+        assertThat(failed.clientErrorCode()).isEqualTo("RECOVERY_FAILED");assertThat(failed.updateStatus()).isEqualTo("FAILED");
+        assertThat(failed.allowedActions()).doesNotContain(GamingStationAction.START);
+        when(enforcement.heartbeats(any())).thenReturn(Map.of(station.resourceId(),new com.game_manager.gm.common.scheduling.ClientStatePort.Heartbeat("1.0",NOW,"INSTALLED",null,true,null)));
+        var maintenance=service.board(null).stations().getFirst();
+        assertThat(maintenance.status()).isEqualTo(GamingStationBoardStatus.MAINTENANCE);
+        assertThat(maintenance.allowedActions()).doesNotContain(GamingStationAction.START);
     }
 
     @Test void activeProjectionContainsCustomerCountdownVersionAndSessionActions() {

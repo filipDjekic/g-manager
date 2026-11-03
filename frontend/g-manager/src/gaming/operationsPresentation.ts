@@ -35,6 +35,7 @@ export function stationConnection(station: GamingStationCard) {
 
 export function stationMessage(station: GamingStationCard) {
   switch (station.status) {
+    case 'CLIENT_ERROR': return 'Client prijavljuje problem. Proverite dijagnostiku pre nove sesije.'
     case 'PREPARATION_REQUIRED': return 'Proverite Windows profil i privatnost pre narednog korisnika.'
     case 'TRANSFER_PENDING': return 'Stanica je rezervisana za premestanje. Ceka se izvorni Client.'
     case 'LOCK_PENDING': return 'Čeka se potvrda lokalnog zaključavanja.'

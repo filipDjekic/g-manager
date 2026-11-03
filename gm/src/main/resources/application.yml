@@ -175,3 +175,5 @@ app:
 logging:
   level:
     org.springframework.web.servlet.mvc.method.annotation.RequestResponseBodyMethodProcessor: WARN
+    # Validation exceptions can contain rejected credentials even when the DTO redacts toString().
+    org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver: WARN

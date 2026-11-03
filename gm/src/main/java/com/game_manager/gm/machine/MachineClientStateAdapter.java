@@ -30,6 +30,11 @@ public class MachineClientStateAdapter implements ClientStatePort {
         return heartbeats.findById(stationId).map(value -> new Heartbeat(value.getClientVersion(), value.getLastSeenAt(),
                 value.getInstallationStatus(), value.getUpdateStatus(), value.getMaintenanceActive(), value.getClientErrorCode()));
     }
+    @Override public Map<UUID,Heartbeat> heartbeats(Collection<UUID> ids) {
+        return ids.isEmpty()?Map.of():heartbeats.findAllById(ids).stream().collect(Collectors.toMap(
+                StationHeartbeat::getStationId,value->new Heartbeat(value.getClientVersion(),value.getLastSeenAt(),
+                        value.getInstallationStatus(),value.getUpdateStatus(),value.getMaintenanceActive(),value.getClientErrorCode())));
+    }
 
     @Override
     public List<History> history(UUID stationId) {

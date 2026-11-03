@@ -31,6 +31,8 @@ public class MachineProtocolObservability implements HealthIndicator {
     private final AtomicLong expiredUnacknowledged = new AtomicLong();
     private final AtomicLong unacknowledgedCommands = new AtomicLong();
     private final AtomicLong oldestCommandLagSeconds = new AtomicLong();
+    private final AtomicLong clientFailures = new AtomicLong();
+    private final AtomicLong updateFailures = new AtomicLong();
     private final Counter enrollmentFailures;
     private final Counter authenticationFailures;
 
@@ -47,6 +49,8 @@ public class MachineProtocolObservability implements HealthIndicator {
         Gauge.builder("gmanager.machine.sessions.expired.unacknowledged", expiredUnacknowledged, AtomicLong::get).register(registry);
         Gauge.builder("gmanager.machine.commands.unacknowledged", unacknowledgedCommands, AtomicLong::get).register(registry);
         Gauge.builder("gmanager.machine.commands.oldest.lag.seconds", oldestCommandLagSeconds, AtomicLong::get).register(registry);
+        Gauge.builder("gmanager.machine.clients.failed",clientFailures,AtomicLong::get).register(registry);
+        Gauge.builder("gmanager.machine.updates.failed",updateFailures,AtomicLong::get).register(registry);
         enrollmentFailures = Counter.builder("gmanager.machine.enrollment.failures").register(registry);
         authenticationFailures = Counter.builder("gmanager.machine.authentication.failures").register(registry);
     }
@@ -62,7 +66,7 @@ public class MachineProtocolObservability implements HealthIndicator {
         }
         boolean delayed = oldestCommandLagSeconds.get() > commandLagWarning.toSeconds();
         boolean stationAttention = expiredUnacknowledged.get() > 0
-                || lockPending.get() > 0 || offlineStations.get() > 0;
+                || lockPending.get() > 0 || offlineStations.get() > 0 || clientFailures.get()>0 || updateFailures.get()>0;
         // Station recovery needs a reachable API; operational warnings must not stop the backend.
         Health.Builder result = stationAttention || delayed ? Health.status("DEGRADED") : Health.up();
         return result.withDetail("activeSessions", activeSessions.get())
@@ -70,6 +74,7 @@ public class MachineProtocolObservability implements HealthIndicator {
                 .withDetail("lockPending", lockPending.get())
                 .withDetail("expiredUnacknowledged", expiredUnacknowledged.get())
                 .withDetail("unacknowledgedCommands", unacknowledgedCommands.get())
+                .withDetail("clientFailures",clientFailures.get()).withDetail("updateFailures",updateFailures.get())
                 .withDetail("oldestCommandLagSeconds", oldestCommandLagSeconds.get()).build();
     }
 
@@ -78,13 +83,16 @@ public class MachineProtocolObservability implements HealthIndicator {
         Instant now = clock.instant();
         activeSessions.set(count("select count(*) from gaming_sessions where status='ACTIVE' and ends_at>?", now));
         lockPending.set(count("select count(*) from station_client_enforcement where enforcement_status='LOCK_PENDING'"));
-        List<Instant> heartbeats = jdbc.query("select h.last_seen_at from station_heartbeats h join gaming_station_profiles p on p.resource_id=h.station_id where p.client_enabled=true",
-                (rs, row) -> instant(rs, "last_seen_at"));
+        var heartbeats = jdbc.query("select h.last_seen_at,p.offline_grace_seconds from station_heartbeats h join gaming_station_profiles p on p.resource_id=h.station_id where p.client_enabled=true",
+                (rs, row) -> instant(rs, "last_seen_at").plusSeconds(rs.getInt("offline_grace_seconds")));
         long neverSeen = count("select count(*) from gaming_station_profiles p left join station_heartbeats h on h.station_id=p.resource_id where p.client_enabled=true and h.station_id is null");
-        offlineStations.set(neverSeen + heartbeats.stream().filter(value -> value.plus(offlineGrace).isBefore(now)).count());
-        List<Instant> pending = jdbc.query("select available_at from station_commands where acknowledged_at is null and expires_at>?", (rs,row)->instant(rs,"available_at"), now);
-        unacknowledgedCommands.set(pending.size());
-        oldestCommandLagSeconds.set(pending.stream().mapToLong(value -> Math.max(0, Duration.between(value, now).toSeconds())).max().orElse(0));
+        offlineStations.set(neverSeen + heartbeats.stream().filter(value -> !value.isAfter(now)).count());
+        jdbc.query("select count(*) as pending_count,min(available_at) as oldest from station_commands where acknowledged_at is null and expires_at>?",rs->{
+            unacknowledgedCommands.set(rs.getLong("pending_count"));var oldest=rs.getTimestamp("oldest");
+            oldestCommandLagSeconds.set(oldest==null?0:Math.max(0,Duration.between(oldest.toInstant(),now).toSeconds()));
+        },now);
+        clientFailures.set(count("select count(*) from station_heartbeats h join gaming_station_profiles p on p.resource_id=h.station_id where p.client_enabled=true and h.client_error_code is not null"));
+        updateFailures.set(count("select count(*) from station_heartbeats h join gaming_station_profiles p on p.resource_id=h.station_id where p.client_enabled=true and h.update_status='FAILED'"));
         expiredUnacknowledged.set(count("select count(*) from gaming_sessions s join station_client_enforcement e on e.station_id=s.resource_id and e.session_id=s.id where s.status='EXPIRED' and e.enforcement_status<>'LOCKED'"));
     }
 

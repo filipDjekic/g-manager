@@ -29,6 +29,14 @@ export async function installApi(page: Page, role: Role, aiEnabled = false, rese
     const path = url.pathname.replace('/api/v1', '')
     const json = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
 
+    // Match the billing contracts used by the real UI; the backend pilot proves the financial rules.
+    if (path === '/gaming-billing/tariffs') return json([{ id: 'tariff-1', name: 'Pilot 30 min', minutes: 30, price: '100.00', currency: 'RSD', active: true, packageValidityDays: 0, version: 0 }])
+    if (path === '/gaming-billing/policy') return json({ allowPartialPayment: false, allowDebt: false, allowRefunds: false, minimumMinutes: 15, maximumMinutes: 480, employeeDiscountLimit: '0', version: 0 })
+    if (path === '/gaming-billing/quote') { const minutes = Number(url.searchParams.get('minutes')); return json({ tariffId: 'tariff-1', tariffVersion: 0, tariffName: 'Pilot 30 min', minutes, gross: String(minutes / 30 * 100), discount: '0', total: String(minutes / 30 * 100), currency: 'RSD', rule: 'Whole tariff blocks' }) }
+    if (path.startsWith('/gaming-billing/customers/')) return json({ customerId: path.split('/')[3], balance: '0.00', packages: [], ledger: [], transactions: [], serverTime: '2028-03-16T10:00:00Z' })
+    if (path === '/gaming-billing/report') return json({ outstandingDebt: '0', prepaidLiability: '0', activePackageLiability: '0', totals: {}, recorded: [], byStation: [], byLocation: [], byEmployee: [], sessions: [], packages: [], productOrders: [] })
+    if (path === '/gaming-operations/health') return json({ checkedAt: '2028-03-16T10:00:00Z', backend: 'UP', database: 'UP', financialLedger: 'UP' })
+
     if (path === '/resources/reservation-filters' || path === '/resources/catalog-services/service-1') return json([])
     if (path === '/resources/management-scope') return json({ allResources: role === 'OWNER' || role === 'ADMIN', resourceIds: ['station-1'] })
     if (path === '/resources/booking-options') return json({ resourceRequired: false, resources: [], variableDuration: false, defaultDurationMinutes: 60, minimumDurationMinutes: 60, maximumDurationMinutes: 60 })
@@ -223,6 +231,8 @@ export async function installApi(page: Page, role: Role, aiEnabled = false, rese
         reservationCount: 0, completedAppointmentCount: 0, orderCount: 0, completedOrderCount: 0,
         completedOrderRevenue: 0, lastActivityAt: null, version: 0 }] })
     if (path === '/gaming-sessions' && request.method() === 'POST') {
+      const input = request.postDataJSON() as { durationMinutes:number;purchase?:{ tariffId:string;payment:{ amount:string;method:string } } }
+      if (!request.headers()['idempotency-key'] || input.purchase?.tariffId !== 'tariff-1' || input.purchase.payment.method !== 'CASH' || Number(input.purchase.payment.amount) !== input.durationMinutes / 30 * 100) return json({ message:'Expected a quoted and recorded purchase' }, 422)
       gamingSessionActive = true
       return json({ id: 'gaming-session-1', status: 'ACTIVE', version: 1 }, 201)
     }

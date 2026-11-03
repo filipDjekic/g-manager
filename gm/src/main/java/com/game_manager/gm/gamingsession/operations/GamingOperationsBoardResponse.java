@@ -40,6 +40,9 @@ public record GamingOperationsBoardResponse(Instant serverTime, List<StationCard
             UUID latestSessionId,
             java.math.BigDecimal paymentDue,
             boolean privacyReady,
-            UUID moveTargetId
+            UUID moveTargetId,
+            String clientErrorCode,
+            String updateStatus,
+            Boolean maintenanceActive
     ) {}
 }

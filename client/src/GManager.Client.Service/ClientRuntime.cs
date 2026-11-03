@@ -6,7 +6,7 @@ using GManager.Client.Protocol;
 namespace GManager.Client.Service;
 
 public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocolClient protocol, StationPolicyEnforcer policy,
-    SessionLeaseVerifier leases, OperationalEventWriter events, ClientEnvironment environment)
+    SessionLeaseVerifier leases, OperationalEventWriter events, ClientEnvironment environment,TimeProvider? timeProvider=null)
 {
     readonly SemaphoreSlim gate = new(1,1);
     readonly object stateSync = new();
@@ -19,7 +19,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
     string? token;
     DateTimeOffset tokenExpiry, preparingUntil;
     ClientRecoveryState? recovery;
-    TrustedLeaseClock trusted = new(DateTimeOffset.UtcNow);
+    TrustedLeaseClock trusted = new((timeProvider??TimeProvider.System).GetUtcNow(),timeProvider);
     bool maintenance, locallyLocked, commandGap, initialized;
     public string? ErrorCode { get; private set; }
     string MaintenancePath => Path.Combine(environment.StateDirectory,"maintenance.json");
@@ -37,7 +37,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
                 cryptographicPhase=CryptographicFailurePhase.SessionLeaseVerification;
                 var verified = leases.Verify(recovery.Envelope,Identity.StationId);
                 recovery = recovery with { Lease=verified,LocallyLocked=true };
-                trusted = new(recovery.TrustedUtcFloor);
+                trusted = new(recovery.TrustedUtcFloor,timeProvider);
             }
             var cachedPolicy = store.LoadPolicy<SignedStationPolicy>();
             cryptographicPhase=CryptographicFailurePhase.ConfigurationSignature;
@@ -48,7 +48,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
             Tick();
             events.Write("RECOVERY_APPLIED",State.Mode.ToString());
         }
-        catch(Exception ex) when(ex is JsonException or CryptographicException or IOException or InvalidOperationException)
+        catch(Exception ex) when(ex is JsonException or CryptographicException or IOException or InvalidDataException or InvalidOperationException or FormatException)
         {
             if(ex is CryptographicException cryptographicFailure)events.WriteDevelopmentCryptographicFailure("recovery",cryptographicPhase,cryptographicFailure);
             ErrorCode="RECOVERY_FAILED";
@@ -113,6 +113,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
                 cryptographicPhase=CryptographicFailurePhase.SessionLeaseVerification;
                 var envelope=await protocol.LeaseAsync(token!,ct);
                 var lease=leases.Verify(envelope,Identity.StationId);
+                LeaseRecoveryPolicy.Validate(recovery,lease);
                 trusted.Observe(lease.IssuedAt);
                 cryptographicPhase=CryptographicFailurePhase.ConfigurationVersion;
                 if(lease.ConfigurationVersion!=policy.CurrentVersion) {
@@ -121,7 +122,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
                     throw exception;
                 }
                 cryptographicPhase=CryptographicFailurePhase.LocalAction;
-                recovery=new(envelope,lease,recovery?.AppliedSequence??0,trusted.Now(),recovery?.PendingLockSequence,recovery?.PendingLockSessionId,recovery?.LocallyLocked??true,recovery?.BlockedSessionId);
+                lock(stateSync) recovery=new(envelope,lease,recovery?.AppliedSequence??0,trusted.Now(),recovery?.PendingLockSequence,recovery?.PendingLockSessionId,recovery?.LocallyLocked??true,recovery?.BlockedSessionId,recovery?.PendingCommandAckSequence);
                 await ReconcileCommands(ct);
                 ApplyLease(lease);
                 await AckPendingLock(ct);
@@ -133,8 +134,9 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
         }
         catch(HttpRequestException ex) { ObserveServerConnection(ex.StatusCode is not null); if(ex.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden) { token=null; LockLocal("Machine authorization rejected"); } ErrorCode="BACKEND_UNAVAILABLE"; Tick(); SaveRecovery(); }
         catch(OperationCanceledException) when(!ct.IsCancellationRequested) { ObserveServerConnection(false); ErrorCode="BACKEND_TIMEOUT"; Tick(); SaveRecovery(); }
+        catch(ServerStateRollbackException) { ErrorCode="SERVER_STATE_ROLLBACK"; LockLocal("Server recovery requires reconciliation"); SaveRecovery(); events.Write("SERVER_STATE_ROLLBACK","LOCKED"); }
         catch(CryptographicException ex) { events.WriteDevelopmentCryptographicFailure("refresh",cryptographicPhase,ex); ErrorCode="SIGNATURE_REJECTED"; LockLocal("Invalid signed lease/policy"); SaveRecovery(); }
-        catch(Exception ex) when(ex is IOException or InvalidOperationException or JsonException) { ErrorCode="POLICY_FAILED"; LockLocal("Policy failed"); }
+        catch(Exception ex) when(ex is IOException or InvalidDataException or InvalidOperationException or JsonException or FormatException) { ErrorCode="POLICY_FAILED"; LockLocal("Policy failed"); SaveRecovery(); }
         finally {
             initialized=true;
             try {
@@ -158,7 +160,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
                 preparingUntil=trusted.Now().AddSeconds(30);
                 LockLocal("Local administrator");
                 if(request.Type=="prepare-maintenance" && recovery?.Lease.SessionId is Guid sessionId) {
-                    recovery=recovery with { BlockedSessionId=sessionId,LocallyLocked=true };
+                    lock(stateSync) recovery=recovery with { BlockedSessionId=sessionId,LocallyLocked=true };
                     SaveRecovery();
                     ErrorCode="SESSION_RECONCILIATION_REQUIRED";
                 }
@@ -213,39 +215,54 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
     {
         if(recovery is null) return;
         commandGap=false;
+        // The server may have committed an ACK whose response was lost. Its endpoint is idempotent.
+        await AckPendingCommand(ct);
         foreach(var command in (await protocol.CommandsAsync(token!,recovery.AppliedSequence,ct)).OrderBy(x=>x.Sequence))
         {
             var decision=CommandSequenceReducer.Decide(recovery.AppliedSequence,command.Sequence);
             if(decision==SequenceDecision.Duplicate) continue;
             if(decision==SequenceDecision.Gap) { commandGap=true; LockLocal("Command sequence gap"); break; }
+            Guid sessionId=MachineCommandValidation.Validate(command,Identity!.StationId);
+            if(command.Sequence>recovery.Lease.CommandCursor) { commandGap=true; LockLocal("Waiting for matching signed lease"); break; }
             if(command.Expired) {
                 // Expired commands still occupy a sequence position. Never replay their side effects.
-                recovery=recovery with { AppliedSequence=command.Sequence };
+                lock(stateSync) recovery=recovery with { AppliedSequence=command.Sequence,PendingCommandAckSequence=command.Sequence };
                 SaveRecovery();
-                await protocol.AckAsync(token!,command.Sequence,ct);
+                await AckPendingCommand(ct);
                 continue;
             }
-            using var payload=JsonDocument.Parse(command.Payload);
-            Guid sessionId=payload.RootElement.GetProperty("sessionId").GetGuid();
             if(command.Type is "SESSION_TERMINATED" or "FORCE_LOCK")
             {
                 LockLocal(command.Type);
-                recovery=recovery with { PendingLockSequence=command.Sequence,PendingLockSessionId=sessionId,LocallyLocked=true,BlockedSessionId=sessionId };
+                lock(stateSync) recovery=recovery with { PendingLockSequence=command.Sequence,PendingLockSessionId=sessionId,LocallyLocked=true,BlockedSessionId=sessionId };
             }
             else if(command.Type=="SESSION_STARTED" && recovery.Lease.SessionId==sessionId && recovery.Lease.Directive=="ACTIVE" && command.Sequence<=recovery.Lease.CommandCursor)
-                recovery=recovery.AcceptStarted(sessionId,command.Sequence);
+                lock(stateSync) recovery=recovery.AcceptStarted(sessionId,command.Sequence);
             else if(command.Type is not ("SESSION_STARTED" or "SESSION_EXTENDED")) { commandGap=true; LockLocal("Unknown command"); break; }
-            recovery=recovery with { AppliedSequence=command.Sequence };
+            lock(stateSync) recovery=recovery with { AppliedSequence=command.Sequence,PendingCommandAckSequence=command.Sequence };
             SaveRecovery();
-            await protocol.AckAsync(token!,command.Sequence,ct);
+            await AckPendingCommand(ct);
         }
+    }
+    async Task AckPendingCommand(CancellationToken ct)
+    {
+        if(recovery?.PendingCommandAckSequence is not long sequence)return;
+        try { await protocol.AckAsync(token!,sequence,ct); }
+        catch(HttpRequestException ex) when(ex.StatusCode==System.Net.HttpStatusCode.NotFound && sequence<=recovery.AppliedSequence && sequence<=recovery.Lease.CommandCursor)
+        {
+            // An already-acknowledged command may have passed server retention while this Client was offline.
+            // Retire only the ordinary ACK; a physical lock acknowledgement remains a separate barrier.
+            events.Write("COMMAND_ACK_PRUNED","RECONCILING");
+        }
+        lock(stateSync) recovery=recovery with { PendingCommandAckSequence=null };
+        SaveRecovery();
     }
     async Task AckPendingLock(CancellationToken ct)
     {
         if(environment.Development || maintenance || !policy.EnforcementVerified || recovery?.PendingLockSequence is not long sequence || recovery.PendingLockSessionId is not Guid sessionId || !recovery.LocallyLocked) return;
-        if(recovery.Lease.Directive=="ACTIVE" && recovery.Lease.SessionId!=sessionId) { recovery=recovery with { PendingLockSequence=null,PendingLockSessionId=null }; return; }
+        if(recovery.Lease.Directive=="ACTIVE" && recovery.Lease.SessionId!=sessionId) { lock(stateSync) recovery=recovery with { PendingLockSequence=null,PendingLockSessionId=null }; return; }
         await protocol.LockAckAsync(token!,sessionId,sequence,recovery.Lease.LeaseId,"Client locally locked",ct);
-        recovery=recovery with { PendingLockSequence=null,PendingLockSessionId=null };
+        lock(stateSync) recovery=recovery with { PendingLockSequence=null,PendingLockSessionId=null };
     }
     void ApplyLease(SessionLease lease)
     {
@@ -294,7 +311,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
         try { using var status=JsonDocument.Parse(File.ReadAllBytes(Path.Combine(environment.StateDirectory,"update-status.json"))); return status.RootElement.GetProperty("status").GetString(); }
         catch(IOException) { return null; } catch(JsonException) { return "UNKNOWN"; } catch(KeyNotFoundException) { return "UNKNOWN"; } catch(InvalidOperationException) { return "UNKNOWN"; }
     }
-    void SaveRecovery() { if(recovery is not null) { recovery=recovery with { TrustedUtcFloor=trusted.Now() }; store.SaveSnapshot(recovery); } }
+    void SaveRecovery() { lock(stateSync) if(recovery is not null) { recovery=recovery with { TrustedUtcFloor=trusted.Now() }; store.SaveSnapshot(recovery); } }
     async Task EnsureToken(CancellationToken ct)
     {
         if(token is not null && tokenExpiry>DateTimeOffset.UtcNow.AddMinutes(1)) return;

@@ -1,4 +1,5 @@
 import { GamingExtensionDialog } from './GamingExtensionDialog'
+import { GamingPilotHealth } from './GamingPilotHealth'
 import { useGamingCommands } from './useGamingCommands'
 import { gamingBoardStale } from './freshness'
 import { useResettableState } from '../components/useResettableState'
@@ -114,6 +115,7 @@ export function GamingOperationsWorkspace({ workday = false }: { workday?: boole
       {canStart && <Button disabled={disabled || !board.data || !readyCount} onClick={() => { setError(''); setStartStation(null); setNewSessionOpen(true) }}>+ Nova sesija</Button>}</>} />
     {hasCapability(actor,'RESOURCE_READ')&&<p className="ui-workspace-scope">{actor?.role==='EMPLOYEE'?'Moje dodeljene PC stanice':'PC stanice u dozvoljenom opsegu'} · <Link to="/resources">Mapa dostupnosti za interval →</Link></p>}
     <FreshnessStatus time={board.data?.serverTime} error={!!board.error} stale={stale} connected={connection === 'connected'} paused={!visible} />
+    {hasCapability(actor, 'GAMING_FINANCE_MANAGE') && <GamingPilotHealth visible={visible} />}
     {!customStation&&!endStation&&!recoveryAction&&feedback}
     {board.error && board.data && <ErrorState title="Prikaz može biti zastareo" message="Proverite vezu i osvežite pre sledeće akcije." action={<Button variant="secondary" onClick={() => board.refetch()}>Pokušaj ponovo</Button>} />}
     {board.data && <MetricStrip label="Dodeljeni PC računari">

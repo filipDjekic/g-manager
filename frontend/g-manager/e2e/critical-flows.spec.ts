@@ -104,7 +104,12 @@ test('employee starts a gaming session from the location-scoped station board', 
   await page.getByRole('button', { name: 'Pokreni sesiju', exact: true }).first().click()
   await page.getByLabel('Pronađi klijenta').fill('CUSTOMER')
   await page.getByRole('button', { name: /CUSTOMER E2E.*customer@example\.test/ }).click()
-  await page.getByRole('button', { name: /Pokreni za CUSTOMER E2E/ }).click()
+  await expect(page.getByLabel('Evidentirani iznos (RSD)')).toHaveValue('400')
+  const submitted = page.waitForRequest(request => request.url().endsWith('/api/v1/gaming-sessions') && request.method() === 'POST')
+  await page.getByRole('button', { name: 'Potvrdi naplatu i pokreni za CUSTOMER E2E' }).click()
+  const purchase = await submitted
+  expect(purchase.headers()['idempotency-key']).toBeTruthy()
+  expect(purchase.postDataJSON()).toMatchObject({ customerId:'customer-1', durationMinutes:120, purchase:{ tariffId:'tariff-1', tariffVersion:0, payment:{ method:'CASH', amount:'400' } } })
   await expect(page.locator('article.ops-station').getByText('Aktivna sesija')).toBeVisible()
   await expect(page.locator('article.ops-station').getByText('CUSTOMER E2E')).toBeVisible()
 })

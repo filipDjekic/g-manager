@@ -5,6 +5,7 @@ import type { GamingOperationsBoard, GamingSession, GamingSessionEvent, GamingSe
 
 const command = (key:string) => ({ headers:{ 'Idempotency-Key':key } })
 export const gamingSessionApi = {
+  health: () => apiClient.get<{ checkedAt:string;backend:string;database:string;financialLedger:string }>('/gaming-operations/health').then(({data})=>data),
   mine: () => apiClient.get<GamingSessionVisit[]>('/gaming-sessions/me').then(({data}) => data),
   customerVisits: (id:string) => apiClient.get<GamingSessionVisit[]>(`/gaming-sessions/customer/${id}`).then(({data}) => data),
   active: () => apiClient.get<GamingSession[]>('/gaming-sessions').then(({data}) => data),

@@ -38,6 +38,8 @@ client/artifacts/audit/
 *.sqlite
 *.sqlite3
 *.bak
+/client/**/TestResults/
+/artifacts/pilot/
 
 # Uploaded runtime files
 /data/uploads/

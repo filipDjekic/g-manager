@@ -8,7 +8,7 @@ export interface GamingSession {
 }
 export interface StartGamingSessionInput { customerId?:string;guestName?:string;purchase?:Purchase;resourceId:string;reservationId?:string;durationMinutes?:number }
 export interface GamingSessionEvent { eventId:string;type:string;sessionId:string;occurredAt:string }
-export type GamingStationBoardStatus = 'PREPARATION_REQUIRED'|'TRANSFER_PENDING'|'AVAILABLE'|'ACTIVE'|'MAINTENANCE'|'RETIRED'|'OFFLINE'|'EXPIRED'|'LOCK_PENDING'
+export type GamingStationBoardStatus = 'CLIENT_ERROR'|'PREPARATION_REQUIRED'|'TRANSFER_PENDING'|'AVAILABLE'|'ACTIVE'|'MAINTENANCE'|'RETIRED'|'OFFLINE'|'EXPIRED'|'LOCK_PENDING'
 export type GamingStationAction = 'START'|'EXTEND'|'TERMINATE'|'FORCE_LOCK'|'CONFIRM_LOCKED'
 export interface GamingStationCard {
   resourceId:string;resourceCode:string;resourceName:string;locationId:string
@@ -21,6 +21,7 @@ export interface GamingStationCard {
   commandAvailableAt?:string;commandAcknowledgedAt?:string
   latestSessionId?:string;paymentDue?:string|number;privacyReady?:boolean;moveTargetId?:string
   locationName?:string;areaName?:string
+  clientErrorCode?:string;updateStatus?:string;maintenanceActive?:boolean
 }
 export interface GamingOperationsBoard { serverTime:string;stations:GamingStationCard[] }
 export interface StationHistoryEntry { occurredAt:string;category:'COMMAND'|'ENFORCEMENT';action:string;status:string;commandSequence?:number;correlationId?:string;details?:string }

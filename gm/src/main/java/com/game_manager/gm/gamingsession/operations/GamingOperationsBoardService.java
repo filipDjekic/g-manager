@@ -50,6 +50,7 @@ public class GamingOperationsBoardService {
                 .findByStationIdInOrderByStationIdAscSequenceDesc(resourceIds).stream()
                 .collect(Collectors.toMap(StationCommand::getStationId, Function.identity(), (first, ignored) -> first));
         var enforcementByStation=enforcement.states(resourceIds);
+        var clientHealth=enforcement.heartbeats(resourceIds);
         var ready=preparation.readiness(resourceIds);
         Set<UUID> incoming=sessions.findByMoveTargetIdInAndStatus(resourceIds,GamingSessionStatus.ACTIVE).stream().map(GamingSession::getMoveTargetId).collect(Collectors.toSet());
         var due=billing.dues(latest.values().stream().map(GamingSession::getId).toList());
@@ -58,7 +59,7 @@ public class GamingOperationsBoardService {
                 .collect(Collectors.toMap(User::getId, Function.identity()));
         List<GamingOperationsBoardResponse.StationCard> cards = visible.stream()
                 .map(station -> card(station, latest.get(station.resourceId()),
-                        latestCommand.get(station.resourceId()),enforcementByStation.get(station.resourceId()), customers, actor, now,ready.getOrDefault(station.resourceId(),true),incoming.contains(station.resourceId()),due))
+                        latestCommand.get(station.resourceId()),enforcementByStation.get(station.resourceId()), customers, actor, now,ready.getOrDefault(station.resourceId(),true),incoming.contains(station.resourceId()),due,clientHealth.get(station.resourceId())))
                 .toList();
         return new GamingOperationsBoardResponse(now, cards);
     }
@@ -70,10 +71,13 @@ public class GamingOperationsBoardService {
         var entries=java.util.stream.Stream.concat(auditEntries,commandEntries).sorted(java.util.Comparator.comparing(StationHistoryResponse.Entry::occurredAt).reversed()).limit(50).toList();return new StationHistoryResponse(clock.instant(),stationId,entries);}
 
     private GamingOperationsBoardResponse.StationCard card(StationOverview station, GamingSession latest,
-            StationCommand latestCommand,com.game_manager.gm.common.scheduling.ClientStatePort.State enforcementState, Map<UUID,User> customers, AuthenticatedUser actor, Instant now,boolean privacyReady,boolean incoming,Map<UUID,java.math.BigDecimal> due) {
+            StationCommand latestCommand,com.game_manager.gm.common.scheduling.ClientStatePort.State enforcementState, Map<UUID,User> customers, AuthenticatedUser actor, Instant now,boolean privacyReady,boolean incoming,Map<UUID,java.math.BigDecimal> due,com.game_manager.gm.common.scheduling.ClientStatePort.Heartbeat health) {
         GamingSession active = latest != null && latest.getStatus() == GamingSessionStatus.ACTIVE ? latest : null;
         boolean stale=station.clientEnabled()&&(station.lastHeartbeatAt()==null||!station.lastHeartbeatAt().plusSeconds(station.offlineGraceSeconds()).isAfter(now));
         GamingStationBoardStatus status = status(station, latest, enforcementState, stale,now,privacyReady,incoming);
+        if(!stale && station.clientEnabled() && health!=null && Boolean.TRUE.equals(health.maintenanceActive()))status=GamingStationBoardStatus.MAINTENANCE;
+        if(!stale && station.clientEnabled() && health!=null && health.clientErrorCode()!=null && status==GamingStationBoardStatus.AVAILABLE)status=GamingStationBoardStatus.CLIENT_ERROR;
+        if(!stale && station.clientEnabled() && (enforcementState==null || !"LOCKED".equals(enforcementState.status())) && status==GamingStationBoardStatus.AVAILABLE)status=GamingStationBoardStatus.CLIENT_ERROR;
         EnumSet<GamingStationAction> allowed = EnumSet.noneOf(GamingStationAction.class);
         if ((status == GamingStationBoardStatus.AVAILABLE || status == GamingStationBoardStatus.EXPIRED)
                 && (latest == null || latest.getStatus() != GamingSessionStatus.ACTIVE)
@@ -86,6 +90,7 @@ public class GamingOperationsBoardService {
         if ((status == GamingStationBoardStatus.ACTIVE||(status==GamingStationBoardStatus.OFFLINE||status==GamingStationBoardStatus.LOCK_PENDING)&&active!=null) && RolePermissions.has(actor.role(), Permission.GAMING_SESSION_TERMINATE))
             allowed.add(GamingStationAction.TERMINATE);
         if ((status==GamingStationBoardStatus.LOCK_PENDING||status==GamingStationBoardStatus.OFFLINE&&(enforcementState==null||!"LOCKED".equals(enforcementState.status())))&&latest!=null&&latest.getStatus()!=GamingSessionStatus.ACTIVE&&RolePermissions.has(actor.role(),Permission.GAMING_SESSION_TERMINATE)){allowed.add(GamingStationAction.FORCE_LOCK);allowed.add(GamingStationAction.CONFIRM_LOCKED);}
+        if(health!=null && health.clientErrorCode()!=null)allowed.remove(GamingStationAction.START);
         User customer = active == null ? null : customers.get(active.getCustomerId());
         return new GamingOperationsBoardResponse.StationCard(station.resourceId(), station.resourceCode(),
                 station.resourceName(), station.locationId(), status, station.clientEnabled(),
@@ -99,7 +104,7 @@ public class GamingOperationsBoardService {
                 latestCommand == null ? null : latestCommand.getSequence(),
                 latestCommand == null ? null : latestCommand.getCommandType().name(),
                 latestCommand == null ? null : latestCommand.getAvailableAt(),
-                latestCommand == null ? null : latestCommand.getAcknowledgedAt(), station.locationName(), station.areaName(), latest==null?null:latest.getId(), active==null?null:due.getOrDefault(active.getId(),java.math.BigDecimal.ZERO), privacyReady, active==null?null:active.getMoveTargetId());
+                latestCommand == null ? null : latestCommand.getAcknowledgedAt(), station.locationName(), station.areaName(), latest==null?null:latest.getId(), active==null?null:due.getOrDefault(active.getId(),java.math.BigDecimal.ZERO), privacyReady, active==null?null:active.getMoveTargetId(),health==null?null:health.clientErrorCode(),health==null?null:health.updateStatus(),health==null?null:health.maintenanceActive());
     }
 
     private GamingStationBoardStatus status(StationOverview station, GamingSession latest,

@@ -7,5 +7,13 @@ class StationEnforcementProjectionServiceTest {private final StationClientEnforc
   service.leaseIssued(new MachinePrincipal(UUID.randomUUID(),station,1),UUID.randomUUID(),null,Instant.parse("2026-08-16T12:00:30Z"),4,9);
   assertThat(state.getSessionId()).isEqualTo(session);assertThat(state.getEnforcementStatus()).isEqualTo(StationEnforcementStatus.LOCKED);assertThat(service.safeForNewSession(station)).isTrue();
  }
-
+ @Test void initialUnknownEnforcementCannotAuthorizeTheFirstCustomerButVerifiedLockedHeartbeatCan(){
+  assertThat(service.safeForNewSession(UUID.randomUUID())).isFalse();
+  UUID station=UUID.randomUUID();StationClientEnforcement state=new StationClientEnforcement();state.setStationId(station);when(states.findById(station)).thenReturn(Optional.of(state));
+  var machine=new MachinePrincipal(UUID.randomUUID(),station,1);
+  service.heartbeat(machine,StationEnforcementStatus.UNKNOWN,null,null,1,0);assertThat(service.safeForNewSession(station)).isFalse();
+  service.heartbeat(machine,StationEnforcementStatus.LOCKED,null,null,1,0);assertThat(service.safeForNewSession(station)).isTrue();
+  state.setSessionId(UUID.randomUUID());state.setLastCommandSequence(1L);state.setEnforcementStatus(StationEnforcementStatus.LOCK_PENDING);
+  service.heartbeat(machine,StationEnforcementStatus.LOCKED,null,null,1,1);assertThat(service.safeForNewSession(station)).isFalse();
+ }
 }

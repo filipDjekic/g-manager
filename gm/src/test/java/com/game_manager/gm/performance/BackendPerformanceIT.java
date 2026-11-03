@@ -140,12 +140,28 @@ class BackendPerformanceIT {
         assertThat(commands.get(0).get("sequence").asLong()).isEqualTo(2);
         assertThat(commands.get(0).get("expired").asBoolean()).isTrue();
         assertThat(commands.get(99).get("sequence").asLong()).isEqualTo(101);
+        var board = json.readTree(request("/api/v1/gaming-operations/board", ownerToken).body());
+        assertThat(board.get("stations").size()).isEqualTo(32);
+        var firstCard = java.util.stream.StreamSupport.stream(board.get("stations").spliterator(), false)
+                .filter(card -> card.get("resourceId").asText().equals(stationId.toString())).findFirst().orElseThrow();
+        assertThat(firstCard.get("commandSequence").asLong()).isEqualTo(5000);
         Map<String, Object> report = new LinkedHashMap<>();
         report.put("environment", Map.of("database", "mysql:8.4 disposable Testcontainer", "java", System.getProperty("java.version"),
                 "resources", 32, "commandBacklog", 5000, "warmupPerFlow", 8, "serialSamples", 24, "concurrentSamples", 48, "concurrency", 4,
                 "statisticsEnabled", true));
         report.put("availability", measure(availability, ownerToken));
         report.put("commandPoll", measure(poll, machineToken));
+        report.put("gamingBoard",measure("/api/v1/gaming-operations/board",ownerToken));
+        List<String> stationTokens=new ArrayList<>();stationTokens.add(machineToken);
+        for(var pc:resources.findByTypeOrderByNameAsc(ResourceType.GAMING_PC)) {
+            if(pc.getId().equals(stationId))continue;
+            StationMachineIdentity value=new StationMachineIdentity();value.setStationId(pc.getId());
+            value.setPublicKeyBase64("unused-in-bearer-load");value.setPublicKeyFingerprint(String.format("%064x",stationTokens.size()+1));
+            value.setKeyVersion(1L);value.setStatus(MachineIdentityStatus.ACTIVE);value.setEnrolledAt(Instant.now());value.setEnrolledBy(owner.getId());value=identities.saveAndFlush(value);
+            stationTokens.add(jwt.issueMachine(value.getId(),pc.getId(),1).value());if(stationTokens.size()==20)break;
+        }
+        report.put("connected5",connectedStations(stationTokens.subList(0,5),ownerToken));
+        report.put("connected20",connectedStations(stationTokens,ownerToken));
         Path output = Path.of("target", "backend-performance-" + System.getProperty("audit.label", "baseline") + ".json");
         Files.writeString(output, json.writerWithDefaultPrettyPrinter().writeValueAsString(report));
         var mappings = applicationContext.getBean("requestMappingHandlerMapping",
@@ -177,6 +193,28 @@ class BackendPerformanceIT {
         result.put("serial", batch(path, token, 1, 24));
         result.put("concurrent", batch(path, token, 4, 48));
         return result;
+    }
+
+    private Map<String,Object> connectedStations(List<String> tokens,String owner) throws Exception {
+        List<Double> times=Collections.synchronizedList(new ArrayList<>());
+        try(var pool=Executors.newFixedThreadPool(tokens.size()+4)) {
+            List<Callable<Void>> work=new ArrayList<>();
+            for(String token:tokens)work.add(()->{
+                for(int i=0;i<4;i++) {
+                    long begin=System.nanoTime();
+                    var response=http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:"+port+"/api/v1/machine/heartbeat"))
+                            .timeout(Duration.ofSeconds(10)).header("Authorization","Bearer "+token).header("Content-Type","application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString("{\"clientVersion\":\"pilot-performance\",\"status\":\"LOCKED\",\"lastCommandSequence\":0}")).build(),HttpResponse.BodyHandlers.ofString());
+                    assertThat(response.statusCode()).isEqualTo(204);request("/api/v1/machine/commands?afterSequence=0",token);
+                    times.add((System.nanoTime()-begin)/1_000_000.0);
+                }return null;
+            });
+            for(int i=0;i<4;i++)work.add(()->{for(int n=0;n<4;n++)request("/api/v1/gaming-operations/board",owner);return null;});
+            for(var result:pool.invokeAll(work,90,TimeUnit.SECONDS))result.get();
+        }
+        Collections.sort(times);double p95=percentile(times,.95);
+        assertThat(p95).as("Heartbeat + poll smoke budget, not a production SLA").isLessThan(5000);
+        return Map.of("stations",tokens.size(),"frontendReaders",4,"heartbeatPollPairs",times.size(),"p50PairMs",percentile(times,.5),"p95PairMs",p95,"p99PairMs",percentile(times,.99),"errors",0);
     }
 
     private Map<String, Object> batch(String path, String token, int concurrency, int samples) throws Exception {

@@ -61,6 +61,8 @@ function StationWarnings({ station, compact = false }: { station: GamingStationC
   const pending = !!station.commandSequence && !station.commandAcknowledgedAt
   const recoveryWarning = (compact || !!station.sessionId) && (station.status === 'LOCK_PENDING' || station.status === 'EXPIRED')
   return <>
+    {station.clientErrorCode && <p role="alert" className="ops-station-warning ops-station-warning--danger">{station.staleHeartbeat ? 'Poslednja prijavljena greška' : 'Client zahteva proveru'}: {station.clientErrorCode}</p>}
+    {station.updateStatus === 'FAILED' && <p className="ops-station-warning ops-station-warning--danger">Poslednje ažuriranje nije uspelo. Proverite Client dijagnostiku.</p>}
     {station.staleHeartbeat && <p className="ops-station-warning ops-station-warning--danger">
       {compact
         ? station.sessionId ? 'Sesija na serveru; heartbeat zastareo. Proverite računar.' : 'Heartbeat zastareo. Proverite računar.'
@@ -129,6 +131,7 @@ export function StationDetailsPanel({ station, now, disabled, handlers, unavaila
         <div><dt>Aplikacioni profil</dt><dd>{station.applicationProfileName ?? 'Nije podešen'}</dd></div>
         <div><dt>Gaming Client</dt><dd>{connectivity && <Badge tone={connectivity.tone}>{connectivity.label}</Badge>}</dd></div>
         <div><dt>Client / verzija</dt><dd>{station.clientVersion ?? 'Nije prijavljen'}</dd></div>
+        <div><dt>Poslednji update status</dt><dd>{station.updateStatus ?? 'Nema podataka'}{station.staleHeartbeat && ' (zastareo heartbeat)'}</dd></div>
         <div><dt>Heartbeat</dt><dd>{station.lastHeartbeatAt ? <time dateTime={station.lastHeartbeatAt}>{formatBusinessDateTime(station.lastHeartbeatAt)}</time> : 'Nema heartbeat-a'}</dd></div>
         <div><dt>Enforcement</dt><dd>{enforcementLabels[station.enforcementStatus]}</dd></div>
         <div><dt>Poslednji lock ACK</dt><dd>{station.lastLockAckAt ? formatBusinessDateTime(station.lastLockAckAt) : 'Nema potvrde'}</dd></div>

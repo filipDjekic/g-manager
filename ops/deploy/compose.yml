@@ -82,7 +82,7 @@ services:
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]
 
-  backup:
+  backup: &backup
     build: ../backup
     profiles: [operations]
     command: ["/backup/backup.sh"]
@@ -101,6 +101,41 @@ services:
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]
 
+  backup-scheduler:
+    <<: *backup
+    profiles: [backup-scheduled]
+    command: ["/backup/backup-loop.sh"]
+    restart: unless-stopped
+    environment:
+      DB_HOST: mysql
+      DB_NAME: gmanager
+      DB_USER: gmanager
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      BACKUP_KEY_FILE: /run/secrets/backup_encryption_key
+      BACKUP_OUTPUT_DIR: /backup/output
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /backup/output/last-success && test $$(( $$(date -u +%s) - $$(cat /backup/output/last-success) )) -lt $$(( $${BACKUP_INTERVAL_SECONDS} + 3600 ))"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 10m
+
+  backup-set:
+    <<: *backup
+    command: ["/backup/backup-set.sh"]
+    environment:
+      DB_HOST: mysql
+      DB_NAME: gmanager
+      DB_USER: gmanager
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      BACKUP_KEY_FILE: /run/secrets/backup_encryption_key
+      BACKUP_OUTPUT_DIR: /backup/output
+      DOCUMENT_BACKUP_ROOT: /documents
+      BACKUP_WRITES_QUIESCED: ${BACKUP_WRITES_QUIESCED:-false}
+    volumes: [../backup/output:/backup/output, document_data:/documents:ro]
+
   restore-drill:
     build: ../backup
     profiles: [operations]
@@ -109,8 +144,9 @@ services:
       DB_HOST: mysql
       DB_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
       BACKUP_KEY_FILE: /run/secrets/backup_encryption_key
-      BACKUP_FILE: ${BACKUP_FILE:?BACKUP_FILE is required}
+      BACKUP_FILE: ${BACKUP_FILE:-/backup/output/select-backup.sql.gz.enc}
       RESTORE_DB_NAME: gmanager_restore_drill
+      RESTORE_ISOLATED: "true"
     secrets: [db_root_password, backup_encryption_key]
     volumes: [../backup/output:/backup/output:ro]
     networks: [data]
@@ -129,6 +165,8 @@ services:
       CANONICAL_ORIGIN: ${CANONICAL_ORIGIN:?CANONICAL_ORIGIN is required}
       APP_RELEASE: ${APP_RELEASE:?APP_RELEASE is required}-restore-drill
       DOCUMENT_STORAGE_BACKEND: local
+      OUTBOX_ENABLED: "false"
+      JOBS_ENABLED: "false"
       MANAGEMENT_SERVER_ADDRESS: 0.0.0.0
       STATION_POLICY_SIGNING_KEY_ID: ${STATION_POLICY_SIGNING_KEY_ID:?STATION_POLICY_SIGNING_KEY_ID is required}
     secrets: [jwt_secret, db_username, db_password, station_policy_signing_private_key]
