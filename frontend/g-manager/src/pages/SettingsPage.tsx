@@ -1,3 +1,4 @@
+import { GamingTariffSettings } from '../settings/GamingTariffSettings'
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -15,9 +16,9 @@ import { SettingsIcon } from '../settings/settingsPresentation'
 import { settingsEmployees } from '../settings/settingsPresentation.model'
 import '../settings/settings.css'
 
-type Section = 'overview' | 'hours' | 'exceptions' | 'timeoff'
-const hashes: Record<Section, string> = { overview: '#overview', hours: '#working-hours', exceptions: '#exceptions', timeoff: '#time-off' }
-const sections: Record<string, Section> = { '#overview': 'overview', '#working-hours': 'hours', '#exceptions': 'exceptions', '#time-off': 'timeoff', '#timeoff': 'timeoff' }
+type Section = 'gaming' | 'overview' | 'hours' | 'exceptions' | 'timeoff'
+const hashes: Record<Section, string> = { gaming: '#gaming', overview: '#overview', hours: '#working-hours', exceptions: '#exceptions', timeoff: '#time-off' }
+const sections: Record<string, Section> = { '#gaming': 'gaming', '#overview': 'overview', '#working-hours': 'hours', '#exceptions': 'exceptions', '#time-off': 'timeoff', '#timeoff': 'timeoff' }
 export function SettingsPage() {
   const actor = useAuthStore(state => state.user), location = useLocation(), navigate = useNavigate(), client = useQueryClient()
   const section = sections[location.hash] ?? 'overview', [dirtyCount, setDirtyCount] = useState(0)
@@ -51,8 +52,10 @@ export function SettingsPage() {
   return <PageLayout className="gm-settings">
     <PageHeader title="Rad igraonice" description="Radno vreme prostora, izuzeci i dostupnost zaposlenih." icon={<SettingsIcon />} actions={<><Badge tone="info"><SettingsIcon kind="clock" />Europe/Belgrade</Badge></>} />
     <div className="gm-settings-tabs"><Tabs idPrefix="settings" label="Oblasti podešavanja" value={section} onChange={openSection} items={[
+      ...(hasCapability(actor, 'GAMING_FINANCE_MANAGE') ? [{ id: 'gaming', label: 'Gaming tarife i naplata' }] : []),
       { id: 'overview', label: 'Pregled' }, { id: 'hours', label: 'Rad igraonice' }, { id: 'exceptions', label: 'Izuzeci' }, { id: 'timeoff', label: 'Odsustva zaposlenih' },
     ]} /></div>
+    {section === 'gaming' && hasCapability(actor, 'GAMING_FINANCE_MANAGE') && <GamingTariffSettings />}
     {dirtyCount > 0 && <aside className="gm-settings-dirty" role="status"><span><SettingsIcon kind="edit" />Nesačuvane izmene radnog vremena: {dirtyCount} {dirtyCount === 1 ? 'dan' : 'dana'}. Izmene ostaju sačuvane pri promeni taba.</span>
       {section !== 'hours' && <Button type="button" variant="secondary" onClick={() => openSection('hours')}>Vrati se na radno vreme</Button>}</aside>}
     <div role="tabpanel" id="settings-panel-overview" aria-labelledby="settings-tab-overview" hidden={section !== 'overview'}>

@@ -37,10 +37,12 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         return !"POST".equals(request.getMethod())
                 || !("/api/v1/reservations".equals(request.getRequestURI())
                 || "/api/v1/orders".equals(request.getRequestURI())
+                || request.getRequestURI().startsWith("/api/v1/gaming-billing/")
+                || request.getRequestURI().matches("/api/v1/gaming-operations/stations/[^/]+/prepare")
                 || "/api/v1/waitlist/management".equals(request.getRequestURI())
                 || "/api/v1/reservations/recurrence".equals(request.getRequestURI())
                 || "/api/v1/gaming-sessions".equals(request.getRequestURI())
-                || request.getRequestURI().matches("/api/v1/gaming-sessions/[^/]+/(extend|terminate)"));
+                || request.getRequestURI().matches("/api/v1/gaming-sessions/[^/]+/(extend|terminate|move|complete-move)"));
     }
 
     @Override
@@ -102,7 +104,8 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         ContentCachingResponseWrapper wrapped = new ContentCachingResponseWrapper(response);
         wrapped.setHeader(REPLAY_HEADER, "false");
         TransactionTemplate transaction = new TransactionTemplate(transactionManager);
-        if ("/api/v1/reservations".equals(request.getRequestURI())
+        if (request.getRequestURI().startsWith("/api/v1/gaming-billing/") || request.getRequestURI().startsWith("/api/v1/gaming-sessions")
+                || "/api/v1/reservations".equals(request.getRequestURI())
                 || "/api/v1/reservations/recurrence".equals(request.getRequestURI())) {
             transaction.setIsolationLevel(org.springframework.transaction.TransactionDefinition.ISOLATION_READ_COMMITTED);
         }

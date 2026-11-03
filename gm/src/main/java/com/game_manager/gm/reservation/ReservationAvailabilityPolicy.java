@@ -38,14 +38,16 @@ public class ReservationAvailabilityPolicy implements com.game_manager.gm.common
         if(ids.isEmpty())return List.of();
         String placeholders=String.join(",",java.util.Collections.nCopies(ids.size(),"?"));
         java.util.Calendar utc=java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"));
-        return jdbc.query("SELECT resource_id,started_at,ends_at FROM gaming_sessions WHERE resource_id IN ("
-                +placeholders+") AND status='ACTIVE' AND started_at<? AND ends_at>?", statement->{
-                    int index=1;
+        return jdbc.query("SELECT resource_id,started_at,CASE WHEN move_target_id IS NOT NULL THEN ? ELSE ends_at END FROM gaming_sessions WHERE resource_id IN ("
+                +placeholders+") AND status='ACTIVE' AND started_at<? AND (ends_at>? OR move_target_id IS NOT NULL)"
+                +" UNION ALL SELECT move_target_id,started_at,? FROM gaming_sessions WHERE move_target_id IN ("+placeholders+") AND status='ACTIVE' AND started_at<?", statement->{
+                    int index=1;statement.setTimestamp(index++,java.sql.Timestamp.from(to),utc);
                     for(UUID id:ids)statement.setString(index++,id.toString());
+                    statement.setTimestamp(index++,java.sql.Timestamp.from(to),utc);statement.setTimestamp(index++,java.sql.Timestamp.from(from),utc);
                     statement.setTimestamp(index++,java.sql.Timestamp.from(to),utc);
-                    statement.setTimestamp(index,java.sql.Timestamp.from(from),utc);
-                },(row,index)->new ResourceBusyInterval(UUID.fromString(row.getString(1)),
-                        row.getTimestamp(2,utc).toInstant(),row.getTimestamp(3,utc).toInstant()));
+                    for(UUID id:ids)statement.setString(index++,id.toString());
+                    statement.setTimestamp(index,java.sql.Timestamp.from(to),utc);
+                },(row,index)->new ResourceBusyInterval(UUID.fromString(row.getString(1)),row.getTimestamp(2,utc).toInstant(),row.getTimestamp(3,utc).toInstant()));
     }
 
     private boolean sessionAvailable(UUID id, Instant start, Instant end) {

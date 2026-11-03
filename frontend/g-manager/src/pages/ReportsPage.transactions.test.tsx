@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
@@ -11,7 +12,7 @@ import { ReportsPage } from './ReportsPage'
 
 const queued: ReportItem = { id: 'report-1', definitionKey: 'orders', format: 'CSV', status: 'QUEUED', progress: 0, rowCount: null, documentId: null, errorMessage: null, snapshotAt: '2028-03-16T10:00:00Z', expiresAt: null, version: 0 }
 const schedule: ReportSchedule = { id: 'schedule-1', definitionKey: 'orders', format: 'CSV', timezone: 'Europe/Belgrade', localTime: '08:00', dayOfWeek: 1, active: true, nextRunAt: '2028-03-20T07:00:00Z', version: 0 }
-function page() { return render(<MemoryRouter><ReportsPage /></MemoryRouter>) }
+function page() { return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter><ReportsPage /></MemoryRouter></QueryClientProvider>) }
 describe('report generation and scheduling transactions', () => {
   beforeEach(() => {
     useAuthStore.setState({ user: authUser('OWNER'), accessToken: 'token', isInitializing: false })

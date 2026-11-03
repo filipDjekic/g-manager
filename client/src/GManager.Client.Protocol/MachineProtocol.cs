@@ -12,11 +12,12 @@ public interface IMachineProtocolClient {
  Task LockAckAsync(string bearer,Guid sessionId,long sequence,Guid? leaseId,string reason,CancellationToken ct);
  Task HeartbeatAsync(string bearer,Heartbeat heartbeat,CancellationToken ct);
  Task<CustomerSession> LoginAsync(string bearer,string email,string password,CancellationToken ct);
+ Task<CustomerSession> GuestLoginAsync(string bearer,Guid sessionId,CancellationToken ct) => throw new NotSupportedException("Guest login is unavailable");
  Task LogoutAsync(string bearer,Guid sessionId,CancellationToken ct);
 }
 public sealed record EnrollmentResult(Guid IdentityId,Guid StationId,long KeyVersion,string Algorithm);
 public sealed record MachineToken(string Token,DateTimeOffset ExpiresAt,string TokenType);
-public sealed record CustomerSession(Guid SessionId,Guid StationId,Guid CustomerId,string CustomerName,DateTimeOffset StartedAt,DateTimeOffset EndsAt,DateTimeOffset ServerTime);
+public sealed record CustomerSession(Guid SessionId,Guid StationId,Guid? CustomerId,string CustomerName,DateTimeOffset StartedAt,DateTimeOffset EndsAt,DateTimeOffset ServerTime);
 public sealed record SignedStationPolicy(string Payload,string Algorithm,string KeyId,string Signature);
 public sealed record StationPolicy(Guid StationId,Guid ProfileId,long ConfigurationVersion,DateTimeOffset IssuedAt,IReadOnlyList<PolicyApplication> Applications);
 public sealed record PolicyApplication(string Code,string Name,string Type,string ExecutablePath,string? Publisher,string? PublisherCertificateThumbprint,string? ExecutableSha256,string? MinimumFileVersion,string? Arguments,bool RequiredProcess,bool AutoStart,int LaunchOrder,string? DependencyGroup);
@@ -36,6 +37,7 @@ public sealed class MachineProtocolClient(HttpClient http):IMachineProtocolClien
  public async Task LockAckAsync(string bearer,Guid sessionId,long sequence,Guid? leaseId,string reason,CancellationToken ct)=>_ = await Post<object>("api/v1/machine/enforcement/lock-ack",new{sessionId,commandSequence=sequence,leaseId,reason},bearer,ct);
  public async Task HeartbeatAsync(string bearer,Heartbeat heartbeat,CancellationToken ct)=>_ = await Post<object>("api/v1/machine/heartbeat",heartbeat,bearer,ct);
  public Task<CustomerSession> LoginAsync(string bearer,string email,string password,CancellationToken ct)=>Post<CustomerSession>("api/v1/machine/session-login",new{email,password},bearer,ct);
+ public Task<CustomerSession> GuestLoginAsync(string bearer,Guid sessionId,CancellationToken ct)=>Post<CustomerSession>("api/v1/machine/guest-login",new{sessionId},bearer,ct);
  public async Task LogoutAsync(string bearer,Guid sessionId,CancellationToken ct)=>_ = await Post<object>("api/v1/machine/session-logout",new{sessionId},bearer,ct);
  async Task<T> Get<T>(string path,string token,CancellationToken ct){using var request=new HttpRequestMessage(HttpMethod.Get,path);request.Headers.Authorization=new AuthenticationHeaderValue("Bearer",token);using var response=await http.SendAsync(request,ct);response.EnsureSuccessStatusCode();return (await response.Content.ReadFromJsonAsync<T>(cancellationToken:ct))!;}
  async Task<T> Post<T>(string path,object body,string? token,CancellationToken ct){using var request=new HttpRequestMessage(HttpMethod.Post,path){Content=JsonContent.Create(body)};if(token is not null)request.Headers.Authorization=new AuthenticationHeaderValue("Bearer",token);using var response=await http.SendAsync(request,ct);response.EnsureSuccessStatusCode();if(response.StatusCode==System.Net.HttpStatusCode.NoContent)return default!;return (await response.Content.ReadFromJsonAsync<T>(cancellationToken:ct))!;}

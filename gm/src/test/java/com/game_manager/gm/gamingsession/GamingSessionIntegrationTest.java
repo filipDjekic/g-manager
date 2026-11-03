@@ -73,7 +73,7 @@ class GamingSessionIntegrationTest {
         String id=started.get("id").asText(); long version=started.get("version").asLong();
         MvcResult extended=mvc.perform(post("/api/v1/gaming-sessions/{id}/extend",id)
                 .header("Authorization",bearer(token)).header("Idempotency-Key",UUID.randomUUID())
-                .contentType(MediaType.APPLICATION_JSON).content("{\"minutes\":30,\"version\":"+version+"}"))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"minutes\":30,\"version\":"+version+",\"purchase\":"+purchase(30)+"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(id)).andReturn();
         long extendedVersion=node(extended).get("version").asLong();
         assertThat(stationCommands.findByStationIdAndSequenceGreaterThanOrderBySequence(
@@ -92,7 +92,7 @@ class GamingSessionIntegrationTest {
         Station one=station(),two=station();assign(employee,one.resource().getId());assign(employee,two.resource().getId());String token=login(employee);
         assertThat(race(token,startBody(first,one.resource(),60),startBody(second,one.resource(),60)))
                 .containsExactlyInAnyOrder(201,409);
-        sessions.findAll().forEach(value->{value.setStatus(GamingSessionStatus.TERMINATED);value.setEndedAt(Instant.now());value.setTerminationReason("test cleanup");sessions.save(value);});sessions.flush();
+        sessions.findAll().forEach(value->{value.setStatus(GamingSessionStatus.TERMINATED);value.setEndedAt(Instant.now());value.setTerminationReason("test cleanup");sessions.save(value);});sessions.flush();jdbc.update("UPDATE station_preparation SET ready=TRUE");
         assertThat(race(token,startBody(first,one.resource(),60),startBody(first,two.resource(),60)))
                 .containsExactlyInAnyOrder(201,409);
     }
@@ -117,6 +117,12 @@ class GamingSessionIntegrationTest {
     User user(Role role){User value=new User();value.setName(role.name());value.setEmail(role+"-gaming-"+UUID.randomUUID()+"@example.test");value.setPasswordHash(encoder.encode("StrongPass1!"));value.setRole(role);value.setActive(true);return users.saveAndFlush(value);}
     private String login(User user)throws Exception{return node(mvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON).content("{\"email\":\"%s\",\"password\":\"StrongPass1!\"}".formatted(user.getEmail()))).andExpect(status().isOk()).andReturn()).get("token").asText();}
     private JsonNode node(MvcResult result){return json.readTree(result.getResponse().getContentAsByteArray());}
-    private static String startBody(User customer,PhysicalResource resource,int minutes){return "{\"customerId\":\"%s\",\"resourceId\":\"%s\",\"durationMinutes\":%d}".formatted(customer.getId(),resource.getId(),minutes);}
+    private String startBody(User customer,PhysicalResource resource,int minutes){return "{\"customerId\":\"%s\",\"resourceId\":\"%s\",\"durationMinutes\":%d}".formatted(customer.getId(),resource.getId(),minutes).replace("}",",\"purchase\":"+purchase(minutes)+"}");}
+    String purchase(int minutes) {
+        String id="00000000-0000-0000-0000-000000000043";
+        if(jdbc.queryForObject("SELECT COUNT(*) FROM gaming_tariffs WHERE id=?",Integer.class,id)==0)
+            jdbc.update("INSERT INTO gaming_tariffs (id,name,minutes,price,currency,active,package_validity_days,version) VALUES (?,'Test tariff',30,100,'RSD',TRUE,0,0)",id);
+        return "{\"tariffId\":\""+id+"\",\"tariffVersion\":0,\"payment\":{\"method\":\"CASH\",\"amount\":"+(minutes/30*100)+"}}";
+    }
     private static String bearer(String token){return "Bearer "+token;}private static String shortId(){return UUID.randomUUID().toString().substring(0,8);}record Station(PhysicalResource resource,UUID locationId){}
 }

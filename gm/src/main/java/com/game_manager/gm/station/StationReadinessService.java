@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class StationReadinessService {
+    private final StationPreparationService preparation;
     private final PhysicalResourceRepository resources;
     private final AreaRepository areas;
     private final LocationRepository locationRepository;
@@ -49,6 +50,7 @@ public class StationReadinessService {
                         .map(GamingStationProfile::getApplicationProfileId).filter(Objects::nonNull).toList())
                 .stream().collect(Collectors.toMap(ApplicationProfile::getId, Function.identity()));
         Map<UUID, UUID> activeSessions = runtimeProjection.activeSessionIdsByResource();
+        var privacyReady=preparation.readiness(pcs.stream().map(PhysicalResource::getId).toList());
         Instant now = clock.instant();
         return pcs.stream().map(resource -> {
             GamingStationProfile station = stationByResource.get(resource.getId());
@@ -59,7 +61,7 @@ public class StationReadinessService {
                     ? StationOperationalStatus.AVAILABLE : station.getOperationalStatus();
             return new StationOverview(station == null ? null : station.getId(), resource.getId(),
                     resource.getCode(), resource.getName(), resource.getAreaId(), area.getLocationId(),
-                    operational, effectiveStatus(station, operational, activeSessionId, now),
+                    operational, effectiveStatus(station, operational, activeSessionId, now,privacyReady.getOrDefault(resource.getId(),true)),
                     profile == null ? null : profile.getId(), profile == null ? null : profile.getName(),
                     profile == null ? 0 : profile.getConfigurationVersion(), station != null && station.isClientEnabled(),
                     station == null ? 10 : station.getHeartbeatIntervalSeconds(),
@@ -71,8 +73,14 @@ public class StationReadinessService {
         }).toList();
     }
 
+    @Transactional(readOnly=true)
+    public void requireGuestClient(UUID resourceId) {
+        if(!stations.findByResourceId(resourceId).map(GamingStationProfile::isClientEnabled).orElse(false))
+            throw new ApplicationException(HttpStatus.CONFLICT,"Guest sessions require an enabled, online Windows Client");
+    }
     @Transactional(readOnly = true)
     public void requireReadyForSession(UUID resourceId) {
+        if (!preparation.ready(resourceId)) throw new ApplicationException(HttpStatus.CONFLICT,"Privacy preparation is required before the next session");
         GamingStationProfile station = stations.findByResourceId(resourceId)
                 .orElseThrow(() -> new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,
                         "Gaming station is not configured"));
@@ -258,20 +266,20 @@ public class StationReadinessService {
         Area area = areas.findById(resource.getAreaId()).orElseThrow();
         UUID activeSessionId = runtimeProjection.activeSessionIdsByResource().get(resource.getId());
         return new StationOverview(station.getId(), resource.getId(), resource.getCode(), resource.getName(), resource.getAreaId(),
-                area.getLocationId(), station.getOperationalStatus(), effectiveStatus(station, station.getOperationalStatus(), activeSessionId, clock.instant()),
+                area.getLocationId(), station.getOperationalStatus(), effectiveStatus(station, station.getOperationalStatus(), activeSessionId, clock.instant(),preparation.ready(resource.getId())),
                 profile == null ? null : profile.getId(), profile == null ? null : profile.getName(), profile == null ? 0 : profile.getConfigurationVersion(),
                 station.isClientEnabled(), station.getHeartbeatIntervalSeconds(), station.getOfflineGraceSeconds(), station.getLastHeartbeatAt(),
                 station.getClientVersion(), activeSessionId, station.getVersion());
     }
 
     private static StationEffectiveStatus effectiveStatus(GamingStationProfile station, StationOperationalStatus operational,
-            UUID activeSessionId, Instant now) {
+            UUID activeSessionId, Instant now,boolean privacyReady) {
         if (operational != StationOperationalStatus.AVAILABLE) return StationEffectiveStatus.valueOf(operational.name());
         if (activeSessionId != null) return StationEffectiveStatus.IN_SESSION;
         if (station != null && station.isClientEnabled() && (station.getLastHeartbeatAt() == null
                 || !station.getLastHeartbeatAt().plusSeconds(station.getOfflineGraceSeconds()).isAfter(now)))
             return StationEffectiveStatus.OFFLINE;
-        return StationEffectiveStatus.AVAILABLE;
+        return privacyReady ? StationEffectiveStatus.AVAILABLE : StationEffectiveStatus.PREPARATION_REQUIRED;
     }
 
     private PhysicalResource requirePc(UUID id) { PhysicalResource value = resources.findById(id)

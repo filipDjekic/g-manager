@@ -116,6 +116,7 @@
                             <TextBlock x:Name="Subtitle" Text="Za početak je potrebna aktivna sesija." FontSize="15" Foreground="{StaticResource MutedText}" Margin="1,10,0,0"/>
                             <Border x:Name="FormDivider" Height="1" Background="{StaticResource SubtleBorder}" Margin="0,28,0,28"/>
 
+                            <Button x:Name="GuestLogin" Visibility="Collapsed" Content="POKRENI GOST SESIJU" Click="GuestLogin_Click" Style="{StaticResource PrimaryButton}" AutomationProperties.Name="Pokreni gost sesiju"/>
                             <StackPanel x:Name="LoginForm" Visibility="Collapsed" KeyboardNavigation.TabNavigation="Continue">
                                 <TextBox x:Name="Email" Tag="{StaticResource EmailGeometry}" Margin="0,0,0,16" TabIndex="0"
                                          AutomationProperties.Name="Email adresa" AutomationProperties.HelpText="Email adresa"

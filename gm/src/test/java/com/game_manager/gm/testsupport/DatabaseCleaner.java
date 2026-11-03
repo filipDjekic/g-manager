@@ -5,6 +5,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 public final class DatabaseCleaner {
     private static final List<String> TABLES = List.of(
+            "station_preparation", "gaming_wallet_ledger", "gaming_financial_operations", "gaming_charges", "gaming_time_packages", "gaming_tariffs",
             "outbox_consumer_receipts", "outbox_events",
             "background_job_attempts", "background_jobs",
             "idempotency_keys", "audit_events", "notification_delivery_attempts",
@@ -56,6 +57,7 @@ public final class DatabaseCleaner {
     }
 
     private static void resetActivationGuards(JdbcTemplate jdbc) {
+        jdbc.update("UPDATE gaming_business_policy SET allow_partial=FALSE,allow_debt=FALSE,allow_refunds=FALSE,minimum_minutes=15,maximum_minutes=480,employee_discount_limit=0,version=0 WHERE id=1");
         jdbc.update("delete from customer_activation_guards where guard_key not in ('global', 'generation')");
         jdbc.update("update customer_activation_guards set attempts = 0");
     }

@@ -26,7 +26,8 @@ class GamingOperationsBoardServiceTest {
         when(sessions.findLatestCandidates(List.of(assigned.resourceId()))).thenReturn(List.of());
         when(commands.findByStationIdInOrderByStationIdAscSequenceDesc(List.of(assigned.resourceId()))).thenReturn(List.of());
         var enforcement=mock(com.game_manager.gm.common.scheduling.ClientStatePort.class);when(enforcement.states(any())).thenReturn(Map.of());
-        GamingOperationsBoardService service=new GamingOperationsBoardService(readiness,sessions,commands,users,locations,current,Clock.fixed(NOW,ZoneOffset.UTC),mock(StationCommandWriter.class),enforcement);
+        var preparation=mock(StationPreparationService.class);when(preparation.ready(any())).thenReturn(true);
+        GamingOperationsBoardService service=new GamingOperationsBoardService(preparation,mock(com.game_manager.gm.gamingsession.billing.GamingBillingService.class),readiness,sessions,commands,users,locations,current,Clock.fixed(NOW,ZoneOffset.UTC),mock(StationCommandWriter.class),enforcement);
 
         var response=service.board(null);
 
@@ -47,7 +48,8 @@ class GamingOperationsBoardServiceTest {
         when(sessions.findLatestCandidates(List.of(station.resourceId()))).thenReturn(List.of(session));when(commands.findByStationIdInOrderByStationIdAscSequenceDesc(any())).thenReturn(List.of());
         when(users.findAllById(List.of(customer.getId()))).thenReturn(List.of(customer));
         var enforcement=mock(com.game_manager.gm.common.scheduling.ClientStatePort.class);when(enforcement.states(any())).thenReturn(Map.of());
-        GamingOperationsBoardService service=new GamingOperationsBoardService(readiness,sessions,commands,users,locations,current,Clock.fixed(NOW,ZoneOffset.UTC),mock(StationCommandWriter.class),enforcement);
+        var preparation=mock(StationPreparationService.class);when(preparation.ready(any())).thenReturn(true);
+        GamingOperationsBoardService service=new GamingOperationsBoardService(preparation,mock(com.game_manager.gm.gamingsession.billing.GamingBillingService.class),readiness,sessions,commands,users,locations,current,Clock.fixed(NOW,ZoneOffset.UTC),mock(StationCommandWriter.class),enforcement);
 
         var card=service.board(null).stations().getFirst();
 

@@ -2,10 +2,12 @@ import type { StatusTone } from '../components/ui'
 import type { GamingStationCard } from '../types/gamingSession.types'
 
 export const stationLabels: Record<GamingStationCard['status'], string> = {
+  PREPARATION_REQUIRED: 'Potrebna priprema privatnosti', TRANSFER_PENDING: 'Rezervisano za premestanje',
   AVAILABLE: 'Dostupna', ACTIVE: 'Aktivna sesija', MAINTENANCE: 'Održavanje',
   RETIRED: 'Van upotrebe', OFFLINE: 'Bez veze', EXPIRED: 'Sesija istekla', LOCK_PENDING: 'Čeka zaključavanje',
 }
 export const stationTones: Record<GamingStationCard['status'], StatusTone> = {
+  PREPARATION_REQUIRED: 'warning', TRANSFER_PENDING: 'warning',
   AVAILABLE: 'success', ACTIVE: 'info', MAINTENANCE: 'warning', RETIRED: 'neutral',
   OFFLINE: 'danger', EXPIRED: 'warning', LOCK_PENDING: 'warning',
 }
@@ -13,7 +15,7 @@ export const enforcementLabels: Record<string, string> = {
   UNKNOWN: 'Nepotvrđeno', UNLOCKED: 'Otključana', LOCK_PENDING: 'Čeka potvrdu', LOCKED: 'Zaključana', OFFLINE: 'Bez veze',
 }
 export function needsAttention(station: GamingStationCard) {
-  return station.staleHeartbeat || ['OFFLINE', 'LOCK_PENDING', 'EXPIRED'].includes(station.status)
+  return station.staleHeartbeat || ['OFFLINE', 'LOCK_PENDING', 'EXPIRED', 'PREPARATION_REQUIRED', 'TRANSFER_PENDING'].includes(station.status)
     || (!!station.commandSequence && !station.commandAcknowledgedAt)
 }
 export function remaining(seconds: number) {

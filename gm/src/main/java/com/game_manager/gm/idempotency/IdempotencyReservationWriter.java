@@ -37,12 +37,14 @@ public class IdempotencyReservationWriter {
         return processingToken;
     }
 
+    static boolean durable(String endpoint) {return endpoint.startsWith("POST /api/v1/gaming-billing/") || endpoint.startsWith("POST /api/v1/gaming-sessions");}
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public IdempotencyService.ReservationResult resolveExisting(
             UUID principalId, String key, String endpoint, String requestHash) {
         IdempotencyKey existing = repository.findScopedForUpdate(principalId, key, endpoint).orElseThrow();
         Instant now = clock.instant();
-        if (existing.getStatus() == IdempotencyStatus.COMPLETED && existing.getExpiresAt().isAfter(now)) {
+        if (existing.getStatus() == IdempotencyStatus.COMPLETED && (existing.getExpiresAt().isAfter(now) || durable(endpoint))) {
             if (!existing.getRequestHash().equals(requestHash)) {
                 return IdempotencyService.ReservationResult.differentHash();
             }

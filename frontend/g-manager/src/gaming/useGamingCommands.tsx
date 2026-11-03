@@ -18,18 +18,9 @@ export function useGamingCommands() {
   const [error, setError] = useState(''), [busy, setBusy] = useState(false)
   const [hasPending,setHasPending]=useState(false)
   useDirtyGuard(busy || hasPending, { pending: true })
-  const pending=useRef<{kind:'EXTEND';station:GamingStationCard;minutes:number}|{kind:'TERMINATE';station:GamingStationCard;reason:string}|null>(null)
+  const pending=useRef<{kind:'TERMINATE';station:GamingStationCard;reason:string}|null>(null)
   const inFlight = useRef(false), keys = useRef(new Map<string, IdempotencyKeyManager>())
   const refresh = useCallback(() => client.invalidateQueries({ queryKey: ['gaming-operations'] }), [client])
-  const extend = useCallback(async (station: GamingStationCard, duration: number) => {
-    if (!station.sessionId || station.sessionVersion === undefined || inFlight.current) return
-    inFlight.current = true; setBusy(true); setError('')
-    const signature = `extend:${station.sessionId}:${station.sessionVersion}:${duration}`
-    const key = keys.current.get(signature) ?? new IdempotencyKeyManager(); keys.current.set(signature, key)
-    try { await gamingSessionApi.extend(station.sessionId, duration, station.sessionVersion, key.begin()); keys.current.delete(signature);pending.current=null;setHasPending(false);setCustomStation(null) }
-    catch (cause) { key.failed(cause);pending.current=key.pendingKey()?{kind:'EXTEND',station,minutes:duration}:null;setHasPending(!!pending.current);setError(apiErrorMessage(cause, 'Sesiju nije moguće produžiti.')) }
-    finally { try { await refresh() } finally { inFlight.current = false; setBusy(false) } }
-  }, [refresh])
   async function terminateRequest(station:GamingStationCard,endReason:string) {
     if (!station.sessionId || station.sessionVersion === undefined || !endReason || inFlight.current) return
     inFlight.current = true; setBusy(true); setError('')
@@ -41,8 +32,7 @@ export function useGamingCommands() {
   }
   function retryPending() {
     const request=pending.current
-    if(request?.kind==='EXTEND')void extend(request.station,request.minutes)
-    else if(request)void terminateRequest(request.station,request.reason)
+    if(request)void terminateRequest(request.station,request.reason)
   }
   const feedback=error&&<Alert tone="danger" role="alert">{error}{hasPending&&<><p>Ishod komande nije potvrđen. Ponovite isti zahtev pre sledeće akcije.</p><Button type="button" variant="secondary" disabled={busy} onClick={retryPending}>Proveri prethodnu komandu</Button></>}</Alert>
   async function recover() {
@@ -63,7 +53,7 @@ export function useGamingCommands() {
     startStation, setStartStation, newSessionOpen, setNewSessionOpen, customStation,
     setCustomStation, minutes, setMinutes, endStation, setEndStation,
     historyStation, setHistoryStation, recoveryAction, setRecoveryAction, error,
-    setError, busy, hasPending, extend, terminateRequest,
+    setError, busy, hasPending, terminateRequest,
     feedback, recover, openStart, openCustom, openEnd,
     openRecovery
   }

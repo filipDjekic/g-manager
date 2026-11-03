@@ -18,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class GamingOperationsBoardService {
+    private final com.game_manager.gm.station.StationPreparationService preparation;
+    private final com.game_manager.gm.gamingsession.billing.GamingBillingService billing;
     private final StationReadinessService stationReadiness;
     private final GamingSessionRepository sessions;
     private final StationCommandRepository commands;
@@ -48,12 +50,15 @@ public class GamingOperationsBoardService {
                 .findByStationIdInOrderByStationIdAscSequenceDesc(resourceIds).stream()
                 .collect(Collectors.toMap(StationCommand::getStationId, Function.identity(), (first, ignored) -> first));
         var enforcementByStation=enforcement.states(resourceIds);
+        var ready=preparation.readiness(resourceIds);
+        Set<UUID> incoming=sessions.findByMoveTargetIdInAndStatus(resourceIds,GamingSessionStatus.ACTIVE).stream().map(GamingSession::getMoveTargetId).collect(Collectors.toSet());
+        var due=billing.dues(latest.values().stream().map(GamingSession::getId).toList());
         Map<UUID,User> customers = users.findAllById(latest.values().stream()
-                        .map(GamingSession::getCustomerId).distinct().toList()).stream()
+                        .map(GamingSession::getCustomerId).filter(Objects::nonNull).distinct().toList()).stream()
                 .collect(Collectors.toMap(User::getId, Function.identity()));
         List<GamingOperationsBoardResponse.StationCard> cards = visible.stream()
                 .map(station -> card(station, latest.get(station.resourceId()),
-                        latestCommand.get(station.resourceId()),enforcementByStation.get(station.resourceId()), customers, actor, now))
+                        latestCommand.get(station.resourceId()),enforcementByStation.get(station.resourceId()), customers, actor, now,ready.getOrDefault(station.resourceId(),true),incoming.contains(station.resourceId()),due))
                 .toList();
         return new GamingOperationsBoardResponse(now, cards);
     }
@@ -65,43 +70,46 @@ public class GamingOperationsBoardService {
         var entries=java.util.stream.Stream.concat(auditEntries,commandEntries).sorted(java.util.Comparator.comparing(StationHistoryResponse.Entry::occurredAt).reversed()).limit(50).toList();return new StationHistoryResponse(clock.instant(),stationId,entries);}
 
     private GamingOperationsBoardResponse.StationCard card(StationOverview station, GamingSession latest,
-            StationCommand latestCommand,com.game_manager.gm.common.scheduling.ClientStatePort.State enforcementState, Map<UUID,User> customers, AuthenticatedUser actor, Instant now) {
+            StationCommand latestCommand,com.game_manager.gm.common.scheduling.ClientStatePort.State enforcementState, Map<UUID,User> customers, AuthenticatedUser actor, Instant now,boolean privacyReady,boolean incoming,Map<UUID,java.math.BigDecimal> due) {
         GamingSession active = latest != null && latest.getStatus() == GamingSessionStatus.ACTIVE ? latest : null;
         boolean stale=station.clientEnabled()&&(station.lastHeartbeatAt()==null||!station.lastHeartbeatAt().plusSeconds(station.offlineGraceSeconds()).isAfter(now));
-        GamingStationBoardStatus status = status(station, latest, enforcementState, stale,now);
+        GamingStationBoardStatus status = status(station, latest, enforcementState, stale,now,privacyReady,incoming);
         EnumSet<GamingStationAction> allowed = EnumSet.noneOf(GamingStationAction.class);
         if ((status == GamingStationBoardStatus.AVAILABLE || status == GamingStationBoardStatus.EXPIRED)
                 && (latest == null || latest.getStatus() != GamingSessionStatus.ACTIVE)
+                && privacyReady && !incoming
                 && station.applicationProfileId() != null
                 && RolePermissions.has(actor.role(), Permission.GAMING_SESSION_START))
             allowed.add(GamingStationAction.START);
-        if (status == GamingStationBoardStatus.ACTIVE && RolePermissions.has(actor.role(), Permission.GAMING_SESSION_EXTEND))
+        if (status == GamingStationBoardStatus.ACTIVE && active!=null && active.getMoveTargetId()==null && RolePermissions.has(actor.role(), Permission.GAMING_SESSION_EXTEND))
             allowed.add(GamingStationAction.EXTEND);
-        if ((status == GamingStationBoardStatus.ACTIVE||status==GamingStationBoardStatus.OFFLINE&&active!=null) && RolePermissions.has(actor.role(), Permission.GAMING_SESSION_TERMINATE))
+        if ((status == GamingStationBoardStatus.ACTIVE||(status==GamingStationBoardStatus.OFFLINE||status==GamingStationBoardStatus.LOCK_PENDING)&&active!=null) && RolePermissions.has(actor.role(), Permission.GAMING_SESSION_TERMINATE))
             allowed.add(GamingStationAction.TERMINATE);
         if ((status==GamingStationBoardStatus.LOCK_PENDING||status==GamingStationBoardStatus.OFFLINE&&(enforcementState==null||!"LOCKED".equals(enforcementState.status())))&&latest!=null&&latest.getStatus()!=GamingSessionStatus.ACTIVE&&RolePermissions.has(actor.role(),Permission.GAMING_SESSION_TERMINATE)){allowed.add(GamingStationAction.FORCE_LOCK);allowed.add(GamingStationAction.CONFIRM_LOCKED);}
         User customer = active == null ? null : customers.get(active.getCustomerId());
         return new GamingOperationsBoardResponse.StationCard(station.resourceId(), station.resourceCode(),
                 station.resourceName(), station.locationId(), status, station.clientEnabled(),
                 station.lastHeartbeatAt(),stale,stale?"OFFLINE":enforcementState==null?"UNKNOWN":enforcementState.status(),enforcementState==null?null:enforcementState.lastLockAckAt(), active == null ? null : active.getId(),
-                active == null ? null : active.getCustomerId(), customer == null ? null : customer.getName(),
+                active == null ? null : active.getCustomerId(), active!=null && active.getCustomerId()==null ? "Gost - "+active.getGuestName() : customer == null ? null : customer.getName(),
                 active == null ? null : active.getStartedAt(), active == null ? null : active.getEndsAt(),
-                active == null ? 0 : Math.max(0, Duration.between(now, active.getEndsAt()).toSeconds()),
+                active == null ? 0 : active.getMoveRemainingSeconds()!=null ? active.getMoveRemainingSeconds() : Math.max(0, Duration.between(now, active.getEndsAt()).toSeconds()),
                 active == null ? null : active.getVersion(), Set.copyOf(allowed),
                 station.areaId(), station.operationalStatus(), station.effectiveStatus(),
                 station.applicationProfileName(), station.configurationVersion(), station.clientVersion(),
                 latestCommand == null ? null : latestCommand.getSequence(),
                 latestCommand == null ? null : latestCommand.getCommandType().name(),
                 latestCommand == null ? null : latestCommand.getAvailableAt(),
-                latestCommand == null ? null : latestCommand.getAcknowledgedAt(), station.locationName(), station.areaName());
+                latestCommand == null ? null : latestCommand.getAcknowledgedAt(), station.locationName(), station.areaName(), latest==null?null:latest.getId(), active==null?null:due.getOrDefault(active.getId(),java.math.BigDecimal.ZERO), privacyReady, active==null?null:active.getMoveTargetId());
     }
 
     private GamingStationBoardStatus status(StationOverview station, GamingSession latest,
-            com.game_manager.gm.common.scheduling.ClientStatePort.State enforcementState,boolean stale, Instant now) {
+            com.game_manager.gm.common.scheduling.ClientStatePort.State enforcementState,boolean stale, Instant now,boolean privacyReady,boolean incoming) {
         if (station.operationalStatus() == StationOperationalStatus.MAINTENANCE)
             return GamingStationBoardStatus.MAINTENANCE;
         if (station.operationalStatus() == StationOperationalStatus.RETIRED)
             return GamingStationBoardStatus.RETIRED;
+        if(incoming) return GamingStationBoardStatus.TRANSFER_PENDING;
+        if(latest!=null && latest.getStatus()==GamingSessionStatus.ACTIVE && latest.getMoveTargetId()!=null) return GamingStationBoardStatus.LOCK_PENDING;
         if (latest != null && latest.getStatus() == GamingSessionStatus.ACTIVE
                 && !latest.getEndsAt().isAfter(now))
             return GamingStationBoardStatus.EXPIRED;
@@ -110,6 +118,7 @@ public class GamingOperationsBoardService {
         if (latest != null && latest.getStatus() == GamingSessionStatus.ACTIVE)return GamingStationBoardStatus.ACTIVE;
         if (!station.clientEnabled()&&latest != null && latest.getStatus() == GamingSessionStatus.EXPIRED)
             return GamingStationBoardStatus.EXPIRED;
+        if(!privacyReady) return GamingStationBoardStatus.PREPARATION_REQUIRED;
         return GamingStationBoardStatus.AVAILABLE;
     }
 

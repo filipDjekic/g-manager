@@ -1,13 +1,14 @@
+import type { Purchase } from '../api/gamingBillingApi'
 export type GamingSessionStatus = 'ACTIVE'|'EXPIRED'|'TERMINATED'
 export interface GamingSession {
-  id:string;customerId:string;resourceId:string;locationId:string;reservationId?:string
+  id:string;customerId?:string;resourceId:string;locationId:string;reservationId?:string
   startedBy:string;startedAt:string;endsAt:string;endedAt?:string;status:GamingSessionStatus
   terminationReason?:string;remainingSeconds:number;serverTime:string;version:number
   lastCommandSequence?:number
 }
-export interface StartGamingSessionInput { customerId:string;resourceId:string;reservationId?:string;durationMinutes?:number }
+export interface StartGamingSessionInput { customerId?:string;guestName?:string;purchase?:Purchase;resourceId:string;reservationId?:string;durationMinutes?:number }
 export interface GamingSessionEvent { eventId:string;type:string;sessionId:string;occurredAt:string }
-export type GamingStationBoardStatus = 'AVAILABLE'|'ACTIVE'|'MAINTENANCE'|'RETIRED'|'OFFLINE'|'EXPIRED'|'LOCK_PENDING'
+export type GamingStationBoardStatus = 'PREPARATION_REQUIRED'|'TRANSFER_PENDING'|'AVAILABLE'|'ACTIVE'|'MAINTENANCE'|'RETIRED'|'OFFLINE'|'EXPIRED'|'LOCK_PENDING'
 export type GamingStationAction = 'START'|'EXTEND'|'TERMINATE'|'FORCE_LOCK'|'CONFIRM_LOCKED'
 export interface GamingStationCard {
   resourceId:string;resourceCode:string;resourceName:string;locationId:string
@@ -18,6 +19,7 @@ export interface GamingStationCard {
   areaId?:string;operationalStatus?:string;effectiveStatus?:string;applicationProfileName?:string
   configurationVersion?:number;clientVersion?:string;commandSequence?:number;commandType?:string
   commandAvailableAt?:string;commandAcknowledgedAt?:string
+  latestSessionId?:string;paymentDue?:string|number;privacyReady?:boolean;moveTargetId?:string
   locationName?:string;areaName?:string
 }
 export interface GamingOperationsBoard { serverTime:string;stations:GamingStationCard[] }

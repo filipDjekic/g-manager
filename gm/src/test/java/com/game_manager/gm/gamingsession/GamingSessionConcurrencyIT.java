@@ -86,6 +86,12 @@ class GamingSessionConcurrencyIT extends GamingSessionIntegrationTest {
         JsonNode ack = exchange(post("/api/v1/machine/enforcement/lock-ack"), token,
                 Map.of("sessionId", terminal.getId(), "commandSequence", sequence, "reason", "Synthetic server protocol check"), 200);
         assertThat(ack.get("enforcementStatus").asText()).isEqualTo("LOCKED");
+        exchange(get("/api/v1/machine/lease"), token, null, 200);
+        exchange(get("/api/v1/machine/lease"), token, null, 200);
+        exchange(post("/api/v1/machine/heartbeat"),token,Map.of("clientVersion","audit-test","status","LOCKED","lastCommandSequence",sequence,"enforcementStatus","LOCKED"),204);
+        var board=exchange(get("/api/v1/gaming-operations/board"),ownerToken,null,200);
+        assertThat(board.get("stations").get(0).get("enforcementStatus").asText()).isEqualTo("LOCKED");
+        assertThat(board.get("stations").get(0).get("status").asText()).isEqualTo("AVAILABLE");
         exchange(get("/api/v1/machine/lease"), ownerToken, null, 401);
         exchange(post(adminPath + "/revoke"), ownerToken, null, 204);
         exchange(get("/api/v1/machine/snapshot"), token, null, 401);

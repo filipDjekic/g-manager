@@ -63,7 +63,7 @@ public class StationCommandWriter {
         if (rows.size() != 1) return false;
         Map<String,Object> row = rows.getFirst();
         String actualType = String.valueOf(row.get("command_type"));
-        if (session.getStatus().name().equals("ACTIVE")
+        if (session.getStatus().name().equals("ACTIVE") && session.getMoveTargetId()==null
                 ? !(actualType.equals(StationCommandType.SESSION_STARTED.name())
                     || actualType.equals(StationCommandType.SESSION_EXTENDED.name()))
                 : !(actualType.equals(StationCommandType.SESSION_TERMINATED.name())

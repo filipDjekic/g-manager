@@ -13,11 +13,15 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "gaming_sessions")
 @Getter @Setter
 public class GamingSession extends BaseEntity {
-    @JdbcTypeCode(SqlTypes.CHAR) @Column(name = "customer_id", nullable = false, length = 36) private UUID customerId;
+    @JdbcTypeCode(SqlTypes.CHAR) @Column(name = "customer_id", length = 36) private UUID customerId;
     @JdbcTypeCode(SqlTypes.CHAR) @Column(name = "resource_id", nullable = false, length = 36) private UUID resourceId;
     @JdbcTypeCode(SqlTypes.CHAR) @Column(name = "location_id", nullable = false, length = 36) private UUID locationId;
     @JdbcTypeCode(SqlTypes.CHAR) @Column(name = "reservation_id", length = 36) private UUID reservationId;
     @JdbcTypeCode(SqlTypes.CHAR) @Column(name = "started_by", nullable = false, length = 36) private UUID startedBy;
+    @Column(name="legacy_minutes",nullable=false) private int legacyMinutes;
+    @Column(name="guest_name",length=120) private String guestName;
+    @JdbcTypeCode(SqlTypes.CHAR) @Column(name="move_target_id",length=36) private UUID moveTargetId;
+    @Column(name="move_remaining_seconds") private Long moveRemainingSeconds;
     @Column(name = "started_at", nullable = false) private Instant startedAt;
     @Column(name = "ends_at", nullable = false) private Instant endsAt;
     @Column(name = "ended_at") private Instant endedAt;

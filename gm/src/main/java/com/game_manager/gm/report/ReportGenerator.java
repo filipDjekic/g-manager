@@ -25,6 +25,7 @@ public class ReportGenerator {
     public ReportGenerator(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
     public Generated generate(ReportRequest request, UUID scopedUser) {
+        if("gaming-finance".equals(request.getDefinitionKey()) && (request.getPermissionSnapshot()==null || !Arrays.asList(request.getPermissionSnapshot().split(",")).contains("GAMING_FINANCE_MANAGE"))) throw new ApplicationException(HttpStatus.FORBIDDEN,"Finance reporting permission required");
         Query query = query(request.getDefinitionKey(), request.getFiltersJson(), scopedUser);
         try {
             return switch (request.getFormat()) {
@@ -90,6 +91,8 @@ public class ReportGenerator {
         String scopeReservation = scope == null ? "" : " AND r.customer_id=?";
         List<Object> args = new ArrayList<>(List.of(from, to)); if (scope != null) args.add(scope.toString());
         return switch (key) {
+            case "gaming-finance" -> new Query(List.of("operation_id","recorded_at","kind","method","amount_RSD","status","session_id","station_id","location_id","employee_id","external_reference","reason","receipt_type"),
+                    "SELECT id,created_at,kind,method,amount,status,session_id,resource_id,location_id,actor_id,reference,reason,'INTERNAL_NON_FISCAL' FROM gaming_financial_operations WHERE created_at>=? AND created_at<? ORDER BY created_at,id",List.of(from,to));
             case "orders" -> new Query(List.of("id","created_at","status","total_price"),
                     "SELECT o.id,o.created_at,o.status,o.total_price FROM orders o WHERE o.created_at>=? AND o.created_at<?" + scopeOrder + " ORDER BY o.created_at,o.id", args);
             case "reservations" -> new Query(List.of("id","employee_id","start_time","end_time","status"),

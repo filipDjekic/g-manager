@@ -8,10 +8,12 @@ import org.springframework.data.domain.Pageable;
 import java.time.Instant;
 
 public interface GamingSessionRepository extends JpaRepository<GamingSession, UUID> {
+    boolean existsByMoveTargetIdAndStatus(UUID moveTargetId,GamingSessionStatus status);
     boolean existsByCustomerIdAndStatus(UUID customerId, GamingSessionStatus status);
     boolean existsByResourceIdAndStatus(UUID resourceId, GamingSessionStatus status);
     Optional<GamingSession> findByResourceIdAndStatus(UUID resourceId, GamingSessionStatus status);
     List<GamingSession> findByStatusOrderByStartedAtDesc(GamingSessionStatus status);
+    List<GamingSession> findByMoveTargetIdInAndStatus(Collection<UUID> resourceIds, GamingSessionStatus status);
     List<GamingSession> findByResourceIdInAndStatus(Collection<UUID> resourceIds, GamingSessionStatus status);
 
     @Query("""
@@ -38,7 +40,7 @@ public interface GamingSessionRepository extends JpaRepository<GamingSession, UU
     Optional<GamingSession> findByIdForUpdate(@Param("id") UUID id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select s from GamingSession s where s.status = :status and s.endsAt <= :now order by s.endsAt")
+    @Query("select s from GamingSession s where s.status = :status and s.moveTargetId is null and s.endsAt <= :now order by s.endsAt")
     List<GamingSession> findDueForUpdate(@Param("status") GamingSessionStatus status,
             @Param("now") Instant now, Pageable pageable);
 

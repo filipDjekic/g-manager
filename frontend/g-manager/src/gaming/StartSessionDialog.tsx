@@ -1,3 +1,5 @@
+import { PurchaseFields } from './PurchaseFields'
+import { useGamingPurchase } from './useGamingPurchase'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState, type FormEvent } from 'react'
 import { CustomerSearch, type CustomerChoice } from '../customers/CustomerSearch'
@@ -16,6 +18,7 @@ export function StartSessionDialog({ station, customer, onClose, onStarted, rese
 }) {
   const client = useQueryClient()
   const actor = useAuthStore(state => state.user)
+  const [guest, setGuest] = useState(false), [guestName, setGuestName] = useState('Gost')
   const [creating, setCreating] = useState(false)
   const [selected, setSelected] = useState<CustomerChoice | null>(customer ?? null)
   const [resourceId, setResourceId] = useState(station?.resourceId ?? reservation?.resourceId ?? '')
@@ -24,13 +27,14 @@ export function StartSessionDialog({ station, customer, onClose, onStarted, rese
   const inFlight = useRef(false), key = useRef(new IdempotencyKeyManager()), input = useRef<HTMLInputElement>(null), durationInput = useRef<HTMLInputElement>(null)
   const stations = useQuery({ queryKey: ['gaming-operations', 'board'], queryFn: () => gamingSessionApi.board(), enabled: !station })
   const options = stations.data?.stations.filter((value) => value.allowedActions.includes('START')) ?? []
+  const payment = useGamingPurchase(resourceId, duration, guest ? undefined : selected?.id)
   const locked = busy || !!retryRequest
   useDirtyGuard(locked || !!selected, { pending: locked })
   async function start(event: FormEvent) {
     event.preventDefault()
-    if (!selected || !resourceId || inFlight.current) return
+    if ((!selected && !guest) || !resourceId || (!payment.valid && !retryRequest) || inFlight.current) return
     inFlight.current = true; setBusy(true); setError('')
-    const request = retryRequest ?? { customerId: selected.id, resourceId, durationMinutes: duration, reservationId: reservation?.id }
+    const request = retryRequest ?? { customerId: guest ? undefined : selected?.id, guestName: guest ? guestName : undefined, purchase: payment.purchase, resourceId, durationMinutes: duration, reservationId: reservation?.id }
     try {
       await gamingSessionApi.start(request, key.current.begin()); key.current.succeeded()
       void client.invalidateQueries({ queryKey: ['gaming-operations'] })
@@ -48,7 +52,8 @@ export function StartSessionDialog({ station, customer, onClose, onStarted, rese
   return <Modal open closeDisabled={locked} title={`Pokreni sesiju${station ? ` · ${station.resourceName}` : ''}`} onClose={() => { if (!locked) onClose() }} initialFocusRef={customer ? durationInput : input}>
     <form className="ui-form-grid form-grid start-session-form" onSubmit={start}>
       {error && <Alert tone="danger" role="alert">{error}{retryRequest && ' Ponovnim pokušajem proverava se ista komanda.'}</Alert>}
-      {customer ? <p className="selected-customer"><strong>{customer.name}</strong><span>{customer.email}</span></p> : <CustomerSearch selected={selected} onSelect={value=>{setSelected(value);durationInput.current?.focus()}} inputRef={input} disabled={locked}
+      {!customer && !reservation && <label><Input type="checkbox" checked={guest} disabled={locked} onChange={e => setGuest(e.target.checked)} /> Gost bez registracije</label>}
+      {guest ? <label>Oznaka gosta<Input required maxLength={120} value={guestName} disabled={locked} onChange={e => setGuestName(e.target.value)} /></label> : customer ? <p className="selected-customer"><strong>{customer.name}</strong><span>{customer.email}</span></p> : <CustomerSearch selected={selected} onSelect={value=>{setSelected(value);durationInput.current?.focus()}} inputRef={input} disabled={locked}
         onCreate={hasCapability(actor, 'CUSTOMER_CREATE') ? () => setCreating(true) : undefined} />}
 
       {!station && <>{stations.isLoading ? <Skeleton lines={2} label="Učitavanje stanica" /> : stations.error ? <ErrorState message="Stanice nisu dostupne."
@@ -57,9 +62,10 @@ export function StartSessionDialog({ station, customer, onClose, onStarted, rese
           <option value="">Izaberite stanicu</option>{options.map((value) => <option key={value.resourceId} value={value.resourceId}>{value.resourceName} · {value.applicationProfileName ?? value.resourceCode}</option>)}</Select></label>}</>}
       <fieldset className="duration-presets"><legend>Trajanje</legend><div className="ui-actions form-actions">{[30, 60, 120, 180].map((value) =>
         <Button type="button" key={value} disabled={locked} variant={duration === value ? 'primary' : 'secondary'} aria-pressed={duration === value} onClick={() => setDuration(value)}>{value} min</Button>)}</div></fieldset>
-      <label htmlFor="gaming-duration">Trajanje u minutima<Input aria-label={"Trajanje u minutima"} ref={durationInput} id="gaming-duration" type="number" required min={15} max={480} disabled={locked} value={duration} onChange={(event) => setDuration(Number(event.target.value))} /></label>
+      <label htmlFor="gaming-duration">Trajanje u minutima<Input aria-label={"Trajanje u minutima"} ref={durationInput} id="gaming-duration" type="number" required min={1} max={1440} disabled={locked} value={duration} onChange={(event) => setDuration(Number(event.target.value))} /></label>
       <p className="search-help">{selected ? `${selected.name} · ` : ''}{station?.resourceName ?? options.find((value) => value.resourceId === resourceId)?.resourceName ?? 'Izaberite stanicu'} · {duration} min</p>
-      <Button type="submit" loading={busy} disabled={!selected || !resourceId}>{retryRequest ? 'Pokušaj ponovo' : `Pokreni za ${selected?.name ?? 'izabranog klijenta'}`}</Button>
+      <PurchaseFields model={payment} disabled={locked} />
+      <Button type="submit" loading={busy} disabled={(!selected && !guest) || !resourceId || (!payment.valid && !retryRequest)}>{retryRequest ? 'Pokušaj ponovo' : `Potvrdi naplatu i pokreni za ${guest ? guestName : selected?.name ?? 'klijenta'}`}</Button>
     </form>
   </Modal>
 }

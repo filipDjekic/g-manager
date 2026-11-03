@@ -20,6 +20,6 @@ public interface IdempotencyRepository extends JpaRepository<IdempotencyKey, UUI
             @Param("key") String key, @Param("endpoint") String endpoint);
 
     @Modifying
-    @Query("delete from IdempotencyKey item where item.status = com.game_manager.gm.idempotency.IdempotencyStatus.COMPLETED and item.expiresAt < :cutoff")
+    @Query("delete from IdempotencyKey item where item.status = com.game_manager.gm.idempotency.IdempotencyStatus.COMPLETED and item.expiresAt < :cutoff and item.endpoint not like 'POST /api/v1/gaming-billing/%' and item.endpoint not like 'POST /api/v1/gaming-sessions%'")
     long deleteCompletedByExpiresAtBefore(@Param("cutoff") Instant cutoff);
 }

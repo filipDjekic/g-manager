@@ -36,6 +36,10 @@ public record GamingOperationsBoardResponse(Instant serverTime, List<StationCard
             Instant commandAvailableAt,
             Instant commandAcknowledgedAt,
             String locationName,
-            String areaName
+            String areaName,
+            UUID latestSessionId,
+            java.math.BigDecimal paymentDue,
+            boolean privacyReady,
+            UUID moveTargetId
     ) {}
 }

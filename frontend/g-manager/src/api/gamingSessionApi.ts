@@ -1,3 +1,4 @@
+import type { Purchase } from './gamingBillingApi'
 import { apiClient } from './client'
 import { connectAuthenticatedStream, consumeSse } from './sse'
 import type { GamingOperationsBoard, GamingSession, GamingSessionEvent, GamingSessionVisit, StartGamingSessionInput, StationHistory } from '../types/gamingSession.types'
@@ -12,10 +13,12 @@ export const gamingSessionApi = {
   get: (id:string) => apiClient.get<GamingSession>(`/gaming-sessions/${id}`).then(({data}) => data),
   start: (request:StartGamingSessionInput,key:string) =>
     apiClient.post<GamingSession>('/gaming-sessions',request,command(key)).then(({data}) => data),
-  extend: (id:string,minutes:number,version:number,key:string) =>
-    apiClient.post<GamingSession>(`/gaming-sessions/${id}/extend`,{minutes,version},command(key)).then(({data}) => data),
+  extend: (id:string,minutes:number,version:number,key:string,purchase:Purchase) =>
+    apiClient.post<GamingSession>(`/gaming-sessions/${id}/extend`,{minutes,version,purchase},command(key)).then(({data}) => data),
   terminate: (id:string,reason:string,version:number,key:string) =>
     apiClient.post<GamingSession>(`/gaming-sessions/${id}/terminate`,{reason,version},command(key)).then(({data}) => data),
+  move: (id:string,targetResourceId:string,version:number,key:string) => apiClient.post(`/gaming-sessions/${id}/move`,{targetResourceId,version},command(key)),
+  completeMove: (id:string,version:number,key:string) => apiClient.post(`/gaming-sessions/${id}/complete-move`,{version},command(key)),
   forceLock: (stationId:string) => apiClient.post(`/gaming-operations/stations/${stationId}/force-lock`),
   confirmLocked: (stationId:string) => apiClient.post(`/gaming-operations/stations/${stationId}/confirm-locked`),
   history: (stationId:string) => apiClient.get<StationHistory>(`/gaming-operations/stations/${stationId}/history`).then(({data})=>data),

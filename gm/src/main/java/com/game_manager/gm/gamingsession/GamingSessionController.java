@@ -23,6 +23,8 @@ public class GamingSessionController {
             @Valid @RequestBody ExtendGamingSessionRequest request) { return service.extend(id, request); }
     @PostMapping("/{id}/terminate") public GamingSessionResponse terminate(@PathVariable UUID id,
             @Valid @RequestBody TerminateGamingSessionRequest request) { return service.terminate(id, request); }
+    @PostMapping("/{id}/move") public GamingSessionResponse move(@PathVariable UUID id,@Valid @RequestBody GamingSessionService.MoveRequest r){return service.move(id,r);}
+    @PostMapping("/{id}/complete-move") public GamingSessionResponse completeMove(@PathVariable UUID id,@Valid @RequestBody GamingSessionService.MoveCompletion r){return service.completeMove(id,r);}
     @GetMapping("/{id}") public GamingSessionResponse get(@PathVariable UUID id) { return service.get(id); }
     @GetMapping public List<GamingSessionResponse> active() { return service.active(); }
     @GetMapping("/me") public List<GamingSessionVisitResponse> mine() { return service.myVisits(); }

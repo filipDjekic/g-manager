@@ -1,3 +1,4 @@
+import { GamingWalletPanel } from '../gaming/GamingWalletPanel'
 import { Tabs } from '../components/ui/Tabs'
 import { useQuery } from '@tanstack/react-query'
 import { useId, useState, type RefObject } from 'react'
@@ -20,7 +21,7 @@ import { CustomerCrmPanel } from './CustomerCrmPanel'
 import { CustomerAvatar } from './CustomerTable'
 import { customerDate, customerMoney } from './CustomerTable.model'
 
-type ProfileTab = 'overview' | 'reservations' | 'gaming' | 'orders' | 'crm'
+type ProfileTab = 'overview' | 'reservations' | 'gaming' | 'orders' | 'crm' | 'wallet'
 
 export function CustomerProfile({ customerId, open, onClose, onEdit, onDeactivate, onStart, startBusy, actionError, returnFocusRef }: {
   customerId: string; open: boolean; onClose: () => void
@@ -44,6 +45,7 @@ export function CustomerProfile({ customerId, open, onClose, onEdit, onDeactivat
   const tabs: { key: ProfileTab; label: string }[] = [
     { key: 'overview', label: 'Pregled' }, { key: 'reservations', label: 'Rezervacije' },
     ...(canReadGaming ? [{ key: 'gaming' as const, label: 'Gaming sesije' }] : []),
+    ...(canReadGaming ? [{ key: 'wallet' as const, label: 'Prepaid i paketi' }] : []),
     { key: 'orders', label: 'Narudžbine' }, ...(canManageCrm ? [{ key: 'crm' as const, label: 'CRM' }] : []),
   ]
   const activeTab = tabs.some(item => item.key === tab) ? tab : 'overview'
@@ -92,6 +94,7 @@ export function CustomerProfile({ customerId, open, onClose, onEdit, onDeactivat
               {visits.error && <Button type="button" variant="secondary" onClick={() => void visits.refetch()}>Ponovi proveru gaming sesija</Button>}
             </div>}
           </>}
+          {activeTab === 'wallet' && <GamingWalletPanel customerId={customerId} />}
           {activeTab === 'reservations' && <section className="customers-profile-section">
             <h3>Istorija rezervacija</h3>
             <p className="customers-history-hint">Prikaz poslednjih najviše 20 rezervacija.</p>

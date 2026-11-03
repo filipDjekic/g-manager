@@ -16,8 +16,10 @@ public class GamingRuntimeAdapter implements GamingRuntimePort {
 
     @Override
     public Set<UUID> activeResources(Collection<UUID> ids) {
-        return ids.isEmpty() ? Set.of() : sessions.findByResourceIdInAndStatus(ids, GamingSessionStatus.ACTIVE).stream()
-                .map(GamingSession::getResourceId).collect(Collectors.toSet());
+        if(ids.isEmpty()) return Set.of();
+        Set<UUID> occupied=sessions.findByResourceIdInAndStatus(ids,GamingSessionStatus.ACTIVE).stream().map(GamingSession::getResourceId).collect(Collectors.toSet());
+        sessions.findByMoveTargetIdInAndStatus(ids,GamingSessionStatus.ACTIVE).stream().map(GamingSession::getMoveTargetId).forEach(occupied::add);
+        return occupied;
     }
 
     @Override

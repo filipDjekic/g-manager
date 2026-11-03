@@ -43,6 +43,8 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
             cryptographicPhase=CryptographicFailurePhase.ConfigurationSignature;
             if(cachedPolicy is not null) await policy.ApplyAsync(cachedPolicy,Identity.StationId,ct);
             LockLocal("Service restart");
+            if(!environment.Development && recovery?.Lease.SessionId is Guid interrupted)
+                ReviewAndLogoff(interrupted,"Service restart");
             Tick();
             events.Write("RECOVERY_APPLIED",State.Mode.ToString());
         }
@@ -173,9 +175,9 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
             if(maintenance || trusted.Now()<preparingUntil) return new(false,"Stanica je u režimu održavanja.",State);
             await EnsureToken(ct);
             cryptographicPhase=CryptographicFailurePhase.LocalAction;
-            if(request.Type=="login" && request.Email is not null && request.Password is not null && recovery is not null && !commandGap && recovery.AppliedSequence>=recovery.Lease.CommandCursor && recovery.BlockedSessionId!=recovery.Lease.SessionId && !LeaseDeadlinePolicy.MustLock(recovery.Lease,trusted.Now()))
+            if((request.Type=="login" && request.Email is not null && request.Password is not null || request.Type=="guest-login" && request.SessionId==recovery?.Lease.SessionId && recovery?.Lease.CustomerId is null) && recovery is not null && !commandGap && recovery.AppliedSequence>=recovery.Lease.CommandCursor && recovery.BlockedSessionId!=recovery.Lease.SessionId && !LeaseDeadlinePolicy.MustLock(recovery.Lease,trusted.Now()))
             {
-                var result=await protocol.LoginAsync(token!,request.Email,request.Password,ct);
+                var result=request.Type=="guest-login" ? await protocol.GuestLoginAsync(token!,request.SessionId!.Value,ct) : await protocol.LoginAsync(token!,request.Email!,request.Password!,ct);
                 ObserveServerConnection(true);
                 trusted.Observe(result.ServerTime);
                 lock(stateSync)
@@ -230,6 +232,8 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
                 LockLocal(command.Type);
                 recovery=recovery with { PendingLockSequence=command.Sequence,PendingLockSessionId=sessionId,LocallyLocked=true,BlockedSessionId=sessionId };
             }
+            else if(command.Type=="SESSION_STARTED" && recovery.Lease.SessionId==sessionId && recovery.Lease.Directive=="ACTIVE" && command.Sequence<=recovery.Lease.CommandCursor)
+                recovery=recovery.AcceptStarted(sessionId,command.Sequence);
             else if(command.Type is not ("SESSION_STARTED" or "SESSION_EXTENDED")) { commandGap=true; LockLocal("Unknown command"); break; }
             recovery=recovery with { AppliedSequence=command.Sequence };
             SaveRecovery();
@@ -254,6 +258,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
         if(State.Mode!=ClientMode.Active || State.SessionId!=lease.SessionId)
             State=State.Apply(new(lease.StationId,lease.SessionId,lease.SessionEndsAt,lease.IssuedAt,lease.CommandCursor,"AVAILABLE"),DateTimeOffset.UtcNow);
         else State=State with { EndsAt=lease.SessionEndsAt,ServerOffset=lease.IssuedAt-DateTimeOffset.UtcNow };
+        State=State with { GuestSession=lease.CustomerId is null };
         }
     }
     void LockLocal(string reason)
@@ -265,10 +270,21 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
         policy.SetSessionActive(false);
         policy.StopCustomerProcesses(); // Close a process that raced the policy transition.
         if(State.Mode!=ClientMode.Locked) events.Write("LOCAL_LOCK",reason);
+        bool customerWasActive=State.Mode==ClientMode.Active;
+        Guid? endedSession=State.SessionId;
         State=ClientViewState.Locked("Zaključano · "+reason);
+        if(customerWasActive && recovery is not null && endedSession is Guid blockedSession) recovery=recovery with { BlockedSessionId=blockedSession,LocallyLocked=true };
+        if(customerWasActive && !environment.Development && endedSession is Guid previous) {
+            ReviewAndLogoff(previous,reason);
+        }
         if(recovery is not null) recovery=recovery with { LocallyLocked=true };
         locallyLocked=true;
         }
+    }
+    void ReviewAndLogoff(Guid sessionId,string reason)
+    {
+        ProtectedIdentityStore.AtomicWrite(Path.Combine(environment.StateDirectory,"privacy-review.json"),JsonSerializer.SerializeToUtf8Bytes(new { sessionId,status="REVIEW_REQUIRED",reason,at=DateTimeOffset.UtcNow }));
+        WindowsSessionPrivacy.LogOffPlayer(environment.PlayerSid!);
     }
     Heartbeat Heartbeat()=>new(environment.Version,maintenance?"MAINTENANCE":State.Mode==ClientMode.Active?"SESSION_ACTIVE":"LOCKED",recovery?.AppliedSequence??0,
         environment.Development || maintenance || !policy.EnforcementVerified?"UNKNOWN":State.Mode==ClientMode.Active?"UNLOCKED":"LOCKED",recovery?.Lease.SessionId,recovery?.Lease.LeaseId,policy.CurrentVersion,

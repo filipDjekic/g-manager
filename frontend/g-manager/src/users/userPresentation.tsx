@@ -70,6 +70,8 @@ const permissionLabels: Record<Permission, string> = {
   CATALOG_READ: 'Pregled kataloga', CATALOG_MANAGE: 'Upravljanje katalogom', CATALOG_DELETE: 'Brisanje stavki kataloga', CATALOG_RESTORE: 'Vraćanje stavki kataloga', AUDIT_READ: 'Pregled revizijske evidencije',
   WORKING_HOURS_READ: 'Pregled radnog vremena', WORKING_HOURS_MANAGE: 'Upravljanje radnim vremenom i odsustvima', RESOURCE_READ: 'Pregled resursa', RESOURCE_MANAGE: 'Upravljanje resursima i dodelama',
   STATION_READ: 'Pregled gaming stanica', STATION_MAINTENANCE: 'Održavanje gaming stanica', APPLICATION_PROFILE_MANAGE: 'Upravljanje aplikacionim profilima', MACHINE_IDENTITY_MANAGE: 'Upravljanje identitetima gaming klijenata',
+  GAMING_PAYMENT_RECORD: 'Evidentiranje gaming uplata',
+  GAMING_FINANCE_MANAGE: 'Gaming tarife, refundacije i finansije',
   GAMING_SESSION_READ: 'Pregled gaming sesija', GAMING_SESSION_START: 'Pokretanje gaming sesija', GAMING_SESSION_EXTEND: 'Produžavanje gaming sesija', GAMING_SESSION_TERMINATE: 'Završavanje gaming sesija',
   RESERVATION_CREATE: 'Kreiranje rezervacija', RESERVATION_READ_OWN: 'Pregled sopstvenih rezervacija', RESERVATION_READ_ALL: 'Pregled svih rezervacija', RESERVATION_CHANGE_STATUS: 'Promena statusa rezervacija',
   WAITLIST_MANAGE: 'Upravljanje listom čekanja',

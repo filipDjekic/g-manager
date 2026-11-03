@@ -1,8 +1,9 @@
 import { businessInstantToLocal, businessLocalToInstant, todayInBusinessZone } from '../reservations/dateTime'
 import type { ReportTemplate } from '../types/report.types'
 
-export const reportLabels: Record<string, string> = { orders: 'Narudžbine', reservations: 'Rezervacije', revenue: 'Iznosi po statusu narudžbina', workload: 'Opterećenje zaposlenih' }
+export const reportLabels: Record<string, string> = { 'gaming-finance': 'Gaming finansije', orders: 'Narudžbine', reservations: 'Rezervacije', revenue: 'Iznosi po statusu narudžbina', workload: 'Opterećenje zaposlenih' }
 export const reportDefinitions: Record<string, string> = {
+  'gaming-finance': 'Interna evidencija gaming uplata, refundacija, dopuna i paketa. Nije fiskalni izvestaj.',
   orders: 'Narudžbine kreirane u izabranom periodu, sa statusom i ukupnim iznosom.',
   reservations: 'Rezervacije koje počinju u izabranom periodu, sa zaposlenim i trajanjem.',
   revenue: 'Broj narudžbina i bruto iznos grupisani po statusu. Iznosi nezavršenih narudžbina nisu realizovan prihod; gaming minuti se ne naplaćuju ovim izveštajem.',

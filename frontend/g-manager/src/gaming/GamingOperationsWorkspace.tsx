@@ -1,3 +1,4 @@
+import { GamingExtensionDialog } from './GamingExtensionDialog'
 import { useGamingCommands } from './useGamingCommands'
 import { gamingBoardStale } from './freshness'
 import { useResettableState } from '../components/useResettableState'
@@ -44,7 +45,7 @@ export function GamingOperationsWorkspace({ workday = false }: { workday?: boole
     startStation, setStartStation, newSessionOpen, setNewSessionOpen, customStation,
     setCustomStation, minutes, setMinutes, endStation, setEndStation,
     historyStation, setHistoryStation, recoveryAction, setRecoveryAction, error,
-    setError, busy, hasPending, extend, terminateRequest,
+    setError, busy, hasPending, terminateRequest,
     feedback, recover, openStart, openCustom, openEnd,
     openRecovery
   } = useGamingCommands()
@@ -74,8 +75,8 @@ export function GamingOperationsWorkspace({ workday = false }: { workday?: boole
   const selectedResourceId = requestedResourceId
   const selectedStation = stations.find((station) => station.resourceId === selectedResourceId)
   const selectStation = useCallback((station: GamingStationCard) => setSelectedResourceId(station.resourceId), [setSelectedResourceId])
-  const handlers = useMemo(() => ({ onStart: openStart, onExtend: extend, onEnd: openEnd, onCustom: openCustom,
-    onHistory: setHistoryStation, onRecovery: openRecovery }), [openStart, extend, openEnd, openCustom, openRecovery, setHistoryStation])
+  const handlers = useMemo(() => ({ onStart: openStart, onExtend: (station: GamingStationCard, duration: number) => { setMinutes(duration); setCustomStation(station) }, onEnd: openEnd, onCustom: openCustom,
+    onHistory: setHistoryStation, onRecovery: openRecovery }), [openStart, setMinutes, setCustomStation, openEnd, openCustom, openRecovery, setHistoryStation])
 
   useEffect(() => {
     if (!board.data || board.error) return
@@ -174,8 +175,7 @@ export function GamingOperationsWorkspace({ workday = false }: { workday?: boole
     </details>
     {workday && <EmployeeWorkdaySummary />}
     {newSessionOpen && <StartSessionDialog station={startStation ?? undefined} onClose={() => { setNewSessionOpen(false); setStartStation(null) }} />}
-    <Modal open={!!customStation} title="Prilagođeno produženje" closeDisabled={busy || hasPending} onClose={() => { if (!busy && !hasPending) setCustomStation(null) }}><form className="ui-form-grid form-grid" onSubmit={(event) => { event.preventDefault(); if (customStation&&!hasPending) void extend(customStation, minutes) }}>
-      {feedback}<label>Broj minuta<Input aria-label={"Broj minuta"} required type="number" min={1} max={120} disabled={busy||hasPending} value={minutes} onChange={(event) => setMinutes(Number(event.target.value))} /></label><Button type="submit" loading={busy} disabled={hasPending}>Produži sesiju</Button></form></Modal>
+    {customStation && <GamingExtensionDialog station={customStation} initialMinutes={minutes} onClose={() => setCustomStation(null)} />}
     <ConfirmDialog open={!!endStation} title={`Završi sesiju · ${endStation?.resourceName ?? ''}`} variant="danger"
       description={<><p>Sesija će biti završena i stanica će dobiti komandu za zaključavanje.</p>{feedback}</>}
       reasonLabel="Razlog završetka" reasonRequired loading={busy} disabled={hasPending} autoClose={false}

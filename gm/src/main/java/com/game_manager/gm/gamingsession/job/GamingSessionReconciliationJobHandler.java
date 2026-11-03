@@ -59,7 +59,7 @@ public class GamingSessionReconciliationJobHandler implements JobHandler {
         // No managed candidate is loaded before the lock: use current committed aggregate state.
         GamingSession session = sessions.findByIdForUpdate(id).orElse(null);
         if (session == null || outsideRetention(session) || commands.matchesCurrentProjection(session)) return false;
-        StationCommandType type = session.getStatus() == GamingSessionStatus.ACTIVE
+        StationCommandType type = session.getMoveTargetId()!=null ? StationCommandType.FORCE_LOCK : session.getStatus() == GamingSessionStatus.ACTIVE
                 ? (session.getLastCommandSequence() == null
                     ? StationCommandType.SESSION_STARTED : StationCommandType.SESSION_EXTENDED)
                 : StationCommandType.SESSION_TERMINATED;

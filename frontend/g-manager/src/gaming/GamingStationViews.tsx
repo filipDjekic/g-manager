@@ -1,3 +1,4 @@
+import { StationFinanceActions } from './StationFinanceActions'
 import { memo } from 'react'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
@@ -98,6 +99,8 @@ export const StationTile = memo(function StationTile({ station, seconds, selecte
       <strong className="ops-station-customer">{station.customerDisplayName ?? (station.sessionId ? 'Klijent' : 'Bez sesije')}</strong>
       <strong className="ops-timer" aria-label={`Preostalo vreme ${remaining(seconds)}`}>{stationTimer(seconds)}</strong>
     </div>}
+    {station.sessionId && <p className="ops-station-warning">{station.paymentDue === undefined ? '' : (/^0(?:\.0+)?$/.test(String(station.paymentDue)) ? 'Placeno' : `Neplaceno: ${station.paymentDue} RSD`)}{station.moveTargetId && ' - Premestanje ceka potvrdu'}</p>}
+    {!station.sessionId && station.privacyReady === false && <p className="ops-station-warning">Obavezna priprema privatnosti</p>}
     <StationWarnings station={station} compact />
     <StationActions station={station} disabled={disabled} handlers={handlers} variant="card" />
   </Card>
@@ -133,6 +136,7 @@ export function StationDetailsPanel({ station, now, disabled, handlers, unavaila
           {station.commandSequence ? station.commandAcknowledgedAt ? ' · Potvrđena' : ' · Čeka potvrdu' : ''}</dd></div>
       </dl></details>
       <StationWarnings station={station} />
+      <StationFinanceActions station={station} />
       <div className="ops-detail-actions"><StationActions station={station} disabled={disabled} handlers={handlers} /></div>
     </>}
   </aside>

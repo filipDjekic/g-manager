@@ -12,12 +12,13 @@ export function permitsStationAction(actor: AuthUser | null, station: GamingStat
 }
 
 export function stationSeconds(station: GamingStationCard, now: number) {
+  if(station.moveTargetId) return station.remainingSeconds
   return station.sessionId && station.endsAt
     ? Math.max(0, Math.ceil((Date.parse(station.endsAt) - now) / 1000)) : station.remainingSeconds
 }
 
 export function isExpiringStation(station: GamingStationCard, now: number) {
-  return !!station.sessionId && !!station.endsAt && Date.parse(station.endsAt) - now <= 600000
+  return !station.moveTargetId && !!station.sessionId && !!station.endsAt && Date.parse(station.endsAt) - now <= 600000
 }
 
 export function stationTimer(seconds: number) {
@@ -34,6 +35,8 @@ export function stationConnection(station: GamingStationCard) {
 
 export function stationMessage(station: GamingStationCard) {
   switch (station.status) {
+    case 'PREPARATION_REQUIRED': return 'Proverite Windows profil i privatnost pre narednog korisnika.'
+    case 'TRANSFER_PENDING': return 'Stanica je rezervisana za premestanje. Ceka se izvorni Client.'
     case 'LOCK_PENDING': return 'Čeka se potvrda lokalnog zaključavanja.'
     case 'OFFLINE': return 'Proverite mrežu i Windows servis klijenta.'
     case 'EXPIRED': return 'Sesija je istekla. Proverite stanje zaključavanja.'

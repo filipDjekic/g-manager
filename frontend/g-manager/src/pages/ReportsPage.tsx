@@ -1,3 +1,4 @@
+import { GamingFinanceReport } from '../reports/GamingFinanceReport'
 import { ReportScheduleDialog } from '../reports/ReportScheduleDialog'
 import { reportLabels, reportDefinitions, reportPreset, reportPeriod, templatePeriod } from '../reports/reportPresentation'
 import { useDirtyGuard } from '../forms/useDirtyGuard'
@@ -141,5 +142,6 @@ export function ReportsPage() {
       <h3>Izvori</h3><ul>{aiSummary.sources.map((source) => <li key={source.reportId}>Izveštaj {source.definition}, {source.rowCount} redova, presek {formatBusinessDateTime(source.snapshotAt)}</li>)}</ul>
       <p>Pregledajte rezultat pre bilo kakve odluke.</p><Button onClick={() => void feedback('ACCEPTED')}>Prihvati</Button><Button variant="secondary" onClick={() => void feedback('CORRECTED')}>Ispravljeno</Button><Button variant="danger" onClick={() => void feedback('REJECTED')}>Odbaci</Button></Card>}
     {schedulePayload && manage && <ReportScheduleDialog payload={schedulePayload} onClose={() => setSchedulePayload(null)} onSaved={() => void refresh()} />}
+    {hasCapability(user, 'GAMING_FINANCE_MANAGE') && <GamingFinanceReport />}
   </PageLayout>
 }

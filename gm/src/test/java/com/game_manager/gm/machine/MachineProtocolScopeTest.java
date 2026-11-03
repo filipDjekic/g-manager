@@ -29,7 +29,7 @@ class MachineProtocolScopeTest {
                 mock(StationHeartbeatRepository.class), mock(GamingStationProfileRepository.class),
                 mock(GamingSessionRepository.class), commands, principal, mock(JwtService.class), limits,
                 Clock.fixed(now, ZoneOffset.UTC), mock(com.game_manager.gm.user.UserRepository.class),
-                mock(org.springframework.security.crypto.password.PasswordEncoder.class), mock(MachineLoginAttemptWriter.class));
+                mock(org.springframework.security.crypto.password.PasswordEncoder.class), mock(MachineLoginAttemptWriter.class),mock(com.game_manager.gm.gamingsession.command.StationCommandWriter.class));
         assertThat(service.poll(4)).isEmpty();
         verify(commands).findByStationIdAndSequenceGreaterThanAndAvailableAtLessThanEqualOrderBySequence(
                 station, 4L, now, PageRequest.of(0, 100));

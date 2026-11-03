@@ -12,7 +12,7 @@ public record GamingSessionResponse(
 ) {
     public static GamingSessionResponse from(GamingSession value, Instant serverTime) {
         long remaining = value.getStatus() == GamingSessionStatus.ACTIVE
-                ? Math.max(0, Duration.between(serverTime, value.getEndsAt()).toSeconds()) : 0;
+                ? value.getMoveRemainingSeconds()!=null ? value.getMoveRemainingSeconds() : Math.max(0, Duration.between(serverTime, value.getEndsAt()).toSeconds()) : 0;
         return new GamingSessionResponse(value.getId(), value.getCustomerId(), value.getResourceId(),
                 value.getLocationId(), value.getReservationId(), value.getStartedBy(), value.getStartedAt(),
                 value.getEndsAt(), value.getEndedAt(), value.getStatus(), value.getTerminationReason(),

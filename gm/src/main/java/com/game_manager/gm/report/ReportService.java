@@ -17,7 +17,7 @@ import tools.jackson.databind.ObjectMapper;
 @Service
 public class ReportService {
     public static final String JOB_TYPE = "REPORT_GENERATE";
-    private static final Set<String> DEFINITIONS = Set.of("orders","reservations","revenue","workload");
+    private static final Set<String> DEFINITIONS = Set.of("orders","reservations","revenue","workload","gaming-finance");
     private final ReportRequestRepository requests; private final ReportScheduleRepository schedules; private final ReportTemplateRepository templates;
     private final CurrentUserProvider currentUser; private final JobService jobs; private final ObjectMapper mapper;
     private final AuditWriter audit; private final Clock clock; private final MeterRegistry metrics;
@@ -26,11 +26,11 @@ public class ReportService {
             JobService jobs,ObjectMapper mapper,AuditWriter audit,Clock clock,MeterRegistry metrics){this.requests=requests;this.schedules=schedules;this.templates=templates;
         this.currentUser=currentUser;this.jobs=jobs;this.mapper=mapper;this.audit=audit;this.clock=clock;this.metrics=metrics;}
 
-    public List<ReportDefinitionResponse> definitions(){requireRead();return List.of(
+    public List<ReportDefinitionResponse> definitions(){AuthenticatedUser actor=requireRead();List<ReportDefinitionResponse> result=new ArrayList<>(List.of(
             definition("orders","Orders","Orders created in [from,to), with status and total"),
             definition("reservations","Reservations","Reservations starting in [from,to), with employee and duration"),
             definition("revenue","Revenue","Order count and gross total grouped by status"),
-            definition("workload","Workload","Reservation count and booked minutes grouped by employee"));}
+            definition("workload","Workload","Reservation count and booked minutes grouped by employee")));if(RolePermissions.has(actor.role(),Permission.GAMING_FINANCE_MANAGE))result.add(definition("gaming-finance","Gaming finance","Recorded gaming payments, refunds, top-ups and packages; internal non-fiscal ledger"));return result;}
 
     @Transactional public ReportResponse generate(GenerateReportRequest input){AuthenticatedUser actor=requireRead();validate(input.definitionKey(),input.from(),input.to(),input.timezone());
         ReportRequest request=create(actor.id(),actor.role(),input.definitionKey(),input.format(),input.from(),input.to(),input.timezone(),input.locale());
@@ -58,7 +58,7 @@ public class ReportService {
     @Transactional public void deleteTemplate(UUID id){AuthenticatedUser actor=requireRead();ReportTemplate value=templates.findById(id).filter(t->t.getOwnerId().equals(actor.id())).orElseThrow(this::notFound);templates.delete(value);}
     private void apply(ReportSchedule value,ScheduleRequest input){value.setDefinitionKey(input.definitionKey());value.setFormat(input.format());value.setFiltersJson(input.from()+"|"+input.to());value.setTimezone(input.timezone());value.setLocalTime(input.localTime());value.setDayOfWeek(input.dayOfWeek());value.setActive(true);value.setNextRunAt(next(input.timezone(),input.localTime(),input.dayOfWeek(),clock.instant()));}
     static Instant next(String timezone,LocalTime local,Integer day,Instant now){ZoneId zone=ZoneId.of(timezone);ZonedDateTime cursor=now.atZone(zone);LocalDate date=cursor.toLocalDate();if(day!=null){int delta=Math.floorMod(day-date.getDayOfWeek().getValue(),7);date=date.plusDays(delta);}ZonedDateTime candidate=ZonedDateTime.of(date,local,zone);if(!candidate.toInstant().isAfter(now))candidate=day==null?ZonedDateTime.of(date.plusDays(1),local,zone):ZonedDateTime.of(date.plusWeeks(1),local,zone);return candidate.toInstant();}
-    private void validate(String definition,Instant from,Instant to,String timezone){if(!DEFINITIONS.contains(definition))throw new ApplicationException(HttpStatus.BAD_REQUEST,"Unknown report definition");if(!from.isBefore(to)||Duration.between(from,to).toDays()>366)throw new ApplicationException(HttpStatus.BAD_REQUEST,"Report range must be positive and at most 366 days");try{ZoneId.of(timezone);}catch(DateTimeException e){throw new ApplicationException(HttpStatus.BAD_REQUEST,"Invalid report timezone");}}
+    private void validate(String definition,Instant from,Instant to,String timezone){if("gaming-finance".equals(definition)&&!RolePermissions.has(currentUser.requireCurrentUser().role(),Permission.GAMING_FINANCE_MANAGE))throw new ApplicationException(HttpStatus.FORBIDDEN,"Finance reporting permission required");if(!DEFINITIONS.contains(definition))throw new ApplicationException(HttpStatus.BAD_REQUEST,"Unknown report definition");if(!from.isBefore(to)||Duration.between(from,to).toDays()>366)throw new ApplicationException(HttpStatus.BAD_REQUEST,"Report range must be positive and at most 366 days");try{ZoneId.of(timezone);}catch(DateTimeException e){throw new ApplicationException(HttpStatus.BAD_REQUEST,"Invalid report timezone");}}
     private AuthenticatedUser requireRead(){AuthenticatedUser actor=currentUser.requireCurrentUser();if(!RolePermissions.has(actor.role(),Permission.REPORT_READ))throw new ApplicationException(HttpStatus.FORBIDDEN,"Report permission required");return actor;}
     private AuthenticatedUser requireManage(){AuthenticatedUser actor=currentUser.requireCurrentUser();if(!RolePermissions.has(actor.role(),Permission.REPORT_MANAGE))throw new ApplicationException(HttpStatus.FORBIDDEN,"Report management permission required");return actor;}
     private ReportRequest owned(UUID id,UUID owner){return requests.findById(id).filter(r->r.getOwnerId().equals(owner)).orElseThrow(this::notFound);}

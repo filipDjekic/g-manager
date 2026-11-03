@@ -2,7 +2,6 @@ package com.game_manager.gm.gamingsession;
 
 import com.game_manager.gm.station.StationRuntimeProjectionPort;
 import java.util.*;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
@@ -17,8 +16,11 @@ public class GamingSessionRuntimeProjection implements StationRuntimeProjectionP
     @Override
     @Transactional(readOnly = true)
     public Map<UUID, UUID> activeSessionIdsByResource() {
-        return sessions.findByStatusOrderByStartedAtDesc(GamingSessionStatus.ACTIVE).stream()
-                .collect(Collectors.toMap(GamingSession::getResourceId, GamingSession::getId,
-                        (first, ignored) -> first));
+        Map<UUID,UUID> result=new HashMap<>();
+        for(var session:sessions.findByStatusOrderByStartedAtDesc(GamingSessionStatus.ACTIVE)) {
+            result.putIfAbsent(session.getResourceId(),session.getId());
+            if(session.getMoveTargetId()!=null) result.putIfAbsent(session.getMoveTargetId(),session.getId());
+        }
+        return result;
     }
 }
