@@ -159,10 +159,7 @@ class PilotGamingCenterIT {
         assertThat(call(get("/api/v1/gaming-operations/board"),staff(0),null,200).get("stations")).allSatisfy(s->assertThat(s.get("status").asText()).isEqualTo("AVAILABLE"));
         assertLedger();
         // Execute the actual encrypted backup/restore tools against this container only.
-        var image=new org.testcontainers.images.builder.ImageFromDockerfile();
-        for(String script:List.of("Dockerfile","backup.sh","restore-drill.sh","backup-loop.sh","backup-set.sh","scheduled-backup.sh","ledger-check.sql"))
-            image.withFileFromPath(script,java.nio.file.Path.of("..","ops","backup",script).toAbsolutePath());
-        try(var backup=new org.testcontainers.containers.GenericContainer<>(image)
+        try(var backup=new org.testcontainers.containers.GenericContainer<>(BackupTestImage.IMAGE)
                 .withNetworkMode("container:"+MYSQL.getContainerId()).withCommand("sleep","infinity")
                 .withCreateContainerCmdModifier(c->c.getHostConfig().withPublishAllPorts(false))
                 .withEnv("DB_HOST","127.0.0.1").withEnv("DB_NAME","gaming_pilot_it").withEnv("DB_USER","pilot")
