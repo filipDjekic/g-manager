@@ -36,6 +36,7 @@ import tools.jackson.databind.ObjectMapper;
 /** Bounded real-HTTP measurements. Starts its own disposable MySQL; never accepts an external URL. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "spring.jpa.properties.hibernate.generate_statistics=true",
+        "spring.jpa.properties.hibernate.session_factory.statement_inspector=com.game_manager.gm.performance.BackendPerformanceIT$CommandSqlInspector",
         "logging.level.org.hibernate.stat=ERROR",
         "logging.level.org.hibernate.engine.internal.StatisticalLoggingSessionEventListener=ERROR"
 })
@@ -145,7 +146,28 @@ class BackendPerformanceIT {
         var firstCard = java.util.stream.StreamSupport.stream(board.get("stations").spliterator(), false)
                 .filter(card -> card.get("resourceId").asText().equals(stationId.toString())).findFirst().orElseThrow();
         assertThat(firstCard.get("commandSequence").asLong()).isEqualTo(5000);
+        assertThat(firstCard.get("status").asText()).isEqualTo("ACTIVE");
+        assertThat(firstCard.get("sessionId").asText()).isEqualTo(sessionId.toString());
+        assertThat(firstCard.get("commandType").asText()).isEqualTo("SESSION_EXTENDED");
+        assertThat(firstCard.get("commandAcknowledgedAt").isNull()).isTrue();
+        board.get("stations").forEach(card -> {
+            if (!card.get("resourceId").asText().equals(stationId.toString())) {
+                assertThat(card.get("commandSequence").isNull()).isTrue();
+                assertThat(card.get("commandType").isNull()).isTrue();
+                assertThat(card.get("status").asText()).isEqualTo(
+                        card.get("resourceCode").asText().equals("AUDIT-31") ? "MAINTENANCE" : "AVAILABLE");
+            }
+        });
         Map<String, Object> report = new LinkedHashMap<>();
+        String commandSql = Objects.requireNonNull(CommandSqlInspector.latestSelect);
+        assertThat(commandSql).doesNotContain(".payload");
+        Object[] stationParameters = resources.findByTypeOrderByNameAsc(ResourceType.GAMING_PC).stream()
+                .map(pc -> pc.getId().toString()).toArray();
+        report.put("latestCommandSql", commandSql);
+        report.put("latestCommandExplainAnalyze", jdbc.queryForObject("EXPLAIN ANALYZE " + commandSql,
+                String.class, stationParameters));
+        Files.writeString(Path.of("target", "backend-performance-command-plan.json"),
+                json.writerWithDefaultPrettyPrinter().writeValueAsString(report));
         report.put("environment", Map.of("database", "mysql:8.4 disposable Testcontainer", "java", System.getProperty("java.version"),
                 "resources", 32, "commandBacklog", 5000, "warmupPerFlow", 8, "serialSamples", 24, "concurrentSamples", 48, "concurrency", 4,
                 "statisticsEnabled", true));
@@ -186,9 +208,14 @@ class BackendPerformanceIT {
         Statistics statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
         statistics.clear();
         SqlSample before = sqlSample(); request(path, token); SqlSample after = sqlSample();
+        long rowsExamined = after.rowsExamined() - before.rowsExamined();
+        if (path.equals("/api/v1/gaming-operations/board"))
+            assertThat(rowsExamined).as("Board reads must stay bounded independently of the 5000-command backlog")
+                    .isLessThan(1000);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("singleRequest", Map.of("ormStatements", statistics.getPrepareStatementCount(),
                 "entitiesLoaded", statistics.getEntityLoadCount(), "mysqlStatements", after.count() - before.count(),
+                "mysqlRowsExamined", rowsExamined,
                 "mysqlStatementTimeMs", (after.picoseconds() - before.picoseconds()) / 1_000_000_000.0));
         result.put("serial", batch(path, token, 1, 24));
         result.put("concurrent", batch(path, token, 4, 48));
@@ -252,13 +279,24 @@ class BackendPerformanceIT {
         try (Connection connection = DriverManager.getConnection(MYSQL.getJdbcUrl(), "root", MYSQL.getPassword());
              Statement statement = connection.createStatement();
              ResultSet rows = statement.executeQuery("""
-                     SELECT COALESCE(SUM(COUNT_STAR),0),COALESCE(SUM(SUM_TIMER_WAIT),0)
+                     SELECT COALESCE(SUM(COUNT_STAR),0),COALESCE(SUM(SUM_TIMER_WAIT),0),
+                            COALESCE(SUM(SUM_ROWS_EXAMINED),0)
                      FROM performance_schema.events_statements_summary_by_digest
                      WHERE SCHEMA_NAME='gmanager_audit' AND DIGEST_TEXT NOT LIKE '%performance_schema%'
                      """)) {
-            rows.next(); return new SqlSample(rows.getLong(1), rows.getLong(2));
+            rows.next(); return new SqlSample(rows.getLong(1), rows.getLong(2), rows.getLong(3));
         }
     }
 
-    private record SqlSample(long count, long picoseconds) {}
+    private record SqlSample(long count, long picoseconds, long rowsExamined) {}
+
+    public static class CommandSqlInspector implements org.hibernate.resource.jdbc.spi.StatementInspector {
+        static volatile String latestSelect;
+
+        @Override public String inspect(String sql) {
+            if (sql.startsWith("select ") && sql.contains("left join station_commands"))
+                latestSelect = sql;
+            return sql;
+        }
+    }
 }

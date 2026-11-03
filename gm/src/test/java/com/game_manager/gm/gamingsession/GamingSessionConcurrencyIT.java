@@ -30,7 +30,8 @@ class GamingSessionConcurrencyIT extends GamingSessionIntegrationTest {
     @Container
     static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.4")
             .withDatabaseName("gmanager_gaming_it").withUsername("gaming_it").withPassword("disposable-test-password")
-            .withEnv("TZ", "UTC").withUrlParam("serverTimezone", "UTC");
+            .withEnv("TZ", "UTC").withUrlParam("serverTimezone", "UTC")
+            .withUrlParam("rewriteBatchedStatements", "true");
 
     @DynamicPropertySource
     static void database(DynamicPropertyRegistry registry) {
@@ -114,6 +115,60 @@ class GamingSessionConcurrencyIT extends GamingSessionIntegrationTest {
     private static KeyPair keyPair() {
         try { return KeyPairGenerator.getInstance("Ed25519").generateKeyPair(); }
         catch (GeneralSecurityException exception) { throw new ExceptionInInitializerError(exception); }
+    }
+
+    @org.junit.jupiter.api.Test
+    void latestCommandSummaryUsesCommittedRowsDuringConcurrentWritesAndAck() throws Exception {
+        var owner=user(com.game_manager.gm.common.security.Role.OWNER);
+        var customer=user(com.game_manager.gm.common.security.Role.CUSTOMER);
+        var station=station();UUID stationId=station.resource().getId();
+        Instant now=Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+        var session=new GamingSession();session.setResourceId(stationId);session.setLocationId(station.locationId());
+        session.setCustomerId(customer.getId());session.setStartedBy(owner.getId());session.setStartedAt(now.minusSeconds(60));
+        session.setEndsAt(now.plusSeconds(3600));session.setStatus(GamingSessionStatus.ACTIVE);
+        UUID sessionId=sessions.saveAndFlush(session).getId();
+        var transaction=new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+        java.util.function.Supplier<Long> write=()->transaction.execute(status->{
+            var locked=sessions.findByIdForUpdate(sessionId).orElseThrow();
+            long sequence=commandWriter.write(locked,com.game_manager.gm.gamingsession.command.StationCommandType.SESSION_EXTENDED);
+            sessions.saveAndFlush(locked);return sequence;
+        });
+        assertThat(write.get()).isEqualTo(1L);
+        var staged=new java.util.concurrent.CountDownLatch(1);
+        var commit=new java.util.concurrent.CountDownLatch(1);
+        try(var pool=java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            var pending=pool.submit(()->transaction.execute(status->{
+                var locked=sessions.findByIdForUpdate(sessionId).orElseThrow();
+                long sequence=commandWriter.write(locked,com.game_manager.gm.gamingsession.command.StationCommandType.SESSION_EXTENDED);
+                sessions.saveAndFlush(locked);staged.countDown();
+                try { assertThat(commit.await(10,java.util.concurrent.TimeUnit.SECONDS)).isTrue(); }
+                catch(InterruptedException exception) { Thread.currentThread().interrupt();throw new IllegalStateException(exception); }
+                return sequence;
+            }));
+            try {
+                assertThat(staged.await(10,java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+                assertThat(stationCommands.findLatestSummariesByStationIdIn(List.of(stationId)))
+                        .singleElement().extracting(com.game_manager.gm.gamingsession.command.StationCommandSummary::sequence).isEqualTo(1L);
+                assertThat(stationCommands.currentCursor(stationId.toString())).isEqualTo(1L);
+            } finally { commit.countDown(); }
+            assertThat(pending.get(10,java.util.concurrent.TimeUnit.SECONDS)).isEqualTo(2L);
+            var first=pool.submit(write::get);var second=pool.submit(write::get);
+            assertThat(List.of(first.get(10,java.util.concurrent.TimeUnit.SECONDS),second.get(10,java.util.concurrent.TimeUnit.SECONDS)))
+                    .containsExactlyInAnyOrder(3L,4L);
+        }
+        assertThat(stationCommands.findByStationIdAndSequenceGreaterThanOrderBySequence(stationId,0L))
+                .extracting(com.game_manager.gm.gamingsession.command.StationCommand::getSequence).containsExactly(1L,2L,3L,4L);
+        jdbc.update("UPDATE station_commands SET acknowledged_at=? WHERE station_id=? AND sequence=4",
+                java.sql.Timestamp.from(Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS)),stationId.toString());
+        var tip=stationCommands.findLatestSummariesByStationIdIn(List.of(stationId)).getFirst();
+        assertThat(tip.sequence()).isEqualTo(4L);assertThat(tip.acknowledgedAt()).isNotNull();
+        transaction.executeWithoutResult(status->{
+            var locked=sessions.findByIdForUpdate(sessionId).orElseThrow();
+            assertThat(commandWriter.write(locked,com.game_manager.gm.gamingsession.command.StationCommandType.SESSION_EXTENDED)).isEqualTo(5L);
+            status.setRollbackOnly();
+        });
+        assertThat(stationCommands.findLatestSummariesByStationIdIn(List.of(stationId))).containsExactly(tip);
+        assertThat(stationCommands.currentCursor(stationId.toString())).isEqualTo(4L);
     }
 
     @org.junit.jupiter.api.Test

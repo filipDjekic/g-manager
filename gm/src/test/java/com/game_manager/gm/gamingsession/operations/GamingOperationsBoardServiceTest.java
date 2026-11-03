@@ -24,7 +24,8 @@ class GamingOperationsBoardServiceTest {
         when(current.requireCurrentUser()).thenReturn(actor);when(readiness.overview()).thenReturn(List.of(assigned,hidden));
         when(locations.assignedResources(actor)).thenReturn(Set.of(assigned.resourceId()));
         when(sessions.findLatestCandidates(List.of(assigned.resourceId()))).thenReturn(List.of());
-        when(commands.findByStationIdInOrderByStationIdAscSequenceDesc(List.of(assigned.resourceId()))).thenReturn(List.of());
+        when(commands.findLatestSummariesByStationIdIn(List.of(assigned.resourceId()))).thenReturn(List.of(
+                new StationCommandSummary(assigned.resourceId(),5000L,StationCommandType.SESSION_EXTENDED,NOW,null)));
         var enforcement=mock(com.game_manager.gm.common.scheduling.ClientStatePort.class);
         when(enforcement.states(any())).thenReturn(Map.of(assigned.resourceId(),new com.game_manager.gm.common.scheduling.ClientStatePort.State(null,"LOCKED",NOW)));
         var preparation=mock(StationPreparationService.class);when(preparation.ready(any())).thenReturn(true);
@@ -34,7 +35,12 @@ class GamingOperationsBoardServiceTest {
 
         assertThat(response.serverTime()).isEqualTo(NOW);assertThat(response.stations()).singleElement().satisfies(card->{
             assertThat(card.locationId()).isEqualTo(assigned.locationId());assertThat(card.status()).isEqualTo(GamingStationBoardStatus.AVAILABLE);
-            assertThat(card.allowedActions()).containsExactly(GamingStationAction.START);});
+            assertThat(card.allowedActions()).containsExactly(GamingStationAction.START);
+            assertThat(card.commandSequence()).isEqualTo(5000L);
+            assertThat(card.commandType()).isEqualTo("SESSION_EXTENDED");
+            assertThat(card.commandAvailableAt()).isEqualTo(NOW);
+            assertThat(card.commandAcknowledgedAt()).isNull();});
+        verify(commands).findLatestSummariesByStationIdIn(List.of(assigned.resourceId()));
     }
 
     @Test void availableStationRequiresConfirmedEnforcementAndHealthyClientBeforeOfferingStart() {
@@ -74,7 +80,7 @@ class GamingOperationsBoardServiceTest {
         session.setStatus(GamingSessionStatus.ACTIVE);session.setStartedAt(NOW.minusSeconds(1800));session.setEndsAt(NOW.plusSeconds(3600));session.setVersion(7L);
         User customer=new User();customer.setId(session.getCustomerId());customer.setName("Milica Manager");
         when(current.requireCurrentUser()).thenReturn(actor);when(readiness.overview()).thenReturn(List.of(station));when(locations.assignedResources(actor)).thenReturn(Set.of(station.resourceId()));
-        when(sessions.findLatestCandidates(List.of(station.resourceId()))).thenReturn(List.of(session));when(commands.findByStationIdInOrderByStationIdAscSequenceDesc(any())).thenReturn(List.of());
+        when(sessions.findLatestCandidates(List.of(station.resourceId()))).thenReturn(List.of(session));when(commands.findLatestSummariesByStationIdIn(any())).thenReturn(List.of());
         when(users.findAllById(List.of(customer.getId()))).thenReturn(List.of(customer));
         var enforcement=mock(com.game_manager.gm.common.scheduling.ClientStatePort.class);when(enforcement.states(any())).thenReturn(Map.of());
         var preparation=mock(StationPreparationService.class);when(preparation.ready(any())).thenReturn(true);

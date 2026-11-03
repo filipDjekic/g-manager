@@ -27,18 +27,29 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.*;
 import tools.jackson.databind.*;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+        "spring.jpa.properties.hibernate.generate_statistics=true",
+        "logging.level.org.hibernate.engine.internal.StatisticalLoggingSessionEventListener=ERROR"
+})
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 class GamingSessionIntegrationTest {
     @Autowired MockMvc mvc; @Autowired UserRepository users; @Autowired PasswordEncoder encoder;
     @Autowired CatalogRepository catalog; @Autowired LocationRepository locations; @Autowired AreaRepository areas;
     @Autowired PhysicalResourceRepository resources; @Autowired ApplicationProfileRepository profiles;
     @Autowired GamingStationProfileRepository stations; @Autowired GamingSessionRepository sessions;
     @Autowired StationCommandRepository stationCommands;
+    @Autowired jakarta.persistence.EntityManagerFactory entityManagerFactory;
+    @Autowired org.springframework.scheduling.annotation.ScheduledAnnotationBeanPostProcessor scheduler;
     @Autowired JdbcTemplate jdbc; private final ObjectMapper json = new ObjectMapper();
 
-    @org.junit.jupiter.api.BeforeEach void clean() { testsupport.DatabaseCleaner.clean(jdbc); }
+    @org.junit.jupiter.api.BeforeEach void clean() {
+        // This context is isolated by its statistics properties and closed after the class.
+        // Keep scheduled enforcement writes out of fixture truncation and SQL-count assertions.
+        scheduler.getScheduledTasks().forEach(task -> task.cancel());
+        testsupport.DatabaseCleaner.clean(jdbc);
+    }
 
     @Test void customerHistoryIsPrivateAndStaffHistoryRespectsAssignedLocations() throws Exception {
         User employee=user(Role.EMPLOYEE), unrelated=user(Role.EMPLOYEE), customer=user(Role.CUSTOMER), other=user(Role.CUSTOMER);
@@ -102,6 +113,73 @@ class GamingSessionIntegrationTest {
         mvc.perform(post("/api/v1/gaming-sessions").header("Authorization",bearer(login(customer)))
                 .header("Idempotency-Key",UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON)
                 .content(startBody(customer,station.resource(),60))).andExpect(status().isForbidden());
+    }
+
+    // Inherited by GamingSessionConcurrencyIT so this regression runs on H2 and MySQL.
+    @Test void latestCommandSummariesAreBoundedScopedAndIndependentOfTheDurableCursor() throws Exception {
+        User employee=user(Role.EMPLOYEE), owner=user(Role.OWNER), customer=user(Role.CUSTOMER);
+        Station busy=station(), other=station(), empty=station(), hidden=station();
+        for (Station value:List.of(busy,other,empty)) assign(employee,value.resource().getId());
+        Instant now=Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+        GamingSession session=new GamingSession();session.setResourceId(busy.resource().getId());
+        session.setLocationId(busy.locationId());session.setCustomerId(customer.getId());session.setStartedBy(owner.getId());
+        session.setStartedAt(now.minusSeconds(60));session.setEndsAt(now.plusSeconds(3600));
+        session.setStatus(GamingSessionStatus.ACTIVE);session=sessions.saveAndFlush(session);
+        UUID sessionId=session.getId();
+        jdbc.batchUpdate("""
+                INSERT INTO station_commands (id,station_id,session_id,sequence,command_type,payload_version,
+                    payload,correlation_id,available_at,acknowledged_at,expires_at,created_at,updated_at,version)
+                VALUES (?,?,?,?,'SESSION_EXTENDED',1,?,'backlog',?,?,?,?,?,0)
+                """, java.util.stream.IntStream.rangeClosed(1,5004).boxed().toList(),250,(statement,index)->{
+                    boolean backlog=index<=5000;
+                    UUID resourceId=backlog?busy.resource().getId():index<=5002?other.resource().getId():hidden.resource().getId();
+                    statement.setString(1,UUID.randomUUID().toString());statement.setString(2,resourceId.toString());
+                    statement.setString(3,sessionId.toString());statement.setLong(4,backlog?index:(index-5001)%2+1);
+                    statement.setString(5,"{\"data\":\""+"x".repeat(4096)+"\"}");
+                    statement.setTimestamp(6,Timestamp.from(now));
+                    statement.setTimestamp(7,backlog?null:Timestamp.from(now));
+                    statement.setTimestamp(8,Timestamp.from(now.plusSeconds(86400)));
+                    statement.setTimestamp(9,Timestamp.from(now.minusSeconds(60)));statement.setTimestamp(10,Timestamp.from(now));
+                });
+        // The cursor survives retention and is not necessarily the latest retained command.
+        jdbc.update("INSERT INTO station_command_sequences (station_id,last_sequence,updated_at) VALUES (?,?,?)",
+                other.resource().getId().toString(),3L,Timestamp.from(now));
+        List<UUID> visible=List.of(busy.resource().getId(),other.resource().getId(),empty.resource().getId());
+        var statistics=entityManagerFactory.unwrap(org.hibernate.SessionFactory.class).getStatistics();
+        boolean statisticsEnabled=statistics.isStatisticsEnabled();statistics.setStatisticsEnabled(true);statistics.clear();
+        try {
+            var summaries=stationCommands.findLatestSummariesByStationIdIn(visible);
+            assertThat(statistics.getPrepareStatementCount()).isEqualTo(1);
+            assertThat(statistics.getEntityLoadCount()).isZero();
+            assertThat(summaries).containsExactlyInAnyOrder(
+                    new StationCommandSummary(busy.resource().getId(),5000L,StationCommandType.SESSION_EXTENDED,now,null),
+                    new StationCommandSummary(other.resource().getId(),2L,StationCommandType.SESSION_EXTENDED,now,now),
+                    new StationCommandSummary(empty.resource().getId(),null,null,null,null));
+            assertThat(stationCommands.findLatestSummariesByStationIdIn(List.of())).isEmpty();
+        } finally { statistics.setStatisticsEnabled(statisticsEnabled); }
+        JsonNode board=node(mvc.perform(get("/api/v1/gaming-operations/board").header("Authorization",bearer(login(employee))))
+                .andExpect(status().isOk()).andReturn()).get("stations");
+        assertThat(board.size()).isEqualTo(3);
+        for (JsonNode card:board) {
+            UUID resourceId=UUID.fromString(card.get("resourceId").asText());
+            assertThat(resourceId).isIn(visible);
+            if (resourceId.equals(empty.resource().getId())) {
+                assertThat(card.get("commandSequence").isNull()).isTrue();
+                assertThat(card.get("commandType").isNull()).isTrue();
+                assertThat(card.get("status").asText()).isEqualTo("AVAILABLE");
+            } else {
+                assertThat(card.get("commandSequence").asLong()).isEqualTo(resourceId.equals(busy.resource().getId())?5000:2);
+                assertThat(card.get("commandType").asText()).isEqualTo("SESSION_EXTENDED");
+                assertThat(card.get("commandAcknowledgedAt").isNull()).isEqualTo(resourceId.equals(busy.resource().getId()));
+            }
+        }
+        jdbc.update("DELETE FROM station_commands WHERE station_id=? AND sequence=2",other.resource().getId().toString());
+        assertThat(stationCommands.findLatestSummariesByStationIdIn(List.of(other.resource().getId())))
+                .singleElement().extracting(StationCommandSummary::sequence).isEqualTo(1L);
+        jdbc.update("DELETE FROM station_commands WHERE station_id=?",other.resource().getId().toString());
+        assertThat(stationCommands.findLatestSummariesByStationIdIn(List.of(other.resource().getId())))
+                .containsExactly(new StationCommandSummary(other.resource().getId(),null,null,null,null));
+        assertThat(stationCommands.currentCursor(other.resource().getId().toString())).isEqualTo(3L);
     }
 
     private List<Integer> race(String token,String first,String second)throws Exception {CountDownLatch ready=new CountDownLatch(2),go=new CountDownLatch(1);

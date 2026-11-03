@@ -46,9 +46,10 @@ public class GamingOperationsBoardService {
         Map<UUID,GamingSession> latest = sessions.findLatestCandidates(resourceIds).stream()
                 .collect(Collectors.toMap(GamingSession::getResourceId, Function.identity(), (first, ignored) -> first,
                         LinkedHashMap::new));
-        Map<UUID,StationCommand> latestCommand = commands
-                .findByStationIdInOrderByStationIdAscSequenceDesc(resourceIds).stream()
-                .collect(Collectors.toMap(StationCommand::getStationId, Function.identity(), (first, ignored) -> first));
+        Map<UUID,StationCommandSummary> latestCommand = commands
+                .findLatestSummariesByStationIdIn(resourceIds).stream()
+                .filter(command -> command.sequence() != null)
+                .collect(Collectors.toMap(StationCommandSummary::stationId, Function.identity()));
         var enforcementByStation=enforcement.states(resourceIds);
         var clientHealth=enforcement.heartbeats(resourceIds);
         var ready=preparation.readiness(resourceIds);
@@ -71,7 +72,7 @@ public class GamingOperationsBoardService {
         var entries=java.util.stream.Stream.concat(auditEntries,commandEntries).sorted(java.util.Comparator.comparing(StationHistoryResponse.Entry::occurredAt).reversed()).limit(50).toList();return new StationHistoryResponse(clock.instant(),stationId,entries);}
 
     private GamingOperationsBoardResponse.StationCard card(StationOverview station, GamingSession latest,
-            StationCommand latestCommand,com.game_manager.gm.common.scheduling.ClientStatePort.State enforcementState, Map<UUID,User> customers, AuthenticatedUser actor, Instant now,boolean privacyReady,boolean incoming,Map<UUID,java.math.BigDecimal> due,com.game_manager.gm.common.scheduling.ClientStatePort.Heartbeat health) {
+            StationCommandSummary latestCommand,com.game_manager.gm.common.scheduling.ClientStatePort.State enforcementState, Map<UUID,User> customers, AuthenticatedUser actor, Instant now,boolean privacyReady,boolean incoming,Map<UUID,java.math.BigDecimal> due,com.game_manager.gm.common.scheduling.ClientStatePort.Heartbeat health) {
         GamingSession active = latest != null && latest.getStatus() == GamingSessionStatus.ACTIVE ? latest : null;
         boolean stale=station.clientEnabled()&&(station.lastHeartbeatAt()==null||!station.lastHeartbeatAt().plusSeconds(station.offlineGraceSeconds()).isAfter(now));
         GamingStationBoardStatus status = status(station, latest, enforcementState, stale,now,privacyReady,incoming);
@@ -101,10 +102,10 @@ public class GamingOperationsBoardService {
                 active == null ? null : active.getVersion(), Set.copyOf(allowed),
                 station.areaId(), station.operationalStatus(), station.effectiveStatus(),
                 station.applicationProfileName(), station.configurationVersion(), station.clientVersion(),
-                latestCommand == null ? null : latestCommand.getSequence(),
-                latestCommand == null ? null : latestCommand.getCommandType().name(),
-                latestCommand == null ? null : latestCommand.getAvailableAt(),
-                latestCommand == null ? null : latestCommand.getAcknowledgedAt(), station.locationName(), station.areaName(), latest==null?null:latest.getId(), active==null?null:due.getOrDefault(active.getId(),java.math.BigDecimal.ZERO), privacyReady, active==null?null:active.getMoveTargetId(),health==null?null:health.clientErrorCode(),health==null?null:health.updateStatus(),health==null?null:health.maintenanceActive());
+                latestCommand == null ? null : latestCommand.sequence(),
+                latestCommand == null ? null : latestCommand.commandType().name(),
+                latestCommand == null ? null : latestCommand.availableAt(),
+                latestCommand == null ? null : latestCommand.acknowledgedAt(), station.locationName(), station.areaName(), latest==null?null:latest.getId(), active==null?null:due.getOrDefault(active.getId(),java.math.BigDecimal.ZERO), privacyReady, active==null?null:active.getMoveTargetId(),health==null?null:health.clientErrorCode(),health==null?null:health.updateStatus(),health==null?null:health.maintenanceActive());
     }
 
     private GamingStationBoardStatus status(StationOverview station, GamingSession latest,
