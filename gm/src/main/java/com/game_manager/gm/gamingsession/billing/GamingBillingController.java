@@ -15,6 +15,8 @@ public class GamingBillingController {
     @GetMapping("/customers/{id}/refundable-payments") public List<Map<String,Object>> refundable(@PathVariable UUID id){return service.refundableWalletPayments(id);}
     @PostMapping("/tariffs") public Tariff create(@Valid @RequestBody TariffInput r){return service.saveTariff(null,r);}
     @PutMapping("/tariffs/{id}") public Tariff update(@PathVariable UUID id,@Valid @RequestBody TariffInput r){return service.saveTariff(id,r);}
+    @GetMapping("/metered-policy") public GamingBillingService.MeteredPolicy meteredPolicy(){return service.meteredPolicy();}
+    @PutMapping("/metered-policy") public GamingBillingService.MeteredPolicy meteredPolicy(@RequestBody GamingBillingService.MeteredPolicy p){return service.saveMeteredPolicy(p);}
     @GetMapping("/policy") public Policy policy(){return service.policy();}
     @PutMapping("/policy") public Policy policy(@Valid @RequestBody Policy r){return service.savePolicy(r);}
     @GetMapping("/quote") public Quote quote(@RequestParam UUID resourceId,@RequestParam(required=false) UUID tariffId,@RequestParam int minutes,@RequestParam(defaultValue="0") BigDecimal discount,@RequestParam(required=false) UUID packageId){return service.quote(resourceId,tariffId,minutes,discount,packageId);}

@@ -75,6 +75,12 @@ public class StationReadinessService {
     }
 
     @Transactional(readOnly=true)
+    public void requireManagedClient(UUID resourceId) {
+        if(!stations.findByResourceId(resourceId).map(GamingStationProfile::isClientEnabled).orElse(false))
+            throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Metered gaming requires an enabled managed Client");
+    }
+
+    @Transactional(readOnly=true)
     public void requireGuestClient(UUID resourceId) {
         if(!stations.findByResourceId(resourceId).map(GamingStationProfile::isClientEnabled).orElse(false))
             throw new ApplicationException(HttpStatus.CONFLICT,"Guest sessions require an enabled, online Windows Client");

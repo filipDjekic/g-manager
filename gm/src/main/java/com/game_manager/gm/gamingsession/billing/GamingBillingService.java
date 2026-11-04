@@ -29,7 +29,11 @@ public class GamingBillingService {
     private final UserRepository users;
     private final PhysicalResourceRepository resources;
     private final AuditWriter audit;
+    private final com.game_manager.gm.reservation.ReservationRepository reservations;
+    private final com.game_manager.gm.gamingsession.command.StationCommandWriter stationCommands;
+    private final com.game_manager.gm.events.OutboxWriter outbox;
     private final Clock clock;
+    @org.springframework.beans.factory.annotation.Value("${app.gaming-client.lease-duration-seconds:30}") private long meteredLeaseSeconds=30;
     private final jakarta.persistence.EntityManager entityManager;
     private static final BigDecimal ZERO = new BigDecimal("0.00");
 
@@ -127,7 +131,7 @@ public class GamingBillingService {
         if(remaining.signum()>0 && (!p.allowDebt() || amount.signum()>0 && !p.allowPartialPayment())) fail("Full advance payment is required by policy");
         if(amount.signum()>0) {
             externalReference(payment);
-            if(payment.method()==Method.WALLET) { if(s.getCustomerId()==null) fail("Guests do not have prepaid credit");lockCustomer(s.getCustomerId());if(balance(s.getCustomerId()).compareTo(amount)<0) conflict("Insufficient prepaid credit"); }
+            if(payment.method()==Method.WALLET) { if(s.getCustomerId()==null) fail("Guests do not have prepaid credit");lockCustomer(s.getCustomerId());requireNoMeteredDebit(s.getCustomerId());if(balance(s.getCustomerId()).compareTo(amount)<0) conflict("Insufficient prepaid credit"); }
             UUID op=operation(s.getId(),s.getCustomerId(),s.getResourceId(),s.getLocationId(),"PAYMENT",payment.method(),amount,payment.reference(),reason,null);
             if(payment.method()==Method.WALLET) ledger(s.getCustomerId(),s.getId(),null,amount.negate(),0,"SESSION_USE",reason,op);
         }
@@ -157,6 +161,7 @@ public class GamingBillingService {
         var actor=current.requireCurrentUser();
         if(actor.role()==Role.CUSTOMER ? !actor.id().equals(customerId) : !RolePermissions.has(actor.role(),Permission.CUSTOMER_READ)) forbidden("Wallet access denied");
         return Map.of("serverTime",clock.instant(),"customerId",customerId,"balance",balance(customerId),"currency","RSD",
+                "meteredSessions",jdbc.queryForList("SELECT s.id,s.resource_id,r.name AS resource_name,s.started_at,s.ends_at,s.status,s.billed_seconds,s.charged_amount,s.termination_reason FROM gaming_sessions s JOIN physical_resources r ON r.id=s.resource_id WHERE s.customer_id=? AND s.billing_mode='PREPAID_METERED' ORDER BY s.started_at DESC LIMIT 20",str(customerId)),
                 "packages",jdbc.queryForList("SELECT p.*,COALESCE((SELECT SUM(l.minutes) FROM gaming_wallet_ledger l WHERE l.package_id=p.id),0) AS remaining_minutes FROM gaming_time_packages p WHERE p.customer_id=? AND (p.expires_at IS NULL OR p.expires_at>?) AND COALESCE((SELECT SUM(l.minutes) FROM gaming_wallet_ledger l WHERE l.package_id=p.id),0)>0 ORDER BY p.created_at DESC,p.id DESC",str(customerId),ts(clock.instant())));
     }
     private void requireWalletAccess(UUID customerId) {
@@ -188,14 +193,15 @@ public class GamingBillingService {
         var resource=financialResource(r.resourceId());lockCustomer(customerId);externalOnly(r.payment());
         if(r.payment().amount().signum()<=0) fail("Top-up must be positive");
         UUID op=operation(null,customerId,resource.getId(),location(resource),"CREDIT_TOPUP",r.payment().method(),money(r.payment().amount()),r.payment().reference(),r.reason(),null);
-        ledger(customerId,null,null,money(r.payment().amount()),0,"TOPUP",r.reason(),op);return wallet(customerId);
+        ledger(customerId,null,null,money(r.payment().amount()),0,"TOPUP",r.reason(),op);refreshMeteredCoverage(customerId);return wallet(customerId);
     }
     @Transactional(isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED) @PreAuthorize("hasAuthority('GAMING_FINANCE_MANAGE')")
     public Map<String,Object> adjust(UUID customerId,CreditAdjustment r) {
         var resource=financialResource(r.resourceId());lockLedgerCustomer(customerId);BigDecimal amount=money(r.amount());
+        if(amount.signum()<0) requireNoMeteredDebit(customerId);
         if(amount.signum()==0 || balance(customerId).add(amount).signum()<0) fail("Adjustment must be nonzero and cannot create negative credit");
         UUID op=operation(null,customerId,resource.getId(),location(resource),"CREDIT_CORRECTION",Method.WALLET,amount.abs(),null,r.reason(),null);
-        ledger(customerId,null,null,amount,0,"CORRECTION",r.reason(),op);return wallet(customerId);
+        ledger(customerId,null,null,amount,0,"CORRECTION",r.reason(),op);if(amount.signum()>0)refreshMeteredCoverage(customerId);return wallet(customerId);
     }
     @Transactional(isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED) @PreAuthorize("hasAuthority('GAMING_PAYMENT_RECORD')")
     public Map<String,Object> buyPackage(UUID customerId,PackagePurchase r) {
@@ -211,7 +217,7 @@ public class GamingBillingService {
     }
     @Transactional(isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED) @PreAuthorize("hasAuthority('GAMING_FINANCE_MANAGE')")
     public Map<String,Object> refundWallet(UUID customerId,Refund r) {
-        lockLedgerCustomer(customerId); if(!policy().allowRefunds()) fail("Refunds are disabled");
+        lockLedgerCustomer(customerId);requireNoMeteredDebit(customerId); if(!policy().allowRefunds()) fail("Refunds are disabled");
         var rows=jdbc.queryForList("SELECT * FROM gaming_financial_operations WHERE id=? AND customer_id=? AND kind IN ('CREDIT_TOPUP','PACKAGE_SALE') FOR UPDATE",str(r.paymentId()),str(customerId));
         if(rows.isEmpty()) fail("Original top-up or package purchase not found");var original=rows.getFirst();
         BigDecimal amount=money(r.amount());
@@ -246,6 +252,82 @@ public class GamingBillingService {
         BigDecimal paid=jdbc.queryForObject("SELECT COALESCE(SUM(amount),0) FROM gaming_financial_operations WHERE session_id=? AND kind='PAYMENT'",BigDecimal.class,str(id));
         return charges.subtract(paid).max(ZERO);
     }
+    public record MeteredPolicy(boolean allowFixed,boolean allowMetered,GamingBillingMode defaultMode,int billingUnitSeconds) {}
+    @Transactional(readOnly=true) @PreAuthorize("isAuthenticated()")
+    public MeteredPolicy meteredPolicy() {
+        return jdbc.queryForObject("SELECT * FROM gaming_business_policy WHERE id=1",(r,n)->new MeteredPolicy(r.getBoolean("allow_fixed"),r.getBoolean("allow_metered"),GamingBillingMode.valueOf(r.getString("default_mode")),r.getInt("billing_unit_seconds")));
+    }
+    @Transactional @PreAuthorize("hasAuthority('GAMING_FINANCE_MANAGE')")
+    public MeteredPolicy saveMeteredPolicy(MeteredPolicy p) {
+        if(p.defaultMode()==null || p.billingUnitSeconds()<1 || p.billingUnitSeconds()>3600 || (!p.allowFixed() && !p.allowMetered()) || (p.defaultMode()==GamingBillingMode.FIXED_DURATION ? !p.allowFixed():!p.allowMetered())) fail("Invalid billing modes or unit");
+        jdbc.update("UPDATE gaming_business_policy SET allow_fixed=?,allow_metered=?,default_mode=?,billing_unit_seconds=?,version=version+1 WHERE id=1",p.allowFixed(),p.allowMetered(),p.defaultMode().name(),p.billingUnitSeconds());
+        audit("GAMING_METERED_POLICY_UPDATED",null,p,null); return p;
+    }
+    /** Caller holds the customer lock. No money is debited on start. */
+    public long prepareMetered(GamingSession session,UUID tariffId) {
+        if(session.getCustomerId()==null) fail("Metered gaming requires a registered customer");
+        var p=meteredPolicy(); if(!p.allowMetered()) fail("Metered gaming is disabled");
+        Tariff t=requireTariff(tariffId); Instant now=clock.instant();
+        if(!t.active() || t.validFrom()!=null && now.isBefore(t.validFrom()) || t.validUntil()!=null && !now.isBefore(t.validUntil())) fail("Tariff unavailable");
+        var station=resources.findById(session.getResourceId()).orElseThrow(()->error("Station not found"));
+        if(t.serviceId()!=null && !t.serviceId().equals(station.getServiceId())) fail("Tariff does not match station category");
+        long seconds=MeteredPricing.affordable(balance(session.getCustomerId()),t.price(),t.minutes()*60L,p.billingUnitSeconds());
+        if(seconds<1) fail("Insufficient prepaid credit for one billing unit");
+        session.setBillingMode(GamingBillingMode.PREPAID_METERED);session.setMeteredTariffId(t.id());session.setMeteredPrice(t.price());session.setMeteredTariffSeconds(t.minutes()*60L);
+        session.setBillingUnitSeconds(p.billingUnitSeconds());session.setMeteredLeaseUntil(now.plusSeconds(meteredLeaseSeconds));session.setLastBilledAt(now);
+        return seconds;
+    }
+    /** Caller holds customer, resource and session locks, in that order. */
+    public void billMetered(GamingSession s,Instant until) {
+        if(s.getBillingMode()!=GamingBillingMode.PREPAID_METERED || s.getStatus()!=GamingSessionStatus.ACTIVE) return;
+        Instant cutoff=until.isBefore(s.getEndsAt())?until:s.getEndsAt();
+        if(s.getMeteredLeaseUntil().isBefore(cutoff)) cutoff=s.getMeteredLeaseUntil();
+        Duration elapsed=Duration.between(s.getStartedAt(),cutoff);
+        long seconds=Math.max(s.getBilledSeconds(),Math.max(0,elapsed.getSeconds()+(elapsed.getNano()>0?1:0)));
+        BigDecimal total=MeteredPricing.total(s.getMeteredPrice(),s.getMeteredTariffSeconds(),s.getBillingUnitSeconds(),seconds);
+        BigDecimal delta=total.subtract(s.getChargedAmount());
+        if(delta.compareTo(balance(s.getCustomerId()))>0) conflict("Prepaid coverage invariant violated");
+        if(delta.signum()>0) {
+            String op=UUID.randomUUID().toString();String reference="metered:"+s.getId()+":"+seconds;
+            jdbc.update("INSERT INTO gaming_charges (id,session_id,resource_id,location_id,actor_id,minutes,amount,recognized_amount,currency,snapshot,created_at,billed_seconds) VALUES (?,?,?,?,?,0,?,?,'RSD',?,?,?)",
+                UUID.randomUUID().toString(),str(s.getId()),str(s.getResourceId()),str(s.getLocationId()),str(s.getStartedBy()),delta,delta,json.writeValueAsString(Map.of("mode","PREPAID_METERED","tariffId",s.getMeteredTariffId(),"price",s.getMeteredPrice(),"tariffSeconds",s.getMeteredTariffSeconds(),"unitSeconds",s.getBillingUnitSeconds(),"totalSeconds",seconds)),ts(cutoff),seconds);
+            jdbc.update("INSERT INTO gaming_financial_operations (id,session_id,customer_id,resource_id,location_id,actor_id,kind,method,amount,currency,status,reference,created_at) VALUES (?,?,?,?,?,?,'PAYMENT','WALLET',?,'RSD','RECORDED',?,?)",
+                op,str(s.getId()),str(s.getCustomerId()),str(s.getResourceId()),str(s.getLocationId()),str(s.getStartedBy()),delta,reference,ts(cutoff));
+            jdbc.update("INSERT INTO gaming_wallet_ledger (id,customer_id,session_id,operation_id,amount,minutes,currency,kind,actor_id,created_at) VALUES (?,?,?,?,?,0,'RSD','SESSION_USE',?,?)",
+                UUID.randomUUID().toString(),str(s.getCustomerId()),str(s.getId()),op,delta.negate(),str(s.getStartedBy()),ts(cutoff));
+        }
+        s.setBilledSeconds(seconds);s.setChargedAmount(total);s.setLastBilledAt(cutoff);
+    }
+    /** A credit increase can extend access, but never revive an expired lease or displace a booking. Customer is already locked. */
+    private void refreshMeteredCoverage(UUID customer) {
+        var s=sessions.findByCustomerIdAndStatus(customer,GamingSessionStatus.ACTIVE).filter(v->v.getBillingMode()==GamingBillingMode.PREPAID_METERED).orElse(null);
+        if(s==null) return;
+        resources.findLocked(s.getResourceId()).orElseThrow(()->error("Station not found"));
+        entityManager.refresh(s,jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        Instant now=clock.instant();
+        if(s.getStatus()!=GamingSessionStatus.ACTIVE || !now.isBefore(s.getEndsAt()) || !now.isBefore(s.getMeteredLeaseUntil())) return;
+        long funded=MeteredPricing.affordable(balance(customer).add(s.getChargedAmount()),s.getMeteredPrice(),s.getMeteredTariffSeconds(),s.getBillingUnitSeconds());
+        Instant end=s.getStartedAt().plusSeconds(funded),previous=s.getEndsAt();
+        if(!end.isAfter(previous)) return;
+        var excluded=List.of(com.game_manager.gm.reservation.ReservationStatus.CANCELLED,com.game_manager.gm.reservation.ReservationStatus.REJECTED,com.game_manager.gm.reservation.ReservationStatus.COMPLETED);
+        for(var booking:reservations.findResourceConflictingForUpdate(s.getResourceId(),previous,end,excluded,s.getReservationId()))
+            if(booking.getStartTime().isBefore(end)) end=booking.getStartTime();
+        if(!end.isAfter(previous)) return;
+        s.setEndsAt(end);sessions.saveAndFlush(s);
+        long sequence=stationCommands.write(s,com.game_manager.gm.gamingsession.command.StationCommandType.SESSION_EXTENDED);sessions.saveAndFlush(s);
+        outbox.write(com.game_manager.gm.events.DomainEventType.GAMING_SESSION_EXTENDED,"GAMING_SESSION",s.getId(),Map.of("previousEndsAt",previous,"endsAt",end,"commandSequence",sequence));
+    }
+    private void requireNoMeteredDebit(UUID customer) {
+        if(jdbc.queryForObject("SELECT COUNT(*) FROM gaming_sessions WHERE customer_id=? AND status='ACTIVE' AND billing_mode='PREPAID_METERED'",Integer.class,str(customer))>0) conflict("End the metered session before withdrawing or spending reserved coverage");
+    }
+    public Map<UUID,BigDecimal> balances(Collection<UUID> customers) {
+        if(customers.isEmpty()) return Map.of();
+        String placeholders=String.join(",",Collections.nCopies(customers.size(),"?"));
+        Map<UUID,BigDecimal> result=new HashMap<>();
+        jdbc.query("SELECT customer_id,SUM(amount) FROM gaming_wallet_ledger WHERE customer_id IN ("+placeholders+") GROUP BY customer_id",(org.springframework.jdbc.core.RowCallbackHandler)r->result.put(UUID.fromString(r.getString(1)),r.getBigDecimal(2)),customers.stream().map(UUID::toString).toArray());
+        return result;
+    }
+    public BigDecimal availableCredit(UUID id) { return balance(id); }
     private BigDecimal balance(UUID id) { return jdbc.queryForObject("SELECT COALESCE(SUM(amount),0) FROM gaming_wallet_ledger WHERE customer_id=?",BigDecimal.class,str(id)); }
     private void ledger(UUID customer,UUID session,UUID pack,BigDecimal amount,int minutes,String kind,String reason) {
         ledger(customer,session,pack,amount,minutes,kind,reason,null);

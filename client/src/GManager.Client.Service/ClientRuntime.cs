@@ -280,11 +280,11 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
         if(maintenance) return;
         if(recovery is not null && recovery.AppliedSequence<lease.CommandCursor) { LockLocal("Waiting for ordered commands"); return; }
         if(commandGap || recovery?.BlockedSessionId==lease.SessionId && lease.SessionId is not null) { LockLocal("Local lock command"); return; }
-        if(LeaseDeadlinePolicy.MustLock(lease,trusted.Now())) { LockLocal("Backend lock/deadline"); return; }
+        if(LeaseDeadlinePolicy.MustLock(lease,trusted.Now())) { LockLocal(State.BillingMode=="PREPAID_METERED" && State.EndsAt is DateTimeOffset fundedEnd && trusted.Now()>=fundedEnd ? State.AccessEndReason=="BOUNDARY"?"Prepaid pristup je zavrsen":"Prepaid kredit je potrosen" : "Backend lock/deadline"); return; }
         if(State.Mode!=ClientMode.Active || State.SessionId!=lease.SessionId)
             State=State.Apply(new(lease.StationId,lease.SessionId,lease.SessionEndsAt,lease.IssuedAt,lease.CommandCursor,"AVAILABLE"),DateTimeOffset.UtcNow);
         else State=State with { EndsAt=lease.SessionEndsAt,ServerOffset=lease.IssuedAt-DateTimeOffset.UtcNow };
-        State=State with { GuestSession=lease.CustomerId is null };
+        State=State with { GuestSession=lease.CustomerId is null, BillingMode=lease.BillingMode, StartedAt=lease.StartedAt, Balance=State.Mode==ClientMode.Active?lease.Balance:null, ChargedAmount=State.Mode==ClientMode.Active?lease.ChargedAmount:null, AccessEndReason=lease.AccessEndReason };
         }
     }
     void LockLocal(string reason)

@@ -19,6 +19,7 @@ public class GamingSessionController {
     @PostMapping public ResponseEntity<GamingSessionResponse> start(@Valid @RequestBody StartGamingSessionRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.start(request));
     }
+    @PostMapping("/{id}/finish") public GamingSessionResponse finish(@PathVariable UUID id) { return service.finishOwnMetered(id); }
     @PostMapping("/{id}/extend") public GamingSessionResponse extend(@PathVariable UUID id,
             @Valid @RequestBody ExtendGamingSessionRequest request) { return service.extend(id, request); }
     @PostMapping("/{id}/terminate") public GamingSessionResponse terminate(@PathVariable UUID id,

@@ -12,6 +12,7 @@ export function GamingVisitList({visits,staff=false,locale='sr-RS',showDuration=
     <div><strong>{visit.resourceName}</strong><Badge tone={visit.status==='ACTIVE'?'info':'neutral'}>{visit.status==='ACTIVE'?'Aktivna sesija':visit.status==='EXPIRED'?'Istekla':'Završena'}</Badge></div>
     {visit.status==='ACTIVE'&&<strong className="gaming-countdown">{remaining((Date.parse(visit.endsAt)-now)/1000)}</strong>}
     <p>{formatBusinessDateTime(visit.startedAt,false,locale)} - {formatBusinessDateTime(visit.endedAt??visit.endsAt,false,locale)}</p>
+    {visit.billingMode === 'PREPAID_METERED' && <p>Prepaid: {visit.billedSeconds ?? 0} s / {visit.chargedAmount ?? 0} RSD</p>}
     {showDuration && <small>{visit.endedAt ? 'Trajanje' : 'Planirano trajanje'}: {Math.max(0, Math.round((Date.parse(visit.endedAt??visit.endsAt)-Date.parse(visit.startedAt))/60000))} min</small>}
     {staff&&visit.status==='ACTIVE'&&<Link to={`/gaming-sessions?stationId=${visit.resourceId}`}>Otvori stanicu →</Link>}
   </article>)}<small>{visits.length} sesija na ovoj stranici{staff?' iz dostupnih lokacija':''}.</small></div>

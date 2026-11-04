@@ -161,11 +161,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/gaming-billing/**").hasAuthority("GAMING_SESSION_READ")
                         .requestMatchers(HttpMethod.POST, "/api/v1/gaming-billing/tariffs", "/api/v1/gaming-billing/sessions/*/refunds",
                                 "/api/v1/gaming-billing/customers/*/refunds", "/api/v1/gaming-billing/customers/*/adjustments").hasAuthority("GAMING_FINANCE_MANAGE")
-                        .requestMatchers(HttpMethod.PUT, "/api/v1/gaming-billing/tariffs/*", "/api/v1/gaming-billing/policy").hasAuthority("GAMING_FINANCE_MANAGE")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/gaming-billing/tariffs/*", "/api/v1/gaming-billing/policy", "/api/v1/gaming-billing/metered-policy").hasAuthority("GAMING_FINANCE_MANAGE")
                         .requestMatchers(HttpMethod.POST, "/api/v1/gaming-billing/sessions/*/payments", "/api/v1/gaming-billing/customers/*/topups",
                                 "/api/v1/gaming-billing/customers/*/packages").hasAuthority("GAMING_PAYMENT_RECORD")
                         .requestMatchers(HttpMethod.GET, "/api/v1/gaming-operations/stations/*/preparation").hasAuthority("GAMING_SESSION_READ")
                         .requestMatchers(HttpMethod.POST, "/api/v1/gaming-operations/stations/*/prepare").hasAuthority("GAMING_SESSION_TERMINATE")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/gaming-sessions/*/finish").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/gaming-sessions/*/move", "/api/v1/gaming-sessions/*/complete-move").hasAuthority("GAMING_SESSION_EXTEND")
                         .requestMatchers(HttpMethod.GET, "/api/v1/gaming-sessions/me", "/api/v1/gaming-sessions/me/history", "/api/v1/gaming-sessions/me/active")
                         .hasAuthority("RESERVATION_READ_OWN")

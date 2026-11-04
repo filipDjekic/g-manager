@@ -1,3 +1,4 @@
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { usePagedQuery } from '../query/usePagedQuery'
 import { Pagination, Skeleton, EmptyState } from '../components/ui'
 import type { FinancialOperation, WalletLedgerEntry, TimePackage } from '../api/gamingBillingApi'
@@ -11,7 +12,8 @@ import { Alert, Button, Input, Select } from '../components/ui'
 import { useFinancialCommand } from './useFinancialCommand'
 export function GamingWalletPanel({ customerId }: { customerId: string }) {
   const actor = useAuthStore(s => s.user), manage = hasCapability(actor, 'GAMING_PAYMENT_RECORD')
-  const wallet = useQuery({ queryKey: ['gaming-wallet', customerId], queryFn: () => gamingBillingApi.wallet(customerId) })
+  const wallet = useQuery({ queryKey: ['gaming-wallet', customerId], queryFn: () => gamingBillingApi.wallet(customerId), refetchInterval: 5000 })
+  const [finishId, setFinishId] = useState<string | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
   const ledger = usePagedQuery(['gaming-wallet', customerId, 'ledger'], (page, size) => gamingBillingApi.walletHistory<WalletLedgerEntry>(customerId, 'ledger', page, size), 10, historyOpen)
   const transactions = usePagedQuery(['gaming-wallet', customerId, 'transactions'], (page, size) => gamingBillingApi.walletHistory<FinancialOperation>(customerId, 'transactions', page, size), 10, historyOpen)
@@ -42,6 +44,8 @@ export function GamingWalletPanel({ customerId }: { customerId: string }) {
         {packages.data && <Pagination label="Stranice vremenskih paketa" page={packages.page} onPageChange={packages.setPage} totalPages={packages.data.totalPages} totalElements={packages.data.totalElements} pageSize={10} loading={packages.isFetching} />}
       </details>
     </>}
+    {wallet.data?.meteredSessions?.map(s => <article key={s.id} className="ui-card"><strong>{s.resource_name} - {s.status === 'ACTIVE' ? 'Prepaid igranje' : 'Zavrseno'}</strong><p>{s.billed_seconds} s ? {s.charged_amount} RSD</p>{s.status === 'ACTIVE' && <><p>Procenjeno preostalo: {Math.max(0, Math.floor((Date.parse(s.ends_at) - Date.parse(wallet.data!.serverTime!)) / 60000))} min</p>{Number(wallet.data?.balance) < 100 && <Alert tone="danger">Nizak kredit. Dopunite nalog.</Alert>}{actor?.id === customerId && <Button disabled={command.locked} onClick={() => setFinishId(s.id)}>Zavrsi igranje</Button>}</>}</article>)}
+    <ConfirmDialog open={!!finishId} title="Zavrsi igranje" description="Preostali kredit ostaje na nalogu. Naplacuje se potroseno vreme." confirmLabel="Zavrsi igranje" onClose={() => setFinishId(null)} onConfirm={async () => { if(finishId) { await gamingSessionApi.finish(finishId); await wallet.refetch() } }} />
     {manage && <form className="ui-form-grid" onSubmit={e => { e.preventDefault(); const payment = { method, amount: action === 'packages' ? String(tariff?.price ?? '') : amount, reference }; const body = action === 'packages' ? { resourceId, tariffId, tariffVersion: tariff?.version, payment } : action === 'adjustments' ? { resourceId, amount, reason } : action === 'refunds' ? { paymentId, amount, reason } : { resourceId, payment, reason }; void command.run(key => gamingBillingApi.walletChange(customerId, action, body, key)) }}>
       {command.feedback}{action === 'refunds' && refundable.error && <Alert tone="danger">Uplate za refundaciju nisu dostupne. <Button type="button" onClick={() => void refundable.refetch()}>Osvezi</Button></Alert>}<fieldset disabled={command.locked}><legend>Evidentiranje operacije</legend>
         <label>Operacija<Select value={action} onChange={e => setAction(e.target.value as typeof action)}><option value="topups">Dopuna kredita</option><option value="packages">Kupovina paketa vremena</option>{hasCapability(actor, 'GAMING_FINANCE_MANAGE') && <><option value="adjustments">Privilegovana korekcija kredita</option><option value="refunds">Refundacija neiskoriscene dopune / paketa</option></>}</Select></label>

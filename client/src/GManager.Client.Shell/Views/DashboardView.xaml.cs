@@ -30,6 +30,7 @@ public partial class DashboardView : UserControl, INotifyPropertyChanged
     bool profileReady, warning15, warning5, connectionKnown, lastConnected, navigating;
     ClientMode? lastMode;
     DateTimeOffset? toastUntil;
+    ClientViewState? latestState;
     string search = "", customerName = "Korisnik", remainingText = "-:-:-", endsText = "Podatak nije dostupan";
     string sessionStatus = "Sesija je aktivna", connectionLabel = "Provera veze", connectionDetail = "Povezivanje sa servisom…";
     string localTime = "", localDate = "", timerMessage = "Vreme prema aktivnoj sesiji", toast = "";
@@ -50,6 +51,7 @@ public partial class DashboardView : UserControl, INotifyPropertyChanged
     public string CustomerName { get => customerName; private set { if (Set(ref customerName, value)) { Changed(nameof(WelcomeText)); Changed(nameof(Initials)); } } }
     public string WelcomeText => $"Dobro došao, {CustomerName}!";
     public string Initials => string.Concat(CustomerName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => StringInfo.GetNextTextElement(x))).ToUpper(LocalCulture);
+    public string FinishLabel => latestState?.BillingMode == "PREPAID_METERED" ? "Zavrsi igranje" : "Odjavi se";
     public string RemainingText { get => remainingText; private set => Set(ref remainingText, value); }
     public string EndsText { get => endsText; private set => Set(ref endsText, value); }
     public string SessionStatus { get => sessionStatus; private set => Set(ref sessionStatus, value); }
@@ -101,6 +103,7 @@ public partial class DashboardView : UserControl, INotifyPropertyChanged
     public void UpdateSession(ClientViewState state, IReadOnlyList<ClientApplication> applications, TimeSpan remaining,
         bool available, bool busy)
     {
+        latestState = state;Changed(nameof(FinishLabel));
         if (state.SessionId != sessionId)
         {
             FlushPreferences();
@@ -151,6 +154,11 @@ public partial class DashboardView : UserControl, INotifyPropertyChanged
             1 => "Za produženje sesije obrati se osoblju.",
             _ => "Ukupno trajanje nije dostupno · vreme prema servisu"
         };
+        if(latestState?.BillingMode == "PREPAID_METERED") {
+            var elapsed = latestState.StartedAt is DateTimeOffset started ? DateTimeOffset.UtcNow + latestState.ServerOffset - started : TimeSpan.Zero;
+            TimerMessage = $"Igranje: {(int)Math.Max(0,elapsed.TotalMinutes)} min | Potrosnja: {latestState.ChargedAmount:0.00} RSD | Kredit: {latestState.Balance:0.00} RSD";
+            if(level == 3) SessionStatus = latestState.AccessEndReason == "BOUNDARY" ? "Prepaid pristup je zavrsen" : "Prepaid kredit je potrosen";
+        }
         if (remaining.TotalMinutes > 15) warning15 = false;
         if (remaining.TotalMinutes >= 5) warning5 = false;
         if (!known || !ProfileReady || !Preferences.ExpiryWarning || sessionId is null) return;

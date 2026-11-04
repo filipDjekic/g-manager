@@ -6,6 +6,7 @@ import type { GamingOperationsBoard, GamingSession, GamingSessionEvent, GamingSe
 
 const command = (key:string) => ({ headers:{ 'Idempotency-Key':key } })
 export const gamingSessionApi = {
+  finish: (id: string) => apiClient.post(`/gaming-sessions/${id}/finish`).then(r => r.data),
   health: () => apiClient.get<{ checkedAt:string;backend:string;database:string;financialLedger:string;backup?:string }>('/gaming-operations/health').then(({data})=>data),
   myHistory: (page: number, size: number) => apiClient.get<PageResponse<GamingSessionVisit>>('/gaming-sessions/me/history', { params: { page, size } }).then(({data}) => data),
   customerHistory: (id: string, page: number, size: number) => apiClient.get<PageResponse<GamingSessionVisit>>(`/gaming-sessions/customer/${id}/history`, { params: { page, size } }).then(({data}) => data),

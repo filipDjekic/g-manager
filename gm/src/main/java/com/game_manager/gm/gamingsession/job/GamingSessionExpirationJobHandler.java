@@ -32,6 +32,7 @@ public class GamingSessionExpirationJobHandler implements JobHandler {
         var due = sessions.findDueForUpdate(GamingSessionStatus.ACTIVE, now, PageRequest.of(0, BATCH_SIZE));
         for (GamingSession session : due) {
             context.checkCancellation();
+            if(session.getBillingMode()==GamingBillingMode.PREPAID_METERED) continue;
             if (session.getStatus() != GamingSessionStatus.ACTIVE || session.getEndsAt().isAfter(now)) continue;
             session.setStatus(GamingSessionStatus.EXPIRED); session.setEndedAt(now);
             session = sessions.saveAndFlush(session);

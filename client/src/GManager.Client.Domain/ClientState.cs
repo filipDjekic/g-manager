@@ -1,7 +1,7 @@
 namespace GManager.Client.Domain;
 public enum ClientMode { Locked, Login, Active, Offline, Maintenance }
 public sealed record SessionSnapshot(Guid StationId,Guid? SessionId,DateTimeOffset? EndsAt,DateTimeOffset ServerTime,long CommandCursor,string StationStatus);
-public sealed record ClientViewState(ClientMode Mode,string Connectivity,string Heading,Guid? SessionId,string? CustomerName,DateTimeOffset? EndsAt,TimeSpan ServerOffset,bool? ServerConnected=null,bool GuestSession=false)
+public sealed record ClientViewState(ClientMode Mode,string Connectivity,string Heading,Guid? SessionId,string? CustomerName,DateTimeOffset? EndsAt,TimeSpan ServerOffset,bool? ServerConnected=null,bool GuestSession=false,string? BillingMode=null,DateTimeOffset? StartedAt=null,decimal? Balance=null,decimal? ChargedAmount=null,string? AccessEndReason=null)
 {
  public static ClientViewState Locked(string connectivity="Povezivanje sa serverom")=>new(ClientMode.Locked,connectivity,"Stanica je zaključana",null,null,null,TimeSpan.Zero);
  public TimeSpan Remaining(DateTimeOffset localNow)=>EndsAt is null?TimeSpan.Zero:EndsAt.Value-(localNow+ServerOffset);

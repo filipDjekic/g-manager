@@ -51,6 +51,7 @@ class GamingBillingIntegrationTest extends GamingSessionIntegrationTest {
         var body=startBody(station,null,"CASH","200.00");String key=UUID.randomUUID().toString();
         var first=call(post("/api/v1/gaming-sessions").header("Idempotency-Key",key),token,body,201);
         String id=first.get("id").asText();
+        call(get("/api/v1/gaming-operations/board"),token,null,200);
         call(post("/api/v1/gaming-sessions").header("Idempotency-Key",key),token,body,201);
         jdbc.update("UPDATE idempotency_keys SET expires_at=?",Timestamp.from(Instant.now().minusSeconds(3600)));idempotency.cleanupExpired();
         call(post("/api/v1/gaming-sessions").header("Idempotency-Key",key),token,body,201);
@@ -109,9 +110,10 @@ class GamingBillingIntegrationTest extends GamingSessionIntegrationTest {
         jdbc.update("UPDATE gaming_time_packages SET expires_at=NULL");
         jdbc.update("UPDATE gaming_tariffs SET active=FALSE,price=999,version=version+1");
         postCommand("/api/v1/gaming-sessions",token,body,201);
-        wallet=call(get(base),token,null,200);assertThat(wallet.get("packages").get(0).get("remaining_minutes").asInt()).isZero();
+        wallet=call(get(base),token,null,200);assertThat(wallet.get("packages").isEmpty()).isTrue();
+        assertThat(call(get(base+"/history/packages"),token,null,200).get("content").get(0).get("remaining_minutes").asInt()).isZero();
         jdbc.update("UPDATE gaming_business_policy SET allow_refunds=TRUE");
-        String original=wallet.get("transactions").get(0).get("id").asText();
+        String original=call(get("/api/v1/gaming-billing/customers/"+customer.getId()+"/history/transactions"),token,null,200).get("content").get(0).get("id").asText();
         postCommand(base+"/refunds",token,Map.of("paymentId",original,"amount","100","reason","Attempt used package refund"),422);
     }
     @Test void transferWaitsForRealLockAndPreservesTimeWithoutAnotherCharge() throws Exception {
@@ -193,7 +195,7 @@ class GamingBillingIntegrationTest extends GamingSessionIntegrationTest {
     @Test void authorizedRefundDoesNotRequireAnActiveGamingAccount() throws Exception {
         var owner=user(Role.OWNER);var customer=user(Role.CUSTOMER);var station=station();String token=token(owner);
         var wallet=postCommand("/api/v1/gaming-billing/customers/"+customer.getId()+"/topups",token,Map.of("resourceId",station.resource().getId(),"payment",payment("CASH","120"),"reason","Received cash top-up"),200);
-        String original=wallet.get("transactions").get(0).get("id").asText();customer.setActive(false);users.saveAndFlush(customer);
+        String original=call(get("/api/v1/gaming-billing/customers/"+customer.getId()+"/history/transactions"),token,null,200).get("content").get(0).get("id").asText();customer.setActive(false);users.saveAndFlush(customer);
         jdbc.update("UPDATE gaming_business_policy SET allow_refunds=TRUE");
         wallet=postCommand("/api/v1/gaming-billing/customers/"+customer.getId()+"/refunds",token,Map.of("paymentId",original,"amount","60","reason","Returning unused credit after account deactivation"),200);
         assertThat(wallet.get("balance").decimalValue()).isEqualByComparingTo("60.00");

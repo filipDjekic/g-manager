@@ -8,12 +8,16 @@ export interface Tariff { id: string; name: string; serviceId?: string; minutes:
 export interface BillingPolicy { allowPartialPayment: boolean; allowDebt: boolean; allowRefunds: boolean; minimumMinutes: number; maximumMinutes: number; employeeDiscountLimit: Money; version: number }
 export interface Quote { tariffId: string; tariffVersion: number; tariffName: string; minutes: number; gross: Money; discount: Money; total: Money; currency: string; rule: string }
 export interface FinancialOperation { id: string; amount: Money; currency: string; kind: string; method: string; status: string; reason?: string; reference?: string; created_at: string }
-export interface Account { sessionId: string; due: Money; currency: string; receiptType: string; charges: { id: string; amount: Money; minutes: number; snapshot: string }[]; transactions: FinancialOperation[] }
+export interface Account { sessionId: string; due: Money; currency: string; receiptType: string; charges: { id: string; amount: Money; minutes: number; billed_seconds?: number; snapshot: string }[]; transactions: FinancialOperation[] }
 export interface TimePackage { id: string; remaining_minutes: number; minutes: number; price: Money; expires_at?: string; service_id?: string; tariff_id: string }
 export interface WalletLedgerEntry { id: string; kind: string; amount: Money; minutes: number; created_at: string; reason?: string }
-export interface Wallet { serverTime?: string; customerId: string; balance: Money; currency: string; packages: TimePackage[];  }
+export interface MeteredPolicy { allowFixed: boolean; allowMetered: boolean; defaultMode: 'FIXED_DURATION' | 'PREPAID_METERED'; billingUnitSeconds: number }
+export interface MeteredVisit { id: string; resource_name: string; started_at: string; ends_at: string; status: string; billed_seconds: number; charged_amount: Money; termination_reason?: string }
+export interface Wallet { meteredSessions?: MeteredVisit[]; serverTime?: string; customerId: string; balance: Money; currency: string; packages: TimePackage[];  }
 const headers = (key: string) => ({ headers: { 'Idempotency-Key': key } })
 export const gamingBillingApi = {
+  meteredPolicy: () => apiClient.get<MeteredPolicy>('/gaming-billing/metered-policy').then(r => r.data),
+  saveMeteredPolicy: (p: MeteredPolicy) => apiClient.put<MeteredPolicy>('/gaming-billing/metered-policy', p).then(r => r.data),
   tariffPage: (page: number, size: number) => apiClient.get<PageResponse<Tariff>>('/gaming-billing/tariffs/page', { params: { page, size } }).then(r => r.data),
   refundableWalletPayments: (id: string) => apiClient.get<FinancialOperation[]>(`/gaming-billing/customers/${id}/refundable-payments`).then(r => r.data),
   walletHistory: <T,>(id: string, kind: string, page: number, size: number) => apiClient.get<PageResponse<T>>(`/gaming-billing/customers/${id}/history/${kind}`, { params: { page, size } }).then(r => r.data),

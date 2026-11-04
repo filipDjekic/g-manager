@@ -55,16 +55,16 @@ class GamingSessionIntegrationTest {
         User employee=user(Role.EMPLOYEE), unrelated=user(Role.EMPLOYEE), customer=user(Role.CUSTOMER), other=user(Role.CUSTOMER);
         Station station=station(); assign(employee,station.resource().getId()); String token=login(employee);
         start(token,startBody(customer,station.resource(),60),new CountDownLatch(0),new CountDownLatch(0));
-        mvc.perform(get("/api/v1/gaming-sessions/me").header("Authorization",bearer(login(customer))))
+        mvc.perform(get("/api/v1/gaming-sessions/me/active").header("Authorization",bearer(login(customer))))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].resourceName").value("Gaming PC"));
-        mvc.perform(get("/api/v1/gaming-sessions/me").header("Authorization",bearer(login(other))))
+        mvc.perform(get("/api/v1/gaming-sessions/me/active").header("Authorization",bearer(login(other))))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
-        mvc.perform(get("/api/v1/gaming-sessions/customer/{id}",customer.getId()).header("Authorization",bearer(login(customer))))
+        mvc.perform(get("/api/v1/gaming-sessions/customer/{id}/active",customer.getId()).header("Authorization",bearer(login(customer))))
                 .andExpect(status().isForbidden());
-        mvc.perform(get("/api/v1/gaming-sessions/customer/{id}",customer.getId()).header("Authorization",bearer(login(unrelated))))
+        mvc.perform(get("/api/v1/gaming-sessions/customer/{id}/active",customer.getId()).header("Authorization",bearer(login(unrelated))))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
-        mvc.perform(get("/api/v1/gaming-sessions/customer/{id}",customer.getId()).header("Authorization",bearer(token)))
+        mvc.perform(get("/api/v1/gaming-sessions/customer/{id}/active",customer.getId()).header("Authorization",bearer(token)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
     }
 

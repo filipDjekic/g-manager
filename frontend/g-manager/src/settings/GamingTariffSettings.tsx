@@ -32,6 +32,7 @@ export function GamingTariffSettings() {
         <Button type="submit">Sacuvaj tarifu</Button>{editing.id && <Button type="button" variant="secondary" onClick={() => setEditing(fresh)}>Nova tarifa</Button>}
       </fieldset>
     </form>
+    <MeteredPolicyEditor />
     {policy.data && <PolicyEditor key={policy.data.version} initial={policy.data} />}
   </section>
 }
@@ -46,4 +47,17 @@ function PolicyEditor({ initial }: { initial: BillingPolicy }) {
       <Button type="submit">Potvrdi poslovna pravila</Button>
     </fieldset>
   </form>
+}
+
+function MeteredPolicyEditor() {
+  const query = useQuery({ queryKey: ['gaming-billing', 'metered-policy'], queryFn: gamingBillingApi.meteredPolicy })
+  const [draft, setDraft] = useState<import('../api/gamingBillingApi').MeteredPolicy>()
+  const command = useFinancialCommand(), p = draft ?? query.data
+  if (!p) return null
+  return <form onSubmit={e => { e.preventDefault(); void command.run(() => gamingBillingApi.saveMeteredPolicy(p)) }}><fieldset disabled={command.locked}><legend>Rezimi naplate</legend>{command.feedback}
+    <label><Input type="checkbox" checked={p.allowFixed} onChange={e => setDraft({ ...p, allowFixed: e.target.checked })} /> Unapred kupljeno vreme</label>
+    <label><Input type="checkbox" checked={p.allowMetered} onChange={e => setDraft({ ...p, allowMetered: e.target.checked })} /> Prepaid po stvarnom vremenu</label>
+    <label>Podrazumevani rezim<Select value={p.defaultMode} onChange={e => setDraft({ ...p, defaultMode: e.target.value as typeof p.defaultMode })}><option value="FIXED_DURATION">Unapred kupljeno vreme</option><option value="PREPAID_METERED">Prepaid po stvarnom vremenu</option></Select></label>
+    <label>Obracunska jedinica (sekunde)<Input type="number" required min={1} max={3600} value={p.billingUnitSeconds} onChange={e => setDraft({ ...p, billingUnitSeconds: Number(e.target.value) })} /></label><p>Zapoceta jedinica naplacuje se u celosti. Podrazumevano: 1 sekunda.</p><Button type="submit">Sacuvaj rezime naplate</Button>
+  </fieldset></form>
 }

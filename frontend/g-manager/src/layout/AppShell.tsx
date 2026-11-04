@@ -2,14 +2,11 @@ import { useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { authApi } from '../api/authApi'
 import { useAuthStore } from '../auth/authStore'
-import { hasCapability } from '../auth/capabilities'
 import { Button, Drawer } from '../components/ui'
-import { Select } from '../components/ui'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
 import { useToast } from '../components/ui/toastContext'
 import { AccountAvatar } from '../components/AccountAvatar'
 import { roleLabels } from '../components/ui/statusPresentation'
-import { useUiPreferences } from '../preferences/uiPreferencesContext'
 import { CommandPalette } from '../search/CommandPalette'
 import { NotificationCenter } from '../notification/NotificationCenter'
 import { ConnectivityBanner } from '../pwa/ConnectivityBanner'
@@ -19,6 +16,7 @@ import { homeForUser, navigationActive, navigationFor } from './navigation'
 import { WorkspaceNavigation } from './WorkspaceNavigation'
 import { NavigationIcon } from './NavigationIcon'
 import { BrandLogo } from './BrandLogo'
+import { AccountDrawer } from './AccountDrawer'
 
 function Navigation({ close, bottom = false }: { close?: () => void; bottom?: boolean }) {
   const user = useAuthStore(state => state.user), flags = useFeatureStore(state => state.flags), location = useLocation()
@@ -31,20 +29,6 @@ function Navigation({ close, bottom = false }: { close?: () => void; bottom?: bo
         <NavigationIcon to={item.to.split('?')[0]} /><span>{item.label}</span></Link>)}</div>
     </section>)}
   </nav>
-}
-
-function PreferenceControls() {
-  const { theme, density, setTheme, setDensity } = useUiPreferences()
-  return <div className="shell-preferences">
-    <label className="preference-control">Tema<Select aria-label="Tema" value={theme}
-      onChange={(event) => setTheme(event.target.value as 'light' | 'dark')}>
-      <option value="dark">Tamna</option><option value="light">Svetla</option>
-    </Select></label>
-    <label className="preference-control">Prikaz<Select aria-label="Gustina prikaza" value={density}
-      onChange={(event) => setDensity(event.target.value as 'compact' | 'comfortable')}>
-      <option value="comfortable">Komforan</option><option value="compact">Kompaktan</option>
-    </Select></label>
-  </div>
 }
 
 export function AppShell() {
@@ -90,14 +74,8 @@ export function AppShell() {
     <Drawer open={menuOpen} title="Navigacija" onClose={() => setMenuOpen(false)}><div id="mobile-navigation" className="mobile-navigation-content">
       <p className="mobile-user"><strong>{user?.name}</strong><span>{userLabel}</span></p><Navigation close={() => setMenuOpen(false)} />
     </div></Drawer>
-    <Drawer open={accountOpen} title="Moj nalog" onClose={() => setAccountOpen(false)} closeDisabled={isLoggingOut}>
-      <div className="form-grid"><div><strong>{user?.name}</strong><p>{user?.email}</p><small>{userLabel}</small></div>
-        {hasCapability(user, 'PROFILE_READ') && <><Link onClick={() => setAccountOpen(false)} to="/profile">Lični podaci →</Link>
-          <Link onClick={() => setAccountOpen(false)} to="/sessions">Bezbednost i prijavljeni uređaji →</Link>
-          <Link onClick={() => setAccountOpen(false)} to="/notification-preferences">Podešavanja obaveštenja →</Link></>}
-        <PreferenceControls /><Button variant="danger" onClick={logout} loading={isLoggingOut}>Odjavi se</Button>
-      </div>
-    </Drawer>
+    <AccountDrawer user={user} open={accountOpen} onClose={() => setAccountOpen(false)}
+      onLogout={logout} loggingOut={isLoggingOut} />
     <div className="shell-content"><WorkspaceNavigation /><Outlet key={[user?.id,user?.role,...user?.permissions??[]].join(':')} /></div>
     {user?.role === 'CUSTOMER' && <Navigation bottom />}
   </div>

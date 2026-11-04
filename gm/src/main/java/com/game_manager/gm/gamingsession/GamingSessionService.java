@@ -43,9 +43,12 @@ public class GamingSessionService {
     @PreAuthorize("hasAuthority('GAMING_SESSION_START')")
     public GamingSessionResponse start(StartGamingSessionRequest request) {
         AuthenticatedUser actor = currentUser.requireCurrentUser();
-        if (request.durationMinutes()==null || request.durationMinutes()<billing.policy().minimumMinutes() || request.durationMinutes()>billing.policy().maximumMinutes())
+        var mode=request.billingMode()==null?billing.meteredPolicy().defaultMode():request.billingMode();
+        boolean metered=mode==GamingBillingMode.PREPAID_METERED;
+        if(!metered && !billing.meteredPolicy().allowFixed()) throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Fixed duration disabled");
+        if (!metered && (request.durationMinutes()==null || request.durationMinutes()<billing.policy().minimumMinutes() || request.durationMinutes()>billing.policy().maximumMinutes()))
             throw new ApplicationException(HttpStatus.BAD_REQUEST,"Duration is outside configured billing policy");
-        Duration duration = Duration.ofMinutes(request.durationMinutes());
+        Duration duration = metered?Duration.ofSeconds(1):Duration.ofMinutes(request.durationMinutes());
         if(request.customerId()==null && (request.reservationId()!=null || request.guestName()==null || request.guestName().isBlank()))
             throw new ApplicationException(HttpStatus.UNPROCESSABLE_ENTITY,"Guest label is required and guest sessions cannot claim customer reservations");
         if(request.customerId()!=null && request.guestName()!=null)
@@ -64,19 +67,21 @@ public class GamingSessionService {
             throw new ApplicationException(HttpStatus.CONFLICT, "Customer already has an active gaming session");
         if (sessions.existsByResourceIdAndStatus(resource.getId(), GamingSessionStatus.ACTIVE) || sessions.existsByMoveTargetIdAndStatus(resource.getId(),GamingSessionStatus.ACTIVE))
             throw new ApplicationException(HttpStatus.CONFLICT, "Station already has an active gaming session");
+        if(metered) stationReadiness.requireManagedClient(resource.getId());
         stationReadiness.requireReadyForSession(resource.getId());
         if(customer==null) stationReadiness.requireGuestClient(resource.getId());
         Reservation reservation = validateReservation(request.reservationId(), request.customerId(),
                 resource.getId(), locationId);
         Instant now = clock.instant();
-        bookingAvailability.requireResourceReservationAvailableForUpdate(resource.getId(),now,now.plus(duration),
-                reservation==null?null:reservation.getId());
+
         GamingSession session = new GamingSession();
         session.setCustomerId(request.customerId()); session.setGuestName(customer==null?request.guestName().trim():null); session.setResourceId(resource.getId());
         session.setLocationId(locationId); session.setReservationId(reservation == null ? null : reservation.getId());
         session.setStartedBy(actor.id()); session.setStartedAt(now); session.setEndsAt(now.plus(duration));
+        if(metered) session.setEndsAt(now.plusSeconds(billing.prepareMetered(session,request.meteredTariffId())));
+        bookingAvailability.requireResourceReservationAvailableForUpdate(resource.getId(),now,session.getEndsAt(),reservation==null?null:reservation.getId());
         session.setStatus(GamingSessionStatus.ACTIVE); session = sessions.saveAndFlush(session);
-        billing.charge(session,request.durationMinutes(),request.purchase());
+        if(!metered) billing.charge(session,request.durationMinutes(),request.purchase());
         preparation.occupied(session.getResourceId(),session.getId());
         long commandSequence = commands.write(session, StationCommandType.SESSION_STARTED);
         session = sessions.saveAndFlush(session);
@@ -99,7 +104,8 @@ public class GamingSessionService {
         locations.requireResourceManagement(actor,reference.getResourceId(),Permission.GAMING_SESSION_EXTEND);
         if(reference.getCustomerId()!=null) users.findByIdForUpdate(reference.getCustomerId());
         resources.lockResource(reference.getResourceId());
-        GamingSession session=locked(id);entityManager.refresh(session,jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        entityManager.refresh(reference,jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);GamingSession session=reference;
+        requireFixed(session);
         version(session, request.version()); Instant previousEnd = session.getEndsAt();
         transitions.requireActive(session);
         if(session.getMoveTargetId()!=null || !session.getEndsAt().isAfter(clock.instant()))
@@ -131,9 +137,11 @@ public class GamingSessionService {
         locations.requireResourceManagement(actor,reference.getResourceId(),Permission.GAMING_SESSION_TERMINATE);
         if(reference.getCustomerId()!=null) users.findByIdForUpdate(reference.getCustomerId());
         resources.lockResource(reference.getResourceId());
-        GamingSession session=locked(id);entityManager.refresh(session,jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
-        version(session, request.version()); transitions.requireActive(session); Instant now = clock.instant();
-        session.setStatus(GamingSessionStatus.TERMINATED); session.setEndedAt(now);
+        entityManager.refresh(reference,jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);GamingSession session=reference;
+        if(session.getBillingMode()==GamingBillingMode.PREPAID_METERED && session.getStatus()!=GamingSessionStatus.ACTIVE) return GamingSessionResponse.from(session,clock.instant());
+        if(session.getBillingMode()!=GamingBillingMode.PREPAID_METERED) version(session, request.version()); transitions.requireActive(session); Instant now = clock.instant();
+        billing.billMetered(session,now);
+        session.setStatus(GamingSessionStatus.TERMINATED); session.setEndedAt(session.getBillingMode()==GamingBillingMode.PREPAID_METERED?session.getLastBilledAt():now);
         session.setTerminationReason(request.reason().trim()); session = sessions.saveAndFlush(session);
         long commandSequence = commands.write(session, StationCommandType.SESSION_TERMINATED);
         session = sessions.saveAndFlush(session);
@@ -148,6 +156,24 @@ public class GamingSessionService {
         return GamingSessionResponse.from(session, now);
     }
 
+    private void requireFixed(GamingSession s) {
+        if(s.getBillingMode()==GamingBillingMode.PREPAID_METERED) throw new ApplicationException(HttpStatus.CONFLICT,"End metered gaming and start a new session to change station or tariff");
+    }
+    @Transactional(isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
+    @PreAuthorize("isAuthenticated()")
+    public GamingSessionResponse finishOwnMetered(UUID id) {
+        var actor=currentUser.requireCurrentUser();
+        var ref=sessions.findById(id).orElseThrow(()->new ApplicationException(HttpStatus.NOT_FOUND,"Session not found"));
+        if(actor.role()!=Role.CUSTOMER || !actor.id().equals(ref.getCustomerId()) || ref.getBillingMode()!=GamingBillingMode.PREPAID_METERED) throw new ApplicationException(HttpStatus.FORBIDDEN,"Own metered session required");
+        users.findByIdForUpdate(actor.id());resources.lockResource(ref.getResourceId());entityManager.refresh(ref,jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);var s=ref;
+        if(s.getStatus()==GamingSessionStatus.ACTIVE) {
+            billing.billMetered(s,clock.instant());s.setStatus(GamingSessionStatus.TERMINATED);s.setEndedAt(s.getLastBilledAt());s.setTerminationReason("Customer finished gaming");
+            sessions.saveAndFlush(s);long sequence=commands.write(s,StationCommandType.SESSION_TERMINATED);sessions.saveAndFlush(s);
+            outbox.write(DomainEventType.GAMING_SESSION_TERMINATED,"GAMING_SESSION",s.getId(),Map.of("resourceId",s.getResourceId(),"locationId",s.getLocationId(),"endedAt",s.getEndedAt(),"commandSequence",sequence));
+            audit.write("GAMING_SESSION_TERMINATED","GAMING_SESSION",s.getId(),null,Map.of("chargedAmount",s.getChargedAmount(),"billedSeconds",s.getBilledSeconds()),"Customer finished gaming",AuditVisibility.MANAGEMENT);
+        }
+        return GamingSessionResponse.from(s,clock.instant());
+    }
     @Transactional(readOnly = true)
     @PreAuthorize("hasAuthority('GAMING_SESSION_READ')")
     public GamingSessionResponse get(UUID id) {
@@ -214,6 +240,7 @@ public class GamingSessionService {
     public GamingSessionResponse move(UUID id,MoveRequest request) {
         GamingSession session=lockForMove(id,request.targetResourceId());version(session,request.version());
         transitions.requireActive(session);
+        requireFixed(session);
         if(session.getMoveTargetId()==null && !session.getEndsAt().isAfter(clock.instant()) || session.getResourceId().equals(request.targetResourceId()))
             throw new ApplicationException(HttpStatus.CONFLICT,"Session cannot be moved in its current state");
         PhysicalResource source=resources.lockGamingStation(session.getResourceId());

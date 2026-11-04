@@ -82,4 +82,19 @@ describe('gaming session start transactions', () => {
     expect(body).not.toHaveProperty('customerId')
   })
 
+  it('starts metered gaming without advance payment or a purchased duration', async () => {
+    let body: Record<string, unknown> | undefined
+    server.use(http.get('/api/v1/gaming-billing/metered-policy', () => HttpResponse.json({ allowFixed: true, allowMetered: true, defaultMode: 'PREPAID_METERED', billingUnitSeconds: 1 })),
+      http.get('/api/v1/gaming-billing/customers/customer-1', () => HttpResponse.json({ customerId: customer.id, balance: '1000', packages: [] })),
+      http.post('/api/v1/gaming-sessions', async ({ request }) => { body = await request.json() as Record<string, unknown>; return HttpResponse.json({ id: 'metered-session' }) }))
+    const { onClose } = form(true), user = userEvent.setup()
+    const confirm = await screen.findByRole('button', { name: 'Pokreni prepaid igranje' })
+    await waitFor(() => expect(confirm).toBeEnabled())
+    expect(screen.queryByLabelText('Trajanje u minutima')).not.toBeInTheDocument()
+    await user.click(confirm)
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+    expect(body).toMatchObject({ billingMode: 'PREPAID_METERED', meteredTariffId: 'tariff-1', customerId: customer.id })
+    expect(body).not.toHaveProperty('purchase'); expect(body).not.toHaveProperty('durationMinutes')
+  })
+
 })

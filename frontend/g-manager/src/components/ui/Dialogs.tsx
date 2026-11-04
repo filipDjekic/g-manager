@@ -118,18 +118,19 @@ export function Modal({ open, title, children, onClose, initialFocusRef, returnF
   </div>, document.body)
 }
 
-export function Drawer({ open, title, children, onClose, returnFocusRef, size = 'standard', closeDisabled = false, className = '' }: {
+export function Drawer({ open, title, children, onClose, returnFocusRef, size = 'standard', closeDisabled = false, className = '', titleIcon }: {
   open: boolean; title: string; children: ReactNode; onClose: () => void
   returnFocusRef?: React.RefObject<HTMLElement | null>
   size?: 'standard' | 'wide'
   closeDisabled?: boolean
   className?: string
+  titleIcon?: ReactNode
 }) {
   if (!open) return null
   return createPortal(<div className="ui-overlay ui-overlay--drawer" onMouseDown={(event) => {
     if (event.target === event.currentTarget) { event.preventDefault(); if (!closeDisabled) onClose() }
   }}>
-    <DialogSurface title={title} onClose={onClose} closeDisabled={closeDisabled} className={`ui-drawer${size === 'wide' ? ' ui-drawer--wide' : ''} ${className}`} returnFocusRef={returnFocusRef}>{children}</DialogSurface>
+    <DialogSurface title={title} titleIcon={titleIcon} onClose={onClose} closeDisabled={closeDisabled} className={`ui-drawer${size === 'wide' ? ' ui-drawer--wide' : ''} ${className}`} returnFocusRef={returnFocusRef}>{children}</DialogSurface>
   </div>, document.body)
 }
 

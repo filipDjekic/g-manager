@@ -40,7 +40,7 @@ function StationFinanceDialog({ station, mode, onClose }: { station: GamingStati
     </form>}
     {mode === 'account' && account.data && <>
       <p><strong>Neplaceno: {account.data.due} RSD</strong></p><p>Interna evidencija - nije fiskalni racun. POS transakcije su evidentirane potvrde spoljnog terminala.</p>
-      <ul>{account.data.charges.map(c => <li key={c.id}>{c.minutes} min / {c.amount} RSD <details><summary>Pravila kupovine</summary><PriceSnapshot snapshot={c.snapshot} /></details></li>)}</ul>
+      <ul>{account.data.charges.map(c => <li key={c.id}>{c.billed_seconds != null ? `Do ${c.billed_seconds} s` : `${c.minutes} min`} / {c.amount} RSD <details><summary>Pravila kupovine</summary><PriceSnapshot snapshot={c.snapshot} /></details></li>)}</ul>
       <ul>{account.data.transactions.map(t => <li key={t.id}>{t.kind} - {t.amount} {t.currency} - {t.method} - {t.status} {t.reason} {t.reference && `POS referenca: ${t.reference}`} <small>Potvrda {t.id} - {t.created_at}</small></li>)}</ul>
       <form className="ui-form-grid" onSubmit={e => { e.preventDefault(); void command.run(key => original ? gamingBillingApi.refund(id, original, amount, reason, key) : gamingBillingApi.pay(id, { method, amount, reference }, key)) }}>
         {hasCapability(actor, 'GAMING_FINANCE_MANAGE') && <label>Operacija<Select value={original} disabled={command.locked} onChange={e => setOriginal(e.target.value)}><option value="">Nova uplata duga</option>{account.data.transactions.filter(t => t.kind === 'PAYMENT').map(t => <option key={t.id} value={t.id}>Refundacija {t.amount} RSD ({t.method})</option>)}</Select></label>}
