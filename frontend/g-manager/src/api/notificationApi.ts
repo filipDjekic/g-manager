@@ -4,7 +4,7 @@ import type { AppNotification, NotificationPage, NotificationPreference } from '
 import type { NavigationAction } from './searchApi'
 
 export const notificationApi = {
-  list: () => apiClient.get<NotificationPage>('/notifications').then(({ data }) => data),
+  list: (page = 0) => apiClient.get<NotificationPage>('/notifications', { params: { page } }).then(({ data }) => data),
   read: (id: string) => apiClient.patch<AppNotification>(`/notifications/${id}/read`).then(({ data }) => data),
   readAll: () => apiClient.patch('/notifications/read-all'),
   open: (id: string) => apiClient.get<{ action: NavigationAction }>(`/notifications/${id}/open`).then(({ data }) => data),

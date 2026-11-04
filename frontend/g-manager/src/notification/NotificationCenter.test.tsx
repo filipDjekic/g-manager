@@ -13,7 +13,7 @@ vi.mock('../api/notificationApi', () => ({
 
 describe('NotificationCenter', () => {
   beforeEach(() => {
-    vi.mocked(notificationApi.list).mockResolvedValue({ unreadCount: 1, notifications: [{ id: 'n1', type: 'ORDER_STATUS_CHANGED',
+    vi.mocked(notificationApi.list).mockResolvedValue({ page: 0, size: 5, totalElements: 1, totalPages: 1, unreadCount: 1, notifications: [{ id: 'n1', type: 'ORDER_STATUS_CHANGED',
       priority: 'NORMAL', title: 'Promenjen status', body: 'Narudžbina je završena.', read: false, createdAt: '2026-08-10T10:00:00Z', action: { kind: 'NAVIGATE', label: 'Otvori narudžbinu', url: '/my-orders?focus=1' } }] })
     vi.mocked(notificationApi.read).mockResolvedValue({ id: 'n1', type: 'ORDER_STATUS_CHANGED', priority: 'NORMAL', title: '', body: '', read: true, createdAt: '', action: null })
   })

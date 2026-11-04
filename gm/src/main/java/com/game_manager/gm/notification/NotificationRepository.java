@@ -4,6 +4,10 @@ import org.springframework.data.domain.Pageable; import org.springframework.data
 interface NotificationRepository extends JpaRepository<Notification,UUID> {
  List<Notification> findByRecipientIdAndInAppVisibleTrueOrderByCreatedAtDescIdDesc(UUID recipientId, Pageable pageable);
  Optional<Notification> findByIdAndRecipientId(UUID id, UUID recipientId);
+ long countByRecipientIdAndInAppVisibleTrue(UUID recipientId);
+ @org.springframework.data.jpa.repository.Modifying(clearAutomatically=true, flushAutomatically=true)
+ @Query("update Notification n set n.readAt=:now, n.updatedAt=:now, n.version=n.version+1 where n.recipientId=:recipient and n.inAppVisible=true and n.readAt is null")
+ int markAllRead(@Param("recipient") UUID recipient, @Param("now") Instant now);
  long countByRecipientIdAndInAppVisibleTrueAndReadAtIsNull(UUID recipientId);
  boolean existsBySourceEventIdAndRecipientIdAndType(UUID eventId, UUID recipientId, NotificationType type);
  @Query("select min(n.createdAt) from Notification n where n.readAt is null")

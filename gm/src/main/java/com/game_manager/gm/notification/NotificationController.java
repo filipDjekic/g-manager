@@ -1,7 +1,7 @@
 package com.game_manager.gm.notification;
 import com.game_manager.gm.notification.dto.*; import jakarta.validation.Valid; import java.util.List; import java.util.UUID; import lombok.RequiredArgsConstructor; import org.springframework.http.MediaType; import org.springframework.web.bind.annotation.*; import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RestController @RequestMapping("/api/v1/notifications") @RequiredArgsConstructor public class NotificationController {
- private final NotificationService service; @GetMapping public NotificationPageResponse list(){return service.list();}
+ private final NotificationService service; @GetMapping public NotificationPageResponse list(@RequestParam(defaultValue="0") int page){return service.list(page);}
  @PatchMapping("/{id}/read") public NotificationResponse read(@PathVariable UUID id){return service.read(id);}
  @PatchMapping("/read-all") @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT) public void readAll(){service.readAll();}
  @GetMapping("/{id}/open") public NotificationOpenResponse open(@PathVariable UUID id){return service.open(id);}

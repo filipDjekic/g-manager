@@ -53,14 +53,20 @@ public class NotificationService implements OutboxConsumer {
         for(Recipient recipient:recipients(type,message.aggregateId())) create(message,type,recipient,values);
     }
 
-    @Transactional(readOnly=true) public NotificationPageResponse list(){AuthenticatedUser actor=currentUser.requireCurrentUser();UUID recipient=actor.id();
-        return new NotificationPageResponse(notifications.findByRecipientIdAndInAppVisibleTrueOrderByCreatedAtDescIdDesc(recipient,PageRequest.of(0,50)).stream().map(n->response(actor,n)).toList(),
-                notifications.countByRecipientIdAndInAppVisibleTrueAndReadAtIsNull(recipient));}
+    @Transactional(readOnly=true) public NotificationPageResponse list(){return list(0);}
+    @Transactional(readOnly=true) public NotificationPageResponse list(int requestedPage){
+        if(requestedPage<0)throw new ApplicationException(HttpStatus.BAD_REQUEST,"Page must not be negative");
+        AuthenticatedUser actor=currentUser.requireCurrentUser();UUID recipient=actor.id();
+        int size=5;long total=notifications.countByRecipientIdAndInAppVisibleTrue(recipient);
+        int totalPages=(int)Math.min(Integer.MAX_VALUE,(total+size-1)/size);
+        int page=Math.min(requestedPage,Math.max(0,totalPages-1));
+        return new NotificationPageResponse(notifications.findByRecipientIdAndInAppVisibleTrueOrderByCreatedAtDescIdDesc(recipient,PageRequest.of(page,size)).stream().map(n->response(actor,n)).toList(),
+                notifications.countByRecipientIdAndInAppVisibleTrueAndReadAtIsNull(recipient),page,size,total,totalPages);
+    }
     @Transactional(readOnly=true) public List<NotificationResponse> attentionBetween(Instant from,Instant to,int limit){AuthenticatedUser actor=currentUser.requireCurrentUser();
         return notifications.attentionBetween(actor.id(),from,to,PageRequest.of(0,limit)).stream().map(n->response(actor,n)).toList();}
     @Transactional public NotificationResponse read(UUID id){AuthenticatedUser actor=currentUser.requireCurrentUser();Notification n=require(id,actor.id());if(n.getReadAt()==null)n.setReadAt(clock.instant());return response(actor,n);}
-    @Transactional public void readAll(){UUID recipient=currentUser.requireCurrentUser().id();notifications.findByRecipientIdAndInAppVisibleTrueOrderByCreatedAtDescIdDesc(recipient,PageRequest.of(0,200))
-            .stream().filter(n->n.getReadAt()==null).forEach(n->n.setReadAt(clock.instant()));}
+    @Transactional public void readAll(){notifications.markAllRead(currentUser.requireCurrentUser().id(),clock.instant());}
     @Transactional(readOnly=true) public NotificationOpenResponse open(UUID id){AuthenticatedUser actor=currentUser.requireCurrentUser();Notification n=require(id,actor.id());
         NavigationActionResponse action=action(actor,n).orElseThrow(()->new ApplicationException(HttpStatus.NOT_FOUND,"Notification resource is no longer available"));return new NotificationOpenResponse(action);}
 
