@@ -14,5 +14,5 @@ export function GamingVisitList({visits,staff=false,locale='sr-RS',showDuration=
     <p>{formatBusinessDateTime(visit.startedAt,false,locale)} - {formatBusinessDateTime(visit.endedAt??visit.endsAt,false,locale)}</p>
     {showDuration && <small>{visit.endedAt ? 'Trajanje' : 'Planirano trajanje'}: {Math.max(0, Math.round((Date.parse(visit.endedAt??visit.endsAt)-Date.parse(visit.startedAt))/60000))} min</small>}
     {staff&&visit.status==='ACTIVE'&&<Link to={`/gaming-sessions?stationId=${visit.resourceId}`}>Otvori stanicu →</Link>}
-  </article>)}<small>Poslednjih {visits.length} sesija{staff?' iz dostupnih lokacija':''}.</small></div>
+  </article>)}<small>{visits.length} sesija na ovoj stranici{staff?' iz dostupnih lokacija':''}.</small></div>
 }

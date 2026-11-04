@@ -16,3 +16,7 @@ export function authUser(role: Role, overrides: Partial<AuthUser> = {}): AuthUse
 export function authResponse(role: Role): AuthResponse {
   return { token: `synthetic-${role.toLowerCase()}-token`, expiresAt: '2030-01-01T00:00:00Z', user: authUser(role) }
 }
+
+export function pageResponse<T>(content: T[], size = 10) {
+  return { content, page: 0, size, totalElements: content.length, totalPages: Math.ceil(content.length / size) }
+}

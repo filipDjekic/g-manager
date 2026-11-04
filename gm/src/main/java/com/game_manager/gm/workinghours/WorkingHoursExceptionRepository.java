@@ -14,6 +14,7 @@ public interface WorkingHoursExceptionRepository
     Optional<WorkingHoursException> findByDate(@Param("date") LocalDate date);
     Optional<WorkingHoursException> findByLocationIdAndDate(UUID locationId, LocalDate date);
     boolean existsByDate(LocalDate date);
-    List<WorkingHoursException> findAllByDateGreaterThanEqualOrderByDateAsc(LocalDate date);
+    long countByDateGreaterThan(LocalDate date);
+    org.springframework.data.domain.Page<WorkingHoursException> findByDateGreaterThanEqual(LocalDate date,org.springframework.data.domain.Pageable pageable);
     List<WorkingHoursException> findAllByDateBetweenOrderByDateAsc(LocalDate from, LocalDate to);
 }

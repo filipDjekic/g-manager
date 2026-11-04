@@ -1,3 +1,6 @@
+import { usePagedQuery } from '../query/usePagedQuery'
+import { useQueryClient } from '@tanstack/react-query'
+import { Pagination } from '../components/ui/Pagination'
 import { GamingFinanceReport } from '../reports/GamingFinanceReport'
 import { ReportScheduleDialog } from '../reports/ReportScheduleDialog'
 import { reportLabels, reportDefinitions, reportPreset, reportPeriod, templatePeriod } from '../reports/reportPresentation'
@@ -9,7 +12,7 @@ import { reportApi } from '../api/reportApi'
 import { hasCapability } from '../auth/capabilities'
 import { useAuthStore } from '../auth/authStore'
 import { Badge, Button, Card, EmptyState, ErrorState, PageHeader, Select, Skeleton, PageLayout, Input, TableShell } from '../components/ui'
-import type { ReportDefinition, ReportFormat, ReportItem, ReportSchedule, ReportTemplate, GenerateReport } from '../types/report.types'
+import type { ReportDefinition, ReportFormat, ReportItem, ReportTemplate, GenerateReport } from '../types/report.types'
 import { useEncryptedDraft } from '../pwa/useEncryptedDraft'
 import { useFeatureStore } from '../feature/featureStore'
 import { aiApi } from '../api/aiApi'
@@ -22,8 +25,11 @@ export function ReportsPage() {
   const { confirm, confirmationDialog } = useConfirmDialog()
   const user = useAuthStore((state) => state.user)
   const [definitions, setDefinitions] = useState<ReportDefinition[]>([])
-  const [items, setItems] = useState<ReportItem[]>([])
-  const [schedules, setSchedules] = useState<ReportSchedule[]>([])
+  const cache = useQueryClient()
+  const history = usePagedQuery(['reports', 'history', user?.id], reportApi.list, 10, true, data => data?.content.some(item => ['QUEUED', 'RUNNING'].includes(item.status)) ? 5000 : false)
+  const scheduleHistory = usePagedQuery(['reports', 'schedules', user?.id], reportApi.schedules, 10, hasCapability(user, 'REPORT_MANAGE'))
+  const items = history.data?.content ?? []
+  const schedules = scheduleHistory.data?.content ?? []
   const [templates, setTemplates] = useState<ReportTemplate[]>([])
   const [schedulePayload, setSchedulePayload] = useState<GenerateReport | null>(null)
   const [definition, setDefinition] = useState('orders')
@@ -47,26 +53,16 @@ export function ReportsPage() {
 
   const refresh = useCallback(() =>
     Promise.allSettled([
-        reportApi.definitions(), reportApi.list(), manage ? reportApi.schedules() : Promise.resolve([]), reportApi.templates(),
+        reportApi.definitions(), cache.invalidateQueries({ queryKey: ['reports', 'history'] }), cache.invalidateQueries({ queryKey: ['reports', 'schedules'] }), reportApi.templates(),
       ] as const).then(results => {
       if (results[0].status === 'fulfilled') setDefinitions(results[0].value)
-      if (results[1].status === 'fulfilled') setItems(results[1].value)
-      if (results[2].status === 'fulfilled') setSchedules(results[2].value)
       if (results[3].status === 'fulfilled') setTemplates(results[3].value)
       const failure = results.find(value => value.status === 'rejected')
       setError(failure?.status === 'rejected' ? apiErrorMessage(failure.reason, 'Deo izveštaja nije dostupan. Osvežite pregled.') : '')
       }).catch(cause => setError(apiErrorMessage(cause, 'Izveštaji nisu dostupni.')))
-      .finally(() => setLoading(false)), [manage])
+      .finally(() => setLoading(false)), [cache])
 
   useEffect(() => { void refresh() }, [refresh])
-  const hasPending = items.some(item => ['QUEUED','RUNNING'].includes(item.status))
-  useEffect(() => {
-    if (!hasPending) return
-    const poll = window.setInterval(() => { if (document.visibilityState === 'visible') void reportApi.list().then(setItems).catch(cause=>setError(apiErrorMessage(cause,'Statusi izveštaja nisu osveženi.'))) }, 5000)
-    const visible = () => { if (document.visibilityState === 'visible') void refresh() }
-    document.addEventListener('visibilitychange', visible)
-    return () => { window.clearInterval(poll); document.removeEventListener('visibilitychange', visible) }
-  }, [refresh, hasPending])
   const payload = (): GenerateReport => ({ definitionKey: definition, format, ...(templateRange ?? reportPeriod(from, to)), timezone, locale: navigator.language })
   function preset(value: string) { setTemplateRange(null); const period = reportPreset(value); setFrom(period.from); setTo(period.to) }
   function chooseTemplate(id: string) {
@@ -84,7 +80,7 @@ export function ReportsPage() {
   }
   async function generate() {
     setBusy(true)
-    try { await reportApi.generate(payload()); await draft.discard(); await refresh() }
+    try { await reportApi.generate(payload()); history.setPage(0); await draft.discard(); await refresh() }
     catch (cause) { setError(apiErrorMessage(cause, 'Generisanje nije pokrenuto.')) }
     finally { setBusy(false) }
   }
@@ -129,19 +125,21 @@ export function ReportsPage() {
     <Button variant="secondary" disabled={busy} onClick={saveTemplate}>Sačuvaj šablon</Button>
     {manage && <Button variant="secondary" disabled={busy} onClick={() => { try { setSchedulePayload(payload()) } catch (cause) { setError(apiErrorMessage(cause, 'Proverite datumski period.')) } }}>Zakaži izveštaj</Button>}</div></Card>
     {error && <ErrorState message={error} action={<Button variant="secondary" onClick={() => void refresh()}>Osveži</Button>} />}
-    {loading ? <Skeleton lines={5} /> : !items.length ? <EmptyState title="Nema izveštaja" description="Pokrenite prvi izveštaj." /> :
+    {(loading || history.isLoading) ? <Skeleton lines={5} /> : history.error ? null : !items.length ? <EmptyState title="Nema izveštaja" description="Pokrenite prvi izveštaj." /> :
       <Card><h2>Istorija</h2><TableShell label="Tabelarni pregled" className="table-scroll"><table className="ui-data-table"><thead><tr><th>Izveštaj</th><th>Format</th><th>Status</th><th>Redovi</th><th>Akcije</th></tr></thead>
         <tbody>{items.map((item) => <tr key={item.id}><td data-label="Izveštaj">{reportLabels[item.definitionKey] ?? item.definitionKey}</td><td data-label="Format">{item.format}</td><td data-label="Status"><Badge tone={item.status === 'COMPLETED' ? 'success' : item.status === 'FAILED' ? 'danger' : item.status === 'RUNNING' ? 'info' : 'neutral'}>{{ QUEUED:'Na čekanju', RUNNING:'U obradi', COMPLETED:'Spreman', FAILED:'Neuspešno', CANCELLED:'Otkazan', EXPIRED:'Istekao' }[item.status]} {item.status === 'RUNNING' && `${item.progress}%`}</Badge>{item.errorMessage && <small>{item.errorMessage}</small>}</td><td data-label="Redovi">{item.rowCount ?? '-'}</td><td data-label="Akcije"><div className="ui-actions">
           {item.status === 'COMPLETED' && <Button onClick={() => void download(item)}>Preuzmi</Button>}
           {item.status === 'COMPLETED' && aiEnabled && <Button variant="secondary" loading={aiBusy} onClick={() => confirm({ title:'AI sažetak ovog izveštaja', description:'Saglasnošću šaljete AI provider-u definiciju, broj redova i vreme preseka ovog izveštaja. Rezultat može biti netačan; izvorni izveštaj ostaje merodavan.', confirmLabel:'Pristajem - napravi sažetak', onConfirm:()=>summarize(item) })}>AI sažetak</Button>}
           {['QUEUED', 'RUNNING'].includes(item.status) && <Button variant="secondary" onClick={() => confirm({ title: 'Otkaži generisanje', description: 'Obrada izveštaja biće zaustavljena.', variant: 'warning', confirmLabel: 'Otkaži obradu', onConfirm: async () => { await reportApi.cancel(item.id); await refresh() } })}>Otkaži</Button>}
         </div></td></tr>)}</tbody></table></TableShell></Card>}
-    {manage && <Card><h2>Rasporedi</h2>{!schedules.length ? <p>Nema rasporeda.</p> : <ul>{schedules.map((schedule) =>
-      <li key={schedule.id}>{reportLabels[schedule.definitionKey] ?? schedule.definitionKey} · {schedule.dayOfWeek === null ? 'Svakog dana' : ['Ponedeljak','Utorak','Sreda','Četvrtak','Petak','Subota','Nedelja'][schedule.dayOfWeek-1]} u {schedule.localTime} · {schedule.timezone} · sledeće {formatBusinessDateTime(schedule.nextRunAt)} <Button variant="danger" onClick={() => confirm({ title: 'Obriši raspored izveštaja', description: 'Automatsko generisanje po ovom rasporedu biće uklonjeno.', variant: 'danger', confirmLabel: 'Obriši raspored', onConfirm: async () => { await reportApi.removeSchedule(schedule.id); await refresh() } })}>Obriši</Button></li>)}</ul>}</Card>}
+    {history.error && <ErrorState message={apiErrorMessage(history.error, 'Istorija nije dostupna.')} action={<Button onClick={() => void history.refetch()}>Osveži</Button>} />}
+    {history.data && <Pagination label="Stranice istorije izvestaja" page={history.page} onPageChange={history.setPage} totalPages={history.data.totalPages} totalElements={history.data.totalElements} pageSize={10} loading={history.isFetching} />}
+    {manage && <Card><h2>Rasporedi</h2>{scheduleHistory.isLoading ? <Skeleton lines={3} /> : scheduleHistory.error ? <ErrorState message={apiErrorMessage(scheduleHistory.error, 'Rasporedi nisu dostupni.')} action={<Button onClick={() => void scheduleHistory.refetch()}>Osveži</Button>} /> : !schedules.length ? <p>Nema rasporeda.</p> : <ul>{schedules.map((schedule) =>
+      <li key={schedule.id}>{reportLabels[schedule.definitionKey] ?? schedule.definitionKey} · {schedule.dayOfWeek === null ? 'Svakog dana' : ['Ponedeljak','Utorak','Sreda','Četvrtak','Petak','Subota','Nedelja'][schedule.dayOfWeek-1]} u {schedule.localTime} · {schedule.timezone} · sledeće {formatBusinessDateTime(schedule.nextRunAt)} <Button variant="danger" onClick={() => confirm({ title: 'Obriši raspored izveštaja', description: 'Automatsko generisanje po ovom rasporedu biće uklonjeno.', variant: 'danger', confirmLabel: 'Obriši raspored', onConfirm: async () => { await reportApi.removeSchedule(schedule.id); await refresh() } })}>Obriši</Button></li>)}</ul>}{scheduleHistory.data && <Pagination label="Stranice rasporeda izvestaja" page={scheduleHistory.page} onPageChange={scheduleHistory.setPage} totalPages={scheduleHistory.data.totalPages} totalElements={scheduleHistory.data.totalElements} pageSize={10} loading={scheduleHistory.isFetching} />}</Card>}
     {aiSummary && <Card><h2>{aiSummary.aiGenerated ? 'AI sažetak' : 'Sažetak bez AI-a'}</h2><p role="status">{aiSummary.summary}</p><p><strong>Ograničenja:</strong> {aiSummary.limitations}</p>
       <h3>Izvori</h3><ul>{aiSummary.sources.map((source) => <li key={source.reportId}>Izveštaj {source.definition}, {source.rowCount} redova, presek {formatBusinessDateTime(source.snapshotAt)}</li>)}</ul>
       <p>Pregledajte rezultat pre bilo kakve odluke.</p><Button onClick={() => void feedback('ACCEPTED')}>Prihvati</Button><Button variant="secondary" onClick={() => void feedback('CORRECTED')}>Ispravljeno</Button><Button variant="danger" onClick={() => void feedback('REJECTED')}>Odbaci</Button></Card>}
-    {schedulePayload && manage && <ReportScheduleDialog payload={schedulePayload} onClose={() => setSchedulePayload(null)} onSaved={() => void refresh()} />}
+    {schedulePayload && manage && <ReportScheduleDialog payload={schedulePayload} onClose={() => setSchedulePayload(null)} onSaved={() => { scheduleHistory.setPage(0); void refresh() }} />}
     {hasCapability(user, 'GAMING_FINANCE_MANAGE') && <GamingFinanceReport />}
   </PageLayout>
 }

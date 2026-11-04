@@ -1,3 +1,5 @@
+import { usePagedQuery } from '../query/usePagedQuery'
+import { Pagination } from '../components/ui/Pagination'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { apiErrorMessage } from '../api/client'
@@ -20,6 +22,7 @@ export function CustomerCrmPanel({ customerId }: { customerId: string }) {
   }, [search])
   const crm = useQuery({ queryKey: ['customers', 'crm', customerId, debounced],
     queryFn: () => customerApi.crm(customerId, debounced || undefined) })
+  const notes = usePagedQuery(['customers', 'crm', customerId, 'notes', debounced], (page, size) => customerApi.crmNotes(customerId, debounced || undefined, page, size))
   const refresh = () => client.invalidateQueries({ queryKey: ['customers', 'crm', customerId] })
   async function save(event: FormEvent, kind: 'NOTE' | 'TAG') {
     event.preventDefault()
@@ -27,7 +30,7 @@ export function CustomerCrmPanel({ customerId }: { customerId: string }) {
     if (!value || inFlight.current) return
     inFlight.current = true; setBusy(true); setError('')
     try {
-      if (kind === 'NOTE') { await customerApi.addCrmNote(customerId, value); setNote('') }
+      if (kind === 'NOTE') { await customerApi.addCrmNote(customerId, value); setNote(''); notes.setPage(0) }
       else { await customerApi.addCrmTag(customerId, value); setTag('') }
       await refresh()
     } catch (cause) { setError(apiErrorMessage(cause, 'CRM podatke nije moguće sačuvati.')) }
@@ -74,14 +77,17 @@ export function CustomerCrmPanel({ customerId }: { customerId: string }) {
             onChange={event => setNote(event.target.value)} /></label>
           <Button type="submit" disabled={!note.trim()} loading={busy}>Sačuvaj belešku</Button>
         </form>
-        {crm.data?.notes.length ? <div className="customers-notes">{crm.data.notes.map(item => <article key={item.id}>
+        {notes.isLoading && <Skeleton lines={3} />}
+        {notes.error && <ErrorState message={apiErrorMessage(notes.error, 'Beleške nisu dostupne.')} action={<Button onClick={() => void notes.refetch()}>Osveži</Button>} />}
+        {notes.data?.content.length ? <div className="customers-notes">{notes.data!.content.map(item => <article key={item.id}>
           <p>{item.body}</p><small>Ažurirano {customerDate(item.updatedAt)} · Zadržava se do {customerDate(item.expiresAt)}</small>
           <div className="customers-inline-actions">
             <Button type="button" variant="secondary" disabled={busy} onClick={() => editNote(item)}>Izmeni</Button>
             <Button type="button" variant="danger" disabled={busy} onClick={() => removeNote(item)}>Obriši</Button>
           </div>
-        </article>)}</div> : <EmptyState title={debounced ? 'Nema rezultata CRM pretrage' : 'Nema CRM beleški'}
-          description={debounced ? 'Promenite pretragu da biste pronašli beleške.' : 'Dodajte prvu belešku o klijentu.'} />}
+        </article>)}</div> : notes.isSuccess ? <EmptyState title={debounced ? 'Nema rezultata CRM pretrage' : 'Nema CRM beleški'}
+          description={debounced ? 'Promenite pretragu da biste pronašli beleške.' : 'Dodajte prvu belešku o klijentu.'} /> : null}
+        {notes.data && <Pagination page={notes.page} onPageChange={notes.setPage} totalPages={notes.data.totalPages} totalElements={notes.data.totalElements} pageSize={10} loading={notes.isFetching} />}
       </>}
   </section>
 }

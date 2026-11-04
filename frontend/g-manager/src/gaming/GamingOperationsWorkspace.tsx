@@ -1,9 +1,10 @@
+import { usePagedQuery } from '../query/usePagedQuery'
+import { Pagination } from '../components/ui/Pagination'
 import { GamingExtensionDialog } from './GamingExtensionDialog'
 import { GamingPilotHealth } from './GamingPilotHealth'
 import { useGamingCommands } from './useGamingCommands'
 import { gamingBoardStale } from './freshness'
 import { useResettableState } from '../components/useResettableState'
-import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { EmployeeWorkdaySummary } from '../dashboard/EmployeeWorkdaySummary'
 import { Link } from 'react-router-dom'
@@ -50,8 +51,7 @@ export function GamingOperationsWorkspace({ workday = false }: { workday?: boole
     feedback, recover, openStart, openCustom, openEnd,
     openRecovery
   } = useGamingCommands()
-  const history = useQuery({ queryKey: ['gaming-operations', 'history', historyStation?.resourceId],
-    queryFn: () => gamingSessionApi.history(historyStation!.resourceId), enabled: canRead && !!historyStation })
+  const history = usePagedQuery(['gaming-operations', 'history', actor?.id, historyStation?.resourceId], (page, size) => gamingSessionApi.history(historyStation!.resourceId, page, size), 20, canRead && !!historyStation, 15000)
   const stations = useMemo(() => board.data?.stations ?? [], [board.data])
   const liveHistoryStation=stations.find(value=>value.resourceId===historyStation?.resourceId)??historyStation
   const locations = useMemo(() => [...new Map((board.data?.stations ?? []).map((value) => [value.locationId, value.locationName ?? 'Lokacija'])).entries()], [board.data])
@@ -193,10 +193,11 @@ export function GamingOperationsWorkspace({ workday = false }: { workday?: boole
         <div><dt>Client / heartbeat</dt><dd>{liveHistoryStation.clientVersion ?? 'Nije prijavljen'} · {liveHistoryStation.lastHeartbeatAt ? formatBusinessDateTime(liveHistoryStation.lastHeartbeatAt) : 'Nema heartbeat-a'}</dd></div>
         <div><dt>Lokalno zaključavanje</dt><dd>{enforcementLabels[liveHistoryStation.enforcementStatus]}{liveHistoryStation.lastLockAckAt && ` · ${formatBusinessDateTime(liveHistoryStation.lastLockAckAt)}`}</dd></div>
         <div><dt>Poslednja komanda</dt><dd>{liveHistoryStation.commandType ?? 'Nema komandi'} {liveHistoryStation.commandSequence && `#${liveHistoryStation.commandSequence}`} · {liveHistoryStation.commandAcknowledgedAt ? 'Potvrđena' : liveHistoryStation.commandSequence ? 'Čeka potvrdu' : '-'}</dd></div></dl>}
-      {history.isLoading ? <Skeleton lines={5} label="Učitavanje istorije" /> : history.error ? <ErrorState message={apiErrorMessage(history.error, 'Istorija stanice nije dostupna.')} action={<Button variant="secondary" onClick={() => history.refetch()}>Pokušaj ponovo</Button>} /> : !history.data?.entries.length ?
-        <EmptyState title="Nema istorije" description="Za ovu stanicu još nema komandi ili enforcement događaja." /> : <ol className="timeline-list">{history.data.entries.map((entry, index) => <li key={`${entry.occurredAt}-${entry.commandSequence ?? index}`}>
+      {history.isLoading ? <Skeleton lines={5} label="Učitavanje istorije" /> : history.error ? <ErrorState message={apiErrorMessage(history.error, 'Istorija stanice nije dostupna.')} action={<Button variant="secondary" onClick={() => history.refetch()}>Pokušaj ponovo</Button>} /> : !history.data?.content.length ?
+        <EmptyState title="Nema istorije" description="Za ovu stanicu još nema komandi ili enforcement događaja." /> : <ol className="timeline-list">{history.data.content.map((entry, index) => <li key={`${entry.occurredAt}-${entry.commandSequence ?? index}`}>
           <time dateTime={entry.occurredAt}>{formatBusinessDateTime(entry.occurredAt)}</time><strong>{entry.action}</strong><Badge tone={entry.status === 'PENDING' ? 'warning' : 'neutral'}>{entry.status}</Badge>
           {entry.commandSequence !== undefined && <small>Komanda #{entry.commandSequence}</small>}{entry.correlationId && <code>Support ID: {entry.correlationId}</code>}{entry.details && <p>{entry.details}</p>}</li>)}</ol>}
+      {history.data && <Pagination page={history.page} onPageChange={history.setPage} totalPages={history.data.totalPages} totalElements={history.data.totalElements} pageSize={20} loading={history.isFetching} />}
     </Modal>
   </PageLayout>
 }

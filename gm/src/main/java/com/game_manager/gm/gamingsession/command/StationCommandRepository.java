@@ -1,4 +1,7 @@
 package com.game_manager.gm.gamingsession.command;
+import java.time.Instant;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.*;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -29,4 +32,24 @@ public interface StationCommandRepository extends JpaRepository<StationCommand, 
             @org.springframework.data.repository.query.Param("stationIds") Collection<UUID> stationIds);
     List<StationCommand> findTop50ByStationIdOrderBySequenceDesc(UUID stationId);
     long deleteByExpiresAtBeforeAndAcknowledgedAtIsNotNull(java.time.Instant cutoff);
+    interface HistoryRow {
+        Instant getOccurredAt(); String getCategory(); String getAction(); String getStatus();
+        Long getCommandSequence(); String getCorrelationId(); String getDetails();
+    }
+    @Query(value="""
+        SELECT occurredAt,category,action,status,commandSequence,correlationId,details FROM (
+          SELECT occurred_at AS occurredAt,'ENFORCEMENT' AS category,action,resulting_status AS status,
+                 command_sequence AS commandSequence,NULL AS correlationId,details,id
+          FROM station_reconciliation_audit WHERE station_id=:stationId
+          UNION ALL
+          SELECT available_at AS occurredAt,'COMMAND' AS category,command_type AS action,
+                 CASE WHEN acknowledged_at IS NULL THEN 'PENDING' ELSE 'ACKNOWLEDGED' END AS status,
+                 sequence AS commandSequence,correlation_id AS correlationId,NULL AS details,id
+          FROM station_commands WHERE station_id=:stationId
+        ) history ORDER BY occurredAt DESC,category DESC,id DESC
+        """, countQuery="""
+        SELECT (SELECT COUNT(*) FROM station_reconciliation_audit WHERE station_id=:stationId)
+             + (SELECT COUNT(*) FROM station_commands WHERE station_id=:stationId)
+        """, nativeQuery=true)
+    org.springframework.data.domain.Page<HistoryRow> historyPage(@Param("stationId") String stationId,org.springframework.data.domain.Pageable pageable);
 }

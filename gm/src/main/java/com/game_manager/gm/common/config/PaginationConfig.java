@@ -12,7 +12,7 @@ public class PaginationConfig {
     @Bean
     PageableHandlerMethodArgumentResolverCustomizer pageableCustomizer() {
         return resolver -> {
-            resolver.setMaxPageSize(100);
+            resolver.setMaxPageSize(com.game_manager.gm.common.dto.PageRequests.MAX_PAGE_SIZE);
             resolver.setFallbackPageable(PageRequest.of(0, 20, Sort.by("createdAt").descending()));
         };
     }

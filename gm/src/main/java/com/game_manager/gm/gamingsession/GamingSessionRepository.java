@@ -20,10 +20,21 @@ public interface GamingSessionRepository extends JpaRepository<GamingSession, UU
             select new com.game_manager.gm.gamingsession.dto.GamingSessionVisitResponse(
                 s.id, s.resourceId, r.name, s.locationId, s.startedAt, s.endsAt, s.endedAt, s.status, :now)
             from GamingSession s join com.game_manager.gm.resource.PhysicalResource r on r.id = s.resourceId
-            where s.customerId = :customerId and (:allLocations = true or s.resourceId in :locationIds)
+            where s.status = com.game_manager.gm.gamingsession.GamingSessionStatus.ACTIVE and s.customerId = :customerId and (:allLocations = true or s.resourceId in :locationIds)
             order by s.startedAt desc, s.id desc
             """)
     List<com.game_manager.gm.gamingsession.dto.GamingSessionVisitResponse> customerVisits(
+            @Param("customerId") UUID customerId, @Param("allLocations") boolean allLocations,
+            @Param("locationIds") Collection<UUID> locationIds, @Param("now") Instant now, Pageable pageable);
+
+    @Query("""
+            select new com.game_manager.gm.gamingsession.dto.GamingSessionVisitResponse(
+                s.id, s.resourceId, r.name, s.locationId, s.startedAt, s.endsAt, s.endedAt, s.status, :now)
+            from GamingSession s join com.game_manager.gm.resource.PhysicalResource r on r.id = s.resourceId
+            where s.status <> com.game_manager.gm.gamingsession.GamingSessionStatus.ACTIVE and s.customerId = :customerId and (:allLocations = true or s.resourceId in :locationIds)
+            order by s.startedAt desc, s.id desc
+            """)
+    org.springframework.data.domain.Page<com.game_manager.gm.gamingsession.dto.GamingSessionVisitResponse> visitPage(
             @Param("customerId") UUID customerId, @Param("allLocations") boolean allLocations,
             @Param("locationIds") Collection<UUID> locationIds, @Param("now") Instant now, Pageable pageable);
 

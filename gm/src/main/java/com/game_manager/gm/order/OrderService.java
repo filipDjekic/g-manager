@@ -239,4 +239,8 @@ public class OrderService {
                 .map(order -> new CustomerOrderHistory(order.getId(), order.getStatus(),
                         order.getTotalPrice(), order.getCreatedAt())).toList();
     }
+    @Transactional(readOnly = true)
+    public com.game_manager.gm.common.dto.PageResponse<CustomerOrderHistory> customerHistoryPage(UUID customerId,int page,int size) {
+        return com.game_manager.gm.common.dto.PageResponse.from(orderRepository.customerHistory(customerId,com.game_manager.gm.common.dto.PageRequests.of(page,size,org.springframework.data.domain.Sort.unsorted())).map(order->new CustomerOrderHistory(order.getId(),order.getStatus(),order.getTotalPrice(),order.getCreatedAt())));
+    }
 }

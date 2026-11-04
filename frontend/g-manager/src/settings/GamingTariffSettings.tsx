@@ -1,3 +1,5 @@
+import { usePagedQuery } from '../query/usePagedQuery'
+import { Pagination, Skeleton, EmptyState, ErrorState } from '../components/ui'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { gamingBillingApi, type BillingPolicy, type Tariff } from '../api/gamingBillingApi'
@@ -6,14 +8,17 @@ import { Alert, Button, Input, Select } from '../components/ui'
 import { useFinancialCommand } from '../gaming/useFinancialCommand'
 const fresh = { name: '', serviceId: '', minutes: 60, price: '', active: true, packageValidityDays: 0, version: 0, validFrom: '', validUntil: '' }
 export function GamingTariffSettings() {
-  const tariffs = useQuery({ queryKey: ['gaming-billing', 'tariffs'], queryFn: gamingBillingApi.tariffs })
+  const tariffs = usePagedQuery(['gaming-billing', 'tariffs', 'page'], gamingBillingApi.tariffPage)
   const policy = useQuery({ queryKey: ['gaming-billing', 'policy'], queryFn: gamingBillingApi.policy })
   const services = useQuery({ queryKey: ['gaming-billing', 'services'], queryFn: () => catalogApi.list({ page: 0, size: 100, type: 'SERVICE' }) })
   const [editing, setEditing] = useState<Partial<Tariff> & typeof fresh>(fresh), command = useFinancialCommand(() => setEditing(fresh))
   return <section className="ui-card"><h2>Gaming tarife i poslovna pravila</h2>
     {(tariffs.error || policy.error) && <Alert tone="danger">Podesavanja nisu dostupna.</Alert>}
     <p>Kategorija racunara je postojeca kataloska usluga resursa (npr. Standard / VIP). Vreme se kupuje u celim blokovima odabrane tarife. Produzenja koriste novu potvrdu cene; stari obracuni cuvaju snimak. Nepotroseno vreme nema automatsku refundaciju.</p>
-    <ul>{tariffs.data?.map(t => <li key={t.id}>{t.name}: {t.minutes} min / {t.price} RSD - {t.active ? 'aktivna' : 'neaktivna'} <Button type="button" variant="secondary" disabled={command.locked} onClick={() => setEditing({ ...t, price: String(t.price), serviceId: t.serviceId ?? '', validFrom: t.validFrom ?? '', validUntil: t.validUntil ?? '' })}>Izmeni</Button></li>)}</ul>
+    {tariffs.error && <ErrorState message="Tarife nisu dostupne." action={<Button onClick={() => void tariffs.refetch()}>Osvezi</Button>} />}
+    {tariffs.isLoading && <Skeleton lines={3} />}{tariffs.data && !tariffs.data.totalElements && <EmptyState title="Nema tarifa" />}
+    <ul>{tariffs.data?.content.map(t => <li key={t.id}>{t.name}: {t.minutes} min / {t.price} RSD - {t.active ? 'aktivna' : 'neaktivna'} <Button type="button" variant="secondary" disabled={command.locked} onClick={() => setEditing({ ...t, price: String(t.price), serviceId: t.serviceId ?? '', validFrom: t.validFrom ?? '', validUntil: t.validUntil ?? '' })}>Izmeni</Button></li>)}</ul>
+    {tariffs.data && <Pagination page={tariffs.page} onPageChange={tariffs.setPage} totalPages={tariffs.data.totalPages} totalElements={tariffs.data.totalElements} pageSize={10} loading={tariffs.isFetching} />}
     <form className="ui-form-grid" onSubmit={e => { e.preventDefault(); const payload = { ...editing, serviceId: editing.serviceId || undefined, validFrom: editing.validFrom || undefined, validUntil: editing.validUntil || undefined }; void command.run(key => gamingBillingApi.saveTariff(payload, key)) }}>
       {command.feedback}<fieldset disabled={command.locked}><legend>{editing.id ? 'Izmena tarife' : 'Nova tarifa'}</legend>
         <label>Naziv<Input required maxLength={120} value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} /></label>

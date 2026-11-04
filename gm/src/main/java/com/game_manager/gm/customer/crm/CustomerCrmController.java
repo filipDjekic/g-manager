@@ -2,6 +2,7 @@ package com.game_manager.gm.customer.crm;import com.game_manager.gm.customer.crm
 @RestController @RequestMapping("/api/v1/customers/{customerId}/crm") @RequiredArgsConstructor
 public class CustomerCrmController {private final CustomerCrmService service;
  @GetMapping public CustomerCrmResponse get(@PathVariable UUID customerId,@RequestParam(required=false)String search){return service.get(customerId,search);}
+ @GetMapping("/notes") public com.game_manager.gm.common.dto.PageResponse<CrmNoteResponse> notes(@PathVariable UUID customerId,@RequestParam(required=false)String search,@RequestParam(defaultValue="0")int page,@RequestParam(defaultValue="10")int size){return service.notePage(customerId,search,page,size);}
  @PostMapping("/notes") public ResponseEntity<CrmNoteResponse> addNote(@PathVariable UUID customerId,@Valid @RequestBody CrmNoteRequest request){return ResponseEntity.status(HttpStatus.CREATED).body(service.addNote(customerId,request));}
  @PutMapping("/notes/{noteId}") public CrmNoteResponse updateNote(@PathVariable UUID customerId,@PathVariable UUID noteId,@Valid @RequestBody CrmNoteRequest request){return service.updateNote(customerId,noteId,request);}
  @DeleteMapping("/notes/{noteId}") @ResponseStatus(HttpStatus.NO_CONTENT) public void deleteNote(@PathVariable UUID customerId,@PathVariable UUID noteId,@RequestParam long version){service.deleteNote(customerId,noteId,version);}

@@ -1,3 +1,5 @@
+import { usePagedQuery } from '../query/usePagedQuery'
+import { Pagination } from '../components/ui/Pagination'
 import { useServerNow } from '../gaming/useServerNow'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
@@ -18,8 +20,7 @@ export function EmployeeProfile({ employee, actorId, canAssignments, canAssignLo
   const now = useServerNow()
   const assignments = useQuery({ queryKey: ['users', 'employee-assignments', actorId, employee.id],
     queryFn: () => userApi.employeeAssignments(employee.id), enabled: canAssignments, staleTime: 15000, retry: false })
-  const leaves = useQuery({ queryKey: ['users', 'employee-leaves', actorId, employee.id],
-    queryFn: () => userApi.employeeLeaves(employee.id), enabled: canLeave, staleTime: 15000, retry: false })
+  const leaves = usePagedQuery(['users', 'employee-leaves', actorId, employee.id], (page, size) => userApi.employeeLeaves(employee.id, page, size), 10, canLeave)
   return <div className="gm-employee-profile">
     <header className="gm-employee-profile-heading"><span>Profil zaposlenog</span><Button iconOnly type="button" variant="secondary" className="gm-employee-inline-close"
       disabled={busy} aria-label="Zatvori profil zaposlenog" onClick={onClose}>×</Button></header>
@@ -49,11 +50,12 @@ export function EmployeeProfile({ employee, actorId, canAssignments, canAssignLo
     </section>}
     {canLeave && <section><h3><EmployeeIcon kind="leave" />Odobrena odsustva</h3>
       {leaves.isLoading ? <Skeleton lines={3} /> : leaves.isError ? <ErrorState message={employeeError(leaves.error, 'Odsustva nije moguće učitati.')}
-        action={<Button type="button" variant="secondary" onClick={() => void leaves.refetch()}>Pokušaj ponovo</Button>} /> : !leaves.data?.length
+        action={<Button type="button" variant="secondary" onClick={() => void leaves.refetch()}>Pokušaj ponovo</Button>} /> : !leaves.data?.content.length
           ? <EmptyState title="Nema odobrenih odsustava" description="Nema odsustava koja obuhvataju danas ili buduće datume." />
-          : <ul className="gm-employee-leave-list">{leaves.data.map(leave => <li key={leave.id}><Badge tone={new Date(leave.startsAt).getTime() > now ? 'info' : 'success'}>
+          : <ul className="gm-employee-leave-list">{leaves.data.content.map(leave => <li key={leave.id}><Badge tone={new Date(leave.startsAt).getTime() > now ? 'info' : 'success'}>
             {new Date(leave.startsAt).getTime() > now ? 'Buduće · odobreno' : 'Odobreno'}</Badge>
             <div><time dateTime={leave.startsAt}>{employeeDate(leave.startsAt)}</time><span> - </span><time dateTime={leave.endsAt}>{employeeDate(leave.endsAt)}</time></div></li>)}</ul>}
+      {leaves.data && <Pagination page={leaves.page} onPageChange={leaves.setPage} totalPages={leaves.data.totalPages} totalElements={leaves.data.totalElements} pageSize={10} loading={leaves.isFetching} />}
       <p className="gm-employee-note">Prikazani su datumi odobrenih odsustava, bez privatnih razloga.</p>
     </section>}
     <div className="gm-employee-profile-actions"><Button type="button" variant="secondary" disabled={busy} onClick={() => { onRefresh(); if (canAssignments) void assignments.refetch(); if (canLeave) void leaves.refetch() }}><EmployeeIcon kind="refresh" />Osveži profil</Button>

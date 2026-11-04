@@ -32,8 +32,6 @@ export interface CustomerOrderHistory {
 
 export interface CustomerDetail {
   customer: CustomerListItem
-  reservations: CustomerReservationHistory[]
-  orders: CustomerOrderHistory[]
 }
 
 export type CustomerPage = PageResponse<CustomerListItem>
@@ -71,6 +69,5 @@ export interface CustomerCrmNote {
 export interface CustomerCrm {
   customerId: string
   version: number
-  notes: CustomerCrmNote[]
   tags: string[]
 }

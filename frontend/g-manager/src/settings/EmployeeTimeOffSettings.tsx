@@ -1,5 +1,7 @@
-import { useRef, useState } from 'react'
-import { useQueryClient, type UseQueryResult } from '@tanstack/react-query'
+import { usePagedQuery } from '../query/usePagedQuery'
+import { Pagination } from '../components/ui/Pagination'
+import { useEffect, useRef, useState } from 'react'
+import { type UseQueryResult } from '@tanstack/react-query'
 import { timeOffApi } from '../api/timeOffApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
@@ -13,13 +15,15 @@ import { TimeOffDialog } from './TimeOffDialog'
 import { SettingsActionMenu, SettingsAvatar, SettingsIcon } from './settingsPresentation'
 import { businessDayBounds, elapsedTime, restoreSettingsFocus, settingsDateTime, settingsError, timeOffLabels, timeOffTones, validCalendarDate } from './settingsPresentation.model'
 
-export function EmployeeTimeOffSettings({ query, employees, onChanged }: {
-  query: UseQueryResult<TimeOff[]>; employees: UseQueryResult<UserResponse[]>; onChanged: () => Promise<void>
+export function EmployeeTimeOffSettings({ employees, onChanged, active }: {
+  active: boolean; employees: UseQueryResult<UserResponse[]>; onChanged: () => Promise<void>
 }) {
   const actor = useAuthStore(state => state.user), canManage = hasCapability(actor, 'WORKING_HOURS_MANAGE'), canEmail = hasCapability(actor, 'USER_LIST')
-  const toast = useToast(), client = useQueryClient(), { confirm, confirmationDialog } = useConfirmDialog(), now = useServerNow()
+  const toast = useToast(), { confirm, confirmationDialog } = useConfirmDialog(), now = useServerNow()
   const [filters, setFilters] = useState({ search: '', status: '', from: '', to: '', employeeId: '' })
-  const [createOpen, setCreateOpen] = useState(false), [detailId, setDetailId] = useState(''), [saving, setSaving] = useState('')
+  const [search, setSearch] = useState('')
+  useEffect(() => { const timer = window.setTimeout(() => setSearch(filters.search.trim()), 300); return () => window.clearTimeout(timer) }, [filters.search])
+  const [createOpen, setCreateOpen] = useState(false), [selectedDetail, setSelectedDetail] = useState<TimeOff | null>(null), [saving, setSaving] = useState('')
   const inFlight = useRef(false), opener = useRef<HTMLElement | null>(null), newButton = useRef<HTMLButtonElement>(null), detailClose = useRef<HTMLButtonElement>(null)
   const names = new Map(employees.data?.map(item => [item.id, item]) ?? [])
   const name = (item: TimeOff) => names.get(item.employeeId)?.name ?? (employees.isLoading ? 'Učitavanje zaposlenog…' : 'Zaposleni nije dostupan')
@@ -28,15 +32,14 @@ export function EmployeeTimeOffSettings({ query, employees, onChanged }: {
     if (filters.from && !validCalendarDate(filters.from) || filters.to && !validCalendarDate(filters.to) || filters.from && filters.to && filters.from > filters.to) filterError = 'Izaberite ispravan period. Završni datum ne sme biti pre početnog.'
     else bounds = businessDayBounds(filters.from, filters.to)
   } catch (cause) { filterError = settingsError(cause, 'Period nije validan.') }
-  const search = filters.search.trim().toLocaleLowerCase('sr-Latn-RS')
-  const rows = (query.data ?? []).filter(item => (!filters.status || item.status === filters.status) && (!filters.employeeId || item.employeeId === filters.employeeId)
-    && (!search || [name(item), canEmail ? names.get(item.employeeId)?.email : ''].filter(Boolean).some(value => value!.toLocaleLowerCase('sr-Latn-RS').includes(search)))
-    && (!bounds.from || Date.parse(item.endsAt) > Date.parse(bounds.from)) && (!bounds.to || Date.parse(item.startsAt) < Date.parse(bounds.to)))
-  const detail = query.data?.find(item => item.id === detailId)
+  const paged = usePagedQuery(['settings', 'time-off', 'page', actor?.id, { ...filters, search }, bounds], (page, size) => timeOffApi.page({ search: search || undefined, status: filters.status || undefined, employeeId: filters.employeeId || undefined, from: bounds.from || undefined, to: bounds.to || undefined, page, size }), 10, active && canManage && !filterError, 30000)
+  const query = { ...paged, data: paged.data?.content }
+  const rows = query.data ?? []
+  const detail = selectedDetail ? query.data?.find(item => item.id === selectedDetail.id) ?? selectedDetail : null
   const create = () => { opener.current = newButton.current; setCreateOpen(true) }
   const closeCreate = () => { setCreateOpen(false); restoreSettingsFocus(opener.current) }
-  const closeDetail = () => { setDetailId(''); restoreSettingsFocus(opener.current) }
-  const showDetails = (item: TimeOff, trigger: HTMLElement | null) => { opener.current = trigger; setDetailId(item.id) }
+  const closeDetail = () => { setSelectedDetail(null); restoreSettingsFocus(opener.current) }
+  const showDetails = (item: TimeOff, trigger: HTMLElement | null) => { opener.current = trigger; setSelectedDetail(item) }
   const decide = (item: TimeOff, status: TimeOffStatus) => {
     if (!canManage || inFlight.current || (item.status !== 'PENDING' && !(item.status === 'APPROVED' && status === 'CANCELLED'))) return
     if (status === 'APPROVED' && Date.parse(item.endsAt) <= now) return
@@ -51,7 +54,7 @@ export function EmployeeTimeOffSettings({ query, employees, onChanged }: {
         inFlight.current = true; setSaving(item.id)
         try {
           const value = await timeOffApi.decide(item, status, reason)
-          client.setQueryData<TimeOff[]>(['settings', 'time-off', actor?.id], current => (current ?? []).map(row => row.id === value.id ? value : row))
+          setSelectedDetail(current => current?.id === value.id ? value : current)
           toast(status === 'APPROVED' ? 'Odsustvo je odobreno.' : status === 'REJECTED' ? 'Zahtev je odbijen.' : 'Odsustvo je otkazano.', 'success')
           await onChanged()
           window.requestAnimationFrame(() => detailClose.current?.focus())
@@ -97,10 +100,9 @@ export function EmployeeTimeOffSettings({ query, employees, onChanged }: {
           <SettingsActionMenu label={`Akcije odsustva za ${name(item)}`} actions={actions(item)} disabled={disabled} /></header>{period(item)}<p className="gm-settings-reason">{item.reason}</p>
           <footer><Badge tone={timeOffTones[item.status]}>{timeOffLabels[item.status]}</Badge><Button type="button" variant="secondary" onClick={event => showDetails(item, event.currentTarget)}>Detalji</Button></footer></Card>)}</div>
       </div>}
-    {query.data && !query.isError && !filterError && <p className="gm-settings-note">Prikazano {rows.length} od {query.data.length} odsustava. Trajanje predstavlja proteklo vreme perioda.</p>}
-    {createOpen && <TimeOffDialog employees={employees} returnFocusRef={opener} onClose={closeCreate} onSaved={item => {
-      client.setQueryData<TimeOff[]>(['settings', 'time-off', actor?.id], current => [...(current ?? []), item])
-      closeCreate(); toast('Zahtev za odsustvo je sačuvan.', 'success'); void onChanged()
+    {paged.data && !filterError && <Pagination page={paged.page} onPageChange={paged.setPage} totalPages={paged.data.totalPages} totalElements={paged.data.totalElements} pageSize={10} loading={paged.isFetching} />}
+    {createOpen && <TimeOffDialog employees={employees} returnFocusRef={opener} onClose={closeCreate} onSaved={() => {
+      closeCreate(); toast('Zahtev za odsustvo je sačuvan.', 'success'); paged.setPage(0); void onChanged()
     }} />}
     {detail && <Modal size="wide" open title="Detalji odsustva" titleIcon={<SettingsIcon kind="calendar" />} className="gm-settings-dialog" returnFocusRef={opener} onClose={closeDetail}
       footer={<div className="ui-actions gm-settings-dialog-actions"><Button ref={detailClose} type="button" variant="secondary" onClick={closeDetail}>Zatvori</Button>

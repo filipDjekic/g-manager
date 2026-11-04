@@ -23,7 +23,7 @@ class EmployeeTimeOffIntegrationTest {
   assertThat(starts(customerToken,service,employee,date)).contains(start);
   decide(ownerToken,created,"APPROVED").andExpect(status().isOk());
   assertThat(starts(customerToken,service,employee,date)).doesNotContain(start);
-  JsonNode approved=node(mvc.perform(get("/api/v1/time-off").header("Authorization",bearer(ownerToken))).andExpect(status().isOk()).andReturn()).get(0);
+  JsonNode approved=node(mvc.perform(get("/api/v1/time-off").header("Authorization",bearer(ownerToken))).andExpect(status().isOk()).andReturn()).get("content").get(0);
   decide(ownerToken,approved,"CANCELLED").andExpect(status().isOk());
   assertThat(starts(customerToken,service,employee,date)).contains(start);
   JsonNode replacement=node(mvc.perform(post("/api/v1/time-off").header("Authorization",bearer(ownerToken)).contentType(MediaType.APPLICATION_JSON).content(request(employee,start,end))).andExpect(status().isCreated()).andReturn());

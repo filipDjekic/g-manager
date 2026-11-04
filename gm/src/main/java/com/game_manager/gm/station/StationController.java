@@ -23,6 +23,8 @@ public class StationController {
     }
     @PutMapping("/{resourceId}/profile") public StationOverview saveStation(@PathVariable UUID resourceId,
             @Valid @RequestBody StationProfileRequest request) { return service.saveStation(resourceId, request); }
+    @GetMapping("/applications/page") public com.game_manager.gm.common.dto.PageResponse<DefinitionView> definitionPage(@RequestParam(defaultValue="0")int page,@RequestParam(defaultValue="10")int size){return service.definitionPage(page,size);}
+    @GetMapping("/application-profiles/page") public com.game_manager.gm.common.dto.PageResponse<ProfileView> profilePage(@RequestParam(defaultValue="0")int page,@RequestParam(defaultValue="10")int size){return service.profilePage(page,size);}
     @GetMapping("/applications") public List<DefinitionView> definitions() { return service.definitions(); }
     @PostMapping("/applications") @ResponseStatus(HttpStatus.CREATED)
     public DefinitionView createDefinition(@Valid @RequestBody ApplicationDefinitionRequest request) { return service.createDefinition(request); }

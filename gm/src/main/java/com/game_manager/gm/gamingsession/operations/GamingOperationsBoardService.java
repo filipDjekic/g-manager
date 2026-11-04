@@ -71,6 +71,12 @@ public class GamingOperationsBoardService {
         var commandEntries=commands.findTop50ByStationIdOrderBySequenceDesc(stationId).stream().map(value->new StationHistoryResponse.Entry(value.getAvailableAt(),"COMMAND",value.getCommandType().name(),value.getAcknowledgedAt()==null?"PENDING":"ACKNOWLEDGED",value.getSequence(),value.getCorrelationId(),null));
         var entries=java.util.stream.Stream.concat(auditEntries,commandEntries).sorted(java.util.Comparator.comparing(StationHistoryResponse.Entry::occurredAt).reversed()).limit(50).toList();return new StationHistoryResponse(clock.instant(),stationId,entries);}
 
+    @Transactional(readOnly=true) @PreAuthorize("hasAuthority('GAMING_SESSION_READ')")
+    public com.game_manager.gm.common.dto.PageResponse<StationHistoryResponse.Entry> historyPage(UUID stationId,int page,int size){
+        var actor=currentUser.requireCurrentUser();locations.requireResourceAccess(actor,stationId);
+        return com.game_manager.gm.common.dto.PageResponse.from(commands.historyPage(stationId.toString(),com.game_manager.gm.common.dto.PageRequests.of(page,size,org.springframework.data.domain.Sort.unsorted())).map(row->new StationHistoryResponse.Entry(row.getOccurredAt(),row.getCategory(),row.getAction(),row.getStatus(),row.getCommandSequence(),row.getCorrelationId(),row.getDetails())));
+    }
+
     private GamingOperationsBoardResponse.StationCard card(StationOverview station, GamingSession latest,
             StationCommandSummary latestCommand,com.game_manager.gm.common.scheduling.ClientStatePort.State enforcementState, Map<UUID,User> customers, AuthenticatedUser actor, Instant now,boolean privacyReady,boolean incoming,Map<UUID,java.math.BigDecimal> due,com.game_manager.gm.common.scheduling.ClientStatePort.Heartbeat health) {
         GamingSession active = latest != null && latest.getStatus() == GamingSessionStatus.ACTIVE ? latest : null;

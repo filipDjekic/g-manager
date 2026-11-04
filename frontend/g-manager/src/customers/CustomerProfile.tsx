@@ -1,3 +1,5 @@
+import { usePagedQuery } from '../query/usePagedQuery'
+import { Pagination } from '../components/ui/Pagination'
 import { GamingWalletPanel } from '../gaming/GamingWalletPanel'
 import { Tabs } from '../components/ui/Tabs'
 import { useQuery } from '@tanstack/react-query'
@@ -11,7 +13,7 @@ import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
 import { Badge, Button, Drawer, EmptyState, ErrorState, Skeleton, Alert, StatCard } from '../components/ui'
 import { orderLabels, orderTones, reservationLabels, reservationTones } from '../components/ui/statusPresentation'
-import { GamingVisitList } from '../gaming/GamingVisitList'
+import { GamingVisitHistory } from '../gaming/GamingVisitHistory'
 import { NavigationIcon } from '../layout/NavigationIcon'
 import { queryKeys } from '../query/queryKeys'
 import type { CustomerListItem } from '../types/customer.types'
@@ -41,6 +43,8 @@ export function CustomerProfile({ customerId, open, onClose, onEdit, onDeactivat
     queryFn: () => gamingSessionApi.customerVisits(customerId), enabled: canReadGaming })
   const queue = useQuery({ queryKey: ['waitlist', 'customer', customerId],
     queryFn: () => waitlistApi.operational({ customerId, page: 0, size: 5 }), enabled: canReadReservations })
+  const reservations = usePagedQuery(['customers', customerId, 'reservations'], (page, size) => customerApi.reservations(customerId, page, size), 10, tab === 'reservations')
+  const orders = usePagedQuery(['customers', customerId, 'orders'], (page, size) => customerApi.orders(customerId, page, size), 10, tab === 'orders')
   const customer = detail.data?.customer
   const tabs: { key: ProfileTab; label: string }[] = [
     { key: 'overview', label: 'Pregled' }, { key: 'reservations', label: 'Rezervacije' },
@@ -97,13 +101,15 @@ export function CustomerProfile({ customerId, open, onClose, onEdit, onDeactivat
           {activeTab === 'wallet' && <GamingWalletPanel customerId={customerId} />}
           {activeTab === 'reservations' && <section className="customers-profile-section">
             <h3>Istorija rezervacija</h3>
-            <p className="customers-history-hint">Prikaz poslednjih najviše 20 rezervacija.</p>
-            {detail.data.reservations.length ? <ul className="customers-history">{detail.data.reservations.map(item => {
+            {reservations.isLoading && <Skeleton lines={3} />}
+            {reservations.error && <ErrorState message="Istorija nije dostupna." action={<Button onClick={() => void reservations.refetch()}>Osveži</Button>} />}
+            {reservations.data?.content.length ? <ul className="customers-history">{reservations.data!.content.map(item => {
               const status = item.status as ReservationStatus
               return <li key={item.id}><NavigationIcon to="/reservations" /><div><strong>{item.serviceName}</strong>
                 <span>{customerDate(item.startTime)} - {customerDate(item.endTime)}</span></div>
                 <Badge tone={reservationTones[status] ?? 'neutral'}>{reservationLabels[status] ?? 'Nepoznat status'}</Badge></li>
-            })}</ul> : <EmptyState title="Nema istorije rezervacija" description="Rezervacije klijenta će se pojaviti ovde." />}
+            })}</ul> : reservations.isSuccess ? <EmptyState title="Nema istorije rezervacija" description="Rezervacije klijenta će se pojaviti ovde." /> : null}
+            {reservations.data && <Pagination label="Stranice rezervacija klijenta" page={reservations.page} onPageChange={reservations.setPage} totalPages={reservations.data.totalPages} totalElements={reservations.data.totalElements} pageSize={10} loading={reservations.isFetching} />}
             {canReadReservations && <Link className="customers-history-link" to={`/reservations?customerId=${customerId}`}>Otvori pregled rezervacija →</Link>}
             {canReadReservations && <section className="customers-waitlist"><h3>Lista čekanja</h3>
               {queue.isLoading ? <Skeleton lines={2} label="Učitavanje liste čekanja" /> : queue.error ?
@@ -119,18 +125,20 @@ export function CustomerProfile({ customerId, open, onClose, onEdit, onDeactivat
             </section>}
           </section>}
           {activeTab === 'gaming' && canReadGaming && <section className="customers-profile-section"><h3>Gaming sesije</h3>
-            {visits.isLoading ? <Skeleton lines={3} label="Učitavanje gaming istorije" /> : visits.error ?
-              <ErrorState message={apiErrorMessage(visits.error, 'Gaming istorija nije dostupna.')}
-                action={<Button variant="secondary" onClick={() => void visits.refetch()}>Pokušaj ponovo</Button>} /> : <GamingVisitList visits={visits.data ?? []} staff />}
+            <GamingVisitHistory customerId={customerId} />
           </section>}
           {activeTab === 'orders' && <section className="customers-profile-section"><h3>Istorija narudžbina</h3>
-            <p className="customers-history-hint">Prikaz poslednjih najviše 20 narudžbina.</p>
-            {detail.data.orders.length ? <ul className="customers-history">{detail.data.orders.map(item => {
+            {orders.isLoading && <Skeleton lines={3} />}
+            {orders.error && <ErrorState message="Istorija nije dostupna." action={<Button onClick={() => void orders.refetch()}>Osveži</Button>} />}
+            {orders.data?.content.length ? <ul className="customers-history">{orders.data!.content.map(item => {
               const status = item.status as OrderStatus
               return <li key={item.id}><NavigationIcon to="/orders" /><div><strong>{customerMoney.format(item.totalPrice)}</strong>
                 <span>{customerDate(item.createdAt)}</span></div><Badge tone={orderTones[status] ?? 'neutral'}>
                   {orderLabels[status] ?? 'Nepoznat status'}</Badge></li>
-            })}</ul> : <EmptyState title="Nema istorije narudžbina" description="Narudžbine klijenta će se pojaviti ovde." />}
+            })}</ul> : orders.isSuccess ? <EmptyState title="Nema istorije narudžbina" description="Narudžbine klijenta će se pojaviti ovde." /> : null}
+            {orders.data && <Pagination label="Stranice narudzbina klijenta" page={orders.page} onPageChange={orders.setPage} totalPages={orders.data.totalPages} totalElements={orders.data.totalElements} pageSize={10} loading={orders.isFetching} />}
+            {hasCapability(user, 'ORDER_READ_ALL') && <Link className="customers-history-link" to={`/orders?customerId=${customerId}`}>Otvori pregled narudžbina →</Link>}
+
           </section>}
           {activeTab === 'crm' && canManageCrm && <CustomerCrmPanel customerId={customerId} />}
         </div>

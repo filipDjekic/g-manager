@@ -26,10 +26,10 @@ export function SettingsPage() {
   const hours = useQuery({ queryKey: ['working-hours'], queryFn: workingHoursApi.list, enabled: canRead })
   const employees = useQuery({ queryKey: ['settings', 'employees', actor?.id], queryFn: () => settingsEmployees(hasCapability(actor, 'USER_LIST')),
     enabled: hasCapability(actor, 'EMPLOYEE_LIST') && (section === 'overview' || section === 'timeoff'), staleTime: 60000 })
-  const exceptions = useQuery({ queryKey: ['working-hours', 'exceptions', 'upcoming'], queryFn: () => workingHoursApi.listExceptions(),
-    enabled: canRead && (section === 'overview' || section === 'exceptions') })
-  const timeOff = useQuery({ queryKey: ['settings', 'time-off', actor?.id], queryFn: timeOffApi.list,
-    enabled: canManage && (section === 'overview' || section === 'timeoff'), refetchInterval: 30000, refetchIntervalInBackground: false })
+  const exceptions = useQuery({ queryKey: ['working-hours', 'exceptions', 'summary'], queryFn: workingHoursApi.summary,
+    enabled: canRead && section === 'overview' })
+  const timeOff = useQuery({ queryKey: ['settings', 'time-off', 'summary', actor?.id], queryFn: timeOffApi.summary,
+    enabled: canManage && section === 'overview', refetchInterval: 30000, refetchIntervalInBackground: false })
   useEffect(() => {
     document.getElementById('settings-tab-' + section)?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
   }, [section])
@@ -65,10 +65,10 @@ export function SettingsPage() {
       <WorkingHoursSettings query={hours} onDirtyChange={setDirtyCount} />
     </div>
     <div role="tabpanel" id="settings-panel-exceptions" aria-labelledby="settings-tab-exceptions" hidden={section !== 'exceptions'}>
-      <WorkingHoursExceptions query={exceptions} hours={hours} active={section === 'exceptions'} onChanged={exceptionsChanged} />
+      <WorkingHoursExceptions hours={hours} active={section === 'exceptions'} onChanged={exceptionsChanged} />
     </div>
     <div role="tabpanel" id="settings-panel-timeoff" aria-labelledby="settings-tab-timeoff" hidden={section !== 'timeoff'}>
-      <EmployeeTimeOffSettings query={timeOff} employees={employees} onChanged={timeOffChanged} />
+      <EmployeeTimeOffSettings active={section === 'timeoff'} employees={employees} onChanged={timeOffChanged} />
     </div>
   </PageLayout>
 }

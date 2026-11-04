@@ -13,7 +13,7 @@ import { Badge, Button, EmptyState, ErrorState, Skeleton, PageHeader, PageLayout
 import { DashboardOrderCard, DashboardSection } from '../dashboard/DashboardComponents'
 import { ActiveGamingVisit, CustomerActivityList, CustomerSessionDialog, CustomerWaitlistPreview, UpcomingReservations } from '../dashboard/customer/CustomerHomeComponents'
 import { customerActivities, sessionState } from '../dashboard/customer/CustomerHomeComponents.model'
-import { GamingVisitList } from '../gaming/GamingVisitList'
+import { GamingVisitHistory } from '../gaming/GamingVisitHistory'
 import { useServerNow } from '../gaming/useServerNow'
 import { NavigationIcon } from '../layout/NavigationIcon'
 import '../dashboard/dashboard.css'
@@ -39,6 +39,7 @@ export function CustomerHomePage() {
     queryKey: ['gaming-visits', 'mine', user?.id], queryFn: gamingSessionApi.mine, enabled: canReserve,
     staleTime: 5000, refetchOnMount: 'always', refetchInterval: 15000, refetchIntervalInBackground: false,
   })
+  const recentVisits = useQuery({ queryKey: ['gaming-visits', 'history', user?.id, undefined, { page: 0, size: 10 }], queryFn: () => gamingSessionApi.myHistory(0, 10), enabled: canReserve && (historyExpanded || !!selectedSessionId), refetchInterval: 15000 })
   const refreshVisits = visits.refetch
   const reservations = useQuery({
     queryKey: ['reservations', 'mine', user?.id, 'home-upcoming'], enabled: canReserve,
@@ -80,18 +81,17 @@ export function CustomerHomePage() {
     .sort((a, b) => b.received - a.received)[0]?.time
   const now = useServerNow(serverTime), synchronized = Boolean(serverTime)
   const active = useMemo(() => visits.isError ? [] : visits.data?.filter(value => value.status === 'ACTIVE') ?? [], [visits.isError, visits.data])
-  const history = visits.data?.filter(value => value.status !== 'ACTIVE') ?? []
   const upcoming = reservations.data?.content ?? []
   const waiting = useMemo(() => queue.data?.filter(value => value.status === 'WAITING' || value.status === 'OFFERED') ?? [], [queue.data])
   const firstActive = active[0]
-  const currentSession = visits.data?.find(value => value.id === selectedSessionId)
+  const currentSession = visits.data?.find(value => value.id === selectedSessionId) ?? recentVisits.data?.content.find(value => value.id === selectedSessionId)
   const activeState = firstActive ? sessionState(firstActive, now, synchronized) : undefined
   const name = user?.name.trim()
   const activities = useMemo(() => customerActivities(
-    visits.isError ? [] : visits.data ?? [],
+    [...(visits.isError ? [] : visits.data ?? []), ...(recentVisits.isError ? [] : recentVisits.data?.content ?? [])],
     recentReservations.isError ? [] : recentReservations.data?.content ?? [],
     orders.isError ? [] : orders.data?.content ?? [],
-  ), [visits.data, visits.isError, recentReservations.data, recentReservations.isError, orders.data, orders.isError])
+  ), [visits.data, visits.isError, recentVisits.data, recentVisits.isError, recentReservations.data, recentReservations.isError, orders.data, orders.isError])
 
   // Recheck once at each known deadline; polling handles any delayed backend transition.
   useEffect(() => {
@@ -117,7 +117,7 @@ export function CustomerHomePage() {
     window.requestAnimationFrame(() => { if (!sessionTrigger.current?.isConnected) titleRef.current?.focus({ preventScroll: true }) })
   }
   function refresh() {
-    if (canReserve) { void refreshVisits(); void reservations.refetch(); void summary.refetch(); if(historyExpanded)void recentReservations.refetch(); void refreshQueue() }
+    if (canReserve) { void refreshVisits(); void reservations.refetch(); void summary.refetch(); if(historyExpanded) { void recentReservations.refetch(); void recentVisits.refetch() }; void refreshQueue() }
     if (canOrder) refreshActiveOrders()
   }
   const refreshing = canReserve && (visits.isFetching || reservations.isFetching || summary.isFetching || recentReservations.isFetching || queue.isFetching) || canOrder && (orders.isFetching || activeOrderQueries.some(query=>query.isFetching))
@@ -171,11 +171,11 @@ export function CustomerHomePage() {
       {historyExpanded && <><h2>Poslednje aktivnosti</h2>{activityErrors.map(error => <ErrorState key={error.key} message={error.message} action={<Button variant="secondary" onClick={error.retry}>Pokušaj ponovo</Button>} />)}
         {activityLoading && <Skeleton lines={3} />}{activities.length > 0 && <CustomerActivityList activities={activities} icon={path => <NavigationIcon to={path} />} onOpen={rememberSessionTrigger} />}
         {!activityLoading && !activityErrors.length && !activities.length && <p>Još nema aktivnosti.</p>}
-        {canReserve && <><h2 id="gaming-history">Gaming istorija</h2><GamingVisitList visits={history} locale="sr-Latn-RS" showDuration /></>}
+        {canReserve && <><h2 id="gaming-history">Gaming istorija</h2><GamingVisitHistory /></>}
         {canOrder && <><h2>Poslednje narudžbine</h2>{orders.data?.content.map(order => <DashboardOrderCard key={order.id} order={order}><Link to={`/my-orders?orderId=${order.id}`}>Detalji →</Link></DashboardOrderCard>)}</>}
       </>}
     </details>
-    <CustomerSessionDialog open={Boolean(selectedSessionId)} visit={currentSession} now={now} synchronized={synchronized} loading={visits.isLoading}
+    <CustomerSessionDialog open={Boolean(selectedSessionId)} visit={currentSession} now={now} synchronized={synchronized} loading={visits.isLoading || recentVisits.isLoading}
       error={visits.isError ? apiErrorMessage(visits.error, 'Detalji gaming sesije nisu dostupni.') : undefined} returnFocusRef={sessionTrigger}
       onClose={closeSession} onRefresh={() => void refreshVisits()} />
     {user && <GamingWalletPanel customerId={user.id} />}

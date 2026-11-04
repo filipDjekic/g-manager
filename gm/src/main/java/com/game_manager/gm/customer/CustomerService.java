@@ -60,9 +60,13 @@ public class CustomerService {
         CustomerReference customer = userService.customerReference(id);
         CustomerReservationSummary reservations = reservationService.summarizeCustomers(Set.of(id)).get(id);
         CustomerOrderSummary orders = orderService.summarizeCustomers(Set.of(id)).get(id);
-        return new CustomerDetailResponse(response(customer, reservations, orders),
-                reservationService.customerHistory(id, 20), orderService.customerHistory(id, 20));
+        return new CustomerDetailResponse(response(customer, reservations, orders));
     }
+
+    @Transactional(readOnly = true) @PreAuthorize("hasAuthority('CUSTOMER_READ')")
+    public PageResponse<com.game_manager.gm.reservation.CustomerReservationHistory> reservations(UUID id,int page,int size){userService.customerReference(id);return reservationService.customerHistoryPage(id,page,size);}
+    @Transactional(readOnly = true) @PreAuthorize("hasAuthority('CUSTOMER_READ')")
+    public PageResponse<com.game_manager.gm.order.CustomerOrderHistory> orders(UUID id,int page,int size){userService.customerReference(id);return orderService.customerHistoryPage(id,page,size);}
 
     private static CustomerListItemResponse response(CustomerReference customer,
             CustomerReservationSummary reservations, CustomerOrderSummary orders) {

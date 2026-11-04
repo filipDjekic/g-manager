@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authApi } from '../api/authApi'
@@ -14,6 +15,7 @@ export function useSessionDashboard(actorId: string) {
   const [pendingId, setPendingId] = useState<string | null>(null)
   const loadingRequest = useRef<Promise<void> | null>(null)
   const mutationInFlight = useRef(false), mounted = useRef(false)
+  const client = useQueryClient()
   const toast = useToast(), navigate = useNavigate()
   const currentActor = useCallback(() => useAuthStore.getState().user?.id === actorId, [actorId])
 
@@ -24,6 +26,7 @@ export function useSessionDashboard(actorId: string) {
     setEvents(current => ({ ...current, loading: true, error: '' }))
     const active = () => mounted.current && currentActor()
     const request = Promise.all([
+      client.invalidateQueries({ queryKey: ['security-history', actorId] }),
       authApi.sessions().then(data => {
         if (active()) setSessions({ data, loading: false, error: '' })
       }).catch(cause => {
@@ -37,7 +40,7 @@ export function useSessionDashboard(actorId: string) {
     ]).then(() => undefined).finally(() => { loadingRequest.current = null })
     loadingRequest.current = request
     return request
-  }, [currentActor])
+  }, [currentActor, client, actorId])
 
   useEffect(() => {
     mounted.current = true

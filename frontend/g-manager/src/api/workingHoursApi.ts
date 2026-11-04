@@ -1,7 +1,9 @@
+import type { PageResponse } from '../types/api.types'
 import { apiClient } from './client'
 import type { DayOfWeek, WorkingHours, WorkingHoursException, WorkingHoursExceptionInput } from '../types/workingHours.types'
 
 export const workingHoursApi = {
+  summary: () => apiClient.get<{ totalElements: number }>('/working-hours/exceptions/summary').then(({data}) => data),
   list: () =>
     apiClient.get<WorkingHours[]>('/working-hours').then(({ data }) => data),
   update: (hours: WorkingHours) =>
@@ -16,8 +18,9 @@ export const workingHoursApi = {
     input: Pick<WorkingHours, 'openTime' | 'closeTime' | 'active'> & { version?: number },
   ) => apiClient.put<WorkingHours>(`/working-hours/${dayOfWeek}`, input)
     .then(({ data }) => data),
-  listExceptions: (params?: { from: string; to: string }) =>
-    apiClient.get<WorkingHoursException[]>('/working-hours/exceptions', { params })
+  exceptionPage: (page: number, size: number) => apiClient.get<PageResponse<WorkingHoursException>>('/working-hours/exceptions/page', { params: { page, size } }).then(({ data }) => data),
+  listExceptions: (params: { from: string; to: string }) =>
+    apiClient.get<WorkingHoursException[]>('/working-hours/exceptions/calendar', { params })
       .then(({ data }) => data),
   createException: (input: WorkingHoursExceptionInput) =>
     apiClient.post<WorkingHoursException>('/working-hours/exceptions', input)

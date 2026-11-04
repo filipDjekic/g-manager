@@ -138,6 +138,20 @@ public class StationReadinessService {
         return definitions.findAllByOrderByNameAsc().stream().map(DefinitionView::from).toList();
     }
 
+    @Transactional(readOnly = true) @PreAuthorize("hasAuthority('STATION_READ')")
+    public com.game_manager.gm.common.dto.PageResponse<DefinitionView> definitionPage(int page,int size){
+        return com.game_manager.gm.common.dto.PageResponse.from(definitions.findAll(com.game_manager.gm.common.dto.PageRequests.of(page,size,org.springframework.data.domain.Sort.by("name","id"))).map(DefinitionView::from));
+    }
+    @Transactional(readOnly = true) @PreAuthorize("hasAuthority('STATION_READ')")
+    public com.game_manager.gm.common.dto.PageResponse<ProfileView> profilePage(int page,int size){
+        var values=profiles.findAll(com.game_manager.gm.common.dto.PageRequests.of(page,size,org.springframework.data.domain.Sort.by("name","id")));
+        if(values.isEmpty())return com.game_manager.gm.common.dto.PageResponse.from(values.map(value->view(value,List.of(),Map.of())));
+        var items=entries.findByProfileIdInOrderByLaunchOrderAscIdAsc(values.stream().map(ApplicationProfile::getId).toList());
+        var byProfile=items.stream().collect(Collectors.groupingBy(ApplicationProfileEntry::getProfileId));
+        var byId=definitions.findAllById(items.stream().map(ApplicationProfileEntry::getApplicationDefinitionId).distinct().toList()).stream().collect(Collectors.toMap(ApplicationDefinition::getId,Function.identity()));
+        return com.game_manager.gm.common.dto.PageResponse.from(values.map(value->view(value,byProfile.getOrDefault(value.getId(),List.of()),byId)));
+    }
+
     @Transactional
     @PreAuthorize("hasAuthority('APPLICATION_PROFILE_MANAGE')")
     public DefinitionView createDefinition(ApplicationDefinitionRequest request) {

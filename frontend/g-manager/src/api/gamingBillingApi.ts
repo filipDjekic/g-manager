@@ -1,3 +1,4 @@
+import type { PageResponse } from '../types/api.types'
 import { apiClient } from './client'
 export type Money = string | number
 export type PaymentMethod = 'CASH' | 'EXTERNAL_POS' | 'WALLET' | 'TIME_PACKAGE'
@@ -9,9 +10,14 @@ export interface Quote { tariffId: string; tariffVersion: number; tariffName: st
 export interface FinancialOperation { id: string; amount: Money; currency: string; kind: string; method: string; status: string; reason?: string; reference?: string; created_at: string }
 export interface Account { sessionId: string; due: Money; currency: string; receiptType: string; charges: { id: string; amount: Money; minutes: number; snapshot: string }[]; transactions: FinancialOperation[] }
 export interface TimePackage { id: string; remaining_minutes: number; minutes: number; price: Money; expires_at?: string; service_id?: string; tariff_id: string }
-export interface Wallet { serverTime?: string; customerId: string; balance: Money; currency: string; packages: TimePackage[]; transactions: FinancialOperation[]; ledger: { id: string; kind: string; amount: Money; minutes: number; created_at: string; reason?: string }[] }
+export interface WalletLedgerEntry { id: string; kind: string; amount: Money; minutes: number; created_at: string; reason?: string }
+export interface Wallet { serverTime?: string; customerId: string; balance: Money; currency: string; packages: TimePackage[];  }
 const headers = (key: string) => ({ headers: { 'Idempotency-Key': key } })
 export const gamingBillingApi = {
+  tariffPage: (page: number, size: number) => apiClient.get<PageResponse<Tariff>>('/gaming-billing/tariffs/page', { params: { page, size } }).then(r => r.data),
+  refundableWalletPayments: (id: string) => apiClient.get<FinancialOperation[]>(`/gaming-billing/customers/${id}/refundable-payments`).then(r => r.data),
+  walletHistory: <T,>(id: string, kind: string, page: number, size: number) => apiClient.get<PageResponse<T>>(`/gaming-billing/customers/${id}/history/${kind}`, { params: { page, size } }).then(r => r.data),
+  reportDetails: (table: string, from: string, until: string, page: number, size: number) => apiClient.get<PageResponse<Record<string, string | number>>>(`/gaming-billing/report/${table}`, { params: { from, until, page, size } }).then(r => r.data),
   tariffs: () => apiClient.get<Tariff[]>('/gaming-billing/tariffs').then(r => r.data),
   policy: () => apiClient.get<BillingPolicy>('/gaming-billing/policy').then(r => r.data),
   savePolicy: (p: BillingPolicy) => apiClient.put<BillingPolicy>('/gaming-billing/policy', p).then(r => r.data),
@@ -26,4 +32,4 @@ export const gamingBillingApi = {
   prepare: (id: string, body: unknown, key: string) => apiClient.post(`/gaming-operations/stations/${id}/prepare`, body, headers(key)),
   report: (from: string, until: string) => apiClient.get<FinanceReport>('/gaming-billing/report', { params: { from, until } }).then(r => r.data),
 }
-export interface FinanceReport { currency: string; totals: Record<string, string | number>; activePackageLiability: Money; recorded: Record<string, string | number>[]; byStation: Record<string, string | number>[]; byLocation: Record<string, string | number>[]; byEmployee: Record<string, string | number>[]; outstandingDebt: Money; prepaidLiability: Money; packages: TimePackage[]; sessions: Record<string, string | number>[]; productOrders: Record<string, string | number>[] }
+export interface FinanceReport { currency: string; totals: Record<string, string | number>; activePackageLiability: Money; recorded: Record<string, string | number>[]; outstandingDebt: Money; prepaidLiability: Money; sessions: Record<string, string | number>[]; productOrders: Record<string, string | number>[] }

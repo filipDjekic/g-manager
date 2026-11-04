@@ -1,8 +1,13 @@
+import { usePagedQuery } from '../query/usePagedQuery'
+import { apiClient } from '../api/client'
+import type { PageResponse } from '../types/api.types'
+import { useAuthStore } from '../auth/authStore'
+import { Pagination } from '../components/ui/Pagination'
 import { useId, type RefObject } from 'react'
 import { Badge, Button, Card, EmptyState, ErrorState, Select, Skeleton, PageHeader, TableShell, StatCard } from '../components/ui'
 import type { SecurityEventInfo, SessionInfo } from '../types/auth.types'
 import { SessionIcon, SessionTime } from './sessionPresentation'
-import { deviceIcon, latestLogin, matchesSecurityFilter, securityEventPresentation, securityFilters, type SecurityFilter } from './sessionPresentation.model'
+import { deviceIcon, latestLogin, securityEventPresentation, securityFilters, type SecurityFilter } from './sessionPresentation.model'
 import type { SessionResource } from './useSessionDashboard'
 
 export function SessionHeading({ fetching = false, disabled = false, onRefresh }: {
@@ -83,19 +88,23 @@ export function ActiveDevices({ resource, busy, pendingId, headingRef, onRetry, 
   </Card>
 }
 
-export function SecurityHistory({ resource, filter, busy, onFilter, onRetry }: {
+export function SecurityHistory({ filter, busy, onFilter }: {
   resource: SessionResource<SecurityEventInfo>; filter: SecurityFilter; busy: boolean
   onFilter: (filter: SecurityFilter) => void; onRetry: () => void
 }) {
   const id = useId()
-  const visible = (resource.data ?? []).filter(event => matchesSecurityFilter(event, filter))
+  const actor = useAuthStore(state => state.user)
+  const history = usePagedQuery(['security-history', actor?.id, filter], (page, size) => apiClient.get<PageResponse<SecurityEventInfo>>('/auth/security-events/page', { params: { page, size, filter } }).then(({data}) => data), 20, true, 30000)
+  const resource = { data: history.data?.content ?? null, loading: history.isFetching, error: history.error ? 'Istorija nije dostupna.' : '' }
+  const onRetry = () => { void history.refetch() }
+  const visible = resource.data ?? []
   return <Card className="gm-session-panel gm-session-history">
     <header className="gm-session-panel-header">
       <div className="gm-session-panel-title"><span className="gm-session-panel-icon"><SessionIcon kind="clock" /></span>
         <div><h2 id={`${id}-title`}>Bezbednosna istorija</h2><p>Pregled nedavnih bezbednosnih aktivnosti na vašem nalogu.</p></div>
       </div>
       <label className="gm-session-filter" htmlFor={`${id}-filter`}><span className="sr-only">Filter bezbednosnih događaja</span>
-        <Select id={`${id}-filter`} value={filter} disabled={resource.data === null}
+        <Select id={`${id}-filter`} value={filter} disabled={history.isFetching}
           onChange={event => {
             const selected = securityFilters.find(value => value.value === event.target.value)
             if (selected) onFilter(selected.value)
@@ -104,11 +113,10 @@ export function SecurityHistory({ resource, filter, busy, onFilter, onRetry }: {
         </Select>
       </label>
     </header>
-    <p className="gm-session-panel-note">Filter obuhvata samo učitanu istoriju, najviše 50 poslednjih događaja. Vremenska zona: Europe/Belgrade.</p>
+    <p className="gm-session-panel-note">Filter obuhvata kompletnu istoriju. Vremenska zona: Europe/Belgrade.</p>
     <ResourceError resource={resource} label="Podaci o istoriji" disabled={busy} onRetry={onRetry} />
     {resource.data === null && resource.loading ? <Skeleton lines={5} label="Učitavanje bezbednosne istorije" />
       : visible.length > 0 ? <>
-        <p className="gm-session-history-count" role="status">Prikazano {visible.length} od {resource.data?.length} dostupnih događaja.</p>
         <TableShell label="Tabelarni pregled" className="gm-session-table-wrap" aria-busy={resource.loading || undefined}>
           <table className="ui-data-table gm-session-table gm-session-history-table" role="table" aria-labelledby={`${id}-title`}>
             <thead role="rowgroup"><tr role="row">{['Vreme', 'Događaj', 'Uređaj', 'Detalji'].map(label => <th scope="col" role="columnheader" key={label}>{label}</th>)}</tr></thead>
@@ -127,5 +135,6 @@ export function SecurityHistory({ resource, filter, busy, onFilter, onRetry }: {
         </TableShell>
       </> : resource.data !== null && !resource.error && <EmptyState title={resource.data.length
         ? 'Nema događaja za izabrani filter.' : 'Nema zabeleženih bezbednosnih događaja.'} />}
+    {history.data && <Pagination page={history.page} onPageChange={history.setPage} totalPages={history.data.totalPages} totalElements={history.data.totalElements} pageSize={20} loading={history.isFetching} />}
   </Card>
 }

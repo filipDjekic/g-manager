@@ -10,6 +10,9 @@ public class GamingBillingController {
     private final GamingBillingService service;
     private final GamingFinanceReportService reports;
     @GetMapping("/tariffs") public List<Tariff> tariffs(){return service.tariffs();}
+    @GetMapping("/tariffs/page") public com.game_manager.gm.common.dto.PageResponse<Tariff> tariffPage(@RequestParam(defaultValue="0")int page,@RequestParam(defaultValue="10")int size){return service.tariffPage(page,size);}
+    @GetMapping("/customers/{id}/history/{kind}") public com.game_manager.gm.common.dto.PageResponse<Map<String,Object>> walletHistory(@PathVariable UUID id,@PathVariable String kind,@RequestParam(defaultValue="0")int page,@RequestParam(defaultValue="10")int size){return service.walletHistory(id,kind,page,size);}
+    @GetMapping("/customers/{id}/refundable-payments") public List<Map<String,Object>> refundable(@PathVariable UUID id){return service.refundableWalletPayments(id);}
     @PostMapping("/tariffs") public Tariff create(@Valid @RequestBody TariffInput r){return service.saveTariff(null,r);}
     @PutMapping("/tariffs/{id}") public Tariff update(@PathVariable UUID id,@Valid @RequestBody TariffInput r){return service.saveTariff(id,r);}
     @GetMapping("/policy") public Policy policy(){return service.policy();}
@@ -23,5 +26,6 @@ public class GamingBillingController {
     @PostMapping("/customers/{id}/packages") public Map<String,Object> pack(@PathVariable UUID id,@Valid @RequestBody PackagePurchase r){return service.buyPackage(id,r);}
     @PostMapping("/customers/{id}/adjustments") public Map<String,Object> adjust(@PathVariable UUID id,@Valid @RequestBody CreditAdjustment r){return service.adjust(id,r);}
     @PostMapping("/customers/{id}/refunds") public Map<String,Object> walletRefund(@PathVariable UUID id,@Valid @RequestBody Refund r){return service.refundWallet(id,r);}
+    @GetMapping("/report/{table}") public com.game_manager.gm.common.dto.PageResponse<Map<String,Object>> reportDetails(@PathVariable String table,@RequestParam java.time.Instant from,@RequestParam java.time.Instant until,@RequestParam(defaultValue="0")int page,@RequestParam(defaultValue="20")int size){return reports.details(table,from,until,page,size);}
     @GetMapping("/report") public Map<String,Object> report(@RequestParam java.time.Instant from,@RequestParam java.time.Instant until){return reports.report(from,until);}
 }

@@ -1,5 +1,6 @@
+import type { PageResponse } from '../types/api.types'
 import { apiClient } from './client'
-import type { CustomerCrm, CustomerCrmNote, CustomerDetail, CustomerInput,
+import type { CustomerCrm, CustomerCrmNote, CustomerReservationHistory, CustomerOrderHistory, CustomerDetail, CustomerInput,
   CustomerOnboarding, CustomerPage, CustomerStatistics, CustomerUpdateInput } from '../types/customer.types'
 
 export const customerApi = {
@@ -12,8 +13,11 @@ export const customerApi = {
     apiClient.get<CustomerPage>('/customers', { params }).then(({ data }) => data),
   statistics: () => apiClient.get<CustomerStatistics>('/customers/statistics').then(({ data }) => data),
   detail: (id: string) => apiClient.get<CustomerDetail>(`/customers/${id}`).then(({ data }) => data),
+  reservations: (id: string, page: number, size: number) => apiClient.get<PageResponse<CustomerReservationHistory>>(`/customers/${id}/reservations`, { params: { page, size } }).then(({data}) => data),
+  orders: (id: string, page: number, size: number) => apiClient.get<PageResponse<CustomerOrderHistory>>(`/customers/${id}/orders`, { params: { page, size } }).then(({data}) => data),
   crm: (id: string, search?: string) =>
     apiClient.get<CustomerCrm>(`/customers/${id}/crm`, { params: { search } }).then(({ data }) => data),
+  crmNotes: (id: string, search: string | undefined, page: number, size: number) => apiClient.get<PageResponse<CustomerCrmNote>>(`/customers/${id}/crm/notes`, { params: { search, page, size } }).then(({ data }) => data),
   addCrmNote: (id: string, body: string) =>
     apiClient.post<CustomerCrmNote>(`/customers/${id}/crm/notes`, { body }).then(({ data }) => data),
   updateCrmNote: (customerId: string, noteId: string, body: string, version: number) =>

@@ -157,9 +157,31 @@ public class GamingBillingService {
         var actor=current.requireCurrentUser();
         if(actor.role()==Role.CUSTOMER ? !actor.id().equals(customerId) : !RolePermissions.has(actor.role(),Permission.CUSTOMER_READ)) forbidden("Wallet access denied");
         return Map.of("serverTime",clock.instant(),"customerId",customerId,"balance",balance(customerId),"currency","RSD",
-                "packages",jdbc.queryForList("SELECT p.*,COALESCE((SELECT SUM(l.minutes) FROM gaming_wallet_ledger l WHERE l.package_id=p.id),0) AS remaining_minutes FROM gaming_time_packages p WHERE p.customer_id=? ORDER BY p.created_at DESC",str(customerId)),
-                "transactions",jdbc.queryForList("SELECT * FROM gaming_financial_operations WHERE customer_id=? AND session_id IS NULL ORDER BY created_at DESC,id",str(customerId)),
-                "ledger",jdbc.queryForList("SELECT * FROM gaming_wallet_ledger WHERE customer_id=? ORDER BY created_at DESC,id",str(customerId)));
+                "packages",jdbc.queryForList("SELECT p.*,COALESCE((SELECT SUM(l.minutes) FROM gaming_wallet_ledger l WHERE l.package_id=p.id),0) AS remaining_minutes FROM gaming_time_packages p WHERE p.customer_id=? AND (p.expires_at IS NULL OR p.expires_at>?) AND COALESCE((SELECT SUM(l.minutes) FROM gaming_wallet_ledger l WHERE l.package_id=p.id),0)>0 ORDER BY p.created_at DESC,p.id DESC",str(customerId),ts(clock.instant())));
+    }
+    private void requireWalletAccess(UUID customerId) {
+        var actor=current.requireCurrentUser();
+        if(actor.role()==Role.CUSTOMER ? !actor.id().equals(customerId) : !RolePermissions.has(actor.role(),Permission.CUSTOMER_READ)) forbidden("Wallet access denied");
+    }
+    @Transactional(readOnly=true) @PreAuthorize("isAuthenticated()")
+    public com.game_manager.gm.common.dto.PageResponse<Map<String,Object>> walletHistory(UUID customerId,String kind,int page,int size) {
+        requireWalletAccess(customerId);
+        String select=switch(kind){
+            case "ledger" -> "SELECT * FROM gaming_wallet_ledger WHERE customer_id=?";
+            case "transactions" -> "SELECT * FROM gaming_financial_operations WHERE customer_id=? AND session_id IS NULL";
+            case "packages" -> "SELECT p.*,COALESCE((SELECT SUM(l.minutes) FROM gaming_wallet_ledger l WHERE l.package_id=p.id),0) AS remaining_minutes FROM gaming_time_packages p WHERE p.customer_id=?";
+            default -> throw new ApplicationException(HttpStatus.BAD_REQUEST,"Unknown wallet history");
+        };
+        return com.game_manager.gm.common.dto.SqlPages.maps(jdbc,select,"created_at DESC,id DESC",page,size,str(customerId));
+    }
+    @Transactional(readOnly=true) @PreAuthorize("hasAuthority('GAMING_FINANCE_MANAGE')")
+    public List<Map<String,Object>> refundableWalletPayments(UUID customerId) {
+        requireWalletAccess(customerId);
+        return jdbc.queryForList("SELECT f.* FROM gaming_financial_operations f WHERE f.customer_id=? AND f.session_id IS NULL AND f.kind IN ('CREDIT_TOPUP','PACKAGE_SALE') AND f.amount>COALESCE((SELECT SUM(r.amount) FROM gaming_financial_operations r WHERE r.original_id=f.id AND r.kind='REFUND'),0) ORDER BY f.created_at DESC,f.id DESC",str(customerId));
+    }
+    @Transactional(readOnly=true) @PreAuthorize("hasAuthority('GAMING_SESSION_READ')")
+    public com.game_manager.gm.common.dto.PageResponse<Tariff> tariffPage(int page,int size) {
+        return com.game_manager.gm.common.dto.SqlPages.query(jdbc,"SELECT * FROM gaming_tariffs","name,id",this::tariff,page,size);
     }
     @Transactional(isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED) @PreAuthorize("hasAuthority('GAMING_PAYMENT_RECORD')")
     public Map<String,Object> topup(UUID customerId,WalletChange r) {

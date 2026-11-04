@@ -26,14 +26,22 @@ public class StationClientUpdateService implements ClientUpdatePort {
         this.jdbc=jdbc;this.clock=clock;this.users=users;this.access=access;this.stations=stations;this.audit=audit;this.version=version;this.status=status;
     }
     public record Update(UUID id,String targetVersion,String status,Instant requestedAt,Instant notBefore,Instant expiresAt,Instant updatedAt,String reason){}
-    private List<Update> rows(UUID stationId,int limit){return jdbc.query("SELECT * FROM station_client_updates WHERE station_id=? ORDER BY requested_at DESC,id DESC LIMIT ?",
+    private List<Update> rows(UUID stationId,int limit){return rows(stationId,limit,0);}
+    private List<Update> rows(UUID stationId,int limit,long offset){return jdbc.query("SELECT * FROM station_client_updates WHERE station_id=? ORDER BY requested_at DESC,id DESC LIMIT ? OFFSET ?",
         (r,n)->new Update(UUID.fromString(r.getString("id")),r.getString("target_version"),effectiveStatus(r.getString("status"),r.getTimestamp("expires_at").toInstant(),r.getTimestamp("claim_until")==null?null:r.getTimestamp("claim_until").toInstant()),
-            r.getTimestamp("requested_at").toInstant(),r.getTimestamp("not_before").toInstant(),r.getTimestamp("expires_at").toInstant(),r.getTimestamp("updated_at").toInstant(),r.getString("reason")),stationId.toString(),limit);}
+            r.getTimestamp("requested_at").toInstant(),r.getTimestamp("not_before").toInstant(),r.getTimestamp("expires_at").toInstant(),r.getTimestamp("updated_at").toInstant(),r.getString("reason")),stationId.toString(),limit,offset);}
     private boolean pending(String value){return Set.of("REQUESTED","DEFERRED","DOWNLOADING","INSTALLING").contains(value);}
     private String effectiveStatus(String value,Instant expiry,Instant claimUntil){return pending(value)&&(!expiry.isAfter(clock.instant())||"INSTALLING".equals(value)&&(claimUntil==null||!claimUntil.isAfter(clock.instant())))?"EXPIRED":value;}
     private void authorize(UUID stationId,Permission permission){access.requireManage(users.requireCurrentUser(),stationId,permission);if(!stations.findByResourceId(stationId).map(GamingStationProfile::isClientEnabled).orElse(false))throw new ApplicationException(HttpStatus.CONFLICT,"Enabled Client station required");}
     @Transactional(readOnly=true) @PreAuthorize("hasAuthority('STATION_MAINTENANCE')")
     public List<Update> history(UUID stationId){authorize(stationId,Permission.STATION_MAINTENANCE);return rows(stationId,20);}
+    @Transactional(readOnly=true) @PreAuthorize("hasAuthority('STATION_MAINTENANCE')")
+    public com.game_manager.gm.common.dto.PageResponse<Update> history(UUID stationId,int page,int size){
+        authorize(stationId,Permission.STATION_MAINTENANCE);
+        var request=com.game_manager.gm.common.dto.PageRequests.of(page,size,org.springframework.data.domain.Sort.unsorted());
+        long total=jdbc.queryForObject("SELECT COUNT(*) FROM station_client_updates WHERE station_id=?",Long.class,stationId.toString());
+        return new com.game_manager.gm.common.dto.PageResponse<>(rows(stationId,request.getPageSize(),request.getOffset()),request.getPageNumber(),request.getPageSize(),total,(int)Math.ceil((double)total/request.getPageSize()));
+    }
     @Transactional @PreAuthorize("hasAuthority('STATION_MAINTENANCE')")
     public Update request(UUID stationId,Instant requestedTime,String reason){
         authorize(stationId,Permission.STATION_MAINTENANCE);

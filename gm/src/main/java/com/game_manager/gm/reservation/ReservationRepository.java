@@ -123,7 +123,7 @@ public interface ReservationRepository
     List<CustomerReservationSummary> summarizeCustomers(@Param("customerIds") Collection<UUID> customerIds);
 
     @Query("select r from Reservation r where r.customerId=:customerId order by r.startTime desc,r.id desc")
-    List<Reservation> customerHistory(@Param("customerId") UUID customerId,
+    org.springframework.data.domain.Page<Reservation> customerHistory(@Param("customerId") UUID customerId,
             org.springframework.data.domain.Pageable pageable);
 
     @Query("""

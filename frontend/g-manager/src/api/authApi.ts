@@ -18,7 +18,7 @@ export const authApi = {
     return data
   },
   async securityEvents(): Promise<SecurityEventInfo[]> {
-    const { data } = await apiClient.get<SecurityEventInfo[]>('/auth/security-events')
+    const { data } = await apiClient.get<SecurityEventInfo[]>('/auth/security-events/recent')
     return data
   },
   async revokeSession(id: string): Promise<void> {

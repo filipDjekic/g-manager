@@ -142,7 +142,10 @@ public class AuthController {
         return authService.sessions(refreshToken);
     }
 
-    @GetMapping("/security-events")
+    @GetMapping({"/security-events","/security-events/page"})
+    com.game_manager.gm.common.dto.PageResponse<SecurityEventResponse> securityEventPage(@org.springframework.web.bind.annotation.RequestParam(defaultValue="all")String filter,@org.springframework.web.bind.annotation.RequestParam(defaultValue="0")int page,@org.springframework.web.bind.annotation.RequestParam(defaultValue="20")int size){return authService.securityEventPage(filter,page,size);}
+
+    @GetMapping("/security-events/recent")
     List<SecurityEventResponse> securityEvents() {
         return authService.securityEvents();
     }

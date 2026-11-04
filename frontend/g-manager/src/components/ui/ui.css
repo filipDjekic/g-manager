@@ -285,3 +285,5 @@ button.ui-stat:hover, a.ui-stat:hover { border-color: var(--color-primary); back
 @media (max-width: 800px) { :root:has(.customer-shell) { --customer-toast-offset: 4.5rem; } }
 
 .ui-hub-grid .ui-card:has(> .navigation-icon) { grid-template-rows: auto auto 1fr auto; transition: border-color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard); }
+
+.ui-pagination-controls .ui-button[aria-current="page"] { color: var(--color-on-primary); background: var(--color-primary); border-color: var(--color-primary); font-weight: 700; }

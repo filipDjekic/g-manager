@@ -96,16 +96,13 @@ public class EmployeeOverviewService {
 
     @Transactional(readOnly = true)
     @PreAuthorize("hasAuthority('USER_LIST') and hasAuthority('WORKING_HOURS_MANAGE')")
-    public List<Leave> leaves(UUID id) {
+    public com.game_manager.gm.common.dto.PageResponse<Leave> leavePage(UUID id,int page,int size) {
         requireEmployee(id);
-        var today = LocalDate.now(clock.withZone(properties.businessZone()));
-        return jdbc.query("""
-                SELECT id,starts_at,ends_at,status FROM employee_time_off
-                WHERE employee_id=? AND status='APPROVED' AND ends_at > ?
-                ORDER BY starts_at,id
-                """, (row, index) -> new Leave(UUID.fromString(row.getString(1)),
-                        row.getTimestamp(2).toInstant(), row.getTimestamp(3).toInstant(), row.getString(4)),
-                id.toString(), Timestamp.from(today.atStartOfDay(properties.businessZone()).toInstant()));
+        var today=LocalDate.now(clock.withZone(properties.businessZone()));
+        return com.game_manager.gm.common.dto.SqlPages.query(jdbc,
+            "SELECT id,starts_at,ends_at,status FROM employee_time_off WHERE employee_id=? AND status='APPROVED' AND ends_at>?",
+            "starts_at,id",(row,index)->new Leave(UUID.fromString(row.getString(1)),row.getTimestamp(2).toInstant(),row.getTimestamp(3).toInstant(),row.getString(4)),
+            page,size,id.toString(),Timestamp.from(today.atStartOfDay(properties.businessZone()).toInstant()));
     }
 
     private User requireEmployee(UUID id) {

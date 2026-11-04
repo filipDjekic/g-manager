@@ -1,3 +1,6 @@
+import { usePagedQuery } from '../query/usePagedQuery'
+import type { PageResponse } from '../types/api.types'
+import { Pagination, Skeleton } from '../components/ui'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { stationApi } from '../api/stationApi'
@@ -11,10 +14,10 @@ const labels: Record<string, string> = { REQUESTED: 'Zahtev primljen', INSTALLIN
 export function StationClientUpdates({ stationId, installedVersion }: { stationId: string; installedVersion?: string }) {
   const queryClient = useQueryClient(), [reason, setReason] = useState(''), [delay, setDelay] = useState('0')
   const key = ['stations', stationId, 'client-updates']
-  const history = useQuery({ queryKey: key, queryFn: () => apiClient.get<Update[]>(`/stations/${stationId}/client-updates`).then(r => r.data), refetchInterval: 30000, refetchIntervalInBackground: false })
+  const history = usePagedQuery(key, (page, size) => apiClient.get<PageResponse<Update>>(`/stations/${stationId}/client-updates`, { params: { page, size } }).then(r => r.data), 10, true, 30000)
   const release = useQuery({ queryKey: ['stations', 'client-package'], queryFn: stationApi.clientPackage })
   const request = useMutation({ mutationFn: () => apiClient.post(`/stations/${stationId}/client-updates`, { reason: reason.trim(), notBefore: new Date(Date.now() + Number(delay) * 60000).toISOString() }),
-    onSuccess: () => { setReason(''); void queryClient.invalidateQueries({ queryKey: key }) } })
+    onSuccess: () => { setReason(''); history.setPage(0); void queryClient.invalidateQueries({ queryKey: key }) } })
   const available = !release.isError && release.data?.status === 'RELEASED' ? release.data.version : undefined
   return <section aria-label="Centralizovana ažuriranja klijenta" className="ui-secondary-section">
     <h3>Ažuriranje Client-a</h3>
@@ -27,8 +30,9 @@ export function StationClientUpdates({ stationId, installedVersion }: { stationI
     </form>
     {request.isError && <Alert tone="danger">Zahtev nije potvrđen. Osvežite status pre ponovnog pokušaja.</Alert>}
     {request.isSuccess && <Alert tone="success">Zahtev je evidentiran. Proverite ishod u istoriji.</Alert>}
-    {history.isError ? <Alert tone="danger">Istorija ažuriranja trenutno nije potvrđena.</Alert> : history.data?.length ? <ul>{history.data.map(update => <li key={update.id}>
+    {history.isLoading ? <Skeleton lines={3} /> : history.isError ? <Alert tone="danger"><Button onClick={() => void history.refetch()}>Osvezi</Button><span>Istorija ažuriranja trenutno nije potvrđena.</span></Alert> : history.data?.content.length ? <ul>{history.data.content.map(update => <li key={update.id}>
       <strong>{update.targetVersion} · {labels[update.status] || update.status}</strong> · {formatBusinessDateTime(update.updatedAt)}<br />{update.reason}
     </li>)}</ul> : <p>Nema zabeleženih zahteva za ažuriranje.</p>}
+    {history.data && <Pagination page={history.page} onPageChange={history.setPage} totalPages={history.data.totalPages} totalElements={history.data.totalElements} pageSize={10} loading={history.isFetching} />}
   </section>
 }

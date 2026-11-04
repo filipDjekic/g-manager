@@ -10,7 +10,7 @@ export const userApi = {
   employeeStatistics: () => apiClient.get<EmployeeStatistics>('/users/employees/statistics').then(({ data }) => data),
   employee: (id: string) => apiClient.get<UserResponse>(`/users/employees/${encodeURIComponent(id)}`).then(({ data }) => data),
   employeeAssignments: (id: string) => apiClient.get<EmployeeAssignments>(`/users/employees/${encodeURIComponent(id)}/assignments`).then(({ data }) => data),
-  employeeLeaves: (id: string) => apiClient.get<EmployeeLeave[]>(`/users/employees/${encodeURIComponent(id)}/time-off`).then(({ data }) => data),
+  employeeLeaves: (id: string, page = 0, size = 10) => apiClient.get<PageResponse<EmployeeLeave>>(`/users/employees/${encodeURIComponent(id)}/time-off`, { params: { page, size } }).then(({ data }) => data),
   avatarPreview: (id: string, signal?: AbortSignal) => apiClient.get<Blob>(`/documents/${encodeURIComponent(id)}/content`,
     { params: { preview: true }, responseType: 'blob', signal }).then(({ data }) => data),
   me: () => apiClient.get<UserResponse>('/users/me').then(({ data }) => data),

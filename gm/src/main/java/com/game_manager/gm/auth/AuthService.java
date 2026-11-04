@@ -171,6 +171,21 @@ public class AuthService {
                         event.getDeviceLabel(), event.getCreatedAt())).toList();
     }
 
+    @Transactional(readOnly = true)
+    public com.game_manager.gm.common.dto.PageResponse<SecurityEventResponse> securityEventPage(String filter,int page,int size) {
+        UUID userId=currentUserProvider.requireCurrentUser().id();
+        java.util.List<SecurityEventType> types=switch(filter){
+            case "all" -> java.util.List.of(SecurityEventType.values());
+            case "success" -> java.util.List.of(SecurityEventType.LOGIN_SUCCESS);
+            case "failure" -> java.util.List.of(SecurityEventType.LOGIN_FAILURE);
+            case "logout" -> java.util.List.of(SecurityEventType.LOGOUT);
+            case "changes" -> java.util.List.of(SecurityEventType.TOKEN_REFRESH,SecurityEventType.SESSION_REVOKED,SecurityEventType.ALL_SESSIONS_REVOKED);
+            case "other" -> java.util.List.of(SecurityEventType.TOKEN_REUSE,SecurityEventType.ACTIVATION_SUCCESS,SecurityEventType.ACTIVATION_FAILURE);
+            default -> throw new com.game_manager.gm.common.error.ApplicationException(org.springframework.http.HttpStatus.BAD_REQUEST,"Unknown security event filter");
+        };
+        return com.game_manager.gm.common.dto.PageResponse.from(securityEventRepository.findAll((row,query,cb)->cb.and(cb.equal(row.get("userId"),userId),row.get("eventType").in(types)),com.game_manager.gm.common.dto.PageRequests.newest(page,size)).map(event->new SecurityEventResponse(event.getEventType(),event.getDeviceLabel(),event.getCreatedAt())));
+    }
+
     private Session createSession(User user, SessionRequestMetadata metadata) {
         String refreshToken = generateRefreshToken();
         UUID sessionId = UUID.randomUUID();

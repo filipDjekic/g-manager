@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { Button } from './Button'
 import { Select } from './FormControls'
 
-export function Pagination({ page, totalPages = 1, onPageChange, loading = false, numbered = false,
+export function Pagination({ page, totalPages = 1, onPageChange, loading = false, numbered = true,
   totalElements, pageSize = 10, onPageSizeChange, pageSizes = [10, 20, 50, 100], label = 'Stranice rezultata', disabled = false }: {
   page: number; totalPages?: number; onPageChange: (page: number) => void; loading?: boolean
   numbered?: boolean; totalElements?: number; pageSize?: number; label?: string; disabled?: boolean

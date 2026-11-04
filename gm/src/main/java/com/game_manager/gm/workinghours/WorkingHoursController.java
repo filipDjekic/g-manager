@@ -42,12 +42,15 @@ public class WorkingHoursController {
         return workingHoursService.update(locationId, dayOfWeek, request);
     }
 
-    @GetMapping("/exceptions")
+    @GetMapping("/exceptions/calendar")
     public List<WorkingHoursExceptionResponse> listExceptions(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return workingHoursService.listExceptions(from, to);
     }
+
+    @GetMapping("/exceptions/summary") public java.util.Map<String,Long> exceptionSummary(){return workingHoursService.exceptionSummary();}
+    @GetMapping({"/exceptions","/exceptions/page"}) public com.game_manager.gm.common.dto.PageResponse<WorkingHoursExceptionResponse> exceptionPage(@RequestParam(defaultValue="0")int page,@RequestParam(defaultValue="10")int size){return workingHoursService.exceptionPage(page,size);}
 
     @PostMapping("/exceptions")
     public ResponseEntity<WorkingHoursExceptionResponse> createException(

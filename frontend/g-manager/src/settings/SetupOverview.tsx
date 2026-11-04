@@ -1,4 +1,3 @@
-import { useServerNow } from '../gaming/useServerNow'
 import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { useAuthStore } from '../auth/authStore'
@@ -7,21 +6,19 @@ import { resourceApi } from '../api/resourceApi'
 import { stationApi } from '../api/stationApi'
 import { catalogApi } from '../api/catalogApi'
 import { Badge, Button, Card } from '../components/ui'
-import type { WorkingHours, WorkingHoursException } from '../types/workingHours.types'
-import type { TimeOff } from '../types/timeOff.types'
+import type { WorkingHours } from '../types/workingHours.types'
 import type { UserResponse } from '../types/user.types'
 import { SettingsIcon } from './settingsPresentation'
-import { useBusinessToday, type SettingsIconKind } from './settingsPresentation.model'
+import { type SettingsIconKind } from './settingsPresentation.model'
 import { useClientPackageAvailability } from '../stations/clientPackageDistribution'
 
 type SetupStep = { label: string; description: string; detail: string; icon: SettingsIconKind; ready: boolean; known: boolean; error: unknown
   retry?: () => unknown; to: string; tab?: 'hours' | 'exceptions' | 'timeoff'; permitted: boolean }
 export function SetupOverview({ hours, employees, exceptions, timeOff, onOpenTab }: {
-  hours: UseQueryResult<WorkingHours[]>; employees: UseQueryResult<UserResponse[]>; exceptions: UseQueryResult<WorkingHoursException[]>
-  timeOff: UseQueryResult<TimeOff[]>; onOpenTab: (tab: 'hours' | 'exceptions' | 'timeoff') => void
+  hours: UseQueryResult<WorkingHours[]>; employees: UseQueryResult<UserResponse[]>; exceptions: UseQueryResult<{ totalElements: number }>
+  timeOff: UseQueryResult<{ totalElements: number }>; onOpenTab: (tab: 'hours' | 'exceptions' | 'timeoff') => void
 }) {
-  const now = useServerNow()
-  const actor = useAuthStore(state => state.user), today = useBusinessToday()
+  const actor = useAuthStore(state => state.user)
   const canResources = hasCapability(actor, 'RESOURCE_READ'), canStations = hasCapability(actor, 'STATION_READ')
   const locations = useQuery({ queryKey: ['setup', 'locations'], queryFn: resourceApi.locations, enabled: canResources, staleTime: 300000 })
   const stations = useQuery({ queryKey: ['stations', 'overview'], queryFn: stationApi.overview, enabled: canStations })
@@ -34,8 +31,8 @@ export function SetupOverview({ hours, employees, exceptions, timeOff, onOpenTab
   const areas = useQuery({ queryKey: ['setup', 'areas', active?.id], queryFn: () => resourceApi.areas(active!.id), enabled: !!active })
   const configuredStations = stations.data?.filter(item => item.stationProfileId && item.applicationProfileId).length ?? 0
   const released = clientPackage.ready && !clientPackage.checking
-  const futureExceptions = exceptions.data?.filter(item => item.date > today).length ?? 0
-  const relevantTimeOff = timeOff.data?.filter(item => (item.status === 'PENDING' || item.status === 'APPROVED') && Date.parse(item.endsAt) > now).length ?? 0
+  const futureExceptions = exceptions.data?.totalElements ?? 0
+  const relevantTimeOff = timeOff.data?.totalElements ?? 0
   const configuration: SetupStep[] = [
     { label: 'Lokacije', description: 'Adresa i poslovna zona aktivne lokacije.', detail: `${locations.data?.filter(item => item.active).length ?? 0} aktivnih lokacija`,
       icon: 'building', ready: !!active, known: !!locations.data, error: locations.error, retry: locations.refetch, to: '/resources', permitted: canResources },

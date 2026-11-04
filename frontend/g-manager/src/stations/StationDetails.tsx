@@ -1,3 +1,5 @@
+import { usePagedQuery } from '../query/usePagedQuery'
+import { Pagination } from '../components/ui/Pagination'
 import { StationSetupSteps } from './StationSetupSteps'
 import { StationClientUpdates } from './StationClientUpdates'
 import { useResettableState } from '../components/useResettableState'
@@ -34,7 +36,7 @@ export function StationDetails({ station, user, now, initialTab, profiles, defin
   const client = management.isError ? undefined : management.data
   const updateLabels: Record<string, string> = { CURRENT: 'Ažuran', DOWNLOADING: 'Preuzimanje', FAILED: 'Neuspešno ažuriranje', ROLLED_BACK: 'Vraćena prethodna verzija', UNKNOWN: 'Nije poznato' }
   const canHistory = hasCapability(user, 'GAMING_SESSION_READ') && Boolean(station.live)
-  const history = useQuery({ queryKey: ['gaming-operations', 'history', station.resourceId], queryFn: () => gamingSessionApi.history(station.resourceId), enabled: canHistory && tab === 'HISTORY' })
+  const history = usePagedQuery(['gaming-operations', 'history', user?.id, station.resourceId], (page, size) => gamingSessionApi.history(station.resourceId, page, size), 20, canHistory && tab === 'HISTORY', 15000)
   const profile = profiles.find(value => value.id === station.applicationProfileId), live = station.live
   const status = stationStatus(station), connection = connectionStatus(station), warnings = stationWarnings(station)
   const date = (value?: string) => value ? formatBusinessDateTime(value, false, 'sr-Latn-RS') : 'Nije zabeleženo'
@@ -107,13 +109,14 @@ export function StationDetails({ station, user, now, initialTab, profiles, defin
             </div>)}
           {tab === 'HISTORY' && (!canHistory ? <EmptyState title="Istorija nije dostupna" description="Istorija je dostupna samo za stanice u vašem Gaming Operations opsegu." />
             : history.isLoading ? <Skeleton lines={5} label="Učitavanje istorije stanice" /> : history.isError ? <ErrorState message={stationError(history.error, 'Istoriju nije moguće učitati.')} action={<Button variant="secondary" type="button" onClick={() => history.refetch()}>Pokušaj ponovo</Button>} />
-              : !history.data?.entries.length ? <EmptyState title="Nema zabeleženih događaja" description="Komande i promene potvrde zaključavanja prikazivaće se ovde." />
-                : <div className="gm-stations-history"><p className="gm-stations-form-note">Poslednji zabeleženi događaji · osveženo {date(history.data.serverTime)}</p>
-                  {history.data.entries.map((entry, index) => <article key={`${entry.category}-${entry.occurredAt}-${index}`}><div><strong>{actionLabels[entry.action] ?? entry.action}</strong>
+              : !history.data?.content.length ? <EmptyState title="Nema zabeleženih događaja" description="Komande i promene potvrde zaključavanja prikazivaće se ovde." />
+                : <div className="gm-stations-history"><p className="gm-stations-form-note">Poslednji zabeleženi događaji · osveženo {date(new Date(history.dataUpdatedAt).toISOString())}</p>
+                  {history.data.content.map((entry, index) => <article key={`${entry.category}-${entry.occurredAt}-${index}`}><div><strong>{actionLabels[entry.action] ?? entry.action}</strong>
                     <Badge tone={entry.status === 'PENDING' ? 'warning' : entry.status === 'OFFLINE' ? 'danger' : 'neutral'}>{historyStatusLabels[entry.status] ?? entry.status}</Badge></div>
                     <time dateTime={entry.occurredAt}>{date(entry.occurredAt)}</time><small>{entry.category === 'COMMAND' ? 'Komanda' : 'Potvrda zaključavanja'}{entry.commandSequence ? ` · #${entry.commandSequence}` : ''}</small>
                     {entry.details && <p>{entry.details}</p>}{entry.correlationId && <small>ID praćenja: <code>{entry.correlationId}</code></small>}</article>)}
                 </div>)}
+          {tab === 'HISTORY' && canHistory && history.data && <Pagination page={history.page} onPageChange={history.setPage} totalPages={history.data.totalPages} totalElements={history.data.totalElements} pageSize={20} loading={history.isFetching} />}
         </section>
       </div>
       <footer className="gm-stations-details-actions"><StationOperationLinks station={station} user={user} disabled={stale} />

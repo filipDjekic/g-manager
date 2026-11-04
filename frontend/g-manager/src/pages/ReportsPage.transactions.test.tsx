@@ -1,3 +1,4 @@
+import { pageResponse } from '../test/fixtures'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -18,8 +19,8 @@ describe('report generation and scheduling transactions', () => {
     useAuthStore.setState({ user: authUser('OWNER'), accessToken: 'token', isInitializing: false })
     server.use(
       http.get('/api/v1/reports/definitions', () => HttpResponse.json([{ key: 'orders', label: 'Orders', metricDefinition: 'Created in period', formats: ['CSV', 'XLSX', 'PDF'] }])),
-      http.get('/api/v1/reports', () => HttpResponse.json([])),
-      http.get('/api/v1/reports/schedules', () => HttpResponse.json([])),
+      http.get('/api/v1/reports', () => HttpResponse.json(pageResponse([]))),
+      http.get('/api/v1/reports/schedules', () => HttpResponse.json(pageResponse([]))),
       http.get('/api/v1/reports/templates', () => HttpResponse.json([])),
     )
   })
@@ -49,8 +50,8 @@ describe('report generation and scheduling transactions', () => {
 
   it('confirms cancellation and schedule removal and creates a daily schedule with the fixed period', async () => {
     let cancelled = false, deleted = false, created: unknown
-    server.use(http.get('/api/v1/reports', () => HttpResponse.json(cancelled ? [{ ...queued, status: 'CANCELLED' }] : [queued])),
-      http.get('/api/v1/reports/schedules', () => HttpResponse.json(deleted ? [] : [schedule])),
+    server.use(http.get('/api/v1/reports', () => HttpResponse.json(pageResponse(cancelled ? [{ ...queued, status: 'CANCELLED' }] : [queued]))),
+      http.get('/api/v1/reports/schedules', () => HttpResponse.json(pageResponse(deleted ? [] : [schedule]))),
       http.post('/api/v1/reports/report-1/cancel', () => { cancelled = true; return HttpResponse.json({ ...queued, status: 'CANCELLED' }) }),
       http.delete('/api/v1/reports/schedules/schedule-1', () => { deleted = true; return new HttpResponse(null, { status: 204 }) }),
       http.post('/api/v1/reports/schedules', async ({ request }) => { created = await request.json(); return HttpResponse.json(schedule) }))
@@ -74,7 +75,7 @@ describe('report generation and scheduling transactions', () => {
 
   it('rejects an invalid period before sending and retries an independently failed report listing', async () => {
     let calls = 0, generated = 0
-    server.use(http.get('/api/v1/reports', () => ++calls === 1 ? HttpResponse.error() : HttpResponse.json([])),
+    server.use(http.get('/api/v1/reports', () => ++calls === 1 ? HttpResponse.error() : HttpResponse.json(pageResponse([]))),
       http.post('/api/v1/reports', () => { generated++; return HttpResponse.error() }))
     page(); const user = userEvent.setup()
     await user.click(await screen.findByRole('button', { name: 'Osveži' }))

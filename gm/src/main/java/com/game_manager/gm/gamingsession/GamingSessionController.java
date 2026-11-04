@@ -27,8 +27,10 @@ public class GamingSessionController {
     @PostMapping("/{id}/complete-move") public GamingSessionResponse completeMove(@PathVariable UUID id,@Valid @RequestBody GamingSessionService.MoveCompletion r){return service.completeMove(id,r);}
     @GetMapping("/{id}") public GamingSessionResponse get(@PathVariable UUID id) { return service.get(id); }
     @GetMapping public List<GamingSessionResponse> active() { return service.active(); }
-    @GetMapping("/me") public List<GamingSessionVisitResponse> mine() { return service.myVisits(); }
-    @GetMapping("/customer/{customerId}") public List<GamingSessionVisitResponse> customerVisits(
+    @GetMapping({"/me","/me/history"}) public com.game_manager.gm.common.dto.PageResponse<GamingSessionVisitResponse> myHistory(@RequestParam(defaultValue="0")int page,@RequestParam(defaultValue="10")int size){return service.myVisitPage(page,size);}
+    @GetMapping({"/customer/{customerId}","/customer/{customerId}/history"}) public com.game_manager.gm.common.dto.PageResponse<GamingSessionVisitResponse> customerHistory(@PathVariable UUID customerId,@RequestParam(defaultValue="0")int page,@RequestParam(defaultValue="10")int size){return service.customerVisitPage(customerId,page,size);}
+    @GetMapping("/me/active") public List<GamingSessionVisitResponse> mine() { return service.myVisits(); }
+    @GetMapping("/customer/{customerId}/active") public List<GamingSessionVisitResponse> customerVisits(
             @PathVariable UUID customerId) { return service.customerVisits(customerId); }
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter stream() { return realtime.connect(); }

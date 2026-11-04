@@ -93,7 +93,7 @@ public class SecurityConfig {
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/refresh",
                                 "/api/v1/auth/logout").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/auth/sessions", "/api/v1/auth/security-events")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/auth/sessions", "/api/v1/auth/security-events", "/api/v1/auth/security-events/page", "/api/v1/auth/security-events/recent")
                             .hasAuthority("PROFILE_READ")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/auth/sessions", "/api/v1/auth/sessions/*")
                             .hasAuthority("PROFILE_UPDATE")
@@ -156,8 +156,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/stations/applications/**",
                                 "/api/v1/stations/application-profiles/**")
                             .hasAuthority("APPLICATION_PROFILE_MANAGE")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/gaming-billing/customers/*").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/gaming-billing/report").hasAuthority("GAMING_FINANCE_MANAGE")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/gaming-billing/customers/*", "/api/v1/gaming-billing/customers/*/history/*").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/gaming-billing/report", "/api/v1/gaming-billing/report/*").hasAuthority("GAMING_FINANCE_MANAGE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/gaming-billing/**").hasAuthority("GAMING_SESSION_READ")
                         .requestMatchers(HttpMethod.POST, "/api/v1/gaming-billing/tariffs", "/api/v1/gaming-billing/sessions/*/refunds",
                                 "/api/v1/gaming-billing/customers/*/refunds", "/api/v1/gaming-billing/customers/*/adjustments").hasAuthority("GAMING_FINANCE_MANAGE")
@@ -167,7 +167,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/gaming-operations/stations/*/preparation").hasAuthority("GAMING_SESSION_READ")
                         .requestMatchers(HttpMethod.POST, "/api/v1/gaming-operations/stations/*/prepare").hasAuthority("GAMING_SESSION_TERMINATE")
                         .requestMatchers(HttpMethod.POST, "/api/v1/gaming-sessions/*/move", "/api/v1/gaming-sessions/*/complete-move").hasAuthority("GAMING_SESSION_EXTEND")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/gaming-sessions/me")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/gaming-sessions/me", "/api/v1/gaming-sessions/me/history", "/api/v1/gaming-sessions/me/active")
                         .hasAuthority("RESERVATION_READ_OWN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/gaming-sessions/**",
                                 "/api/v1/gaming-sessions").hasAuthority("GAMING_SESSION_READ")

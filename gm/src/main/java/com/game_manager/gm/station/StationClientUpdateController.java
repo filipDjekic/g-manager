@@ -10,6 +10,6 @@ import org.springframework.web.bind.annotation.*;
 public class StationClientUpdateController {
     private final StationClientUpdateService updates;
     public record Request(Instant notBefore,@NotBlank @Size(max=500)String reason){}
-    @GetMapping public List<StationClientUpdateService.Update> history(@PathVariable UUID stationId){return updates.history(stationId);}
+    @GetMapping public com.game_manager.gm.common.dto.PageResponse<StationClientUpdateService.Update> history(@PathVariable UUID stationId,@RequestParam(defaultValue="0")int page,@RequestParam(defaultValue="10")int size){return updates.history(stationId,page,size);}
     @PostMapping public StationClientUpdateService.Update request(@PathVariable UUID stationId,@Valid @RequestBody Request request){return updates.request(stationId,request.notBefore(),request.reason());}
 }

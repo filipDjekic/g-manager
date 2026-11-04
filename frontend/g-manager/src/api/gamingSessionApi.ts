@@ -1,3 +1,4 @@
+import type { PageResponse } from '../types/api.types'
 import type { Purchase } from './gamingBillingApi'
 import { apiClient } from './client'
 import { connectAuthenticatedStream, consumeSse } from './sse'
@@ -6,8 +7,10 @@ import type { GamingOperationsBoard, GamingSession, GamingSessionEvent, GamingSe
 const command = (key:string) => ({ headers:{ 'Idempotency-Key':key } })
 export const gamingSessionApi = {
   health: () => apiClient.get<{ checkedAt:string;backend:string;database:string;financialLedger:string;backup?:string }>('/gaming-operations/health').then(({data})=>data),
-  mine: () => apiClient.get<GamingSessionVisit[]>('/gaming-sessions/me').then(({data}) => data),
-  customerVisits: (id:string) => apiClient.get<GamingSessionVisit[]>(`/gaming-sessions/customer/${id}`).then(({data}) => data),
+  myHistory: (page: number, size: number) => apiClient.get<PageResponse<GamingSessionVisit>>('/gaming-sessions/me/history', { params: { page, size } }).then(({data}) => data),
+  customerHistory: (id: string, page: number, size: number) => apiClient.get<PageResponse<GamingSessionVisit>>(`/gaming-sessions/customer/${id}/history`, { params: { page, size } }).then(({data}) => data),
+  mine: () => apiClient.get<GamingSessionVisit[]>('/gaming-sessions/me/active').then(({data}) => data),
+  customerVisits: (id:string) => apiClient.get<GamingSessionVisit[]>(`/gaming-sessions/customer/${id}/active`).then(({data}) => data),
   active: () => apiClient.get<GamingSession[]>('/gaming-sessions').then(({data}) => data),
   board: (locationId?:string) => apiClient.get<GamingOperationsBoard>('/gaming-operations/board',
     {params:locationId?{locationId}:undefined}).then(({data}) => data),
@@ -22,7 +25,7 @@ export const gamingSessionApi = {
   completeMove: (id:string,version:number,key:string) => apiClient.post(`/gaming-sessions/${id}/complete-move`,{version},command(key)),
   forceLock: (stationId:string) => apiClient.post(`/gaming-operations/stations/${stationId}/force-lock`),
   confirmLocked: (stationId:string) => apiClient.post(`/gaming-operations/stations/${stationId}/confirm-locked`),
-  history: (stationId:string) => apiClient.get<StationHistory>(`/gaming-operations/stations/${stationId}/history`).then(({data})=>data),
+  history: (stationId:string, page = 0, size = 20) => apiClient.get<PageResponse<StationHistory['entries'][number]>>(`/gaming-operations/stations/${stationId}/history`, { params: { page, size } }).then(({data})=>data),
 }
 
 export type GamingStreamState = 'connecting' | 'connected' | 'reconnecting'

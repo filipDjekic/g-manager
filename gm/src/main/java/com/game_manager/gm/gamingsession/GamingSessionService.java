@@ -171,6 +171,7 @@ public class GamingSessionService {
 
     @Transactional(readOnly = true)
     @PreAuthorize("hasAuthority('RESERVATION_READ_OWN')")
+    // Operational active-session snapshot, independent of the historical page.
     public List<GamingSessionVisitResponse> myVisits() {
         AuthenticatedUser actor = currentUser.requireCurrentUser();
         if (actor.role() != Role.CUSTOMER)
@@ -188,6 +189,23 @@ public class GamingSessionService {
         if (!all && assigned.isEmpty()) return List.of();
         return sessions.customerVisits(customerId, all, all ? List.of(actor.id()) : assigned, clock.instant(),
                 org.springframework.data.domain.PageRequest.of(0, 20));
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('RESERVATION_READ_OWN')")
+    public com.game_manager.gm.common.dto.PageResponse<GamingSessionVisitResponse> myVisitPage(int page,int size) {
+        var actor=currentUser.requireCurrentUser();
+        if(actor.role()!=Role.CUSTOMER)throw new ApplicationException(HttpStatus.FORBIDDEN,"Customer account is required");
+        return com.game_manager.gm.common.dto.PageResponse.from(sessions.visitPage(actor.id(),true,List.of(actor.id()),clock.instant(),com.game_manager.gm.common.dto.PageRequests.of(page,size,org.springframework.data.domain.Sort.unsorted())));
+    }
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('GAMING_SESSION_READ')")
+    public com.game_manager.gm.common.dto.PageResponse<GamingSessionVisitResponse> customerVisitPage(UUID customerId,int page,int size) {
+        var actor=currentUser.requireCurrentUser(); boolean all=actor.role()==Role.OWNER||actor.role()==Role.ADMIN;
+        var assigned=locations.assignedResources(actor);
+        var pageable=com.game_manager.gm.common.dto.PageRequests.of(page,size,org.springframework.data.domain.Sort.unsorted());
+        if(!all&&assigned.isEmpty())return com.game_manager.gm.common.dto.PageResponse.from(org.springframework.data.domain.Page.empty(pageable));
+        return com.game_manager.gm.common.dto.PageResponse.from(sessions.visitPage(customerId,all,all?List.of(actor.id()):assigned,clock.instant(),pageable));
     }
 
     public record MoveRequest(@jakarta.validation.constraints.NotNull UUID targetResourceId,@jakarta.validation.constraints.NotNull Long version) {}

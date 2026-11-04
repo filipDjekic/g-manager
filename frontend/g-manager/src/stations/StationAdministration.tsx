@@ -1,3 +1,7 @@
+import { usePagedQuery } from '../query/usePagedQuery'
+import { stationApi } from '../api/stationApi'
+import { Pagination } from '../components/ui/Pagination'
+import { useAuthStore } from '../auth/authStore'
 import { useResettableState } from '../components/useResettableState'
 import { useEffect, useRef, useState } from 'react'
 import { Badge, Button, EmptyState, ErrorState, Skeleton, Card } from '../components/ui'
@@ -6,12 +10,18 @@ import { StationIcon } from './stationPresentation'
 import { applicationTypeLabels, stationError } from './stationPresentation.model'
 import { downloadClientPackage, useClientPackageAvailability } from './clientPackageDistribution'
 
-export function StationAdministration({ section = 'applications', definitions, profiles, loadingDefinitions, loadingProfiles, definitionsError, profilesError, manage, busy, onDefinition, onProfile, deleteDefinition, deleteProfile, onRefresh }: {
+export function StationAdministration({ section = 'applications', manage, busy, onDefinition, onProfile, deleteDefinition, deleteProfile, onRefresh }: {
   section?: 'applications' | 'profiles'; definitions: ApplicationDefinition[]; profiles: ApplicationProfile[]; loadingDefinitions: boolean; loadingProfiles: boolean
   definitionsError: unknown; profilesError: unknown; manage: boolean; busy: boolean
   onDefinition: (value: ApplicationDefinition | null) => void; onProfile: (value: ApplicationProfile | null) => void
   deleteDefinition: (value: ApplicationDefinition) => void; deleteProfile: (value: ApplicationProfile) => void; onRefresh: () => void
 }) {
+  const actor = useAuthStore(state => state.user)
+  const apps = usePagedQuery(['stations', 'applications', 'page', actor?.id], stationApi.definitionPage, 10, section === 'applications')
+  const configs = usePagedQuery(['stations', 'profiles', 'page', actor?.id], stationApi.profilePage, 10, section === 'profiles')
+  const definitions = apps.data?.content ?? [], profiles = configs.data?.content ?? []
+  const loadingDefinitions = apps.isLoading, loadingProfiles = configs.isLoading
+  const definitionsError = apps.error, profilesError = configs.error
   return <div className="gm-stations-administration">
     {section === 'applications' && <Card className="gm-stations-section" aria-labelledby="station-applications-title">
       <header className="gm-stations-section-heading"><div><h2 id="station-applications-title"><StationIcon kind="apps" />Dozvoljene aplikacije</h2><p>Katalog aplikacija i pravila provere njihovog identiteta.</p></div>
@@ -31,10 +41,11 @@ export function StationAdministration({ section = 'applications', definitions, p
             {manage && <footer><Button type="button" variant="secondary" disabled={busy} onClick={() => onDefinition(definition)}>Izmeni</Button>
               <Button type="button" variant="danger" disabled={busy} onClick={() => deleteDefinition(definition)}>Obriši</Button></footer>}
           </article>)}</div>}
+    {apps.data && <Pagination label="Stranice aplikacija" page={apps.page} onPageChange={apps.setPage} totalPages={apps.data.totalPages} totalElements={apps.data.totalElements} pageSize={10} loading={apps.isFetching} />}
     </Card>}
     {section === 'profiles' && <Card className="gm-stations-section" aria-labelledby="station-profiles-title">
       <header className="gm-stations-section-heading"><div><h2 id="station-profiles-title"><StationIcon kind="settings" />Profili aplikacija</h2><p>Dozvoljene aplikacije, redosled pokretanja i zavisnosti.</p></div>
-        {manage && <Button type="button" disabled={busy || loadingProfiles || loadingDefinitions || Boolean(profilesError || definitionsError)} onClick={() => onProfile(null)}>+ Novi profil</Button>}</header>
+        {manage && <Button type="button" disabled={busy || loadingProfiles || Boolean(profilesError)} onClick={() => onProfile(null)}>+ Novi profil</Button>}</header>
       {loadingProfiles ? <Skeleton lines={4} label="Učitavanje profila aplikacija" /> : profilesError
         ? <ErrorState message={stationError(profilesError, 'Profili nisu dostupni.')} action={<Button variant="secondary" type="button" onClick={onRefresh}>Pokušaj ponovo</Button>} />
         : !profiles.length ? <EmptyState title="Nema profila aplikacija" description="Kreirajte profil i dodelite ga gaming stanicama kroz podešavanja." />
@@ -43,8 +54,9 @@ export function StationAdministration({ section = 'applications', definitions, p
             {profile.description && <p>{profile.description}</p>}
             <ul>{[...profile.entries].sort((a, b) => a.launchOrder - b.launchOrder).map(entry => <li key={entry.id}><strong>{entry.applicationName}</strong>
               <small>{applicationTypeLabels[entry.applicationType]} · Redosled {entry.launchOrder}{entry.autoStart ? ' · Automatsko pokretanje' : ''}{entry.requiredProcess ? ' · Obavezan proces' : ''}{entry.dependencyGroup ? ` · Grupa: ${entry.dependencyGroup}` : ''}</small></li>)}</ul>
-            {manage && <footer><Button type="button" variant="secondary" disabled={busy || loadingDefinitions || Boolean(definitionsError)} onClick={() => onProfile(profile)}>Izmeni</Button>
+            {manage && <footer><Button type="button" variant="secondary" disabled={busy} onClick={() => onProfile(profile)}>Izmeni</Button>
               <Button type="button" variant="danger" disabled={busy} onClick={() => deleteProfile(profile)}>Obriši</Button></footer>}</article>)}</div>}
+    {configs.data && <Pagination label="Stranice profila" page={configs.page} onPageChange={configs.setPage} totalPages={configs.data.totalPages} totalElements={configs.data.totalElements} pageSize={10} loading={configs.isFetching} />}
     </Card>}
   </div>
 }

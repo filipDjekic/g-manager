@@ -651,12 +651,19 @@ public class ReservationService {
     @Transactional(readOnly = true)
     public List<CustomerReservationHistory> customerHistory(UUID customerId, int limit) {
         List<Reservation> values = reservationRepository.customerHistory(customerId,
-                org.springframework.data.domain.PageRequest.of(0, limit));
+                org.springframework.data.domain.PageRequest.of(0, limit)).getContent();
         Map<UUID, CatalogReference> services = catalogService.getReferences(values.stream()
                 .map(Reservation::getServiceId).collect(Collectors.toSet()));
         return values.stream().map(value -> new CustomerReservationHistory(value.getId(),
                 services.get(value.getServiceId()).name(), value.getStartTime(), value.getEndTime(),
                 value.getStatus())).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public com.game_manager.gm.common.dto.PageResponse<CustomerReservationHistory> customerHistoryPage(UUID customerId,int page,int size) {
+        var values=reservationRepository.customerHistory(customerId,com.game_manager.gm.common.dto.PageRequests.of(page,size,org.springframework.data.domain.Sort.unsorted()));
+        var services=catalogService.getReferences(values.stream().map(Reservation::getServiceId).collect(Collectors.toSet()));
+        return com.game_manager.gm.common.dto.PageResponse.from(values.map(value->new CustomerReservationHistory(value.getId(),services.get(value.getServiceId()).name(),value.getStartTime(),value.getEndTime(),value.getStatus())));
     }
 
     @Transactional(readOnly = true)

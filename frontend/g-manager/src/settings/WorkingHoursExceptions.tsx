@@ -1,3 +1,5 @@
+import { usePagedQuery } from '../query/usePagedQuery'
+import { Pagination } from '../components/ui/Pagination'
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
 import { workingHoursApi } from '../api/workingHoursApi'
@@ -17,10 +19,12 @@ function shiftedMonth(month: string, amount: number) {
   const value = new Date(month + '-01T12:00:00Z'); value.setUTCMonth(value.getUTCMonth() + amount)
   return value.toISOString().slice(0, 7)
 }
-export function WorkingHoursExceptions({ query, hours, active, onChanged }: {
-  query: UseQueryResult<WorkingHoursException[]>; hours: UseQueryResult<WorkingHours[]>; active: boolean; onChanged: () => Promise<void>
+export function WorkingHoursExceptions({ hours, active, onChanged }: {
+  hours: UseQueryResult<WorkingHours[]>; active: boolean; onChanged: () => Promise<void>
 }) {
   const actor = useAuthStore(state => state.user), canManage = hasCapability(actor, 'WORKING_HOURS_MANAGE'), today = useBusinessToday()
+  const upcoming = usePagedQuery(['working-hours', 'exceptions', 'page', actor?.id, today], workingHoursApi.exceptionPage, 10, active && hasCapability(actor, 'WORKING_HOURS_READ'))
+  const query = { ...upcoming, data: upcoming.data?.content }
   const client = useQueryClient(), toast = useToast(), { confirm, confirmationDialog } = useConfirmDialog()
   const [month, setMonth] = useState(() => today.slice(0, 7)), [selected, setSelected] = useState(today), [focused, setFocused] = useState(today)
   const [dialog, setDialog] = useState<{ item?: WorkingHoursException; date?: string } | null>(null)
@@ -122,7 +126,7 @@ export function WorkingHoursExceptions({ query, hours, active, onChanged }: {
           {locationName(item)} · {exceptionPresentation(item, hours.data).label}</Button>) : <p>{calendarQuery.error ? 'Izuzetke nije moguće potvrditi.' : 'Nema evidentiranih izuzetaka za izabrani datum.'}</p>}</div>}
         <p className="gm-settings-note">Boje posebnog radnog vremena upoređuju globalni izuzetak sa sačuvanim nedeljnim rasporedom. Lokacijski izuzeci označeni su kao posebno radno vreme.</p>
       </Card>
-      <section className="gm-settings-upcoming"><header><h3>Budući izuzeci</h3><Badge tone="neutral">{query.isError ? '-' : future.length}</Badge></header>
+      <section className="gm-settings-upcoming"><header><h3>Budući izuzeci</h3><Badge tone="neutral">{query.isError ? '-' : upcoming.data?.totalElements ?? 0}</Badge></header>
         {query.isLoading ? <Skeleton lines={5} label="Učitavanje budućih izuzetaka" /> : query.error ? <ErrorState message={settingsError(query.error, 'Listu izuzetaka nije moguće učitati.')}
           action={<Button variant="secondary" onClick={() => void query.refetch()}>Pokušaj ponovo</Button>} /> : !future.length ? <EmptyState title="Nema definisanih izuzetaka." description="Standardni nedeljni raspored važi dok ne dodate izuzetak."
             action={canManage ? <Button type="button" variant="secondary" onClick={() => create()}>Novi izuzetak</Button> : undefined} /> : <div className="gm-settings-exception-list">{future.map(item => {
@@ -132,6 +136,7 @@ export function WorkingHoursExceptions({ query, hours, active, onChanged }: {
                 <p>{item.description || 'Bez opisa'}</p><div className="gm-settings-exception-meta"><Badge tone={presentation.tone}>{presentation.label}</Badge>
                   {!item.fullDayClosed && <span>{item.overrideOpenTime?.slice(0, 5)} - {item.overrideCloseTime?.slice(0, 5)}{(item.overrideCloseTime ?? '') < (item.overrideOpenTime ?? '') ? ' · prelazi ponoć' : ''}</span>}</div></article>
             })}</div>}
+      {upcoming.data && <Pagination page={upcoming.page} onPageChange={upcoming.setPage} totalPages={upcoming.data.totalPages} totalElements={upcoming.data.totalElements} pageSize={10} loading={upcoming.isFetching} />}
       </section>
     </div>
     {dialog && <WorkingHoursExceptionDialog item={dialog.item} date={dialog.date} locationName={dialog.item ? locationName(dialog.item) : undefined} returnFocusRef={opener} onClose={closeDialog}

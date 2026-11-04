@@ -91,18 +91,19 @@ public class WorkingHoursService {
 
     @Transactional(readOnly = true)
     @PreAuthorize("hasAuthority('WORKING_HOURS_READ')")
-    public List<WorkingHoursExceptionResponse> listExceptions() {
+    public java.util.Map<String,Long> exceptionSummary(){
         currentUserProvider.requireCurrentUser();
-        return exceptionRepository
-                .findAllByDateGreaterThanEqualOrderByDateAsc(
-                        LocalDate.now(clock.withZone(properties.businessZone())))
-                .stream().map(WorkingHoursExceptionResponse::from).toList();
+        return java.util.Map.of("totalElements",exceptionRepository.countByDateGreaterThan(LocalDate.now(clock.withZone(properties.businessZone()))));
+    }
+    @Transactional(readOnly = true) @PreAuthorize("hasAuthority('WORKING_HOURS_READ')")
+    public com.game_manager.gm.common.dto.PageResponse<WorkingHoursExceptionResponse> exceptionPage(int page,int size) {
+        currentUserProvider.requireCurrentUser();
+        return com.game_manager.gm.common.dto.PageResponse.from(exceptionRepository.findByDateGreaterThanEqual(LocalDate.now(clock.withZone(properties.businessZone())),com.game_manager.gm.common.dto.PageRequests.of(page,size,org.springframework.data.domain.Sort.by("date","id"))).map(WorkingHoursExceptionResponse::from));
     }
 
     @Transactional(readOnly = true)
     @PreAuthorize("hasAuthority('WORKING_HOURS_READ')")
     public List<WorkingHoursExceptionResponse> listExceptions(LocalDate from, LocalDate to) {
-        if (from == null && to == null) return listExceptions();
         currentUserProvider.requireCurrentUser();
         if (from == null || to == null || to.isBefore(from)
                 || java.time.temporal.ChronoUnit.DAYS.between(from, to) > 366) {

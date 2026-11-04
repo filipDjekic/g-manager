@@ -46,8 +46,8 @@ export function StationsPage() {
   const now = useServerNow(canOperate ? board.data?.serverTime : undefined)
   const stations = useQuery({ queryKey: ['stations', 'overview', user?.id], queryFn: stationApi.overview, enabled: canRead,
     refetchInterval: operations.visible && (!canOperate || board.isError) ? 15000 : false, refetchIntervalInBackground: false })
-  const definitions = useQuery({ queryKey: ['stations', 'applications', user?.id], queryFn: stationApi.definitions, enabled: canRead })
-  const profiles = useQuery({ queryKey: ['stations', 'profiles', user?.id], queryFn: stationApi.profiles, enabled: canRead })
+  const definitions = useQuery({ queryKey: ['stations', 'applications', user?.id], queryFn: stationApi.definitions, enabled: canRead && section !== 'applications' })
+  const profiles = useQuery({ queryKey: ['stations', 'profiles', user?.id], queryFn: stationApi.profiles, enabled: canRead && section === 'stations' })
   const clientPackage = useQuery({ queryKey: ['stations', 'client-package', user?.id], queryFn: stationApi.clientPackage, enabled: canRead && (section === 'package' || maintain), staleTime: 60000 })
   // The existing board owns SSE and polling. Its fresh snapshots also refresh station configuration/heartbeat metadata.
   useEffect(() => { if (canOperate && board.dataUpdatedAt) void client.invalidateQueries({ queryKey: ['stations', 'overview'] }) }, [canOperate, board.dataUpdatedAt, client])

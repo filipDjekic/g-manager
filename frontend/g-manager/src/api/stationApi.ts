@@ -1,3 +1,4 @@
+import type { PageResponse } from '../types/api.types'
 import { apiClient } from './client'
 import type { ApplicationDefinition, ApplicationDefinitionInput, ApplicationProfile,
   ApplicationProfileInput, EnrollmentToken, GamingClientPackage, GamingClientPackageAvailability, MachineIdentity, StationOverview, StationProfileInput, StationClientManagementStatus } from '../types/station.types'
@@ -7,6 +8,8 @@ export const stationApi = {
   clientStatus: (resourceId:string) => apiClient.get<StationClientManagementStatus>(`/stations/${resourceId}/client-status`).then(({ data }) => data),
   saveStation: (resourceId:string, request:StationProfileInput) =>
     apiClient.put<StationOverview>(`/stations/${resourceId}/profile`, request).then(({ data }) => data),
+  definitionPage: (page: number, size: number) => apiClient.get<PageResponse<ApplicationDefinition>>('/stations/applications/page', { params: { page, size } }).then(({data}) => data),
+  profilePage: (page: number, size: number) => apiClient.get<PageResponse<ApplicationProfile>>('/stations/application-profiles/page', { params: { page, size } }).then(({data}) => data),
   definitions: () => apiClient.get<ApplicationDefinition[]>('/stations/applications').then(({ data }) => data),
   createDefinition: (request:ApplicationDefinitionInput) =>
     apiClient.post<ApplicationDefinition>('/stations/applications', request).then(({ data }) => data),

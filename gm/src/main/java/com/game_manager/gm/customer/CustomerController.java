@@ -63,6 +63,9 @@ public class CustomerController {
         return customerService.statistics();
     }
 
+    @GetMapping("/{id}/reservations") public PageResponse<com.game_manager.gm.reservation.CustomerReservationHistory> reservations(@PathVariable UUID id,@RequestParam(defaultValue="0")int page,@RequestParam(defaultValue="10")int size){return customerService.reservations(id,page,size);}
+    @GetMapping("/{id}/orders") public PageResponse<com.game_manager.gm.order.CustomerOrderHistory> orders(@PathVariable UUID id,@RequestParam(defaultValue="0")int page,@RequestParam(defaultValue="10")int size){return customerService.orders(id,page,size);}
+
     @GetMapping("/{id}")
     public CustomerDetailResponse detail(@PathVariable UUID id) {
         return customerService.detail(id);

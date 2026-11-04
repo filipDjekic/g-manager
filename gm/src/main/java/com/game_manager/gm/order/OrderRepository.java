@@ -102,7 +102,6 @@ public interface OrderRepository
             """)
     java.util.List<CustomerOrderSummary> summarizeCustomers(@Param("customerIds") Collection<UUID> customerIds);
 
-    @EntityGraph(attributePaths = "items")
     @Query("select o from Order o where o.customerId=:customerId order by o.createdAt desc,o.id desc")
-    java.util.List<Order> customerHistory(@Param("customerId") UUID customerId, Pageable pageable);
+    org.springframework.data.domain.Page<Order> customerHistory(@Param("customerId") UUID customerId, Pageable pageable);
 }
