@@ -98,6 +98,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
             timestamp=DateTimeOffset.UtcNow, mode=State.Mode.ToString(), version=environment.Version, initialized,
             development=environment.Development, enforcementVerified=policy.EnforcementVerified, errorCode=ErrorCode, serverConnected=ServerConnected,
             apiFailure=environment.Development?DevelopmentFailure:null,
+            stationId=environment.Development?Identity?.StationId:null, clientMode=environment.Development?"DEVELOPMENT":"PRODUCTION",
             deadline=recovery?.Lease.GraceEndsAt
         }));
     }
@@ -358,8 +359,16 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
         ProtectedIdentityStore.AtomicWrite(Path.Combine(environment.StateDirectory,"privacy-review.json"),JsonSerializer.SerializeToUtf8Bytes(new { sessionId,status="REVIEW_REQUIRED",reason,at=DateTimeOffset.UtcNow }));
         WindowsSessionPrivacy.LogOffPlayer(environment.PlayerSid!);
     }
+    string DevelopmentEnforcementStatus()
+    {
+        if(ErrorCode is not null || recovery is null || commandGap || recovery.AppliedSequence<recovery.Lease.CommandCursor)
+            return "UNKNOWN";
+        // A session observation is simulation too. It must never be reported as a physical lock.
+        if(recovery.Lease.Directive=="ACTIVE" && recovery.Lease.SessionId is not null)return "DEV_ACTIVE";
+        return State.Mode!=ClientMode.Active?"DEV_READY":"UNKNOWN";
+    }
     Heartbeat Heartbeat()=>new(environment.Version,maintenance?"MAINTENANCE":State.Mode==ClientMode.Active?"SESSION_ACTIVE":"LOCKED",recovery?.AppliedSequence??0,
-        environment.Development ? (ErrorCode is null && recovery is not null && !commandGap && recovery.AppliedSequence>=recovery.Lease.CommandCursor && recovery.Lease.Directive!="ACTIVE" && State.Mode!=ClientMode.Active ? "DEV_READY" : "UNKNOWN") : maintenance || !policy.EnforcementVerified?"UNKNOWN":State.Mode==ClientMode.Active?"UNLOCKED":"LOCKED",recovery?.Lease.SessionId,recovery?.Lease.LeaseId,policy.CurrentVersion,
+        environment.Development?DevelopmentEnforcementStatus():maintenance || !policy.EnforcementVerified?"UNKNOWN":State.Mode==ClientMode.Active?"UNLOCKED":"LOCKED",recovery?.Lease.SessionId,recovery?.Lease.LeaseId,policy.CurrentVersion,
         environment.Development?"DEVELOPMENT":"INSTALLED",UpdateStatus(),maintenance,ErrorCode,UpdateRequestId());
     void PersistUpdateDirective(ClientUpdateDirective? value)
     {

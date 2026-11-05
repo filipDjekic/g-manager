@@ -14,6 +14,7 @@ export const stationTones: Record<GamingStationCard['status'], StatusTone> = {
   OFFLINE: 'danger', EXPIRED: 'warning', LOCK_PENDING: 'warning',
 }
 export const enforcementLabels: Record<string, string> = {
+  DEV_READY: 'Development spremna (simulirano)', DEV_ACTIVE: 'Development sesija (simulirano)', 
   UNKNOWN: 'Nepotvrđeno', UNLOCKED: 'Otključana', LOCK_PENDING: 'Čeka potvrdu', LOCKED: 'Zaključana', OFFLINE: 'Bez veze',
 }
 export function needsAttention(station: GamingStationCard) {

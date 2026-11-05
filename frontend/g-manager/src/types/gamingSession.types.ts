@@ -15,7 +15,7 @@ export interface GamingStationCard {
   billingMode?: 'FIXED_DURATION' | 'PREPAID_METERED'; billedSeconds?:number; chargedAmount?:string|number; walletBalance?:string|number
   resourceId:string;resourceCode:string;resourceName:string;locationId:string
   status:GamingStationBoardStatus;clientEnabled:boolean;lastHeartbeatAt?:string;staleHeartbeat:boolean
-  enforcementStatus:'DEV_READY'|'UNKNOWN'|'UNLOCKED'|'LOCK_PENDING'|'LOCKED'|'OFFLINE';lastLockAckAt?:string
+  enforcementStatus:'DEV_ACTIVE'|'DEV_READY'|'UNKNOWN'|'UNLOCKED'|'LOCK_PENDING'|'LOCKED'|'OFFLINE';lastLockAckAt?:string
   sessionId?:string;customerId?:string;customerDisplayName?:string;startedAt?:string;endsAt?:string
   remainingSeconds:number;sessionVersion?:number;allowedActions:GamingStationAction[]
   areaId?:string;operationalStatus?:string;effectiveStatus?:string;applicationProfileName?:string
@@ -23,6 +23,7 @@ export interface GamingStationCard {
   commandAvailableAt?:string;commandAcknowledgedAt?:string
   latestSessionId?:string;paymentDue?:string|number;privacyReady?:boolean;moveTargetId?:string
   locationName?:string;areaName?:string
+  clientMode?:'DEVELOPMENT'|'PRODUCTION'
   clientErrorCode?:string;updateStatus?:string;maintenanceActive?:boolean
 }
 export interface GamingOperationsBoard { serverTime:string;stations:GamingStationCard[] }

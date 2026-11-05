@@ -38,6 +38,7 @@ export function StationConfigurationDialog({ station, profiles, onClose }: { sta
     <form id={id} className="ui-form-grid gm-stations-form" onSubmit={event => { event.preventDefault(); if (!busy && !timingError) save.submit() }}>
       {save.isError && <Alert tone="danger" className="gm-stations-full" role="alert">{stationError(save.error, 'Podešavanja stanice nije moguće sačuvati.')}</Alert>}
       <p className="gm-stations-form-note gm-stations-full">{station.resourceCode} · Konfiguracija v{station.configurationVersion}. Promena podešavanja ne potvrđuje lokalno zaključavanje računara.</p>
+      {station.clientMode === 'DEVELOPMENT' && <Alert tone="warning" className="gm-stations-full">DEVELOPMENT stanica: testiranje sesija je dozvoljeno samo lokalno. Fizi?ko Windows zaklju?avanje nije provereno.</Alert>}
       <label>Operativno stanje<Select aria-label={"Operativno stanje"} value={status} onChange={event => setStatus(event.target.value as StationOperationalStatus)} disabled={busy}>
         {Object.entries(operationalLabels).map(([value, label]) => <option key={value} value={value} disabled={station.operationalStatus === 'RETIRED' && value !== 'RETIRED'}>{label}</option>)}</Select></label>
       <label>Profil aplikacija<Select aria-label={"Profil aplikacija"} value={profile} required={enabled} disabled={busy} onChange={event => setProfile(event.target.value)}><option value="">Bez profila</option>

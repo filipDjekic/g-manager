@@ -103,10 +103,10 @@ public class CalendarContextService {
             // or change the authoritative booking/session admission policies.
             if (restriction == null && station != null && station.isClientEnabled()) {
                 if (lastSession != null && !"ACTIVE".equals(lastSession.status())
-                        && (state == null || !lastSession.id().equals(state.sessionId()) || !"LOCKED".equals(state.status())))
+                        && (state == null || !lastSession.id().equals(state.sessionId()) || !("LOCKED".equals(state.status()) || "DEV_READY".equals(state.status()) && enforcementStates.safeForNewSession(value.getId()))))
                     restriction = "STATION_LOCK_PENDING";
                 else if (state != null && !activeIds.contains(value.getId())
-                        && !"LOCKED".equals(state.status()) && !"UNKNOWN".equals(state.status()))
+                        && !("LOCKED".equals(state.status()) || "DEV_READY".equals(state.status()) && enforcementStates.safeForNewSession(value.getId())) && !"UNKNOWN".equals(state.status()))
                     restriction = "STATION_LOCK_PENDING";
                 else if (station.getLastHeartbeatAt() == null || !station.getLastHeartbeatAt().plusSeconds(station.getOfflineGraceSeconds()).isAfter(now))
                     restriction = "STATION_CLIENT_OFFLINE";

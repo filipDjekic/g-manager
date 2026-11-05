@@ -25,6 +25,28 @@ function Send-Local([string]$type) {
         } finally {$reader.Dispose();$writer.Dispose()}
     } finally {$pipe.Dispose()}
 }
+function Development-Correction([string]$code,[string]$stationId) {
+    switch($code){
+        {$_ -in @('DEV_STATION_NOT_ALLOWED','DEV_STATION_NOT_READY')} {
+            $configuration=Join-Path $PSScriptRoot '..\..\.env'
+            $configured=$false
+            if($stationId -and (Test-Path -LiteralPath $configuration)){
+                $entry=[regex]::Match([IO.File]::ReadAllText($configuration),'(?m)^DEVELOPMENT_STATION_IDS=([^\r\n]*)')
+                $configuredIds=@($entry.Groups[1].Value.Trim().Trim('"',"'").Split(',')|ForEach-Object {$_.Trim()})
+                $configured=$entry.Success -and ($configuredIds -contains $stationId)
+            }
+            if($configured){return 'UUID stanice je vec u lokalnoj DEVELOPMENT_STATION_IDS listi. Pokrenuti backend koristi staru konfiguraciju ili kod. Ponovo pripremite backend iz trenutnog izvora i ucitajte Compose okruzenje; enrollment ostaje isti.'}
+            return "Dodajte resource UUID $stationId u DEVELOPMENT_STATION_IDS u lokalnom .env fajlu i ponovo ucitajte backend/Compose konfiguraciju. Backend mora koristiti profil local. Ne koristite ID enrollment identiteta."
+        }
+        'DEV_BACKEND_PROFILE_REQUIRED' {return 'Razvojna simulacija zahteva profil local, bez prod/production profila. Produkcione provere ostaju obavezne.'}
+        'DEV_SESSION_STATE_CHANGED' {return 'Serverska sesija se promenila u toku lease/heartbeat ciklusa. Client ce ucitati novi potpisani lease; ne resetujte identitet ili sesiju.'}
+        'DEV_SIGNED_LEASE_REQUIRED' {return 'Backend zahteva aktuelni potpisani lease za ovu stanicu. Proverite vezu i da isti enrollment ne koristi drugi Development Service.'}
+        'DEV_COMMAND_CURSOR_STALE' {return 'Client mora prvo obraditi sve komande. Ne resetujte serverski command cursor; proverite commands.poll/commands.ack u operational.jsonl.'}
+        'DEV_CLIENT_MODE_MISMATCH' {return 'Pokrenite Client pomocu start-development.cmd; heartbeat mora imati installationStatus DEVELOPMENT.'}
+        'API_HTTP_409' {return 'Proverite konkretan backend log i da je Flyway primenio V47__development_station_readiness.sql iz trenutnog izvora.'}
+        default {return 'Proverite konkretnu neuspesnu API operaciju u operational.jsonl. Identitet nije resetovan.'}
+    }
+}
 try {
     if($Stop){
         # A stop signal is consumed only by the launcher holding this user's instance lock.
@@ -132,7 +154,10 @@ try {
     do {
         $response=Send-Local 'status'
         $health=Get-Content -LiteralPath (Join-Path $state 'health.json') -Raw -ErrorAction SilentlyContinue|ConvertFrom-Json
-        if($health.initialized){break}
+        # A session may start/end between the signed lease and heartbeat. Let the next
+        # refresh reconcile that race instead of terminating a healthy Development Service.
+        $retryable=$health.errorCode -in @('DEV_SESSION_STATE_CHANGED','DEV_SIGNED_LEASE_REQUIRED','DEV_COMMAND_CURSOR_STALE')
+        if($health.initialized -and !$retryable){break}
         Start-Sleep -Milliseconds 250
     }while([DateTime]::UtcNow -lt $deadline)
     if(!$health.initialized){throw 'SERVICE_NOT_READY: Inicijalizacija nije zavrsena.'}
@@ -143,7 +168,8 @@ try {
             $httpStatus=if($null -ne $failure.StatusCode){[string]$failure.StatusCode}else{'nema HTTP odgovora'}
             $reason=('{0}: {1} {2}; HTTP {3}; phase={4}; {5}' -f $failure.ErrorCode,$failure.Method,$failure.Path,$httpStatus,$failure.Phase,$failure.Message)
         } elseif($response.Error){$reason=$response.Error}
-        throw ('DEVELOPMENT_NOT_READY: '+$reason+'. Detalji: '+(Join-Path $state 'operational.jsonl'))
+        $correction=Development-Correction $health.errorCode $health.stationId
+        throw ('DEVELOPMENT_NOT_READY: '+$reason+'. Potrebna ispravka: '+$correction+' Detalji: '+(Join-Path $state 'operational.jsonl'))
     }
     $shell=Start-Process -FilePath (Resolve-Path -LiteralPath $ShellExecutable).Path -ArgumentList '--development' -WindowStyle Normal -PassThru
     if($shell.WaitForExit(750)){throw ('SHELL_NOT_STARTED: Shell je odmah zavrsio, exit '+$shell.ExitCode+'. Proverite postojeci Shell proces i Windows runtime.')}

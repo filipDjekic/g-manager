@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class StationReadinessService {
     private final StationPreparationService preparation;
+    @org.springframework.beans.factory.annotation.Autowired private com.game_manager.gm.machine.DevelopmentStations development;
     private final PhysicalResourceRepository resources;
     private final AreaRepository areas;
     private final LocationRepository locationRepository;
@@ -70,7 +71,7 @@ public class StationReadinessService {
                     station == null ? null : station.getLastHeartbeatAt(), station == null ? null : station.getClientVersion(),
                     activeSessionId, station == null ? null : station.getVersion(),
                     locationById.containsKey(area.getLocationId()) ? locationById.get(area.getLocationId()).getName() : null,
-                    area.getName());
+                    area.getName(), development.mode(resource.getId()));
         }).toList();
     }
 
@@ -291,7 +292,7 @@ public class StationReadinessService {
                 area.getLocationId(), station.getOperationalStatus(), effectiveStatus(station, station.getOperationalStatus(), activeSessionId, clock.instant(),preparation.ready(resource.getId())),
                 profile == null ? null : profile.getId(), profile == null ? null : profile.getName(), profile == null ? 0 : profile.getConfigurationVersion(),
                 station.isClientEnabled(), station.getHeartbeatIntervalSeconds(), station.getOfflineGraceSeconds(), station.getLastHeartbeatAt(),
-                station.getClientVersion(), activeSessionId, station.getVersion());
+                station.getClientVersion(), activeSessionId, station.getVersion(), null, area.getName(), development.mode(resource.getId()));
     }
 
     private static StationEffectiveStatus effectiveStatus(GamingStationProfile station, StationOperationalStatus operational,

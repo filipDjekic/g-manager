@@ -61,6 +61,7 @@ function StationWarnings({ station, compact = false }: { station: GamingStationC
   const pending = !!station.commandSequence && !station.commandAcknowledgedAt
   const recoveryWarning = (compact || !!station.sessionId) && (station.status === 'LOCK_PENDING' || station.status === 'EXPIRED')
   return <>
+    {station.clientMode === 'DEVELOPMENT' && <p className="ops-station-warning">DEVELOPMENT ? simulirana Windows za?tita. Fizi?ko zaklju?avanje nije provereno.</p>}
     {station.billingMode === 'PREPAID_METERED' && <p>Prepaid ? {station.billedSeconds ?? 0} s ? {station.chargedAmount ?? 0} RSD ? Kredit: {station.walletBalance ?? 0} RSD</p>}
     {station.clientErrorCode && <p role="alert" className="ops-station-warning ops-station-warning--danger">{station.staleHeartbeat ? 'Poslednja prijavljena greška' : 'Client zahteva proveru'}: {station.clientErrorCode}</p>}
     {station.updateStatus === 'FAILED' && <p className="ops-station-warning ops-station-warning--danger">Poslednje ažuriranje nije uspelo. Proverite Client dijagnostiku.</p>}

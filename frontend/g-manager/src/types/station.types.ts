@@ -23,6 +23,7 @@ export interface StationOverview {
   stationProfileId?:string;resourceId:string;resourceCode:string;resourceName:string
   areaId:string;locationId:string;operationalStatus:StationOperationalStatus
   effectiveStatus:StationEffectiveStatus;applicationProfileId?:string;applicationProfileName?:string
+  clientMode?:'DEVELOPMENT'|'PRODUCTION'
   configurationVersion:number;clientEnabled:boolean;heartbeatIntervalSeconds:number
   offlineGraceSeconds:number;lastHeartbeatAt?:string;clientVersion?:string;activeSessionId?:string;version?:number
   locationName?:string;areaName?:string

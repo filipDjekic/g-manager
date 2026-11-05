@@ -5,6 +5,8 @@ spring:
       - optional:file:../.env[.properties]
 
 app:
+  development:
+    station-ids: ${APP_DEVELOPMENT_STATION_IDS:${DEVELOPMENT_STATION_IDS:}}
   jwt:
     secure-cookie: false
 

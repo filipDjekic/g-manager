@@ -87,6 +87,7 @@ export function StationDetails({ station, user, now, initialTab, profiles, defin
             <StationSetupSteps station={station} user={user} handlers={handlers}/>
             <dl className="gm-stations-detail-fields"><div><dt>Operativno stanje</dt><dd>{operationalLabels[station.operationalStatus]}</dd></div>
               <div><dt>Profil aplikacija</dt><dd>{station.applicationProfileName || 'Nije dodeljen'}</dd></div>
+              <div><dt>Client re?im</dt><dd>{station.clientMode === 'DEVELOPMENT' ? 'DEVELOPMENT ? simulirana Windows za?tita' : 'PRODUCTION'}</dd></div>
               <div><dt>Gaming Client integracija</dt><dd>{station.clientEnabled ? 'Uključena' : 'Isključena · ručni režim'}</dd></div>
               <div><dt>Interval heartbeat-a</dt><dd>{station.heartbeatIntervalSeconds} s</dd></div>
               <div><dt>Tolerancija prekida veze</dt><dd>{station.offlineGraceSeconds} s</dd></div>
