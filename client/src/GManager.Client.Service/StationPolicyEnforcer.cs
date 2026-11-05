@@ -27,6 +27,12 @@ public sealed class StationPolicyEnforcer(IConfiguration configuration, Protecte
         lock(osSync) { enforcementVerified=false; appliedActive=null; }
         return false;
     }
+    public void ResetDevelopmentCache()
+    {
+        if(!environment.Development) throw new InvalidOperationException("Development only");
+        lock(sync) { version=0; allowed.Clear(); }
+        if(File.Exists(store.PolicySnapshotPath)) File.Delete(store.PolicySnapshotPath);
+    }
     public long CurrentVersion => version;
     public IReadOnlyList<ClientApplication> VisibleApplications { get { lock(sync) return allowed.Values.Where(x => x.Type is "GAME" or "LAUNCHER").OrderBy(x => x.LaunchOrder).Select(x => new ClientApplication(x.Code,x.Name,x.Type)).ToList(); } }
 

@@ -85,7 +85,7 @@ public class GamingOperationsBoardService {
         GamingStationBoardStatus status = status(station, latest, enforcementState, stale,now,privacyReady,incoming);
         if(!stale && station.clientEnabled() && health!=null && Boolean.TRUE.equals(health.maintenanceActive()))status=GamingStationBoardStatus.MAINTENANCE;
         if(!stale && station.clientEnabled() && health!=null && health.clientErrorCode()!=null && status==GamingStationBoardStatus.AVAILABLE)status=GamingStationBoardStatus.CLIENT_ERROR;
-        if(!stale && station.clientEnabled() && (enforcementState==null || !"LOCKED".equals(enforcementState.status())) && status==GamingStationBoardStatus.AVAILABLE)status=GamingStationBoardStatus.CLIENT_ERROR;
+        if(!stale && station.clientEnabled() && (enforcementState==null || !("LOCKED".equals(enforcementState.status()) || "DEV_READY".equals(enforcementState.status()))) && status==GamingStationBoardStatus.AVAILABLE)status=GamingStationBoardStatus.CLIENT_ERROR;
         EnumSet<GamingStationAction> allowed = EnumSet.noneOf(GamingStationAction.class);
         if ((status == GamingStationBoardStatus.AVAILABLE || status == GamingStationBoardStatus.EXPIRED)
                 && (latest == null || latest.getStatus() != GamingSessionStatus.ACTIVE)
@@ -97,7 +97,7 @@ public class GamingOperationsBoardService {
             allowed.add(GamingStationAction.EXTEND);
         if ((status == GamingStationBoardStatus.ACTIVE||(status==GamingStationBoardStatus.OFFLINE||status==GamingStationBoardStatus.LOCK_PENDING)&&active!=null) && RolePermissions.has(actor.role(), Permission.GAMING_SESSION_TERMINATE))
             allowed.add(GamingStationAction.TERMINATE);
-        if ((status==GamingStationBoardStatus.LOCK_PENDING||status==GamingStationBoardStatus.OFFLINE&&(enforcementState==null||!"LOCKED".equals(enforcementState.status())))&&latest!=null&&latest.getStatus()!=GamingSessionStatus.ACTIVE&&RolePermissions.has(actor.role(),Permission.GAMING_SESSION_TERMINATE)){allowed.add(GamingStationAction.FORCE_LOCK);allowed.add(GamingStationAction.CONFIRM_LOCKED);}
+        if ((status==GamingStationBoardStatus.LOCK_PENDING||status==GamingStationBoardStatus.OFFLINE&&(enforcementState==null||!("LOCKED".equals(enforcementState.status()) || "DEV_READY".equals(enforcementState.status()))))&&latest!=null&&latest.getStatus()!=GamingSessionStatus.ACTIVE&&RolePermissions.has(actor.role(),Permission.GAMING_SESSION_TERMINATE)){allowed.add(GamingStationAction.FORCE_LOCK);allowed.add(GamingStationAction.CONFIRM_LOCKED);}
         if(active!=null && active.getBillingMode()==GamingBillingMode.PREPAID_METERED)allowed.remove(GamingStationAction.EXTEND);
         if(health!=null && health.clientErrorCode()!=null)allowed.remove(GamingStationAction.START);
         User customer = active == null ? null : customers.get(active.getCustomerId());
@@ -127,7 +127,7 @@ public class GamingOperationsBoardService {
         if (latest != null && latest.getStatus() == GamingSessionStatus.ACTIVE
                 && !latest.getEndsAt().isAfter(now))
             return GamingStationBoardStatus.EXPIRED;
-        if (station.clientEnabled()&&latest!=null&&latest.getStatus()!=GamingSessionStatus.ACTIVE&&(enforcementState==null||!latest.getId().equals(enforcementState.sessionId())||!"LOCKED".equals(enforcementState.status())))return GamingStationBoardStatus.LOCK_PENDING;
+        if (station.clientEnabled()&&latest!=null&&latest.getStatus()!=GamingSessionStatus.ACTIVE&&(enforcementState==null||!latest.getId().equals(enforcementState.sessionId())||!("LOCKED".equals(enforcementState.status()) || "DEV_READY".equals(enforcementState.status()))))return GamingStationBoardStatus.LOCK_PENDING;
         if (stale)return GamingStationBoardStatus.OFFLINE;
         if (latest != null && latest.getStatus() == GamingSessionStatus.ACTIVE)return GamingStationBoardStatus.ACTIVE;
         if (!station.clientEnabled()&&latest != null && latest.getStatus() == GamingSessionStatus.EXPIRED)

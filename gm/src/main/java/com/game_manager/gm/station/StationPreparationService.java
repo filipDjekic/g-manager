@@ -26,14 +26,16 @@ public class StationPreparationService {
     private final ClientStatePort enforcement;
     private final AuditWriter audit;
     private final Clock clock;
+    @org.springframework.beans.factory.annotation.Autowired private com.game_manager.gm.machine.DevelopmentStations development;
     public record Preparation(@NotNull UUID sessionId, @AssertTrue boolean isolatedProfileVerified,
             @NotBlank @Size(max=500) String reason) {}
     public Map<UUID,Boolean> readiness(Collection<UUID> stations) {
         Map<UUID,Boolean> result=new HashMap<>();if(stations.isEmpty()) return result;
         jdbc.query("SELECT station_id,ready FROM station_preparation WHERE station_id IN ("+String.join(",",Collections.nCopies(stations.size(),"?"))+")",
-                (org.springframework.jdbc.core.RowCallbackHandler)r->result.put(UUID.fromString(r.getString(1)),r.getBoolean(2)),stations.stream().map(UUID::toString).toArray());return result;
+                (org.springframework.jdbc.core.RowCallbackHandler)r->result.put(UUID.fromString(r.getString(1)),r.getBoolean(2)),stations.stream().map(UUID::toString).toArray());stations.stream().filter(development::enabled).forEach(id->result.put(id,true));return result;
     }
     public boolean ready(UUID station) {
+        if(development.enabled(station)) return true;
         return jdbc.query("SELECT ready FROM station_preparation WHERE station_id=?",(r,n)->r.getBoolean(1),station.toString()).stream().findFirst().orElse(true);
     }
     @Transactional

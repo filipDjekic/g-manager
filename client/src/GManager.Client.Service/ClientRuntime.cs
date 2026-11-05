@@ -26,7 +26,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
 
     public async Task Recover(CancellationToken ct)
     {
-        if(Identity is null) return;
+        if(Identity is null) { ErrorCode="ENROLLMENT_REQUIRED"; return; }
         var cryptographicPhase=CryptographicFailurePhase.Recovery;
         try
         {
@@ -99,7 +99,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
     }
     public async Task Refresh(CancellationToken ct)
     {
-        if(Identity is null) return;
+        if(Identity is null) { ErrorCode="ENROLLMENT_REQUIRED"; return; }
         await gate.WaitAsync(ct);
         var cryptographicPhase=CryptographicFailurePhase.Authentication;
         try
@@ -133,7 +133,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
             await protocol.HeartbeatAsync(token!,Heartbeat(),ct);
             ObserveServerConnection(true);
         }
-        catch(HttpRequestException ex) { ObserveServerConnection(ex.StatusCode is not null); if(ex.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden) { token=null; LockLocal("Machine authorization rejected"); } ErrorCode="BACKEND_UNAVAILABLE"; Tick(); SaveRecovery(); }
+        catch(HttpRequestException ex) { ObserveServerConnection(ex.StatusCode is not null); if(ex.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden) { token=null; LockLocal("Machine authorization rejected"); } ErrorCode=ex.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden ? "ENROLLMENT_REJECTED" : "BACKEND_UNAVAILABLE"; Tick(); SaveRecovery(); }
         catch(OperationCanceledException) when(!ct.IsCancellationRequested) { ObserveServerConnection(false); ErrorCode="BACKEND_TIMEOUT"; Tick(); SaveRecovery(); }
         catch(ServerStateRollbackException) { ErrorCode="SERVER_STATE_ROLLBACK"; LockLocal("Server recovery requires reconciliation"); SaveRecovery(); events.Write("SERVER_STATE_ROLLBACK","LOCKED"); }
         catch(CryptographicException ex) { events.WriteDevelopmentCryptographicFailure("refresh",cryptographicPhase,ex); ErrorCode="SIGNATURE_REJECTED"; LockLocal("Invalid signed lease/policy"); SaveRecovery(); }
@@ -152,7 +152,35 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
     public async Task<LocalResponse> Handle(LocalRequest request,bool administrator,CancellationToken ct)
     {
         Tick();
-        if(request.Type=="status") return new(true,null,State,policy.VisibleApplications);
+        if(request.Type=="status") return new(true,environment.Development?ErrorCode:null,State,policy.VisibleApplications);
+        if(request.Type=="development-reset" && environment.Development)
+        {
+            await gate.WaitAsync(ct);
+            try
+            {
+                if(Identity is null) return new(false,"ENROLLMENT_REQUIRED",State);
+                await EnsureToken(ct);
+                var envelope=await protocol.LeaseAsync(token!,ct);
+                var lease=leases.Verify(envelope,Identity.StationId);
+                var snapshot=await protocol.SnapshotAsync(token!,ct);
+                if(lease.SessionId is not null || lease.Directive=="ACTIVE" || snapshot.SessionId is not null)
+                    return new(false,"Active server session: reset refused.",State);
+                string archive=Path.Combine(environment.StateDirectory,"archives",DateTimeOffset.UtcNow.ToString("yyyyMMddTHHmmssfffffffZ"));
+                Directory.CreateDirectory(archive);
+                foreach(string name in new[]{"snapshot.json","station-policy.json","health.json","client.json"})
+                {
+                    string source=Path.Combine(environment.StateDirectory,name);
+                    if(File.Exists(source)) File.Copy(source,Path.Combine(archive,name));
+                }
+                policy.ResetDevelopmentCache();
+                lock(stateSync) recovery=new(envelope,lease,snapshot.CommandCursor,lease.IssuedAt,null,null,true);
+                trusted=new(lease.IssuedAt,timeProvider);
+                SaveRecovery(); ErrorCode=null;
+                events.Write("DEVELOPMENT_STATE_RESET","SIMULATED");
+                return new(true,null,State);
+            }
+            finally { gate.Release(); }
+        }
         if((request.Type is "prepare-maintenance" or "prepare-update") && administrator)
         {
             await gate.WaitAsync(ct);
@@ -313,7 +341,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
         WindowsSessionPrivacy.LogOffPlayer(environment.PlayerSid!);
     }
     Heartbeat Heartbeat()=>new(environment.Version,maintenance?"MAINTENANCE":State.Mode==ClientMode.Active?"SESSION_ACTIVE":"LOCKED",recovery?.AppliedSequence??0,
-        environment.Development || maintenance || !policy.EnforcementVerified?"UNKNOWN":State.Mode==ClientMode.Active?"UNLOCKED":"LOCKED",recovery?.Lease.SessionId,recovery?.Lease.LeaseId,policy.CurrentVersion,
+        environment.Development ? (ErrorCode is null && recovery is not null && !commandGap && recovery.AppliedSequence>=recovery.Lease.CommandCursor && recovery.Lease.Directive!="ACTIVE" && State.Mode!=ClientMode.Active ? "DEV_READY" : "UNKNOWN") : maintenance || !policy.EnforcementVerified?"UNKNOWN":State.Mode==ClientMode.Active?"UNLOCKED":"LOCKED",recovery?.Lease.SessionId,recovery?.Lease.LeaseId,policy.CurrentVersion,
         environment.Development?"DEVELOPMENT":"INSTALLED",UpdateStatus(),maintenance,ErrorCode,UpdateRequestId());
     void PersistUpdateDirective(ClientUpdateDirective? value)
     {

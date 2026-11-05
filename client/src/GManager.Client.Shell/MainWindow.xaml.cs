@@ -39,7 +39,7 @@ public partial class MainWindow : Window
         if (development && installed is not null) throw new InvalidOperationException("Development Shell nije dozvoljen na produkcionoj stanici.");
         if (development) { WindowStyle = WindowStyle.SingleBorderWindow; WindowState = WindowState.Normal; ResizeMode = ResizeMode.CanResize; Topmost = false; Width = 900; Height = 780; Title = "G-Manager · Development"; }
         Closing += (_, e) => { if (!development && !maintenance) e.Cancel = true; };
-        ClientVersion.Text = "v" + (typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "1.0.0");
+        ClientVersion.Text = (development ? "DEVELOPMENT (simulirano) ? v" : "v") + (typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "1.0.0");
         Deactivated += (_, _) => MaskPassword();
         Dashboard.LaunchRequested += Dashboard_LaunchRequested;
         Dashboard.LogoutRequested += Dashboard_LogoutRequested;
@@ -102,6 +102,7 @@ public partial class MainWindow : Window
             {
                 apps = response.Applications ?? [];
                 Render(response.State);
+                if(development && response.Error is not null) Error.Text="Development: "+response.Error;
             }
         }
         catch { if (!acting && version == actionVersion) ServiceUnavailable(); }

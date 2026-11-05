@@ -23,6 +23,7 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: local
+      APP_DEVELOPMENT_STATION_IDS: ${DEVELOPMENT_STATION_IDS:-}
       DB_URL: jdbc:mysql://mysql:3306/gmanager?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
       DB_USERNAME: ${DB_USERNAME:-root}
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}

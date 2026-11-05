@@ -7,3 +7,5 @@ spring:
 app:
   jwt:
     secure-cookie: false
+
+# Explicit UUID allowlist for simulated Windows clients, never enabled in production.
