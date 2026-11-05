@@ -22,6 +22,9 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
     TrustedLeaseClock trusted = new((timeProvider??TimeProvider.System).GetUtcNow(),timeProvider);
     bool maintenance, locallyLocked, commandGap, initialized;
     public string? ErrorCode { get; private set; }
+    // The primary refresh failure stays visible even if the error-reporting heartbeat succeeds or fails.
+    public MachineApiFailure? DevelopmentFailure { get; private set; }
+    string DevelopmentError => DevelopmentFailure?.Summary ?? ErrorCode ?? "";
     string MaintenancePath => Path.Combine(environment.StateDirectory,"maintenance.json");
 
     public async Task Recover(CancellationToken ct)
@@ -94,14 +97,16 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
         ProtectedIdentityStore.AtomicWrite(Path.Combine(environment.StateDirectory,"health.json"),JsonSerializer.SerializeToUtf8Bytes(new {
             timestamp=DateTimeOffset.UtcNow, mode=State.Mode.ToString(), version=environment.Version, initialized,
             development=environment.Development, enforcementVerified=policy.EnforcementVerified, errorCode=ErrorCode, serverConnected=ServerConnected,
+            apiFailure=environment.Development?DevelopmentFailure:null,
             deadline=recovery?.Lease.GraceEndsAt
         }));
     }
     public async Task Refresh(CancellationToken ct)
     {
-        if(Identity is null) { ErrorCode="ENROLLMENT_REQUIRED"; return; }
+        if(Identity is null) { ErrorCode="ENROLLMENT_REQUIRED"; initialized=true; Tick(); return; }
         await gate.WaitAsync(ct);
         var cryptographicPhase=CryptographicFailurePhase.Authentication;
+        DevelopmentFailure=null;
         try
         {
             Tick();
@@ -132,8 +137,20 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
             ErrorCode=recovery?.BlockedSessionId is Guid blocked && blocked==recovery.Lease.SessionId && recovery.Lease.Directive=="ACTIVE" ? "SESSION_RECONCILIATION_REQUIRED" : null;
             await protocol.HeartbeatAsync(token!,Heartbeat(),ct);
             ObserveServerConnection(true);
+            DevelopmentFailure=null;
         }
-        catch(HttpRequestException ex) { ObserveServerConnection(ex.StatusCode is not null); if(ex.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden) { token=null; LockLocal("Machine authorization rejected"); } ErrorCode=ex.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden ? "ENROLLMENT_REJECTED" : "BACKEND_UNAVAILABLE"; Tick(); SaveRecovery(); }
+        catch(HttpRequestException ex)
+        {
+            ObserveServerConnection(ex.StatusCode is not null);
+            if(ex.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
+            {
+                token=null;
+                LockLocal("Machine authorization rejected");
+            }
+            DevelopmentFailure=environment.Development && ex is MachineApiException api ? api.Failure : null;
+            ErrorCode=ex is MachineApiException failure ? failure.Failure.ErrorCode : ex.StatusCode is not null ? "API_HTTP_"+(int)ex.StatusCode.Value : "BACKEND_UNAVAILABLE";
+            Tick(); SaveRecovery();
+        }
         catch(OperationCanceledException) when(!ct.IsCancellationRequested) { ObserveServerConnection(false); ErrorCode="BACKEND_TIMEOUT"; Tick(); SaveRecovery(); }
         catch(ServerStateRollbackException) { ErrorCode="SERVER_STATE_ROLLBACK"; LockLocal("Server recovery requires reconciliation"); SaveRecovery(); events.Write("SERVER_STATE_ROLLBACK","LOCKED"); }
         catch(CryptographicException ex) { events.WriteDevelopmentCryptographicFailure("refresh",cryptographicPhase,ex); ErrorCode="SIGNATURE_REJECTED"; LockLocal("Invalid signed lease/policy"); SaveRecovery(); }
@@ -146,13 +163,13 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
                     catch(HttpRequestException ex) { ObserveServerConnection(ex.StatusCode is not null); }
                     catch(OperationCanceledException) { ObserveServerConnection(false); }
                     catch(JsonException) { }
-            } finally { gate.Release(); }
+            } finally { try { Tick(); } finally { gate.Release(); } }
         }
     }
     public async Task<LocalResponse> Handle(LocalRequest request,bool administrator,CancellationToken ct)
     {
         Tick();
-        if(request.Type=="status") return new(true,environment.Development?ErrorCode:null,State,policy.VisibleApplications);
+        if(request.Type=="status") return new(true,environment.Development && ErrorCode is not null?DevelopmentError:null,State,policy.VisibleApplications);
         if(request.Type=="development-reset" && environment.Development)
         {
             await gate.WaitAsync(ct);
@@ -179,6 +196,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
                 events.Write("DEVELOPMENT_STATE_RESET","SIMULATED");
                 return new(true,null,State);
             }
+            catch(MachineApiException ex) { return new(false,ex.Failure.Summary,State); }
             finally { gate.Release(); }
         }
         if((request.Type is "prepare-maintenance" or "prepare-update") && administrator)
@@ -242,7 +260,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
             }
             return new(false,"Zahtev nije dozvoljen u trenutnom lease stanju.",State);
         }
-        catch(HttpRequestException ex) { ObserveServerConnection(ex.StatusCode is not null); Tick(); return new(false,"Server nije dostupan ili je odbio zahtev.",State); }
+        catch(HttpRequestException ex) { ObserveServerConnection(ex.StatusCode is not null); Tick(); return new(false,environment.Development && ex is MachineApiException api ? api.Failure.Summary : "Server nije dostupan ili je odbio zahtev.",State); }
         catch(OperationCanceledException) when(!ct.IsCancellationRequested) { ObserveServerConnection(false); Tick(); return new(false,"Server nije odgovorio na vreme.",State); }
         catch(Exception ex) when(ex is IOException or CryptographicException or InvalidOperationException or UnauthorizedAccessException)
         { if(ex is CryptographicException cryptographicFailure)events.WriteDevelopmentCryptographicFailure("local-action",cryptographicPhase,cryptographicFailure); LockLocal("Action rejected"); return new(false,"Akcija nije bezbedno izvršena. Pozovite administratora.",State); }

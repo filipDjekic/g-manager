@@ -1,4 +1,4 @@
-using System.Net.Http.Headers;using System.Net.Http.Json;using System.Text.Json.Serialization;using GManager.Client.Domain;
+using System.Net.Http.Headers;using System.Net.Http.Json;using System.Text.Json.Serialization;using System.Text.Json;using GManager.Client.Domain;
 namespace GManager.Client.Protocol;
 public interface IChallengeSigner { string PublicKeyBase64 {get;} string Sign(string value); }
 public interface IMachineProtocolClient {
@@ -28,11 +28,11 @@ public sealed record ClientUpdateDirective(Guid Id,string Version,DateTimeOffset
 public sealed record MachineCommand(long Sequence,string Type,int PayloadVersion,string Payload,DateTimeOffset AvailableAt,bool Expired=false);
 public sealed record Heartbeat(string ClientVersion,string Status,long LastCommandSequence,string EnforcementStatus,Guid? SessionId,Guid? LeaseId,long ConfigurationVersion,string? InstallationStatus=null,string? UpdateStatus=null,bool? MaintenanceActive=null,string? ErrorCode=null,Guid? UpdateRequestId=null);
 internal sealed record ChallengeRequest(Guid IdentityId);internal sealed record Challenge(Guid ChallengeId,Guid IdentityId,string Nonce,DateTimeOffset ExpiresAt,string SigningFormat);internal sealed record TokenRequest(Guid IdentityId,Guid ChallengeId,string Nonce,string Signature);
-public sealed class MachineProtocolClient(HttpClient http):IMachineProtocolClient {
+public sealed class MachineProtocolClient(HttpClient http, IMachineProtocolDiagnostics? diagnostics=null):IMachineProtocolClient {
  public async Task ClaimUpdateAsync(string bearer,Guid? requestId,CancellationToken ct)=>_ = await Post<object>("api/v1/machine/client-update/claim",new{requestId},bearer,ct);
  public async Task<EnrollmentResult> EnrollAsync(string token,IChallengeSigner signer,string version,CancellationToken ct)=>await Post<EnrollmentResult>("api/v1/machine/enroll",new{enrollmentToken=token,publicKeyBase64=signer.PublicKeyBase64,clientVersion=version},null,ct);
  public async Task<MachineToken> AuthenticateAsync(Guid id,IChallengeSigner signer,CancellationToken ct){var c=await Post<Challenge>("api/v1/machine/auth/challenge",new ChallengeRequest(id),null,ct);var value=$"{c.ChallengeId}:{c.IdentityId}:{c.Nonce}";return await Post<MachineToken>("api/v1/machine/auth/token",new TokenRequest(id,c.ChallengeId,c.Nonce,signer.Sign(value)),null,ct);}
- public Task<SessionSnapshot> SnapshotAsync(string bearer,CancellationToken ct)=>Get<SessionSnapshot>("api/v1/machine/snapshot",bearer,ct);
+ public async Task<SessionSnapshot> SnapshotAsync(string bearer,CancellationToken ct){var value=await Get<MachineSnapshot>("api/v1/machine/snapshot",bearer,ct);return new(value.StationId,value.SessionId,value.SessionEndsAt,value.ServerTime,value.CommandCursor,value.StationStatus);}
  public Task<SignedStationPolicy> ConfigurationAsync(string bearer,CancellationToken ct)=>Get<SignedStationPolicy>("api/v1/machine/configuration",bearer,ct);
  public Task<SignedSessionLease> LeaseAsync(string bearer,CancellationToken ct)=>Get<SignedSessionLease>("api/v1/machine/lease",bearer,ct);
  public Task<IReadOnlyList<MachineCommand>> CommandsAsync(string bearer,long afterSequence,CancellationToken ct)=>Get<IReadOnlyList<MachineCommand>>($"api/v1/machine/commands?afterSequence={afterSequence}",bearer,ct);
@@ -42,6 +42,63 @@ public sealed class MachineProtocolClient(HttpClient http):IMachineProtocolClien
  public Task<CustomerSession> LoginAsync(string bearer,string email,string password,CancellationToken ct)=>Post<CustomerSession>("api/v1/machine/session-login",new{email,password},bearer,ct);
  public Task<CustomerSession> GuestLoginAsync(string bearer,Guid sessionId,CancellationToken ct)=>Post<CustomerSession>("api/v1/machine/guest-login",new{sessionId},bearer,ct);
  public async Task LogoutAsync(string bearer,Guid sessionId,CancellationToken ct)=>_ = await Post<object>("api/v1/machine/session-logout",new{sessionId},bearer,ct);
- async Task<T> Get<T>(string path,string token,CancellationToken ct){using var request=new HttpRequestMessage(HttpMethod.Get,path);request.Headers.Authorization=new AuthenticationHeaderValue("Bearer",token);using var response=await http.SendAsync(request,ct);response.EnsureSuccessStatusCode();return (await response.Content.ReadFromJsonAsync<T>(cancellationToken:ct))!;}
- async Task<T> Post<T>(string path,object body,string? token,CancellationToken ct){using var request=new HttpRequestMessage(HttpMethod.Post,path){Content=JsonContent.Create(body)};if(token is not null)request.Headers.Authorization=new AuthenticationHeaderValue("Bearer",token);using var response=await http.SendAsync(request,ct);response.EnsureSuccessStatusCode();if(response.StatusCode==System.Net.HttpStatusCode.NoContent)return default!;return (await response.Content.ReadFromJsonAsync<T>(cancellationToken:ct))!;}
+ async Task<T> Get<T>(string path,string token,CancellationToken ct)=>await Send<T>(HttpMethod.Get,path,null,token,ct);
+ async Task<T> Post<T>(string path,object body,string? token,CancellationToken ct)=>await Send<T>(HttpMethod.Post,path,body,token,ct);
+ async Task<T> Send<T>(HttpMethod method,string path,object? body,string? token,CancellationToken ct)
+ {
+    using var timeout=CancellationTokenSource.CreateLinkedTokenSource(ct);
+    if(http.Timeout!=Timeout.InfiniteTimeSpan)timeout.CancelAfter(http.Timeout);
+    var requestCt=timeout.Token;
+    var operation=MachineApiErrors.Operation(path);
+    int? status=null;
+    MachineApiException Failure(string code,string message)=>new(new(DateTimeOffset.UtcNow,method.Method,operation.Path,status,operation.Phase,code,message));
+    try
+    {
+        using var request=new HttpRequestMessage(method,path);
+        if(body is not null)request.Content=JsonContent.Create(body);
+        if(token is not null)request.Headers.Authorization=new AuthenticationHeaderValue("Bearer",token);
+        using var response=await http.SendAsync(request,HttpCompletionOption.ResponseHeadersRead,requestCt);
+        status=(int)response.StatusCode;
+        if(!response.IsSuccessStatusCode)
+        {
+            var error=await MachineApiErrors.HttpError(response,requestCt);
+            ct.ThrowIfCancellationRequested();
+            throw Failure(error.Code,error.Message);
+        }
+        if(response.StatusCode==System.Net.HttpStatusCode.NoContent && typeof(T)==typeof(object))return default!;
+        return await response.Content.ReadFromJsonAsync<T>(cancellationToken:requestCt) ?? throw Failure("API_RESPONSE_INVALID","Backend returned an empty JSON response.");
+    }
+    catch(MachineApiException ex) { Report(ex.Failure); throw; }
+    catch(HttpRequestException ex)
+    {
+        if(ex.StatusCode is not null)
+        {
+            status=(int)ex.StatusCode.Value;
+            var rejected=Failure("API_HTTP_"+status,"HTTP layer rejected the Machine API operation.");
+            Report(rejected.Failure);throw rejected;
+        }
+        var error=Failure(status is null ? "BACKEND_UNAVAILABLE" : "API_RESPONSE_INTERRUPTED",ex.HttpRequestError switch
+        {
+            HttpRequestError.NameResolutionError => "Backend host name could not be resolved.",
+            HttpRequestError.SecureConnectionError => "TLS connection failed; verify the backend certificate and protocol.",
+            HttpRequestError.ConnectionError => "Backend connection failed or was interrupted.",
+            _ => "HTTP transport failed before the operation completed."
+        });
+        Report(error.Failure);throw error;
+    }
+    catch(OperationCanceledException) when(!ct.IsCancellationRequested)
+    {
+        var error=Failure("BACKEND_TIMEOUT","Machine API operation timed out.");Report(error.Failure);throw error;
+    }
+    catch(Exception ex) when(ex is JsonException or NotSupportedException or IOException)
+    {
+        var error=Failure("API_RESPONSE_INVALID","Backend response could not be read as the expected Machine API JSON contract.");Report(error.Failure);throw error;
+    }
+ }
+ void Report(MachineApiFailure failure)
+ {
+    // Diagnostic failures must not replace a protocol error or affect fail-closed behavior.
+    try { diagnostics?.ApiFailed(failure); } catch(IOException) { } catch(UnauthorizedAccessException) { }
+ }
+ internal sealed record MachineSnapshot(Guid StationId,Guid? SessionId,DateTimeOffset? SessionEndsAt,DateTimeOffset ServerTime,long CommandCursor,string StationStatus);
 }

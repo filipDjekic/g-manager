@@ -1,6 +1,12 @@
-using System.Security.Cryptography;using System.Text.Json;
+using GManager.Client.Protocol;using System.Security.Cryptography;using System.Text.Json;
 namespace GManager.Client.Service;
-public sealed class OperationalEventWriter(ClientEnvironment environment) {
+public sealed class OperationalEventWriter(ClientEnvironment environment) : IMachineProtocolDiagnostics {
+ public void ApiFailed(MachineApiFailure failure) {
+  if(!environment.Development)return;
+  var record=JsonSerializer.Serialize(new{timestamp=failure.Timestamp,eventCode="DEVELOPMENT_API_FAILURE",
+   method=failure.Method,path=failure.Path,statusCode=failure.StatusCode,phase=failure.Phase,errorCode=failure.ErrorCode,message=failure.Message});
+  try{Append(record);}catch(IOException){}catch(UnauthorizedAccessException){}
+ }
  internal const string CryptographicPhaseKey="GManager.Development.CryptographicPhase";
  internal const string CurrentVersionKey="GManager.Development.CurrentConfigurationVersion";
  internal const string ReceivedVersionKey="GManager.Development.ReceivedConfigurationVersion";

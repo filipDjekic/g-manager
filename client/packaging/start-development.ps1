@@ -56,7 +56,7 @@ try {
     $ServiceExecutable=Join-Path $clientRoot 'src\GManager.Client.Service\bin\Debug\net10.0-windows10.0.19041.0\GManager.Client.Service.exe'
     $ShellExecutable=Join-Path $clientRoot 'src\GManager.Client.Shell\bin\Debug\net10.0-windows10.0.19041.0\GManager.Client.Shell.exe'
     foreach($exe in @($ServiceExecutable,$ShellExecutable)){
-        if(!(Test-Path -LiteralPath $exe -PathType Leaf)){throw "SERVICE_NOT_STARTED: Nedostaje pripremljeni executable: $exe. Launcher ne pokrece build."}
+        if(!(Test-Path -LiteralPath $exe -PathType Leaf)){throw "SERVICE_NOT_STARTED: Nedostaje executable posle Development build-a: $exe."}
         $marker=Join-Path (Split-Path $exe -Parent) 'runtime-capabilities.json'
         if(!(Test-Path -LiteralPath $marker)){throw 'Nedostaje runtime-capabilities.json; pripremite aktuelni Client.'}
         $caps=Get-Content -LiteralPath $marker -Raw|ConvertFrom-Json
@@ -96,8 +96,19 @@ try {
         if($publicBytes.Length -ne 44 -or [BitConverter]::ToString($publicBytes[0..11]) -ne '30-2A-30-05-06-03-2B-65-70-03-21-00'){throw 'SIGNING_KEY_OUTPUT_INVALID: Helper nije vratio Ed25519 SPKI javni kljuc.'}
     } finally {$helper.Dispose()}
     try {$health=Invoke-RestMethod -Uri ($BackendUrl+'actuator/health/readiness') -TimeoutSec 5; if($health.status -ne 'UP'){throw 'Readiness nije UP'}}
-    catch {throw 'BACKEND_UNAVAILABLE: Lokalni backend nije spreman.'}
-    @{Client=@{Mode='Development';Version='0.1.0-dev'};Backend=@{BaseUrl=$BackendUrl};Policy=@{SigningPublicKey=([string]$public).Trim();SigningKeyId=$keyId};Logging=@{LogLevel=@{Default='Warning'}}}|ConvertTo-Json -Depth 5|Set-Content -LiteralPath $configPath -Encoding UTF8
+    catch {
+        $status=$null
+        if($_.Exception.Response){$status=[int]$_.Exception.Response.StatusCode}
+        if($status){throw "BACKEND_NOT_READY: GET /actuator/health/readiness; HTTP $status; phase=backend.readiness"}
+        throw 'BACKEND_UNAVAILABLE: GET /actuator/health/readiness; phase=backend.readiness; nema HTTP odgovora ili readiness nije UP.'
+    }
+    if($existing){
+        if($existing.Client.Mode -ne 'Development'){throw 'CONFIGURATION_MODE_INVALID: Postojeca konfiguracija nije Development; fajl nije promenjen.'}
+        if($existing.Policy.SigningKeyId -ne $keyId -or $existing.Policy.SigningPublicKey -ne $public){throw 'SIGNING_CONFIGURATION_MISMATCH: Postojeca Client konfiguracija ne odgovara lokalnom backend kljucu; identitet i konfiguracija nisu promenjeni.'}
+        if(([uri]$existing.Backend.BaseUrl).AbsoluteUri.TrimEnd('/') -ne $BackendUrl.TrimEnd('/')){throw 'CONFIGURATION_BACKEND_MISMATCH: Postojeca konfiguracija koristi drugi backend; fajl nije promenjen.'}
+    } else {
+        @{Client=@{Mode='Development';Version='0.1.0-dev'};Backend=@{BaseUrl=$BackendUrl};Policy=@{SigningPublicKey=$public;SigningKeyId=$keyId};Logging=@{LogLevel=@{Default='Warning'}}}|ConvertTo-Json -Depth 5|Set-Content -LiteralPath $configPath -Encoding UTF8
+    }
     if(!(Test-Path -LiteralPath (Join-Path $state 'identity.dpapi'))){
         $secret=Read-Host 'Jednokratni enrollment token za eksplicitno oznacenu DEVELOPMENT stanicu' -AsSecureString
         $pointer=[Runtime.InteropServices.Marshal]::SecureStringToBSTR($secret)
@@ -125,7 +136,15 @@ try {
         Start-Sleep -Milliseconds 250
     }while([DateTime]::UtcNow -lt $deadline)
     if(!$health.initialized){throw 'SERVICE_NOT_READY: Inicijalizacija nije zavrsena.'}
-    if($health.errorCode){throw ('DEVELOPMENT_NOT_READY: '+$health.errorCode+'. Za zastareli lokalni snapshot koristite -ResetState; identitet se cuva.')}
+    if($health.errorCode){
+        $reason=$health.errorCode
+        if($health.apiFailure){
+            $failure=$health.apiFailure
+            $httpStatus=if($null -ne $failure.StatusCode){[string]$failure.StatusCode}else{'nema HTTP odgovora'}
+            $reason=('{0}: {1} {2}; HTTP {3}; phase={4}; {5}' -f $failure.ErrorCode,$failure.Method,$failure.Path,$httpStatus,$failure.Phase,$failure.Message)
+        } elseif($response.Error){$reason=$response.Error}
+        throw ('DEVELOPMENT_NOT_READY: '+$reason+'. Detalji: '+(Join-Path $state 'operational.jsonl'))
+    }
     $shell=Start-Process -FilePath (Resolve-Path -LiteralPath $ShellExecutable).Path -ArgumentList '--development' -WindowStyle Normal -PassThru
     if($shell.WaitForExit(750)){throw ('SHELL_NOT_STARTED: Shell je odmah zavrsio, exit '+$shell.ExitCode+'. Proverite postojeci Shell proces i Windows runtime.')}
     Write-Host 'Development Client: simulirano stanje; fizicko Windows zakljucavanje nije provereno.'
@@ -135,7 +154,7 @@ try {
 finally {
     foreach($process in @($shell,$service)){if($process){if(!$process.HasExited){$process.Kill();$process.WaitForExit()};$process.Dispose()}}
     if($lock){
-        foreach($name in @('stop.request','health.json','health.json.tmp')){Remove-Item -LiteralPath (Join-Path $state $name) -ErrorAction SilentlyContinue}
+        foreach($name in @('stop.request','health.json.tmp')){Remove-Item -LiteralPath (Join-Path $state $name) -ErrorAction SilentlyContinue}
         $lock.Dispose()
     }
 }

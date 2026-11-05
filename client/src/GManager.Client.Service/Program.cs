@@ -73,6 +73,7 @@ builder.Services.AddSingleton<ProtectedIdentityStore>();
 builder.Services.AddSingleton<StationPolicyEnforcer>();
 builder.Services.AddSingleton<SessionLeaseVerifier>();
 builder.Services.AddSingleton<OperationalEventWriter>();
+builder.Services.AddSingleton<IMachineProtocolDiagnostics>(services => services.GetRequiredService<OperationalEventWriter>());
 builder.Services.AddSingleton<ClientRuntime>();
 builder.Services.AddHttpClient<IMachineProtocolClient, MachineProtocolClient>(http => {
     http.BaseAddress = new Uri(settings["Backend:BaseUrl"]!);
