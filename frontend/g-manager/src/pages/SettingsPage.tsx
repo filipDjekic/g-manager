@@ -6,7 +6,7 @@ import { workingHoursApi } from '../api/workingHoursApi'
 import { timeOffApi } from '../api/timeOffApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { Badge, Button, PageHeader, PageLayout } from '../components/ui'
+import { ActionMenu, Badge, Button, PageHeader, PageLayout } from '../components/ui'
 import { Tabs } from '../components/ui/Tabs'
 import { SetupOverview } from '../settings/SetupOverview'
 import { WorkingHoursSettings } from '../settings/WorkingHoursSettings'
@@ -51,10 +51,18 @@ export function SettingsPage() {
   }
   return <PageLayout className="gm-settings">
     <PageHeader title="Rad igraonice" description="Radno vreme prostora, izuzeci i dostupnost zaposlenih." icon={<SettingsIcon />} actions={<><Badge tone="info"><SettingsIcon kind="clock" />Europe/Belgrade</Badge></>} />
-    <div className="gm-settings-tabs"><Tabs idPrefix="settings" label="Oblasti podešavanja" value={section} onChange={openSection} items={[
-      ...(hasCapability(actor, 'GAMING_FINANCE_MANAGE') ? [{ id: 'gaming', label: 'Gaming vreme' }] : []),
-      { id: 'overview', label: 'Pregled' }, { id: 'hours', label: 'Rad igraonice' }, { id: 'exceptions', label: 'Izuzeci' }, { id: 'timeoff', label: 'Odsustva zaposlenih' },
-    ]} /></div>
+    <div className="gm-settings-tabs"><div className="ui-tabs gm-settings-navigation">
+      <Tabs idPrefix="settings" label="Oblasti podešavanja" value={section} onChange={openSection} items={[
+        ...(hasCapability(actor, 'GAMING_FINANCE_MANAGE') ? [{ id: 'gaming', label: 'Gaming vreme' }] : []),
+        { id: 'overview', label: 'Pregled' }, { id: 'hours', label: 'Rad igraonice' }, { id: 'exceptions', label: 'Izuzeci' },
+      ]} />
+      <div id="settings-tab-timeoff" className="gm-settings-employees">
+        <ActionMenu label="Zaposleni" compact={false} className={`gm-settings-employees-trigger${section === 'timeoff' ? ' is-active' : ''}`}
+          actions={[{ label: 'Odsustva zaposlenih', onClick: () => openSection('timeoff') }]}>
+          Zaposleni <SettingsIcon kind="chevron-right" />
+        </ActionMenu>
+      </div>
+    </div></div>
     {section === 'gaming' && hasCapability(actor, 'GAMING_FINANCE_MANAGE') && <GamingTimeSettings />}
     {dirtyCount > 0 && <aside className="gm-settings-dirty" role="status"><span><SettingsIcon kind="edit" />Nesačuvane izmene radnog vremena: {dirtyCount} {dirtyCount === 1 ? 'dan' : 'dana'}. Izmene ostaju sačuvane pri promeni taba.</span>
       {section !== 'hours' && <Button type="button" variant="secondary" onClick={() => openSection('hours')}>Vrati se na radno vreme</Button>}</aside>}
@@ -67,7 +75,7 @@ export function SettingsPage() {
     <div role="tabpanel" id="settings-panel-exceptions" aria-labelledby="settings-tab-exceptions" hidden={section !== 'exceptions'}>
       <WorkingHoursExceptions hours={hours} active={section === 'exceptions'} onChanged={exceptionsChanged} />
     </div>
-    <div role="tabpanel" id="settings-panel-timeoff" aria-labelledby="settings-tab-timeoff" hidden={section !== 'timeoff'}>
+    <div role="region" id="settings-panel-timeoff" aria-label="Odsustva zaposlenih" hidden={section !== 'timeoff'}>
       <EmployeeTimeOffSettings active={section === 'timeoff'} employees={employees} onChanged={timeOffChanged} />
     </div>
   </PageLayout>
