@@ -13,7 +13,9 @@ export function WorkspaceHubPage({ kind }: { kind: 'management' | 'equipment' | 
   return <PageLayout><PageHeader title={title} description={kind === 'management'
     ? 'Podešavanja poslovanja i pristupa na jednom mestu.' : 'Izaberite oblast koja vam je potrebna.'} />
     <div className="ui-hub-grid">{items.map(item => <Card key={item.to}><NavigationIcon to={item.to} />
-      <h2><Link to={item.to}>{item.label}</Link></h2><p>{item.description}</p><Link to={item.to}>Otvori →</Link>
+      <h2>{item.children ? item.label : <Link to={item.to}>{item.label}</Link>}</h2><p>{item.description}</p>
+      {item.children ? <div className="ui-actions">{item.children.map(child => <Link key={child.to} to={child.to}>{child.label} →</Link>)}</div>
+        : <Link to={item.to}>Otvori →</Link>}
     </Card>)}</div>
   </PageLayout>
 }

@@ -2,7 +2,7 @@ import { hasCapability } from '../auth/capabilities'
 import type { AuthUser, Permission, Role } from '../types/auth.types'
 import type { FeatureFlagKey } from '../types/feature.types'
 
-export interface NavigationItem { label: string; to: string; capability: Permission | Permission[]; flag?: FeatureFlagKey; description?: string }
+export interface NavigationItem { label: string; to: string; capability: Permission | Permission[]; flag?: FeatureFlagKey; description?: string; children?: NavigationItem[] }
 export interface NavigationGroup { label: string; items: NavigationItem[] }
 type FeatureState = Record<FeatureFlagKey, boolean>
 const item = (label: string, to: string, capability: Permission | Permission[], description?: string, flag?: FeatureFlagKey): NavigationItem => ({ label, to, capability, description, flag })
@@ -23,9 +23,12 @@ const customer = [item('Početna', '/home', ['RESERVATION_READ_OWN', 'ORDER_READ
   item('Moji termini', '/my-reservations', 'RESERVATION_READ_OWN'), item('Ponuda', '/catalog', 'CATALOG_READ')]
 
 export const managementItems: NavigationItem[] = [
-  item('Tim i pristup', '/employees', 'USER_LIST', 'Zaposleni, korisnički nalozi i dodele resursa.'),
+  { ...item('Zaposleni', '/employees', ['USER_LIST', 'WORKING_HOURS_MANAGE'], 'Tim, korisnički pristup i odsustva zaposlenih.'), children: [
+    item('Tim i pristup', '/employees', 'USER_LIST'),
+    item('Odsustva zaposlenih', '/employee-time-off', 'WORKING_HOURS_MANAGE'),
+  ] },
   item('Ponuda i cene', '/catalog', 'CATALOG_MANAGE', 'Usluge, proizvodi, slike i dostupnost ponude.'),
-  item('Rad igraonice', '/settings', 'WORKING_HOURS_MANAGE', 'Radno vreme, izuzeci i odsustva zaposlenih.'),
+  item('Rad igraonice', '/settings', 'WORKING_HOURS_MANAGE', 'Gaming vreme, radno vreme i izuzeci.'),
   item('Izveštaji', '/reports', 'REPORT_READ', 'Generisanje, preuzimanje i rasporedi izveštaja.', 'REPORTS'),
   item('Evidencija promena', '/audit', 'AUDIT_READ', 'Aktivnosti i istorija promena u sistemu.'),
 ]
@@ -39,9 +42,13 @@ export const toolItems: NavigationItem[] = [
   item('Informacije o stanicama', '/stations', 'STATION_READ', 'Pregled PC konfiguracije i veze sa klijentom.'),
   item('Izveštaji', '/reports', 'REPORT_READ', 'Generisanje i preuzimanje dostupnih izveštaja.', 'REPORTS'),
 ]
-export function permittedItems(user: AuthUser, flags: FeatureState, items: NavigationItem[]) {
+export function permittedItems(user: AuthUser, flags: FeatureState, items: NavigationItem[]): NavigationItem[] {
   return items.filter(value => (Array.isArray(value.capability) ? value.capability.some(permission => hasCapability(user, permission))
-    : hasCapability(user, value.capability)) && (!value.flag || flags[value.flag]))
+    : hasCapability(user, value.capability)) && (!value.flag || flags[value.flag])).flatMap(value => {
+      if (!value.children) return [value]
+      const children = permittedItems(user, flags, value.children)
+      return children.length ? [{ ...value, to: children[0].to, children }] : []
+    })
 }
 export function navigationFor(user: AuthUser, flags: FeatureState): NavigationGroup[] {
   const primary = user.role === 'CUSTOMER' ? customer : user.role === 'EMPLOYEE' ? employee.map(value => value.to === '/dashboard' && !hasCapability(user,'DASHBOARD_OPERATIONAL') && !hasCapability(user,'DASHBOARD_SUMMARY') ? { ...value, to:'/gaming-sessions' } : value) : management
@@ -59,7 +66,8 @@ export function navigationActive(to: string, pathname: string, search = '', role
   if (to === '/my-reservations') return pathname === to && new URLSearchParams(search).get('booking') !== 'new'
   if (to === '/calendar') return ['/calendar', '/reservations', '/waitlist'].includes(pathname)
   if (to === '/equipment') return ['/equipment', '/resources', '/stations'].includes(pathname)
-  if (to === '/management') return ['/management', '/employees', '/users', '/settings', '/reports', '/audit', '/catalog'].includes(pathname)
+  if (to === '/management') return ['/management', '/employees', '/users', '/employee-time-off', '/settings', '/reports', '/audit', '/catalog'].includes(pathname)
+  if (to === '/employees') return ['/employees', '/users'].includes(pathname)
   if (to === '/tools') return ['/tools', '/resources', '/stations', '/reports', '/catalog'].includes(pathname)
   if (to === '/catalog' && role === 'CUSTOMER') return ['/catalog', '/my-orders', '/resources'].includes(pathname)
   if (to === '/dashboard' && role === 'EMPLOYEE') return ['/dashboard', '/gaming-sessions'].includes(pathname)

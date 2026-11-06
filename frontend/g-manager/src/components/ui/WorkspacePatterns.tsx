@@ -1,6 +1,7 @@
 import type { ReactNode, RefObject } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Button } from './Button'
+import { ActionMenu } from './ActionMenu'
 import { Drawer } from './Dialogs'
 import { formatBusinessTime } from '../../reservations/dateTime'
 import { useContentWidth } from './useContentWidth'
@@ -30,9 +31,24 @@ export function MetricStrip({ children, label = 'Sažeti pregled' }: { children:
   return <section className="ui-metric-strip" aria-label={label}>{children}</section>
 }
 
-export function ViewNavigation({ label, items }: { label: string; items: { label: string; to: string; active?: boolean }[] }) {
-  return <nav className="ui-view-navigation" aria-label={label}>{items.map(item =>
-    <Link key={item.to} to={item.to} aria-current={item.active ? 'page' : undefined}>{item.label}</Link>)}</nav>
+export interface ViewNavigationItem {
+  label: string; to: string; active?: boolean; children?: { label: string; to: string; active?: boolean }[]
+}
+
+function ChevronDown() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="m6 9 6 6 6-6" /></svg>
+}
+
+export function ViewNavigation({ label, items }: { label: string; items: ViewNavigationItem[] }) {
+  const navigate = useNavigate(), { pathname } = useLocation()
+  return <nav className="ui-view-navigation" aria-label={label}>{items.map(item => item.children?.length
+    ? <ActionMenu key={`${pathname}:${item.to}`} label={item.label} compact={false} placement="bottom-start"
+      className={`ui-view-navigation-menu-trigger${item.active ? ' is-active' : ''}`} menuClassName="ui-view-navigation-menu"
+      actions={item.children.map(child => ({ label: child.label, onClick: () => { void navigate(child.to) } }))}>
+      {item.label}<ChevronDown />
+    </ActionMenu>
+    : <Link key={item.to} to={item.to} aria-current={item.active ? 'page' : undefined}>{item.label}</Link>)}</nav>
 }
 
 export function FreshnessStatus({ time, error, connected, paused, stale }: {

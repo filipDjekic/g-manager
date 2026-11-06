@@ -6,26 +6,25 @@ import { workingHoursApi } from '../api/workingHoursApi'
 import { timeOffApi } from '../api/timeOffApi'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
-import { ActionMenu, Badge, Button, PageHeader, PageLayout } from '../components/ui'
+import { Badge, Button, PageHeader, PageLayout } from '../components/ui'
 import { Tabs } from '../components/ui/Tabs'
 import { SetupOverview } from '../settings/SetupOverview'
 import { WorkingHoursSettings } from '../settings/WorkingHoursSettings'
 import { WorkingHoursExceptions } from '../settings/WorkingHoursExceptions'
-import { EmployeeTimeOffSettings } from '../settings/EmployeeTimeOffSettings'
 import { SettingsIcon } from '../settings/settingsPresentation'
 import { settingsEmployees } from '../settings/settingsPresentation.model'
 import '../settings/settings.css'
 
-type Section = 'gaming' | 'overview' | 'hours' | 'exceptions' | 'timeoff'
-const hashes: Record<Section, string> = { gaming: '#gaming', overview: '#overview', hours: '#working-hours', exceptions: '#exceptions', timeoff: '#time-off' }
-const sections: Record<string, Section> = { '#gaming': 'gaming', '#overview': 'overview', '#working-hours': 'hours', '#exceptions': 'exceptions', '#time-off': 'timeoff', '#timeoff': 'timeoff' }
+type Section = 'gaming' | 'overview' | 'hours' | 'exceptions'
+const hashes: Record<Section, string> = { gaming: '#gaming', overview: '#overview', hours: '#working-hours', exceptions: '#exceptions' }
+const sections: Record<string, Section> = { '#gaming': 'gaming', '#overview': 'overview', '#working-hours': 'hours', '#exceptions': 'exceptions' }
 export function SettingsPage() {
   const actor = useAuthStore(state => state.user), location = useLocation(), navigate = useNavigate(), client = useQueryClient()
   const section = sections[location.hash] ?? 'overview', [dirtyCount, setDirtyCount] = useState(0)
   const canRead = hasCapability(actor, 'WORKING_HOURS_READ'), canManage = hasCapability(actor, 'WORKING_HOURS_MANAGE')
   const hours = useQuery({ queryKey: ['working-hours'], queryFn: workingHoursApi.list, enabled: canRead })
   const employees = useQuery({ queryKey: ['settings', 'employees', actor?.id], queryFn: () => settingsEmployees(hasCapability(actor, 'USER_LIST')),
-    enabled: hasCapability(actor, 'EMPLOYEE_LIST') && (section === 'overview' || section === 'timeoff'), staleTime: 60000 })
+    enabled: hasCapability(actor, 'EMPLOYEE_LIST') && section === 'overview', staleTime: 60000 })
   const exceptions = useQuery({ queryKey: ['working-hours', 'exceptions', 'summary'], queryFn: workingHoursApi.summary,
     enabled: canRead && section === 'overview' })
   const timeOff = useQuery({ queryKey: ['settings', 'time-off', 'summary', actor?.id], queryFn: timeOffApi.summary,
@@ -45,25 +44,14 @@ export function SettingsPage() {
   const exceptionsChanged = async () => {
     await Promise.allSettled([client.invalidateQueries({ queryKey: ['working-hours'] }), refreshAvailability()])
   }
-  const timeOffChanged = async () => {
-    await Promise.allSettled([client.invalidateQueries({ queryKey: ['settings', 'time-off'] }),
-      client.invalidateQueries({ queryKey: ['users', 'employee-statistics'] }), refreshAvailability()])
-  }
   return <PageLayout className="gm-settings">
-    <PageHeader title="Rad igraonice" description="Radno vreme prostora, izuzeci i dostupnost zaposlenih." icon={<SettingsIcon />} actions={<><Badge tone="info"><SettingsIcon kind="clock" />Europe/Belgrade</Badge></>} />
-    <div className="gm-settings-tabs"><div className="ui-tabs gm-settings-navigation">
+    <PageHeader title="Rad igraonice" description="Gaming vreme, radno vreme prostora i izuzeci." icon={<SettingsIcon />} actions={<><Badge tone="info"><SettingsIcon kind="clock" />Europe/Belgrade</Badge></>} />
+    <div className="gm-settings-tabs">
       <Tabs idPrefix="settings" label="Oblasti podešavanja" value={section} onChange={openSection} items={[
         ...(hasCapability(actor, 'GAMING_FINANCE_MANAGE') ? [{ id: 'gaming', label: 'Gaming vreme' }] : []),
         { id: 'overview', label: 'Pregled' }, { id: 'hours', label: 'Rad igraonice' }, { id: 'exceptions', label: 'Izuzeci' },
       ]} />
-      <div id="settings-tab-timeoff" className="gm-settings-employees">
-        <ActionMenu label="Zaposleni" compact={false} placement="bottom-start" menuClassName="gm-settings-employees-menu"
-          className={`gm-settings-employees-trigger${section === 'timeoff' ? ' is-active' : ''}`}
-          actions={[{ label: 'Odsustva zaposlenih', onClick: () => openSection('timeoff') }]}>
-          Zaposleni <SettingsIcon kind="chevron-down" />
-        </ActionMenu>
-      </div>
-    </div></div>
+    </div>
     {section === 'gaming' && hasCapability(actor, 'GAMING_FINANCE_MANAGE') && <GamingTimeSettings />}
     {dirtyCount > 0 && <aside className="gm-settings-dirty" role="status"><span><SettingsIcon kind="edit" />Nesačuvane izmene radnog vremena: {dirtyCount} {dirtyCount === 1 ? 'dan' : 'dana'}. Izmene ostaju sačuvane pri promeni taba.</span>
       {section !== 'hours' && <Button type="button" variant="secondary" onClick={() => openSection('hours')}>Vrati se na radno vreme</Button>}</aside>}
@@ -75,9 +63,6 @@ export function SettingsPage() {
     </div>
     <div role="tabpanel" id="settings-panel-exceptions" aria-labelledby="settings-tab-exceptions" hidden={section !== 'exceptions'}>
       <WorkingHoursExceptions hours={hours} active={section === 'exceptions'} onChanged={exceptionsChanged} />
-    </div>
-    <div role="region" id="settings-panel-timeoff" aria-label="Odsustva zaposlenih" hidden={section !== 'timeoff'}>
-      <EmployeeTimeOffSettings active={section === 'timeoff'} employees={employees} onChanged={timeOffChanged} />
     </div>
   </PageLayout>
 }

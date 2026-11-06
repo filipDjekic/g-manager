@@ -13,10 +13,10 @@ import { type SettingsIconKind } from './settingsPresentation.model'
 import { useClientPackageAvailability } from '../stations/clientPackageDistribution'
 
 type SetupStep = { label: string; description: string; detail: string; icon: SettingsIconKind; ready: boolean; known: boolean; error: unknown
-  retry?: () => unknown; to: string; tab?: 'hours' | 'exceptions' | 'timeoff'; permitted: boolean }
+  retry?: () => unknown; to: string; tab?: 'hours' | 'exceptions'; permitted: boolean }
 export function SetupOverview({ hours, employees, exceptions, timeOff, onOpenTab }: {
   hours: UseQueryResult<WorkingHours[]>; employees: UseQueryResult<UserResponse[]>; exceptions: UseQueryResult<{ totalElements: number }>
-  timeOff: UseQueryResult<{ totalElements: number }>; onOpenTab: (tab: 'hours' | 'exceptions' | 'timeoff') => void
+  timeOff: UseQueryResult<{ totalElements: number }>; onOpenTab: (tab: 'hours' | 'exceptions') => void
 }) {
   const actor = useAuthStore(state => state.user)
   const canResources = hasCapability(actor, 'RESOURCE_READ'), canStations = hasCapability(actor, 'STATION_READ')
@@ -60,7 +60,7 @@ export function SetupOverview({ hours, employees, exceptions, timeOff, onOpenTab
       retry: profiles.refetch, to: '/stations', permitted: canStations },
     { label: 'Odsustva zaposlenih', description: 'Aktuelni i budući zahtevi i odobrena odsustva.', detail: `${relevantTimeOff} relevantnih odsustava`,
       icon: 'calendar', ready: !!timeOff.data, known: !!timeOff.data, error: timeOff.error, retry: timeOff.refetch,
-      to: '#time-off', tab: 'timeoff', permitted: hasCapability(actor, 'WORKING_HOURS_MANAGE') },
+      to: '/employee-time-off', permitted: hasCapability(actor, 'WORKING_HOURS_MANAGE') },
     { label: 'Gaming Client paket', description: 'Produkcijska objava, preuzimanje i SHA-256 kontrolna suma.',
       detail: clientPackage.checking ? 'Provera dostupnosti paketa…' : clientPackage.message || (distribution.data?.version ? `Verzija ${distribution.data.version}` : 'Provera produkcijskog paketa'), icon: 'client',
       ready: released, known: !!distribution.data && clientPackage.known && !clientPackage.checking, error: distribution.error || clientPackage.error,
@@ -68,7 +68,7 @@ export function SetupOverview({ hours, employees, exceptions, timeOff, onOpenTab
   ]
   const steps = configuration.filter(step => step.permitted)
   const complete = steps.filter(step => step.ready && !step.error).length
-  const labels: Record<string, string> = { '/resources': 'Otvori lokacije', '/employees': 'Otvori zaposlene', '/catalog': 'Otvori usluge' }
+  const labels: Record<string, string> = { '/resources': 'Otvori lokacije', '/employees': 'Otvori zaposlene', '/catalog': 'Otvori usluge', '/employee-time-off': 'Otvori odsustva' }
   return <Card className="gm-settings-section">
     <header className="gm-settings-section-header"><div><h2>Pregled konfiguracije</h2><p>Status najvažnijih podešavanja vaše igraonice.</p></div>
       <Badge tone="info">{complete} / {steps.length} provera</Badge></header>
@@ -78,7 +78,7 @@ export function SetupOverview({ hours, employees, exceptions, timeOff, onOpenTab
           {step.error ? 'Greška pri učitavanju' : !step.known ? 'U proveri' : step.ready ? 'Podešeno' : 'Potrebna konfiguracija'}</Badge></header>
       <h3>{step.label}</h3><p>{step.description}</p><small>{step.error ? 'Podatke nije moguće potvrditi.' : step.known ? step.detail : 'Učitavanje podataka…'}</small>
       <footer>{Boolean(step.error) && <Button type="button" variant="secondary" onClick={() => void step.retry?.()}>Ponovi proveru</Button>}
-        {step.tab ? <Button type="button" variant="secondary" onClick={() => onOpenTab(step.tab!)}>Otvori {step.tab === 'hours' ? 'radno vreme' : step.tab === 'exceptions' ? 'izuzetke' : 'odsustva'}</Button>
+        {step.tab ? <Button type="button" variant="secondary" onClick={() => onOpenTab(step.tab!)}>Otvori {step.tab === 'hours' ? 'radno vreme' : 'izuzetke'}</Button>
           : <Link className="ui-button ui-button--secondary ui-button--medium" to={step.to}>{step.label === 'Zone' ? 'Otvori zone' : step.label === 'Aplikacioni profili' ? 'Otvori profile' : step.to === '/stations' ? 'Otvori stanice' : labels[step.to]}</Link>}</footer>
     </Card>)}</div>
     <p className="gm-settings-note">Provere su informativne. Za svaku lokaciju proverite njene zone, profile stanica i vezu Gaming Client-a.</p>

@@ -194,6 +194,11 @@ button.ui-stat:hover, a.ui-stat:hover { border-color: var(--color-primary); back
 .ui-view-navigation { padding:var(--space-3) var(--page-padding-inline); border-bottom:1px solid var(--color-border); background:var(--color-surface); }
 .ui-view-navigation a { display:inline-flex; align-items:center; min-height:var(--control-height); padding:var(--space-2) var(--space-3); border-radius:var(--radius-sm); color:var(--color-text-muted); text-decoration:none; }
 .ui-view-navigation a[aria-current='page'] { color:var(--color-primary); background:var(--color-primary-bg); font-weight:600; }
+.ui-view-navigation .ui-view-navigation-menu-trigger { flex-shrink:0; padding:var(--space-2) var(--space-3); border:0; border-radius:var(--radius-sm); color:var(--color-text-muted); background:transparent; font-size:inherit; font-weight:600; line-height:inherit; white-space:nowrap; }
+.ui-view-navigation .ui-view-navigation-menu-trigger:hover:not(:disabled) { color:var(--color-text); background:var(--color-row-hover); }
+.ui-view-navigation .ui-view-navigation-menu-trigger:is(.is-active, [aria-expanded='true']) { color:var(--color-primary); background:var(--color-primary-bg); font-weight:600; }
+.ui-view-navigation-menu.ui-action-menu { z-index:130; border-color:color-mix(in srgb, var(--color-primary) 40%, var(--color-border)); background:var(--color-surface-raised); }
+.ui-view-navigation-menu [role='menuitem']:is(:hover, :focus-visible) { color:var(--color-primary); background:var(--color-primary-bg); }
 .ui-secondary-section, .ui-advanced-filters { min-width:0; border:1px solid var(--color-border); border-radius:var(--radius-md); padding:var(--space-3) var(--space-4); background:var(--color-surface); }
 .ui-secondary-section > summary, .ui-advanced-filters > summary { cursor:pointer; font-size:var(--font-size-sm); font-weight:600; min-height:1.75rem; overflow-wrap:anywhere; }
 .ui-secondary-section[open] > summary, .ui-advanced-filters[open] > summary { margin-bottom:var(--space-4); }

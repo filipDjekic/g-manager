@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, type ComponentType } from 'react'
-import { createBrowserRouter, Navigate, Route, Routes, RouterProvider } from 'react-router-dom'
+import { createBrowserRouter, Navigate, Route, Routes, RouterProvider, useLocation } from 'react-router-dom'
 import { NavigationSafety } from './forms/NavigationSafety'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { CapabilityGuard } from './auth/CapabilityGuard'
@@ -27,6 +27,7 @@ const EmployeesPage = lazyPage(() => import('./pages/EmployeesPage'), 'Employees
 const CustomersPage = lazyPage(() => import('./pages/CustomersPage'), 'CustomersPage')
 const CatalogPage = lazyPage(() => import('./pages/CatalogPage'), 'CatalogPage')
 const SettingsPage = lazyPage(() => import('./pages/SettingsPage'), 'SettingsPage')
+const EmployeeTimeOffPage = lazyPage(() => import('./pages/EmployeeTimeOffPage'), 'EmployeeTimeOffPage')
 const MyReservationsPage = lazyPage(() => import('./pages/MyReservationsPage'), 'MyReservationsPage')
 const ReservationsPage = lazyPage(() => import('./pages/ReservationsPage'), 'ReservationsPage')
 const CalendarPage = lazyPage(() => import('./pages/CalendarPage'), 'CalendarPage')
@@ -51,6 +52,13 @@ function HomeRedirect() {
   const user = useAuthStore((state) => state.user)
   const flags = useFeatureStore((state) => state.flags)
   return <Navigate to={user ? homeForUser(user, flags) : '/login'} replace />
+}
+
+function SettingsRoute() {
+  const { hash, search } = useLocation()
+  return hash === '#time-off' || hash === '#timeoff'
+    ? <Navigate to={{ pathname: '/employee-time-off', search }} replace />
+    : <SettingsPage />
 }
 
 function AppRoutes() {
@@ -107,7 +115,8 @@ function AppRoutes() {
                 <Route path="customers" element={<CustomersPage />} />
               </Route>
               <Route element={<CapabilityGuard anyOf={['WORKING_HOURS_MANAGE']} />}>
-                <Route path="settings" element={<SettingsPage />} />
+                <Route path="settings" element={<SettingsRoute />} />
+                <Route path="employee-time-off" element={<EmployeeTimeOffPage />} />
               </Route>
               <Route element={<CapabilityGuard anyOf={['RESERVATION_READ_OWN', 'ORDER_READ_OWN']} />}>
                 <Route path="home" element={<CustomerHomePage />} />
