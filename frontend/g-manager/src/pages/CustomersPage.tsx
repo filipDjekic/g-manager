@@ -112,7 +112,7 @@ export function CustomersPage() {
     description="Nemate dozvolu za pregled klijenata." /></PageLayout>
 
   return <PageLayout className="customers-workspace">
-    <PageHeader title="Klijenti" description={<>Pronađite klijenta, otvorite istoriju ili pokrenite sesiju. Ovlašćeni korisnici mogu dodati interne beleške i oznake.</>} icon={<NavigationIcon to="/customers" />} actions={<>{canCreate && <Button ref={createOpener} type="button" className="customers-pink-button" onClick={() => setCreateOpen(true)}>
+    <PageHeader title="Klijenti" description={<>Pronađite klijenta, otvorite istoriju ili dodelite računar. Ovlašćeni korisnici mogu dodati interne beleške i oznake.</>} icon={<NavigationIcon to="/customers" />} actions={<>{canCreate && <Button ref={createOpener} type="button" className="customers-pink-button" onClick={() => setCreateOpen(true)}>
         <span aria-hidden="true">+</span> Novi klijent</Button>}</>} />
     <details className="ui-secondary-section"><summary>Statistika klijenata</summary>    <section className="ui-stat-grid customers-metrics" aria-label="Statistika svih klijenata">{metrics.map(metric => <StatCard key={metric.key} label={metric.label} tone={metric.tone}
       value={statistics.error ? '?' : statistics.data?.[metric.key]?.toLocaleString('sr-Latn-RS') ?? '?'} loading={statistics.isLoading} icon={<NavigationIcon to={metric.icon} />} />)}</section>

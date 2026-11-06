@@ -1,0 +1,348 @@
+{
+  "container": "gmanager-flyway-backup-check-7d857f15ec",
+  "tables": {
+    "users": {
+      "rows": 4,
+      "sha256": "359ee3d91e4ef61f8c9e94ebde8b243313215fb7626a9ac183d81abef635f60a",
+      "matches_before": true
+    },
+    "gaming_time_accounts": {
+      "rows": 2,
+      "sha256": "47edbb941a7780529e06d9e455b0d5410ebffb24553a3c39b3feb1ff9d289d37",
+      "matches_before": true
+    },
+    "gaming_time_ledger": {
+      "rows": 11,
+      "sha256": "718c127566ae955c0c3ae2a1e2fb7fa5ab075ec65d66bb99024a7408179f07e4",
+      "matches_before": true
+    },
+    "gaming_financial_operations": {
+      "rows": 1,
+      "sha256": "65dc1527f00113cad85892e49c7cf715cf44c8716512323dda4cbaeff44dedd3",
+      "matches_before": true
+    },
+    "gaming_sessions": {
+      "rows": 1,
+      "sha256": "e391b8f7ed313f2f87a6286509a862dbf1d587be3d26d1268dc749543326e6d7",
+      "matches_before": true
+    },
+    "gaming_time_packages": {
+      "rows": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches_before": true
+    },
+    "gaming_wallet_ledger": {
+      "rows": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches_before": true
+    },
+    "gaming_station_assignments": {
+      "rows": 1,
+      "sha256": "2f2841b5dd0d0901164f6b33b8f56373b7b8496e40484b52d77bf66ab009d729",
+      "matches_before": true
+    }
+  },
+  "original_history_unchanged": true,
+  "history": [
+    {
+      "version": "1",
+      "script": "V1__create_users.sql",
+      "checksum": "298406437",
+      "success": "1"
+    },
+    {
+      "version": "2",
+      "script": "V2__create_refresh_tokens.sql",
+      "checksum": "261653165",
+      "success": "1"
+    },
+    {
+      "version": "3",
+      "script": "V3__add_user_avatar.sql",
+      "checksum": "-1784192612",
+      "success": "1"
+    },
+    {
+      "version": "4",
+      "script": "V4__create_catalog_items.sql",
+      "checksum": "900410566",
+      "success": "1"
+    },
+    {
+      "version": "5",
+      "script": "V5__create_working_hours.sql",
+      "checksum": "-510896893",
+      "success": "1"
+    },
+    {
+      "version": "6",
+      "script": "V6__create_reservations_and_idempotency.sql",
+      "checksum": "1374938291",
+      "success": "1"
+    },
+    {
+      "version": "7",
+      "script": "V7__create_orders.sql",
+      "checksum": "6286455",
+      "success": "1"
+    },
+    {
+      "version": "8",
+      "script": "V8__add_operational_foreign_keys.sql",
+      "checksum": "-834256067",
+      "success": "1"
+    },
+    {
+      "version": "9",
+      "script": "V9__add_session_management.sql",
+      "checksum": "232224890",
+      "success": "1"
+    },
+    {
+      "version": "10",
+      "script": "V10__add_audit_and_soft_delete.sql",
+      "checksum": "2138286505",
+      "success": "1"
+    },
+    {
+      "version": "11",
+      "script": "V11__scope_idempotency_keys.sql",
+      "checksum": "-1983719273",
+      "success": "1"
+    },
+    {
+      "version": "12",
+      "script": "V12__create_transactional_outbox.sql",
+      "checksum": "-2022089655",
+      "success": "1"
+    },
+    {
+      "version": "13",
+      "script": "V13__create_background_jobs.sql",
+      "checksum": "629405888",
+      "success": "1"
+    },
+    {
+      "version": "14",
+      "script": "V14__add_performance_indexes.sql",
+      "checksum": "92857007",
+      "success": "1"
+    },
+    {
+      "version": "15",
+      "script": "V15__create_saved_views.sql",
+      "checksum": "2019459221",
+      "success": "1"
+    },
+    {
+      "version": "16",
+      "script": "V16__create_search_preferences.sql",
+      "checksum": "759025102",
+      "success": "1"
+    },
+    {
+      "version": "17",
+      "script": "V17__create_dashboard_widget_preferences.sql",
+      "checksum": "95390003",
+      "success": "1"
+    },
+    {
+      "version": "18",
+      "script": "V18__create_notifications.sql",
+      "checksum": "-516186897",
+      "success": "1"
+    },
+    {
+      "version": "19",
+      "script": "V19__create_secure_documents.sql",
+      "checksum": "-1106020619",
+      "success": "1"
+    },
+    {
+      "version": "20",
+      "script": "V20__create_report_engine.sql",
+      "checksum": "468834363",
+      "success": "1"
+    },
+    {
+      "version": "21",
+      "script": "V21__create_approval_workflow.sql",
+      "checksum": "-115575051",
+      "success": "1"
+    },
+    {
+      "version": "22",
+      "script": "V22__create_feature_flag_overrides.sql",
+      "checksum": "-509353954",
+      "success": "1"
+    },
+    {
+      "version": "23",
+      "script": "V23__create_ai_usage.sql",
+      "checksum": "-1459161720",
+      "success": "1"
+    },
+    {
+      "version": "24",
+      "script": "V24__create_employee_time_off.sql",
+      "checksum": "-713857584",
+      "success": "1"
+    },
+    {
+      "version": "25",
+      "script": "V25__create_waitlist.sql",
+      "checksum": "-1452160408",
+      "success": "1"
+    },
+    {
+      "version": "26",
+      "script": "V26__create_reservation_recurrence_series.sql",
+      "checksum": "1444437272",
+      "success": "1"
+    },
+    {
+      "version": "27",
+      "script": "V27__create_customer_crm.sql",
+      "checksum": "-660273082",
+      "success": "1"
+    },
+    {
+      "version": "28",
+      "script": "V28__create_physical_resource_scheduling.sql",
+      "checksum": "-125631669",
+      "success": "1"
+    },
+    {
+      "version": "29",
+      "script": "V29__customer_staff_onboarding.sql",
+      "checksum": "1517481698",
+      "success": "1"
+    },
+    {
+      "version": "30",
+      "script": "V30__gaming_station_readiness.sql",
+      "checksum": "365781544",
+      "success": "1"
+    },
+    {
+      "version": "31",
+      "script": "V31__gaming_session_lifecycle.sql",
+      "checksum": "-1712464758",
+      "success": "1"
+    },
+    {
+      "version": "32",
+      "script": "V32__station_command_projection.sql",
+      "checksum": "1145315622",
+      "success": "1"
+    },
+    {
+      "version": "33",
+      "script": "V33__machine_identity_and_protocol.sql",
+      "checksum": "620681488",
+      "success": "1"
+    },
+    {
+      "version": "34",
+      "script": "V34__station_session_login_audit.sql",
+      "checksum": "712132956",
+      "success": "1"
+    },
+    {
+      "version": "35",
+      "script": "V35__executable_station_policy.sql",
+      "checksum": "48091976",
+      "success": "1"
+    },
+    {
+      "version": "36",
+      "script": "V36__station_enforcement_and_reconciliation.sql",
+      "checksum": "1068893776",
+      "success": "1"
+    },
+    {
+      "version": "37",
+      "script": "V37__require_reservation_resources.sql",
+      "checksum": "-560990435",
+      "success": "1"
+    },
+    {
+      "version": "38",
+      "script": "V38__employee_resource_assignments.sql",
+      "checksum": "-222201999",
+      "success": "1"
+    },
+    {
+      "version": "39",
+      "script": "V39__location_floor_plans.sql",
+      "checksum": "-259093760",
+      "success": "1"
+    },
+    {
+      "version": "40",
+      "script": "V40__waitlist_management.sql",
+      "checksum": "-2107144199",
+      "success": "1"
+    },
+    {
+      "version": "41",
+      "script": "V41__client_management_telemetry.sql",
+      "checksum": "-414623184",
+      "success": "1"
+    },
+    {
+      "version": "42",
+      "script": "V42__secure_short_customer_activation.sql",
+      "checksum": "1378123337",
+      "success": "1"
+    },
+    {
+      "version": "43",
+      "script": "V43__gaming_center_operations.sql",
+      "checksum": "883981673",
+      "success": "1"
+    },
+    {
+      "version": "44",
+      "script": "V44__managed_client_updates.sql",
+      "checksum": "-528394720",
+      "success": "1"
+    },
+    {
+      "version": "45",
+      "script": "V45__history_pagination_indexes.sql",
+      "checksum": "-1951382693",
+      "success": "1"
+    },
+    {
+      "version": "46",
+      "script": "V46__prepaid_metered.sql",
+      "checksum": "1025874737",
+      "success": "1"
+    },
+    {
+      "version": "47",
+      "script": "V47__development_station_readiness.sql",
+      "checksum": "1166288948",
+      "success": "1"
+    },
+    {
+      "version": "48",
+      "script": "V48__persistent_gaming_time.sql",
+      "checksum": "-366965518",
+      "success": "1"
+    },
+    {
+      "version": "49",
+      "script": "V49__gaming_minute_price.sql",
+      "checksum": "-904918995",
+      "success": "1"
+    },
+    {
+      "version": "50",
+      "script": "V50__preserve_unconverted_legacy_time.sql",
+      "checksum": "-25807661",
+      "success": "1"
+    }
+  ]
+}

@@ -5,4 +5,5 @@ import java.util.UUID;
 
 public interface StationRuntimeProjectionPort {
     Map<UUID, UUID> activeSessionIdsByResource();
+    default Map<UUID, UUID> waitingAssignmentsByResource() { return Map.of(); }
 }

@@ -41,17 +41,17 @@ class PilotBackendRestartIT {
     JsonNode startOverHttp(ConfigurableApplicationContext context,PilotGamingCenterIT f,Map<String,Object> body,String key) throws Exception {
         int port=((org.springframework.boot.web.server.context.WebServerApplicationContext)context).getWebServer().getPort();
         try(var http=java.net.http.HttpClient.newHttpClient()) {
-            var request=java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://127.0.0.1:"+port+"/api/v1/gaming-sessions"))
+            var request=java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://127.0.0.1:"+port+"/api/v1/gaming-billing/customers/"+PilotGamingCenterIT.id("customer-0")+"/time-grants"))
                     .timeout(java.time.Duration.ofSeconds(15)).header("Authorization","Bearer "+f.staff(2)).header("Idempotency-Key",key)
                     .header("Content-Type","application/json").POST(java.net.http.HttpRequest.BodyPublishers.ofString(f.json.writeValueAsString(body))).build();
             var response=http.send(request,java.net.http.HttpResponse.BodyHandlers.ofString());
-            assertThat(response.statusCode()).isEqualTo(201);return f.json.readTree(response.body());
+            assertThat(response.statusCode()).isEqualTo(200);return f.json.readTree(response.body());
         }
     }
     @Test void backendRestartReplaysCommittedStartAndItsFinancialRecordWithoutGrantingExtraTime() throws Exception {
         String key="pilot-backend-restart-payment";JsonNode original;Map<String,Object> body;List<String> machines;
         try(var first=start()) {
-            var f=fixture(first);f.fixture();body=f.start(0,0,0,"CASH",200);
+            var f=fixture(first);f.fixture();body=Map.of("minutes",120,"priceVersion",1);
             original=startOverHttp(first,f,body,key);
             machines=List.copyOf(f.machines);
         }
@@ -60,7 +60,8 @@ class PilotBackendRestartIT {
             var replay=startOverHttp(second,f,body,key);
             assertThat(replay).isEqualTo(original);
             assertThat(f.jdbc.queryForObject("SELECT COUNT(*) FROM gaming_financial_operations",Integer.class)).isEqualTo(1);
-            assertThat(java.time.Instant.parse(f.lease(0).get("sessionEndsAt").asText())).isCloseTo(java.time.Instant.parse(original.get("endsAt").asText()),org.assertj.core.api.Assertions.within(1,java.time.temporal.ChronoUnit.MILLIS));
+            assertThat(f.jdbc.queryForObject("SELECT balance_seconds FROM gaming_time_accounts WHERE customer_id=?",Long.class,PilotGamingCenterIT.id("customer-0").toString())).isEqualTo(7200);
+            assertThat(f.lease(0).get("directive").asText()).isEqualTo("LOCK");
             f.pollAndAck(0,false);f.assertLedger();
         }
     }

@@ -1,6 +1,7 @@
 import { usePagedQuery } from '../query/usePagedQuery'
 import { Pagination } from '../components/ui/Pagination'
 import { GamingWalletPanel } from '../gaming/GamingWalletPanel'
+import { GamingPaymentHistory } from '../gaming/GamingPaymentHistory'
 import { Tabs } from '../components/ui/Tabs'
 import { useQuery } from '@tanstack/react-query'
 import { useId, useState, type RefObject } from 'react'
@@ -49,7 +50,7 @@ export function CustomerProfile({ customerId, open, onClose, onEdit, onDeactivat
   const tabs: { key: ProfileTab; label: string }[] = [
     { key: 'overview', label: 'Pregled' }, { key: 'reservations', label: 'Rezervacije' },
     ...(canReadGaming ? [{ key: 'gaming' as const, label: 'Gaming sesije' }] : []),
-    ...(canReadGaming ? [{ key: 'wallet' as const, label: 'Prepaid i paketi' }] : []),
+    ...(canReadGaming ? [{ key: 'wallet' as const, label: 'Plaćanje' }] : []),
     { key: 'orders', label: 'Narudžbine' }, ...(canManageCrm ? [{ key: 'crm' as const, label: 'CRM' }] : []),
   ]
   const activeTab = tabs.some(item => item.key === tab) ? tab : 'overview'
@@ -92,13 +93,13 @@ export function CustomerProfile({ customerId, open, onClose, onEdit, onDeactivat
               <NavigationIcon to="/gaming-sessions" /><div><h3>Gaming sesija</h3><p>Pokrenite sesiju na dostupnoj stanici.</p></div>
               <Button variant="primary" type="button" loading={startBusy} disabled={!customer.active || canReadGaming &&
                 (visits.isFetching || !!visits.error || !visits.data || visits.data.some(visit => visit.status === 'ACTIVE'))}
-                onClick={() => onStart(customer)}>Pokreni sesiju</Button>
+                onClick={() => onStart(customer)}>Dodeli računar</Button>
               {!customer.active && <small>Pokretanje je dostupno samo aktivnim klijentima.</small>}
               {visits.data?.some(visit => visit.status === 'ACTIVE') && <small>Klijent već ima aktivnu gaming sesiju.</small>}
               {visits.error && <Button type="button" variant="secondary" onClick={() => void visits.refetch()}>Ponovi proveru gaming sesija</Button>}
             </div>}
           </>}
-          {activeTab === 'wallet' && <GamingWalletPanel customerId={customerId} />}
+          {activeTab === 'wallet' && <><GamingWalletPanel customerId={customerId} /><GamingPaymentHistory customerId={customerId} /></>}
           {activeTab === 'reservations' && <section className="customers-profile-section">
             <h3>Istorija rezervacija</h3>
             {reservations.isLoading && <Skeleton lines={3} />}

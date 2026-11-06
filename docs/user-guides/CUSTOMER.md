@@ -142,25 +142,15 @@ Ako ishod slanja nije poznat, korpa se zaključava: izaberite **„Proveri preth
 
 ## Moja gaming sesija
 
-Osoblje pokreće gaming sesiju za vas i izabrani računar. Rezervisanje termina ili prijava u web aplikaciju ne pokreću je automatski.
+Vreme kupujete na kasi. Osoblje dodaje najmanje 30 celih minuta prema podešenoj ceni, a raspoloživo vreme vidite u delu „Vreme“ na početnoj strani. Nepotrošeno vreme ostaje na nalogu bez kalendarskog isteka.
 
-1. Otvorite **„Početna“** i deo **„Vaša gaming sesija“** kada postoji aktivna sesija.
-2. Proverite računar, preostalo vreme, početak i planirani kraj.
-3. Kliknite **„Detalji sesije“** za dodatni pregled.
-4. Za ranije sesije otvorite **„Poslednje aktivnosti i istorija“ → „Gaming istorija“**.
+Osoblje vam dodeljuje slobodan računar. Na njemu se pojavljuje ekran za prijavu. Unesite email i lozinku svog aktiviranog naloga. Samo dodeljeni korisnik može se prijaviti, a vreme počinje da se troši nakon uspešne prijave i odobrene aktivacije.
 
-**Rezultat:** pratite sopstveno vreme i istoriju. Za početak, produženje ili prevremeni završetak obratite se osoblju. Web ekran nema dugmad kojima kupac upravlja gaming sesijom. Kada vreme istekne, poruka može čekati osvežavanje statusa; vreme i konačno stanje potvrđuje sistem.
+U Clientu birate dozvoljene aplikacije. Za dopunu tokom igranja obratite se osoblju. Pre odlaska sačuvajte napredak i izaberite „Završi sesiju“. Sesiju možete završiti i sa svog web naloga ili preko osoblja.
 
-### Prijava na gaming računaru
+Završetak i odjava zaključavaju računar i završavaju obračun; preostalo vreme se čuva. Kada vreme istekne, sistem to radi automatski. Za novu posetu potrebna je nova dodela računara.
 
-Ako igraonica koristi G-Manager Gaming Client, na dodeljenom računaru sačekajte da osoblje pokrene vašu sesiju i da se pojavi obrazac za prijavu.
-
-1. Unesite email i lozinku svog aktiviranog naloga i kliknite **„Prijavi se“**.
-2. U **„Moje aplikacije“** pronađite ponuđenu igru i kliknite **„Pokreni“**. Možete koristiti pretragu i filter **„Favoriti“**. Pokretanje prolazi proveru lokalnog servisa i dozvoljene aplikacije.
-3. Za produženje vremena obratite se osoblju na šalteru.
-4. Pre odlaska sačuvajte napredak u igri. Za lokalnu odjavu izaberite **„Odjavi se“** i potvrdite u prikazanom prozoru.
-
-**Ograničenja:** vaš nalog mora odgovarati aktivnoj sesiji baš na tom računaru. Lokalna odjava zaključava računar, ali nije isto što i završavanje sesije u evidenciji osoblja; prijavite osoblju da ste završili. Pri isteku vremena ili dozvoljenog rada bez veze računar se zaključava i korisničke aplikacije mogu biti zaustavljene. Ako prijava, igra ili servis ne rade, pozovite osoblje; ne postoji korisnička opcija za zaobilaženje zaključavanja.
+Posle prekida veze ili restarta Client se bezbedno usaglašava sa serverom. Ako prijava ili aplikacija nisu dostupne, pozovite osoblje. Detalji: [Gaming vreme](../GAMING_TIME.md).
 
 ## Profil i obaveštenja
 

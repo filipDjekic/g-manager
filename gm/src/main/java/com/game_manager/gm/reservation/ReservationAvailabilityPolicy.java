@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class ReservationAvailabilityPolicy implements com.game_manager.gm.common.scheduling.ResourceAvailabilityPort {
+    @org.springframework.beans.factory.annotation.Autowired private java.time.Clock clock;
     private static final List<ReservationStatus> NON_BLOCKING =
             List.of(ReservationStatus.CANCELLED, ReservationStatus.REJECTED);
     private static final List<ReservationStatus> RESOURCE_NON_BLOCKING =
@@ -38,7 +39,7 @@ public class ReservationAvailabilityPolicy implements com.game_manager.gm.common
         if(ids.isEmpty())return List.of();
         String placeholders=String.join(",",java.util.Collections.nCopies(ids.size(),"?"));
         java.util.Calendar utc=java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"));
-        return jdbc.query("SELECT resource_id,started_at,CASE WHEN move_target_id IS NOT NULL THEN ? ELSE ends_at END FROM gaming_sessions WHERE resource_id IN ("
+        var result=new java.util.ArrayList<>(jdbc.query("SELECT resource_id,started_at,CASE WHEN move_target_id IS NOT NULL THEN ? ELSE ends_at END FROM gaming_sessions WHERE resource_id IN ("
                 +placeholders+") AND status='ACTIVE' AND started_at<? AND (ends_at>? OR move_target_id IS NOT NULL)"
                 +" UNION ALL SELECT move_target_id,started_at,? FROM gaming_sessions WHERE move_target_id IN ("+placeholders+") AND status='ACTIVE' AND started_at<?", statement->{
                     int index=1;statement.setTimestamp(index++,java.sql.Timestamp.from(to),utc);
@@ -47,7 +48,10 @@ public class ReservationAvailabilityPolicy implements com.game_manager.gm.common
                     statement.setTimestamp(index++,java.sql.Timestamp.from(to),utc);
                     for(UUID id:ids)statement.setString(index++,id.toString());
                     statement.setTimestamp(index,java.sql.Timestamp.from(to),utc);
-                },(row,index)->new ResourceBusyInterval(UUID.fromString(row.getString(1)),row.getTimestamp(2,utc).toInstant(),row.getTimestamp(3,utc).toInstant()));
+                },(row,index)->new ResourceBusyInterval(UUID.fromString(row.getString(1)),row.getTimestamp(2,utc).toInstant(),row.getTimestamp(3,utc).toInstant())));
+        var args=new java.util.ArrayList<Object>();ids.forEach(id->args.add(id.toString()));args.add(java.sql.Timestamp.from(clock.instant()));args.add(java.sql.Timestamp.from(to));args.add(java.sql.Timestamp.from(from));
+        result.addAll(jdbc.query("SELECT resource_id,created_at,expires_at FROM gaming_station_assignments WHERE resource_id IN ("+placeholders+") AND status='WAITING_FOR_LOGIN' AND expires_at>? AND created_at<? AND expires_at>?",(row,index)->new ResourceBusyInterval(UUID.fromString(row.getString(1)),row.getTimestamp(2,utc).toInstant(),row.getTimestamp(3,utc).toInstant()),args.toArray()));
+        return result;
     }
 
     private boolean sessionAvailable(UUID id, Instant start, Instant end) {

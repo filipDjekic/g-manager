@@ -26,7 +26,7 @@ public class StationPreparationService {
     private final ClientStatePort enforcement;
     private final AuditWriter audit;
     private final Clock clock;
-    @org.springframework.beans.factory.annotation.Autowired private com.game_manager.gm.machine.DevelopmentStations development;
+    @org.springframework.beans.factory.annotation.Autowired private com.game_manager.gm.common.config.DevelopmentStationPolicy development;
     public record Preparation(@NotNull UUID sessionId, @AssertTrue boolean isolatedProfileVerified,
             @NotBlank @Size(max=500) String reason) {}
     public Map<UUID,Boolean> readiness(Collection<UUID> stations) {

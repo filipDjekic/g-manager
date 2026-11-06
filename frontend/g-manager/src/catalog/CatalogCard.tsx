@@ -1,4 +1,3 @@
-import { ProductCard } from './ProductCard'
 import { useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { ActionMenu, Badge, Button, Input, Card } from '../components/ui'
@@ -10,8 +9,8 @@ import { catalogDuration, catalogMoney, catalogTypeLabel } from './CatalogPresen
 export type CatalogAction = 'DETAILS' | 'EDIT' | 'IMAGE' | 'ACTIVATE' | 'DEACTIVATE' | 'DELETE' | 'RESTORE'
 export interface CatalogPermissions { manage: boolean; remove: boolean; restore: boolean; order: boolean }
 
-export function CatalogOrderLink({ item }: { item: CatalogItem }) {
-  return <Link className="ui-button ui-button--secondary ui-button--medium gm-catalog-order-link"
+export function CatalogOrderLink({ item, compact = false }: { item: CatalogItem; compact?: boolean }) {
+  return <Link className={`ui-button ui-button--secondary ui-button--${compact ? 'small' : 'medium'} gm-catalog-order-link`}
     to={item.type === 'PRODUCT' ? '/my-orders?productId=' + item.id : '/my-reservations?booking=new&serviceId=' + item.id}>
     {item.type === 'PRODUCT' ? 'Dodaj u korpu' : 'Zakaži termin'}</Link>
 }
@@ -36,15 +35,12 @@ export function CatalogCard({ item, permissions, selected, highlighted, busy, on
   onSelect: () => void; onAction: (item: CatalogItem, action: CatalogAction, trigger: HTMLButtonElement) => void
 }) {
   const title = useRef<HTMLButtonElement>(null)
-  if (!permissions.manage && item.type === 'PRODUCT') return <ProductCard product={item} highlighted={highlighted}
-    title={<Button variant="ghost" onClick={event => onAction(item,'DETAILS',event.currentTarget)}>{item.name}</Button>}
-    actions={<>{permissions.order && item.active && !item.deletedAt && <CatalogOrderLink item={item}/>}<Button variant="secondary" onClick={event => onAction(item,'DETAILS',event.currentTarget)}>Detalji</Button></>}/>
   return <Card as="article" padding="none" className={`gm-catalog-card${highlighted ? ' is-highlighted' : ''}${selected ? ' is-selected' : ''}`}
     onClick={event => {
       if (!(event.target as HTMLElement).closest('button, a, input, label') && title.current) onAction(item, 'DETAILS', title.current)
     }}>
     <div className="gm-catalog-card-media">
-      <CatalogImage key={item.imageUrl} item={item} />
+      <CatalogImage key={item.imageUrl} item={item} authenticatedPreview={!permissions.manage && item.type === 'PRODUCT'} />
       {permissions.manage && <div className="gm-catalog-card-status"><Badge tone={item.deletedAt ? 'danger' : item.active ? 'success' : 'neutral'}>
         {item.deletedAt ? 'Obrisano' : item.active ? 'Aktivno' : 'Neaktivno'}</Badge></div>}
       {permissions.manage && !item.deletedAt && <label className="gm-catalog-card-selector">
@@ -52,16 +48,16 @@ export function CatalogCard({ item, permissions, selected, highlighted, busy, on
       </label>}
     </div>
     <div className="gm-catalog-card-body">
-      <div className="gm-catalog-card-heading"><span className="gm-catalog-type-label"><CatalogIcon type={item.type} />{catalogTypeLabel(item.type)}</span>
+      <div className="gm-catalog-card-heading"><div className="gm-catalog-card-labels"><span className="gm-catalog-type-label"><CatalogIcon type={item.type} />{catalogTypeLabel(item.type)}</span>
+        {item.type === 'SERVICE' && item.durationMinutes !== null && <span className="gm-catalog-duration" aria-label={`Trajanje: ${catalogDuration(item.durationMinutes)}`}>◷ {catalogDuration(item.durationMinutes)}</span>}</div>
         <CatalogActionMenu item={item} permissions={permissions} disabled={busy} onAction={(action, trigger) => onAction(item, action, trigger)} /></div>
-      <h2><Button variant="ghost" ref={title} type="button" className="gm-catalog-title-button" onClick={event => onAction(item, 'DETAILS', event.currentTarget)}>{item.name}</Button></h2>
+      <h2><Button variant="ghost" ref={title} type="button" title={item.name} className="gm-catalog-title-button" onClick={event => onAction(item, 'DETAILS', event.currentTarget)}><span>{item.name}</span></Button></h2>
       <p className="gm-catalog-card-description">{item.description || 'Bez opisa.'}</p>
       <div className="gm-catalog-card-bottom">
-        {item.type === 'SERVICE' && item.durationMinutes !== null && <span className="gm-catalog-duration">◷ <span>Trajanje: {catalogDuration(item.durationMinutes)}</span></span>}
-        <div className="gm-catalog-price-row"><strong>{catalogMoney.format(item.price)}</strong>
-          <Button variant="ghost" type="button" className="gm-catalog-detail-link" aria-label={`Pogledaj detalje: ${item.name}`}
+        <div className="gm-catalog-price-row"><strong>{catalogMoney.format(item.price).replace(/\u00a0/g, ' ')}</strong>
+          <Button variant="ghost" size="small" type="button" className="gm-catalog-detail-link" aria-label={`Pogledaj detalje: ${item.name}`}
             onClick={event => onAction(item, 'DETAILS', event.currentTarget)}>Detalji <span aria-hidden="true">↗</span></Button></div>
-        {permissions.order && item.active && !item.deletedAt && <CatalogOrderLink item={item} />}
+        {permissions.order && item.active && !item.deletedAt && <CatalogOrderLink item={item} compact />}
       </div>
     </div>
   </Card>

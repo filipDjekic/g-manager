@@ -29,7 +29,8 @@ Putanje u tabeli su relativne na `/api/v1`, osim kada je navedeno drugačije. `{
 | `/ai` | `POST /report-summaries/{reportId}`, `POST /usage/{usageId}/feedback`; AI flag, consent, report vlasništvo i limiti |
 | `/stations` | Lista/client-status, profile, application definitions i application-profiles CRUD; `client-package` metadata/availability/download |
 | `/stations/{stationId}/machine-identity` | Lista, enrollment-token, rotation-token i revoke |
-| `/gaming-sessions` | Start, detail/list, `/me`, `/customer/{customerId}`, extend/terminate i SSE `/stream` |
+| `/gaming-sessions` | Detail/list, `/me`, `/customer/{customerId}`, finish/terminate i SSE `/stream` |
+| `/gaming-billing` | `GET/PUT /time-price`; `GET /customers/{id}/time`, istorija vremena/uplata; `POST /customers/{id}/time-grants`, `/assignments`, `/assignments/{id}/cancel`; finansijski izveštaji |
 | `/gaming-operations` | `GET /board`, station history, `POST /stations/{stationId}/force-lock` i `/confirm-locked` |
 | `/machine` | enroll, auth/challenge, auth/token; heartbeat, snapshot, commands/poll/ack, session-login/logout, configuration, lease i enforcement/lock-ack |
 
@@ -48,7 +49,7 @@ Machine API ima odvojen principal: user JWT ne zamenjuje machine JWT. Enrollment
 [IdempotencyFilter](../../gm/src/main/java/com/game_manager/gm/idempotency/IdempotencyFilter.java) zahteva `Idempotency-Key` za sledeće POST rute:
 
 - `/reservations`, `/reservations/recurrence`, `/orders`, `/waitlist/management`;
-- `/gaming-sessions`, `/gaming-sessions/{id}/extend`, `/gaming-sessions/{id}/terminate`.
+- `/gaming-sessions/{id}/terminate`, svi POST pozivi pod `/gaming-billing/` i `/gaming-operations/stations/{id}/prepare`.
 
 Ključ je neprazan i najviše 255 znakova, scoped prema principal-u i endpoint-u; telo se kanonizuje za hash. Isti ključ i telo vraćaju sačuvan uspešan odgovor i `Idempotency-Replayed: true`. Drugo telo sa istim ključem vraća 409. Obrada koja još traje vraća **425 Too Early** sa `Retry-After: 2`. Timeout retry iste komande treba da zadrži isti ključ; namerno izmenjena komanda dobija novi ključ.
 
@@ -71,3 +72,5 @@ Browser stream rute su `/notifications/stream` i `/gaming-sessions/stream`, sa B
 ## OpenAPI
 
 U lokalnom profilu su dostupni `/v3/api-docs` i `/swagger-ui/index.html` na backend portu. Produkcioni profil ih isključuje. Generisana specifikacija zavisi od pokrenute verzije, a ne od arhivske specifikacije. Endpoint/DTO promenu proveriti zajedno sa frontend `src/api`, `src/types` i protocol artefaktima.
+
+Detalji cene, minimalne dopune, dodele i migracije: [Gaming vreme](../GAMING_TIME.md).

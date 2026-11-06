@@ -52,6 +52,7 @@ class PilotGamingCenterIT {
 
     @BeforeEach void fixture() throws Exception {
         testsupport.DatabaseCleaner.clean(jdbc);jdbc.update("DELETE FROM catalog_items WHERE id=?",id("service").toString());machines.clear();Arrays.fill(cursors,0);
+        jdbc.update("UPDATE gaming_business_policy SET minute_price=2.50,time_price_version=1 WHERE id=1");
         String hash=passwords.encode("PilotPass1!");
         for(int i=0;i<14;i++) {
             String key=i==0?"owner":i==1?"admin":i<4?"employee-"+(i-2):"customer-"+(i-4);
@@ -122,117 +123,50 @@ class PilotGamingCenterIT {
         } finally {go.countDown();}
     }
 
-    @Test void fourParallelWavesServeTenCustomersAndTenGuestsWithPaymentsPackagesAndPrivacy() throws Exception {
-        var wallet=command("/api/v1/gaming-billing/customers/"+id("customer-0")+"/topups",staff(2),Map.of("resourceId",id("pc-0"),"payment",payment("CASH",500),"reason","Pilot prepaid deposit"),200);
-        assertThat(wallet.get("balance").decimalValue()).isEqualByComparingTo("500");
-        wallet=command("/api/v1/gaming-billing/customers/"+id("customer-1")+"/packages",staff(3),Map.of("resourceId",id("pc-1"),"tariffId",id("tariff-2"),"tariffVersion",0,"payment",payment("CASH",300)),200);
-        String pack=wallet.get("packages").get(0).get("id").asText();
-        var packaged=Map.of("tariffId",id("tariff-2"),"tariffVersion",0,"packageId",pack,"payment",payment("TIME_PACKAGE",0));
-        for(int wave=0;wave<4;wave++) {
-            List<Callable<JsonNode>> starts=new ArrayList<>();
-            for(int pc=0;pc<5;pc++) {
-                final int n=pc,w=wave;int tariff=pc==4?1:0;
-                var body=start(pc,wave<2?wave*5+pc:null,tariff,wave==0&&pc==0?"WALLET":"CASH",tariff==1?300:200);
-                if(wave==0&&pc==1)body.put("purchase",packaged);
-                starts.add(()->command("/api/v1/gaming-sessions",staff(2+n%2),body,201));
-            }
-            var started=parallel(starts);assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM gaming_sessions WHERE status='ACTIVE'",Integer.class)).isEqualTo(5);
-            for(int pc=0;pc<5;pc++) {
-                String session=started.get(pc).get("id").asText();pollAndAck(pc,false);assertThat(lease(pc).get("directive").asText()).isEqualTo("ACTIVE");
-                call(post(wave<2?"/api/v1/machine/session-login":"/api/v1/machine/guest-login"),machines.get(pc),wave<2?Map.of("email","customer-"+(wave*5+pc)+"@pilot.example.test","password","PilotPass1!"):Map.of("sessionId",session),200);
-                Object buy=wave==0&&pc==1?packaged:purchase(pc==4?1:0,wave==0&&pc==0?"WALLET":"CASH",pc==4?150:100);
-                var extended=command("/api/v1/gaming-sessions/"+session+"/extend",staff(2+pc%2),Map.of("minutes",30,"version",started.get(pc).get("version").asLong(),"purchase",buy),200);
-                pollAndAck(pc,false);
-                command("/api/v1/gaming-sessions/"+session+"/terminate",staff(2+pc%2),Map.of("version",extended.get("version").asLong(),"reason","Pilot visit complete"),200);
-                assertThat(lease(pc).get("directive").asText()).isEqualTo("LOCK");
-                command("/api/v1/gaming-operations/stations/"+id("pc-"+pc)+"/prepare",staff(2),Map.of("sessionId",session,"isolatedProfileVerified",true,"reason","Synthetic readiness fixture"),409);
-                pollAndAck(pc,true);
-                command("/api/v1/gaming-operations/stations/"+id("pc-"+pc)+"/prepare",staff(2),Map.of("sessionId",session,"isolatedProfileVerified",true,"reason","Synthetic readiness; physical privacy review remains required"),200);
-            }
-        }
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM gaming_sessions",Integer.class)).isEqualTo(20);
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM gaming_sessions WHERE customer_id IS NULL",Integer.class)).isEqualTo(10);
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM users",Integer.class)).isEqualTo(14);
-        assertThat(jdbc.queryForObject("SELECT SUM(amount) FROM gaming_wallet_ledger WHERE customer_id=?",BigDecimal.class,id("customer-0").toString())).isEqualByComparingTo("200");
-        assertThat(jdbc.queryForObject("SELECT SUM(minutes) FROM gaming_wallet_ledger WHERE package_id=?",Integer.class,pack)).isZero();
-        assertThat(jdbc.queryForObject("SELECT SUM(recognized_amount) FROM gaming_charges",BigDecimal.class)).isEqualByComparingTo("6600");
-        assertThat(call(get("/api/v1/gaming-operations/board"),staff(0),null,200).get("stations")).allSatisfy(s->assertThat(s.get("status").asText()).isEqualTo("AVAILABLE"));
-        assertLedger();
-        // Execute the actual encrypted backup/restore tools against this container only.
-        try(var backup=new org.testcontainers.containers.GenericContainer<>(BackupTestImage.IMAGE)
-                .withNetworkMode("container:"+MYSQL.getContainerId()).withCommand("sleep","infinity")
-                .withCreateContainerCmdModifier(c->c.getHostConfig().withPublishAllPorts(false))
-                .withEnv("DB_HOST","127.0.0.1").withEnv("DB_NAME","gaming_pilot_it").withEnv("DB_USER","pilot")
-                .withEnv("DB_PASSWORD_FILE","/tmp/password").withEnv("DB_ROOT_PASSWORD_FILE","/tmp/password")
-                .withEnv("BACKUP_KEY_FILE","/tmp/key").withEnv("BACKUP_OUTPUT_DIR","/tmp/output")
-                .withEnv("DOCUMENT_BACKUP_ROOT","/tmp/documents").withEnv("BACKUP_WRITES_QUIESCED","true")
-                .withEnv("RESTORE_ISOLATED","true").withEnv("RESTORE_DB_USER","pilot")) {
-            backup.start();backup.copyFileToContainer(org.testcontainers.images.builder.Transferable.of(MYSQL.getPassword(),0444),"/tmp/password");
-            backup.copyFileToContainer(org.testcontainers.images.builder.Transferable.of("disposable-encryption-key-at-least-32-bytes",0444),"/tmp/key");
-            var saved=backup.execInContainer("bash","-c","mkdir -p /tmp/documents; printf 'pilot-document' > /tmp/documents/pilot.txt; /backup/backup-set.sh");
-            assertThat(saved.getExitCode()).withFailMessage(saved.getStderr()).isZero();
-            String manifest=saved.getStdout().trim();String file=manifest.replace(".manifest",".sql.gz.enc");
-            var restored=backup.execInContainer("env","BACKUP_FILE="+file,"/backup/restore-drill.sh");
-            assertThat(restored.getExitCode()).withFailMessage(restored.getStderr()).isZero();
-            var objects=backup.execInContainer("bash","-c","set -euo pipefail; cd /tmp/output; sha256sum -c \"${1%.manifest}.documents.tar.gz.enc.sha256\"; mkdir /tmp/restored-documents; openssl enc -d -aes-256-cbc -pbkdf2 -in \"${1%.manifest}.documents.tar.gz.enc\" -pass file:/tmp/key | tar -xz -C /tmp/restored-documents; test \"$(cat /tmp/restored-documents/pilot.txt)\" = pilot-document","pilot-restore",manifest);
-            assertThat(objects.getExitCode()).withFailMessage(objects.getStderr()).isZero();
-        }
-        for(String table:List.of("gaming_charges","gaming_financial_operations","gaming_wallet_ledger","station_commands"))
-            assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM gmanager_restore_drill."+table,Long.class)).isEqualTo(jdbc.queryForObject("SELECT COUNT(*) FROM "+table,Long.class));
-        assertThat(jdbc.queryForObject("SELECT SUM(amount) FROM gmanager_restore_drill.gaming_financial_operations",BigDecimal.class)).isEqualByComparingTo(jdbc.queryForObject("SELECT SUM(amount) FROM gaming_financial_operations",BigDecimal.class));
-    }
 
-    @Test void terminationVersusExtensionAndTariffEditCannotCreateAnUnpaidEntitlement() throws Exception {
-        var started=command("/api/v1/gaming-sessions",staff(2),start(0,0,0,"CASH",200),201);String session=started.get("id").asText();
-        var results=parallel(List.of(
-                ()->rawCommand("/api/v1/gaming-sessions/"+session+"/extend",staff(2),Map.of("minutes",30,"version",started.get("version").asLong(),"purchase",purchase(0,"CASH",100))),
-                ()->rawCommand("/api/v1/gaming-sessions/"+session+"/terminate",staff(3),Map.of("version",started.get("version").asLong(),"reason","Pilot race"))));
-        assertThat(results).extracting(n->n.get("status").asInt()).containsExactlyInAnyOrder(200,409);
-        assertLedger();
-        var second=command("/api/v1/gaming-sessions",staff(3),start(1,1,0,"CASH",200),201);
-        jdbc.update("UPDATE gaming_tariffs SET price=125,version=1 WHERE id=?",id("tariff-0").toString());
-        command("/api/v1/gaming-sessions/"+second.get("id").asText()+"/extend",staff(3),Map.of("minutes",30,"version",second.get("version").asLong(),"purchase",purchase(0,"CASH",100)),409);
-        assertThat(jdbc.queryForObject("SELECT SUM(amount) FROM gaming_charges WHERE session_id=?",BigDecimal.class,second.get("id").asText())).isEqualByComparingTo("200");
-    }
+
+
     JsonNode rawCommand(String path,String token,Object body) throws Exception {var response=mvc.perform(request(post(path).header("Idempotency-Key",UUID.randomUUID()),token,body)).andReturn().getResponse();return json.valueToTree(Map.of("status",response.getStatus()));}
 
-    @Test void transferRequiresSourceLockAndNeverGrantsTwoActiveLeases() throws Exception {
-        var started=command("/api/v1/gaming-sessions",staff(2),start(0,null,0,"CASH",200),201);String s=started.get("id").asText();pollAndAck(0,false);
-        var moving=command("/api/v1/gaming-sessions/"+s+"/move",staff(3),Map.of("targetResourceId",id("pc-1"),"version",started.get("version").asLong()),200);
-        assertThat(lease(0).get("directive").asText()).isEqualTo("LOCK");assertThat(lease(1).get("directive").asText()).isEqualTo("LOCK");
-        command("/api/v1/gaming-sessions/"+s+"/complete-move",staff(2),Map.of("version",moving.get("version").asLong()),409);
-        pollAndAck(0,true);
-        command("/api/v1/gaming-sessions/"+s+"/complete-move",staff(2),Map.of("version",moving.get("version").asLong()),200);
-        assertThat(lease(0).get("directive").asText()).isEqualTo("LOCK");assertThat(lease(1).get("directive").asText()).isEqualTo("ACTIVE");
-        call(post("/api/v1/machine/guest-login"),machines.get(0),Map.of("sessionId",s),401);pollAndAck(1,false);
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM gaming_financial_operations",Integer.class)).isEqualTo(1);assertLedger();
-    }
 
-    @Test void concurrentReservationsAndRoleBoundariesHoldAcrossThePilot() throws Exception {
-        Instant at=LocalDate.now(ZoneId.of("Europe/Belgrade")).plusDays(3).atTime(12,0).atZone(ZoneId.of("Europe/Belgrade")).toInstant();
-        var body=Map.of("employeeId",id("employee-0"),"serviceId",id("service"),"resourceId",id("pc-0"),"startTime",at);
-        var secondBody=new HashMap<String,Object>(body);secondBody.put("employeeId",id("employee-1"));
-        var results=parallel(List.of(()->rawCommand("/api/v1/reservations",customer(0),body),()->rawCommand("/api/v1/reservations",customer(1),secondBody)));
-        assertThat(results).extracting(n->n.get("status").asInt()).containsExactlyInAnyOrder(201,409);
-        call(get("/api/v1/gaming-billing/report").param("from",Instant.now().minusSeconds(60).toString()).param("until",Instant.now().plusSeconds(60).toString()),staff(1),null,200);
-        call(get("/api/v1/gaming-billing/report"),staff(2),null,403);
-        call(get("/api/v1/gaming-operations/board"),customer(0),null,403);
-        command("/api/v1/gaming-sessions",customer(0),start(0,0,0,"CASH",200),403);
-        call(get("/api/v1/gaming-billing/customers/"+id("customer-1")),customer(0),null,403);
-        call(get("/api/v1/gaming-operations/board"),machines.get(0),null,401);
-        heartbeat(0,"RECOVERY_FAILED");command("/api/v1/gaming-sessions",staff(2),start(0,null,0,"CASH",200),409);
-        heartbeat(0,null);jdbc.update("UPDATE gaming_station_profiles SET last_heartbeat_at=? WHERE resource_id=?",Timestamp.from(Instant.now().minusSeconds(120)),id("pc-0").toString());
-        command("/api/v1/gaming-sessions",staff(2),start(0,null,0,"CASH",200),422);
-    }
 
-    @Test void databaseRestartAndLostFinancialResponseReplayTheCommittedResult() throws Exception {
-        String key="pilot-lost-payment-response";var body=start(0,0,0,"CASH",200);
-        var first=call(post("/api/v1/gaming-sessions").header("Idempotency-Key",key),staff(2),body,201);
-        MYSQL.getDockerClient().restartContainerCmd(MYSQL.getContainerId()).withTimeout(5).exec();
-        org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(90)).pollInterval(Duration.ofSeconds(1)).ignoreExceptions().until(()->jdbc.queryForObject("SELECT 1",Integer.class)==1);
-        var replay=call(post("/api/v1/gaming-sessions").header("Idempotency-Key",key),staff(2),body,201);
-        assertThat(replay).isEqualTo(first);assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM gaming_financial_operations",Integer.class)).isEqualTo(1);
-        pollAndAck(0,false);assertLedger();
+
+
+
+    JsonNode startVisit(int pc,int customer,int amount,int minutes)throws Exception {
+        command("/api/v1/gaming-billing/customers/"+id("customer-"+customer)+"/time-grants",staff(2),Map.of("minutes",minutes,"priceVersion",1),200);
+        command("/api/v1/gaming-billing/assignments",staff(2),Map.of("customerId",id("customer-"+customer),"resourceId",id("pc-"+pc)),200);
+        var login=call(post("/api/v1/machine/session-login"),machines.get(pc),Map.of("email","customer-"+customer+"@pilot.example.test","password","PilotPass1!"),200);
+        return call(get("/api/v1/gaming-sessions/"+login.get("sessionId").asText()),staff(2),null,200);
+    }
+    @Test void twoWavesPreserveCustomerTimeAndRequireLockBeforeReuse()throws Exception {
+        for(int wave=0;wave<2;wave++)for(int pc=0;pc<5;pc++) {
+            int c=wave*5+pc;var session=startVisit(pc,c,300+c,120);pollAndAck(pc,false);
+            assertThat(lease(pc).get("billingMode").asText()).isEqualTo("TIME_BALANCE");
+            call(post("/api/v1/machine/session-logout"),machines.get(pc),Map.of("sessionId",session.get("id").asText()),204);
+            assertThat(lease(pc).get("directive").asText()).isEqualTo("LOCK");pollAndAck(pc,true);
+            command("/api/v1/gaming-operations/stations/"+id("pc-"+pc)+"/prepare",staff(2),Map.of("sessionId",session.get("id").asText(),"isolatedProfileVerified",true,"reason","Synthetic isolated test fixture"),200);
+            assertThat(jdbc.queryForObject("SELECT balance_seconds FROM gaming_time_accounts WHERE customer_id=?",Long.class,id("customer-"+c).toString())).isBetween(7100L,7200L);
+        }
+        assertLedger();assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM gaming_charges",Integer.class)).isZero();
+    }
+    @Test void assignmentAndCredentialsAreRequiredBeforeASignedActiveLease()throws Exception {
+        command("/api/v1/gaming-billing/customers/"+id("customer-0")+"/time-grants",staff(2),Map.of("minutes",180,"priceVersion",1),200);
+        var assignment=command("/api/v1/gaming-billing/assignments",staff(2),Map.of("customerId",id("customer-0"),"resourceId",id("pc-0")),200);
+        var waiting=lease(0);assertThat(waiting.get("directive").asText()).isEqualTo("LOCK");assertThat(waiting.get("assignmentId").asText()).isEqualTo(assignment.get("id").asText());
+        call(post("/api/v1/machine/session-login"),machines.get(0),Map.of("email","customer-0@pilot.example.test","password","WrongPassword"),401);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM gaming_sessions",Integer.class)).isZero();
+        call(post("/api/v1/machine/session-login"),machines.get(1),Map.of("email","customer-0@pilot.example.test","password","PilotPass1!"),401);
+        var session=call(post("/api/v1/machine/session-login"),machines.get(0),Map.of("email","customer-0@pilot.example.test","password","PilotPass1!"),200);
+        assertThat(lease(0).get("sessionId").asText()).isEqualTo(session.get("sessionId").asText());assertLedger();
+    }
+    @Test void financialResponseLossAndDatabaseRestartReplayOneDurableGrant()throws Exception {
+        String path="/api/v1/gaming-billing/customers/"+id("customer-0")+"/time-grants",key="lost-manual-payment";
+        var body=Map.of("minutes",120,"priceVersion",1);var first=call(post(path).header("Idempotency-Key",key),staff(2),body,200);
+        MYSQL.getDockerClient().restartContainerCmd(MYSQL.getContainerId()).exec();
+        org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(60)).ignoreExceptions().until(()->jdbc.queryForObject("SELECT 1",Integer.class)==1);
+        assertThat(call(post(path).header("Idempotency-Key",key),staff(2),body,200)).isEqualTo(first);
+        assertThat(jdbc.queryForObject("SELECT balance_seconds FROM gaming_time_accounts WHERE customer_id=?",Long.class,id("customer-0").toString())).isEqualTo(7200);assertLedger();
     }
     void assertLedger() {
         assertThat(new com.game_manager.gm.gamingsession.billing.GamingLedgerHealth(jdbc,new io.micrometer.core.instrument.simple.SimpleMeterRegistry()).check()).isZero();

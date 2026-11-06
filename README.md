@@ -6,6 +6,8 @@ README i [tehnička dokumentacija](docs/README.md) opisuju statički pregled imp
 
 ## Implementirane funkcionalnosti
 
+Gaming naplata koristi trajno vreme u sekundama i cenu po minutu koju podešava OWNER/ADMIN: [tok rada, API i migracija](docs/GAMING_TIME.md).
+
 - Uloge `OWNER`, `ADMIN`, `EMPLOYEE` i `CUSTOMER`, permission i resource scope provere, profil, upravljanje web sesijama, rotacija refresh tokena i audit.
 - Kreiranje kupaca od strane osoblja i jednokratna aktivacija. Javna registracija je isključena.
 - Katalog proizvoda i usluga sa slikama, cenama i trajanjem; radno vreme, izuzeci, odsustva zaposlenih i dostupni termini.

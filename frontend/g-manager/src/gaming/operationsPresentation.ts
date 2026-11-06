@@ -3,7 +3,7 @@ import type { AuthUser, Permission } from '../types/auth.types'
 import type { GamingStationAction, GamingStationCard } from '../types/gamingSession.types'
 
 const actionCapabilities: Record<GamingStationAction, Permission> = {
-  START: 'GAMING_SESSION_START', EXTEND: 'GAMING_SESSION_EXTEND',
+  CANCEL_ASSIGNMENT: 'GAMING_SESSION_START', START: 'GAMING_SESSION_START', EXTEND: 'GAMING_SESSION_EXTEND',
   TERMINATE: 'GAMING_SESSION_TERMINATE', FORCE_LOCK: 'GAMING_SESSION_TERMINATE', CONFIRM_LOCKED: 'GAMING_SESSION_TERMINATE',
 }
 
@@ -35,6 +35,7 @@ export function stationConnection(station: GamingStationCard) {
 
 export function stationMessage(station: GamingStationCard) {
   switch (station.status) {
+    case 'WAITING_FOR_LOGIN': return 'Računar je dodeljen. Odbrojavanje počinje nakon prijave na Windows Client.'
     case 'CLIENT_ERROR': return 'Client prijavljuje problem. Proverite dijagnostiku pre nove sesije.'
     case 'PREPARATION_REQUIRED': return 'Proverite Windows profil i privatnost pre narednog korisnika.'
     case 'TRANSFER_PENDING': return 'Stanica je rezervisana za premestanje. Ceka se izvorni Client.'

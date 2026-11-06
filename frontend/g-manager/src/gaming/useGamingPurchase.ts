@@ -1,18 +1,22 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { gamingBillingApi, type Purchase, type PaymentMethod } from '../api/gamingBillingApi'
+import { gamingTimeApi, type TimeGrant } from '../api/gamingTimeApi'
+import { useAuthStore } from '../auth/authStore'
+import { hasCapability } from '../auth/capabilities'
 
-export function useGamingPurchase(resourceId: string, minutes: number, customerId?: string) {
-  const [chosen, setChosen] = useState(''), [discount, setDiscount] = useState('0'), [reason, setReason] = useState('')
-  const [method, setMethod] = useState<PaymentMethod>('CASH'), [reference, setReference] = useState(''), [packageId, setPackageId] = useState('')
-  const [amount, setAmount] = useState<{ quote: string; value: string } | null>(null)
-  const tariffs = useQuery({ queryKey: ['gaming-billing', 'tariffs'], queryFn: gamingBillingApi.tariffs })
-  const tariffId = chosen || tariffs.data?.find(t => t.active)?.id || ''
-  const quote = useQuery({ queryKey: ['gaming-billing', 'quote', resourceId, tariffId, minutes, discount, method, packageId], queryFn: () => gamingBillingApi.quote(resourceId, tariffId, minutes, discount, method === 'TIME_PACKAGE' ? packageId : undefined), enabled: !!resourceId && (method === 'TIME_PACKAGE' ? !!packageId : !!tariffId) && minutes > 0 })
-  const wallet = useQuery({ queryKey: ['gaming-wallet', customerId], queryFn: () => gamingBillingApi.wallet(customerId!), enabled: !!customerId })
-  const quoteKey = JSON.stringify(quote.data), paymentAmount = method === 'TIME_PACKAGE' ? '0' : amount && amount.quote === quoteKey ? amount.value : String(quote.data?.total ?? '')
-  const purchase: Purchase | undefined = quote.data && !quote.isFetching && !quote.error ? { tariffId: quote.data.tariffId, tariffVersion: quote.data.tariffVersion, discountPercent: discount, reason, payment: { method, amount: paymentAmount, reference }, packageId: method === 'TIME_PACKAGE' ? packageId : undefined } : undefined
-  return { tariffs, tariffId, setChosen, discount, setDiscount, reason, setReason, method, setMethod, reference, setReference, packageId, setPackageId, quote, wallet, paymentAmount, setAmount: (value: string) => setAmount({ quote: quoteKey, value }), purchase,
-    valid: !!purchase && paymentAmount !== '' && (method !== 'EXTERNAL_POS' || !!reference.trim()) && (method !== 'TIME_PACKAGE' || !!customerId && !!packageId) }
+export function useGamingPurchase(customerId?: string, initialMinutes = 30) {
+  const [minutes, setMinutes] = useState(initialMinutes)
+  const canPay = hasCapability(useAuthStore(s => s.user), 'GAMING_PAYMENT_RECORD')
+  const wallet = useQuery({ queryKey: ['gaming-time', customerId], queryFn: () => gamingTimeApi.account(customerId!), enabled: !!customerId, refetchInterval: 5000 })
+  const price = useQuery({ queryKey: ['gaming-time', 'price'], queryFn: gamingTimeApi.price, enabled: canPay })
+  const validMinutes = Number.isSafeInteger(minutes) && minutes >= 30 && minutes <= 5256000
+  const value = price.data?.pricePerMinute
+  const match = value == null ? null : /^(\d+)(?:\.(\d{1,2}))?$/.exec(String(value))
+  const cents = match ? BigInt(match[1]) * 100n + BigInt((match[2] ?? '').padEnd(2, '0')) : 0n
+  const total = validMinutes ? cents * BigInt(minutes) : 0n
+  const amount = total > 0n && total <= 99999999999999n ? `${total / 100n}.${String(total % 100n).padStart(2, '0')}` : null
+  const valid = !!customerId && !!wallet.data && !wallet.error && !price.error && !!amount && cents > 0n
+  const grant: TimeGrant = { minutes, priceVersion: price.data?.version ?? -1 }
+  return { wallet, price, minutes, setMinutes, amount, validMinutes, valid, grant }
 }
 export type GamingPurchaseModel = ReturnType<typeof useGamingPurchase>

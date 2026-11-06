@@ -22,7 +22,7 @@ public final class MachineDtos {private MachineDtos(){}
  public record CommandAckResponse(long sequence,Instant acknowledgedAt){}
  public record SessionLoginRequest(@NotBlank @Email @Size(max=180)String email,@NotBlank @Size(max=200)String password){@Override public String toString(){return "SessionLoginRequest[REDACTED]";}}
  public record SessionLoginResponse(UUID sessionId,UUID stationId,UUID customerId,String customerName,Instant startedAt,Instant endsAt,Instant serverTime){}
- public record SessionLogoutRequest(@NotNull UUID sessionId){}
+ public record SessionLogoutRequest(@NotNull UUID sessionId,@Pattern(regexp="CUSTOMER_FINISH|CLIENT_RECOVERY") String reason){public SessionLogoutRequest(UUID sessionId){this(sessionId,null);}}
  public record SignedSessionLease(String payload,String algorithm,String keyId,String signature){}
  public record LockAckRequest(@NotNull UUID sessionId,@Positive long commandSequence,UUID leaseId,@Size(max=500)String reason){}
  public record LockAckResponse(UUID stationId,UUID sessionId,long commandSequence,Instant acknowledgedAt,String enforcementStatus){}

@@ -263,11 +263,11 @@
             <Border Style="{StaticResource DashboardCard}" BorderBrush="{StaticResource PanelBorder}" Width="420" MaxWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=UserControl}}" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="32">
                 <StackPanel>
                     <Path Data="{StaticResource LogoutGeometry}" Style="{StaticResource FieldIcon}" Stroke="{StaticResource Secondary}" Width="30" Height="30" HorizontalAlignment="Left" Margin="0,0,0,22"/>
-                    <TextBlock Text="Da li želite da se odjavite?" FontSize="24" FontWeight="Bold"/>
-                    <TextBlock Text="Sačuvajte svoj napredak pre odjave. Zahtev za odjavu šalje se servisu, koji upravlja zaključavanjem stanice." Foreground="{StaticResource MutedText}" Margin="0,12,0,26"/>
+                    <TextBlock Text="Završiti sesiju?" FontSize="24" FontWeight="Bold"/>
+                    <TextBlock Text="Sačuvajte napredak. Preostalo vreme ostaje na nalogu, a računar se zaključava." Foreground="{StaticResource MutedText}" Margin="0,12,0,26"/>
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="14"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <Button x:Name="CancelLogout" Content="Otkaži" Click="CancelLogout_Click" IsCancel="False"/>
-                        <Button Grid.Column="2" Content="Odjavi se" Style="{StaticResource DashboardPrimaryButton}" Click="ConfirmLogout_Click"/>
+                        <Button Grid.Column="2" Content="Završi sesiju" Style="{StaticResource DashboardPrimaryButton}" Click="ConfirmLogout_Click"/>
                     </Grid>
                 </StackPanel>
             </Border>

@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 
 /** Explicit resource UUID allowlist, effective exclusively in the local profile. */
 @Component
-public class DevelopmentStations {
+public class DevelopmentStations implements com.game_manager.gm.common.config.DevelopmentStationPolicy {
     private final Environment environment;
     public DevelopmentStations(Environment environment) { this.environment=environment; }
     public boolean localEnvironment() {

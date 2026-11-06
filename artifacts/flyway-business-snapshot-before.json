@@ -1,0 +1,158 @@
+{
+  "users": {
+    "columns": [
+      "id",
+      "name",
+      "email",
+      "password_hash",
+      "role",
+      "active",
+      "created_at",
+      "updated_at",
+      "version",
+      "avatar_url",
+      "deleted_at",
+      "deleted_by",
+      "deletion_reason",
+      "must_change_password"
+    ],
+    "sha256": "359ee3d91e4ef61f8c9e94ebde8b243313215fb7626a9ac183d81abef635f60a",
+    "rows": 4
+  },
+  "gaming_time_accounts": {
+    "columns": [
+      "customer_id",
+      "balance_seconds"
+    ],
+    "sha256": "47edbb941a7780529e06d9e455b0d5410ebffb24553a3c39b3feb1ff9d289d37",
+    "rows": 2
+  },
+  "gaming_time_ledger": {
+    "columns": [
+      "id",
+      "customer_id",
+      "session_id",
+      "operation_id",
+      "actor_id",
+      "delta_seconds",
+      "balance_after",
+      "kind",
+      "reason",
+      "source_key",
+      "created_at"
+    ],
+    "sha256": "718c127566ae955c0c3ae2a1e2fb7fa5ab075ec65d66bb99024a7408179f07e4",
+    "rows": 11
+  },
+  "gaming_financial_operations": {
+    "columns": [
+      "id",
+      "session_id",
+      "customer_id",
+      "resource_id",
+      "location_id",
+      "actor_id",
+      "kind",
+      "method",
+      "amount",
+      "currency",
+      "status",
+      "reference",
+      "reason",
+      "original_id",
+      "created_at",
+      "granted_seconds",
+      "grant_kind"
+    ],
+    "sha256": "65dc1527f00113cad85892e49c7cf715cf44c8716512323dda4cbaeff44dedd3",
+    "rows": 1
+  },
+  "gaming_sessions": {
+    "columns": [
+      "id",
+      "customer_id",
+      "resource_id",
+      "location_id",
+      "reservation_id",
+      "started_by",
+      "started_at",
+      "ends_at",
+      "ended_at",
+      "status",
+      "termination_reason",
+      "created_at",
+      "updated_at",
+      "version",
+      "last_command_sequence",
+      "legacy_minutes",
+      "guest_name",
+      "move_target_id",
+      "move_remaining_seconds",
+      "billing_mode",
+      "metered_tariff_id",
+      "metered_price",
+      "metered_tariff_seconds",
+      "billing_unit_seconds",
+      "billed_seconds",
+      "charged_amount",
+      "last_billed_at",
+      "metered_lease_until",
+      "access_until",
+      "active_customer",
+      "active_station"
+    ],
+    "sha256": "e391b8f7ed313f2f87a6286509a862dbf1d587be3d26d1268dc749543326e6d7",
+    "rows": 1
+  },
+  "gaming_time_packages": {
+    "columns": [
+      "id",
+      "customer_id",
+      "tariff_id",
+      "service_id",
+      "minutes",
+      "price",
+      "expires_at",
+      "snapshot",
+      "created_at"
+    ],
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "rows": 0
+  },
+  "gaming_wallet_ledger": {
+    "columns": [
+      "id",
+      "customer_id",
+      "session_id",
+      "package_id",
+      "operation_id",
+      "amount",
+      "minutes",
+      "currency",
+      "kind",
+      "actor_id",
+      "reason",
+      "created_at"
+    ],
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "rows": 0
+  },
+  "gaming_station_assignments": {
+    "columns": [
+      "id",
+      "customer_id",
+      "resource_id",
+      "reservation_id",
+      "assigned_by",
+      "status",
+      "created_at",
+      "expires_at",
+      "access_until",
+      "session_id",
+      "waiting_customer",
+      "waiting_station"
+    ],
+    "sha256": "2f2841b5dd0d0901164f6b33b8f56373b7b8496e40484b52d77bf66ab009d729",
+    "rows": 1
+  }
+}

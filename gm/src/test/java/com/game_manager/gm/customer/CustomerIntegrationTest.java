@@ -22,6 +22,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
+import java.util.List;
 import org.hibernate.SessionFactory;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -77,9 +78,12 @@ class CustomerIntegrationTest {
                 .andExpect(jsonPath("$.customer.completedAppointmentCount").value(1))
                 .andExpect(jsonPath("$.customer.completedOrderCount").value(1))
                 .andExpect(jsonPath("$.customer.completedOrderRevenue").value(1200.0))
-                .andExpect(jsonPath("$.reservations.length()").value(2))
-                .andExpect(jsonPath("$.reservations[0].serviceName").value(service.getName()))
-                .andExpect(jsonPath("$.orders.length()").value(2));
+                ;
+        mockMvc.perform(get("/api/v1/customers/{id}/reservations",first.getId()).header("Authorization",bearer(token)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.content[0].serviceName").value(service.getName()));
+        mockMvc.perform(get("/api/v1/customers/{id}/orders",first.getId()).header("Authorization",bearer(token)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content.length()").value(2));
     }
 
     @Test
@@ -99,8 +103,9 @@ class CustomerIntegrationTest {
                 .andExpect(jsonPath("$.customer.reservationCount").value(0))
                 .andExpect(jsonPath("$.customer.completedOrderRevenue").value(0))
                 .andExpect(jsonPath("$.customer.lastActivityAt").doesNotExist())
-                .andExpect(jsonPath("$.reservations").isEmpty())
-                .andExpect(jsonPath("$.orders").isEmpty());
+                ;
+        for(String history:List.of("reservations","orders"))mockMvc.perform(get("/api/v1/customers/{id}/"+history,empty.getId()).header("Authorization",bearer(login(owner))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content").isEmpty());
     }
 
     private User user(Role role, String name) {

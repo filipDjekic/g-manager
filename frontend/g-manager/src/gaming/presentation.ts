@@ -2,12 +2,14 @@ import type { StatusTone } from '../components/ui'
 import type { GamingStationCard } from '../types/gamingSession.types'
 
 export const stationLabels: Record<GamingStationCard['status'], string> = {
+  WAITING_FOR_LOGIN: 'Čeka prijavu',
   CLIENT_ERROR: 'Potrebna provera Client-a',
   PREPARATION_REQUIRED: 'Potrebna priprema privatnosti', TRANSFER_PENDING: 'Rezervisano za premestanje',
-  AVAILABLE: 'Dostupna', ACTIVE: 'Aktivna sesija', MAINTENANCE: 'Održavanje',
+  AVAILABLE: 'Slobodan', ACTIVE: 'Aktivna sesija', MAINTENANCE: 'Održavanje',
   RETIRED: 'Van upotrebe', OFFLINE: 'Bez veze', EXPIRED: 'Sesija istekla', LOCK_PENDING: 'Čeka zaključavanje',
 }
 export const stationTones: Record<GamingStationCard['status'], StatusTone> = {
+  WAITING_FOR_LOGIN: 'warning',
   CLIENT_ERROR: 'danger',
   PREPARATION_REQUIRED: 'warning', TRANSFER_PENDING: 'warning',
   AVAILABLE: 'success', ACTIVE: 'info', MAINTENANCE: 'warning', RETIRED: 'neutral',

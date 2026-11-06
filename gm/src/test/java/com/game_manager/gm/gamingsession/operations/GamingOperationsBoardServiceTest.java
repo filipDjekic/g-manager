@@ -31,6 +31,7 @@ class GamingOperationsBoardServiceTest {
         var preparation=mock(StationPreparationService.class);when(preparation.ready(any())).thenReturn(true);
         GamingOperationsBoardService service=new GamingOperationsBoardService(preparation,mock(com.game_manager.gm.gamingsession.billing.GamingBillingService.class),readiness,sessions,commands,users,locations,current,Clock.fixed(NOW,ZoneOffset.UTC),mock(StationCommandWriter.class),enforcement);
 
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"time",timeMock());
         var response=service.board(null);
 
         assertThat(response.serverTime()).isEqualTo(NOW);assertThat(response.stations()).singleElement().satisfies(card->{
@@ -53,11 +54,13 @@ class GamingOperationsBoardServiceTest {
         when(current.requireCurrentUser()).thenReturn(actor);when(readiness.overview()).thenReturn(List.of(station));
         var service=new GamingOperationsBoardService(mock(StationPreparationService.class),mock(com.game_manager.gm.gamingsession.billing.GamingBillingService.class),
                 readiness,sessions,commands,users,locations,current,Clock.fixed(NOW,ZoneOffset.UTC),mock(StationCommandWriter.class),enforcement);
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"time",timeMock());
         var missing=service.board(null).stations().getFirst();
         assertThat(missing.status()).isEqualTo(GamingStationBoardStatus.CLIENT_ERROR);
         assertThat(missing.allowedActions()).doesNotContain(GamingStationAction.START);
         when(enforcement.states(any())).thenReturn(Map.of(station.resourceId(),new com.game_manager.gm.common.scheduling.ClientStatePort.State(null,"UNKNOWN",null)));
         assertThat(service.board(null).stations().getFirst().allowedActions()).doesNotContain(GamingStationAction.START);
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"time",timeMock());
         when(enforcement.states(any())).thenReturn(Map.of(station.resourceId(),new com.game_manager.gm.common.scheduling.ClientStatePort.State(null,"LOCKED",NOW)));
         assertThat(service.board(null).stations().getFirst().allowedActions()).contains(GamingStationAction.START);
         when(enforcement.heartbeats(any())).thenReturn(Map.of(station.resourceId(),new com.game_manager.gm.common.scheduling.ClientStatePort.Heartbeat("1.0",NOW,"INSTALLED","FAILED",false,"RECOVERY_FAILED")));
@@ -86,6 +89,7 @@ class GamingOperationsBoardServiceTest {
         var preparation=mock(StationPreparationService.class);when(preparation.ready(any())).thenReturn(true);
         GamingOperationsBoardService service=new GamingOperationsBoardService(preparation,mock(com.game_manager.gm.gamingsession.billing.GamingBillingService.class),readiness,sessions,commands,users,locations,current,Clock.fixed(NOW,ZoneOffset.UTC),mock(StationCommandWriter.class),enforcement);
 
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"time",timeMock());
         var card=service.board(null).stations().getFirst();
 
         assertThat(card.status()).isEqualTo(GamingStationBoardStatus.ACTIVE);assertThat(card.customerDisplayName()).isEqualTo("Milica Manager");
@@ -93,6 +97,10 @@ class GamingOperationsBoardServiceTest {
         assertThat(card.allowedActions()).containsExactlyInAnyOrder(GamingStationAction.EXTEND,GamingStationAction.TERMINATE);
     }
 
+    private static com.game_manager.gm.gamingsession.billing.GamingTimeService timeMock() {
+        var time=mock(com.game_manager.gm.gamingsession.billing.GamingTimeService.class);
+        when(time.waiting(any())).thenReturn(null);return time;
+    }
     private static StationOverview station(UUID resourceId,UUID locationId){return new StationOverview(UUID.randomUUID(),resourceId,"PC-01","PC 01",UUID.randomUUID(),locationId,
             StationOperationalStatus.AVAILABLE,StationEffectiveStatus.AVAILABLE,UUID.randomUUID(),"Gaming",1,true,10,60,NOW,"1.0",null,0L);}
 }

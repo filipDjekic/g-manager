@@ -89,7 +89,10 @@ public class H2MigrationConfiguration {
         @Override
         public Reader read() {
             try {
-                return new StringReader(splitCompoundAlter(resource.getContentAsString(StandardCharsets.UTF_8)));
+                String sql=resource.getContentAsString(StandardCharsets.UTF_8);
+                if(getFilename().startsWith("V50__")) sql=sql.replace("START TRANSACTION;", "BEGIN;");
+                if(getFilename().startsWith("V48__")) sql=sql.replace(" STORED", "").replace("UTC_TIMESTAMP(6)","CURRENT_TIMESTAMP(6)").replace("UTC_TIMESTAMP()","CURRENT_TIMESTAMP").replace("CURRENT_TIMESTAMP+INTERVAL 1 SECOND","DATEADD('SECOND',1,CURRENT_TIMESTAMP)");
+                return new StringReader(splitCompoundAlter(sql));
             } catch (IOException exception) {
                 throw new IllegalStateException("Cannot read migration " + getFilename(), exception);
             }

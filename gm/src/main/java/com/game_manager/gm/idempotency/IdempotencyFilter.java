@@ -41,8 +41,7 @@ public class IdempotencyFilter extends OncePerRequestFilter {
                 || request.getRequestURI().matches("/api/v1/gaming-operations/stations/[^/]+/prepare")
                 || "/api/v1/waitlist/management".equals(request.getRequestURI())
                 || "/api/v1/reservations/recurrence".equals(request.getRequestURI())
-                || "/api/v1/gaming-sessions".equals(request.getRequestURI())
-                || request.getRequestURI().matches("/api/v1/gaming-sessions/[^/]+/(extend|terminate|move|complete-move)"));
+                || request.getRequestURI().matches("/api/v1/gaming-sessions/[^/]+/terminate"));
     }
 
     @Override

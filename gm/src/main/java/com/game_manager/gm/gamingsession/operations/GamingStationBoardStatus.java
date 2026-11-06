@@ -1,6 +1,7 @@
 package com.game_manager.gm.gamingsession.operations;
 
 public enum GamingStationBoardStatus {
+    WAITING_FOR_LOGIN,
     PREPARATION_REQUIRED,
     CLIENT_ERROR,
     TRANSFER_PENDING,

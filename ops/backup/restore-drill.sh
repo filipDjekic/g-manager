@@ -27,4 +27,10 @@ machine_tables=$(MYSQL_PWD="$admin_password" mysql -N -h "$DB_HOST" -u"$admin" "
 [ "$tables" -gt 20 ] && [ -n "$flyway" ] && [ "$machine_tables" -eq 9 ] || { echo "Restore data smoke failed" >&2; exit 1; }
 violations=$(MYSQL_PWD="$admin_password" mysql -N -h "$DB_HOST" -u"$admin" "$target" < "$(dirname "$0")/ledger-check.sql")
 [ "$violations" = 0 ] || { echo 'Restored financial ledger invariants failed' >&2; exit 1; }
+if [ "${flyway%%.*}" -ge 48 ]; then
+ time_tables=$(MYSQL_PWD="$admin_password" mysql -N -h "$DB_HOST" -u"$admin" "$target" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$target' AND table_name IN ('gaming_time_accounts','gaming_time_ledger','gaming_station_assignments')")
+ [ "$time_tables" -eq 3 ] || { echo 'Persistent gaming time tables are missing' >&2; exit 1; }
+ time_violations=$(MYSQL_PWD="$admin_password" mysql -N -h "$DB_HOST" -u"$admin" "$target" < "$(dirname "$0")/time-ledger-check.sql")
+ [ "$time_violations" = 0 ] || { echo 'Restored gaming time ledger invariants failed' >&2; exit 1; }
+fi
 echo "Restore drill passed: database=$target tables=$tables flyway=$flyway"

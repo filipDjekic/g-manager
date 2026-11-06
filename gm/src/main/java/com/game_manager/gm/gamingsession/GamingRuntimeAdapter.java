@@ -12,6 +12,8 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class GamingRuntimeAdapter implements GamingRuntimePort {
+    @org.springframework.beans.factory.annotation.Autowired private org.springframework.jdbc.core.JdbcTemplate jdbc;
+    @org.springframework.beans.factory.annotation.Autowired private java.time.Clock clock;
     private final GamingSessionRepository sessions;
 
     @Override
@@ -19,6 +21,7 @@ public class GamingRuntimeAdapter implements GamingRuntimePort {
         if(ids.isEmpty()) return Set.of();
         Set<UUID> occupied=sessions.findByResourceIdInAndStatus(ids,GamingSessionStatus.ACTIVE).stream().map(GamingSession::getResourceId).collect(Collectors.toSet());
         sessions.findByMoveTargetIdInAndStatus(ids,GamingSessionStatus.ACTIVE).stream().map(GamingSession::getMoveTargetId).forEach(occupied::add);
+        jdbc.query("SELECT resource_id FROM gaming_station_assignments WHERE status='WAITING_FOR_LOGIN' AND expires_at>?",(org.springframework.jdbc.core.RowCallbackHandler)r->{UUID id=UUID.fromString(r.getString(1));if(ids.contains(id))occupied.add(id);},java.sql.Timestamp.from(clock.instant()));
         return occupied;
     }
 

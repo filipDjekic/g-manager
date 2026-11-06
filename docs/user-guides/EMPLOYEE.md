@@ -132,53 +132,33 @@ Vidite i menjate samo prijave u dozvoljenom opsegu. Fleksibilan izbor bez određ
 
 ## Gaming sesije
 
-Na **„Radni ekran“** pratite dodeljene **PC** stanice. „Mapa dostupnosti“ prikazuje i druge vrste opreme, ali to ne znači da se na njima podržava isti PC postupak upravljanja sesijom.
+Osnovni postupak je **Dodaj vreme → Dodeli računar → Završi sesiju**. Vreme ostaje na korisnikovom nalogu bez kalendarskog isteka.
 
-### Pokretanje
+### Dodaj vreme
 
-1. Pronađite računar kroz „Spremni“, pretragu ili lokaciju, pa kliknite **„Pokreni sesiju“**. Možete početi i kroz **„+ Nova sesija“**.
-2. U **„Pronađi klijenta“** odaberite aktivnog klijenta. Ako je potreban novi nalog, dostupno je **„+ Novi klijent“**; obavezno predajte aktivacioni kod pre nastavka.
-3. Ako računar nije već izabran, odaberite **„Slobodna stanica“**.
-4. Izaberite ponuđeno trajanje 30, 60, 120 ili 180 minuta, ili unesite **„Trajanje u minutima“** u dozvoljenim granicama.
-5. Proverite ime klijenta, računar i trajanje, pa kliknite **„Pokreni za [ime klijenta]“**.
+1. Otvorite klijenta i tab „Plaćanje“, ili dugme „Dodaj vreme“ na radnom ekranu.
+2. Unesite najmanje 30 celih minuta. Sistem prikazuje cenu u RSD prema ceni koju je podesio OWNER/ADMIN i novo stanje vremena.
+3. Primite novac na kasi i kliknite „Potvrdi uplatu“. Uplata i dopuna salda evidentiraju se zajedno. „Istorija uplata“ je zaseban pregled.
 
-**Rezultat:** aktivna sesija dobija početak i planirani kraj, a stanica prikazuje klijenta i preostalo vreme. Ako je integracija uključena, komanda se šalje Gaming Client-u. Klijent zatim koristi svoj aktiviran nalog na tom računaru.
+Ako cena nije podešena, obratite se OWNER/ADMIN korisniku. Ako ishod uplate nije potvrđen, koristite „Proveri prethodni zahtev“; zadržava se isti zahtev i ključ, bez dupliranja vremena.
 
-**Ograničenja:** isti klijent ili računar ne može imati dve aktivne gaming sesije. Stanica mora biti aktivna, dozvoljena za korišćenje, pravilno konfigurisana i slobodna za celo traženo trajanje. Kada je Client integracija uključena, proveravaju se sveža veza, lokalna spremnost i potvrda bezbednog zaključavanja.
+### Dodeli računar
 
-Pojedine rezervacije u „Lista“ imaju **„Pokreni sesiju“**. To otvara pokretanje sa povezanim klijentom i resursom. Pokretanje je posebna radnja; rezervacija se ne pretvara automatski u gaming sesiju u zakazani čas. Ako nema ponuđene akcije, proverite status, tip resursa, ovlašćenje i spremnost.
+1. Izaberite slobodan računar i „Dodeli računar“.
+2. Odaberite aktiviranog klijenta sa raspoloživim vremenom i potvrdite dodelu.
+3. Klijent na tom Windows Clientu unosi svoj email i lozinku. Samo dodeljeni korisnik može započeti igranje.
 
-### Produžavanje
+Dodela ne troši vreme. Odbrojavanje počinje tek nakon uspešne prijave i odobrene aktivacije. Čekajuću dodelu možete otkazati. Dugme „Dodeli računar“ u rezervaciji povezuje dodelu sa rezervacijom.
 
-1. Na aktivnoj sesiji izaberite **„+30 min“**. Dodatne akcije nude **„+60 min“** i **„Prilagođeno produženje“**; u listi su pod **„Još akcija“**.
-2. Za prilagođeno produženje unesite **„Broj minuta“** i kliknite **„Produži sesiju“**.
-3. Proverite novi planirani kraj na kartici i potvrdu poslednje komande kada se koristi Gaming Client.
+### Dopuna i završetak
 
-**Rezultat:** vreme se dodaje na postojeći planirani kraj. Produženje mora ostati u dozvoljenim granicama ukupnog trajanja i ne sme preklopiti drugu rezervaciju resursa. Nije dovoljno da računar trenutno deluje slobodno.
+„+30 min“, „+60 min“ i „Dodaj vreme“ otvaraju isto plaćanje. Dopuna tokom igranja odmah povećava saldo. Kupovina ne zahteva prekid sesije.
 
-### Završavanje i istek
+„Završi sesiju“ završava sesiju, obračunava stvarno protekle sekunde i šalje zaključavanje Clientu. Klijent može završiti sesiju i sam. Preostalo vreme ostaje na nalogu za sledeću posetu. Pri isteku vremena sistem automatski završava sesiju i zaključava računar.
 
-1. Na aktivnoj sesiji kliknite **„Završi“**.
-2. Unesite **„Razlog završetka“** i izaberite **„Potvrdi završetak“**.
-3. Proverite status i lokalno zaključavanje računara. **„Detalji i istorija“** prikazuju komande, potvrde i događaje.
+Pre nove dodele sačekajte potvrdu zaključavanja i postojeće provere privatnosti Windows profila. Ako su računar ili Client nedostupni, proverite vezu i dijagnostiku ili pozovite administratora. Ne potvrđujte fizičko zaključavanje bez stvarne provere.
 
-**Rezultat:** sesija se ručno završava i, uz Client integraciju, šalje se komanda za zaključavanje. Sesija se završava i istekom vremena. Prikaz „0“ ili „Sesija istekla“ može čekati osvežavanje; to nije potvrda da je Windows računar već zaključan.
-
-Završavanje gaming sesije i status rezervacije su odvojeni postupci. Pre predaje računara sledećem klijentu proverite da sistem ponovo nudi „Pokreni sesiju“.
-
-### Nedostupna stanica ili neuspešna komanda
-
-| Prikaz | Postupak |
-| --- | --- |
-| „Bez veze“ / „Bez potvrđene veze“ | Osvežite i proverite poslednji kontakt. Pozovite administratora da proveri računar i Gaming Client. Nova sesija može biti blokirana. |
-| „Održavanje“ / „Van upotrebe“ | Izaberite drugi spreman računar. Zaposleni nema dozvolu za promenu te konfiguracije. |
-| Nedostaje profil ili konfiguracija | Pozovite administratora. Pregled „Informacije o stanicama“ može pomoći pri identifikaciji problema. |
-| „Čeka zaključavanje“ / komanda bez potvrde | Otvorite „Detalji i istorija“. Ako je ponuđeno, koristite „Ponovo pošalji force-lock“ → „Pošalji komandu“, pa pratite potvrdu. |
-| Ponuđeno „Potvrdi fizički lock“ | Najpre fizički proverite da je računar zaista zaključan, zatim potvrdite sa „Provereno je zaključano“. Potvrda se evidentira. |
-| Ishod starta, produženja ili kraja nije potvrđen | Upotrebite „Pokušaj ponovo“ u istom startu ili „Proveri prethodnu komandu“ za produženje/kraj. Ne šaljite novu nezavisnu komandu. |
-| „Prikaz može biti zastareo“ | Proverite mrežu i „Osveži“. Operativne akcije mogu biti privremeno onemogućene. |
-
-Akcije oporavka prikazuju se samo za odgovarajuće stanje i dozvoljeni resurs. Fizička potvrda nije daljinsko zaključavanje niti popravka mreže. Ako problem ostane, administratoru prosledite oznaku računara, vreme, tekst greške i „Support ID“ iz istorije ako postoji.
+Detalji i ograničenja oporavka: [Gaming vreme](../GAMING_TIME.md).
 
 ## Obrada narudžbina
 

@@ -16,7 +16,7 @@ Po zahtevu nisu pokretani build, lint, testovi ni Docker. Migracija nije primenj
 | Windows Client azuriranja | Implementirano: StationClientUpdates | Implementirano: GET `/stations/{id}/client-updates` | Server-side, 10 |
 | Rasporedi automatskih izvestaja | Implementirano: ReportsPage | Implementirano: GET `/reports/schedules` | Server-side, 10 |
 | Gaming aplikacije i profili | Implementirano: StationAdministration | Implementirano: GET `/stations/applications/page; /stations/application-profiles/page` | Server-side, 10 po listi |
-| Gaming tarife i vremenski paketi | Implementirano: GamingTariffSettings; GamingWalletPanel | Implementirano: GET `/gaming-billing/tariffs/page; istorija paketa novcanika` | Server-side, 10 |
+| Gaming vreme i uplate | GamingPaymentHistory; GamingTimeSettings | GET `/gaming-billing/customers/{id}/time/transactions`; cena `/gaming-billing/time-price` | Istorija server-side, 10 |
 | Gaming finansijske detaljne tabele | Implementirano: GamingFinanceReport / DetailRows | Implementirano: GET `/gaming-billing/report/{table}` | Server-side, 20 po tabeli |
 | Profil klijenta: rezervacije i narudzbine | Implementirano: CustomerProfile | Implementirano: GET `/customers/{id}/reservations; /customers/{id}/orders` | Server-side, 10 po listi |
 

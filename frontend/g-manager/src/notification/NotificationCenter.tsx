@@ -69,11 +69,14 @@ export function NotificationCenter() {
       setAnnouncement(`Novo obaveštenje: ${value.title}`)
       window.clearTimeout(timer)
       timer = window.setTimeout(refresh, 150)
-    }, setConnection)
+    }, state => {
+      setConnection(state)
+      if (state === 'connected') refresh()
+    })
     return () => { window.clearTimeout(timer); disconnect() }
   }, [])
   useEffect(() => {
-    if (connection === 'connected') { refresh(); return }
+    if (connection === 'connected') return
     const timer = window.setInterval(refresh, 30000)
     return () => window.clearInterval(timer)
   }, [connection])

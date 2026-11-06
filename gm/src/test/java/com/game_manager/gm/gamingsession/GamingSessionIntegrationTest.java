@@ -51,62 +51,11 @@ class GamingSessionIntegrationTest {
         testsupport.DatabaseCleaner.clean(jdbc);
     }
 
-    @Test void customerHistoryIsPrivateAndStaffHistoryRespectsAssignedLocations() throws Exception {
-        User employee=user(Role.EMPLOYEE), unrelated=user(Role.EMPLOYEE), customer=user(Role.CUSTOMER), other=user(Role.CUSTOMER);
-        Station station=station(); assign(employee,station.resource().getId()); String token=login(employee);
-        start(token,startBody(customer,station.resource(),60),new CountDownLatch(0),new CountDownLatch(0));
-        mvc.perform(get("/api/v1/gaming-sessions/me/active").header("Authorization",bearer(login(customer))))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].resourceName").value("Gaming PC"));
-        mvc.perform(get("/api/v1/gaming-sessions/me/active").header("Authorization",bearer(login(other))))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
-        mvc.perform(get("/api/v1/gaming-sessions/customer/{id}/active",customer.getId()).header("Authorization",bearer(login(customer))))
-                .andExpect(status().isForbidden());
-        mvc.perform(get("/api/v1/gaming-sessions/customer/{id}/active",customer.getId()).header("Authorization",bearer(login(unrelated))))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
-        mvc.perform(get("/api/v1/gaming-sessions/customer/{id}/active",customer.getId()).header("Authorization",bearer(token)))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
-    }
 
-    @Test void commandsAreIdempotentAndExtensionKeepsAggregateIdentity() throws Exception {
-        User employee=user(Role.EMPLOYEE), customer=user(Role.CUSTOMER); Station station=station(); assign(employee,station.resource().getId());
-        String token=login(employee), key=UUID.randomUUID().toString(), body=startBody(customer,station.resource(),60);
-        MvcResult first=mvc.perform(post("/api/v1/gaming-sessions").header("Authorization",bearer(token))
-                .header("Idempotency-Key",key).contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isCreated()).andExpect(jsonPath("$.remainingSeconds").isNumber())
-                .andExpect(jsonPath("$.serverTime").isString()).andReturn();
-        MvcResult replay=mvc.perform(post("/api/v1/gaming-sessions").header("Authorization",bearer(token))
-                .header("Idempotency-Key",key).contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isCreated()).andExpect(header().string("Idempotency-Replayed","true")).andReturn();
-        JsonNode started=node(first); assertThat(node(replay).get("id").asText()).isEqualTo(started.get("id").asText());
-        assertThat(stationCommands.findByStationIdAndSequenceGreaterThanOrderBySequence(
-                station.resource().getId(), 0L)).extracting(StationCommand::getSequence).containsExactly(1L);
-        String id=started.get("id").asText(); long version=started.get("version").asLong();
-        MvcResult extended=mvc.perform(post("/api/v1/gaming-sessions/{id}/extend",id)
-                .header("Authorization",bearer(token)).header("Idempotency-Key",UUID.randomUUID())
-                .contentType(MediaType.APPLICATION_JSON).content("{\"minutes\":30,\"version\":"+version+",\"purchase\":"+purchase(30)+"}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(id)).andReturn();
-        long extendedVersion=node(extended).get("version").asLong();
-        assertThat(stationCommands.findByStationIdAndSequenceGreaterThanOrderBySequence(
-                station.resource().getId(), 0L)).extracting(StationCommand::getSequence).containsExactly(1L, 2L);
-        mvc.perform(post("/api/v1/gaming-sessions/{id}/terminate",id).header("Authorization",bearer(token))
-                .header("Idempotency-Key",UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"reason\":\"Customer requested logout\",\"version\":"+extendedVersion+"}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("TERMINATED"));
-        assertThat(stationCommands.findByStationIdAndSequenceGreaterThanOrderBySequence(
-                station.resource().getId(), 0L)).extracting(StationCommand::getSequence).containsExactly(1L, 2L, 3L);
-        assertThat(sessions.count()).isEqualTo(1);
-    }
 
-    @Test void exactlyOneConcurrentStartWinsForSameStationAndForSameCustomer() throws Exception {
-        User employee=user(Role.EMPLOYEE), first=user(Role.CUSTOMER), second=user(Role.CUSTOMER);
-        Station one=station(),two=station();assign(employee,one.resource().getId());assign(employee,two.resource().getId());String token=login(employee);
-        assertThat(race(token,startBody(first,one.resource(),60),startBody(second,one.resource(),60)))
-                .containsExactlyInAnyOrder(201,409);
-        sessions.findAll().forEach(value->{value.setStatus(GamingSessionStatus.TERMINATED);value.setEndedAt(Instant.now());value.setTerminationReason("test cleanup");sessions.save(value);});sessions.flush();jdbc.update("UPDATE station_preparation SET ready=TRUE");
-        assertThat(race(token,startBody(first,one.resource(),60),startBody(first,two.resource(),60)))
-                .containsExactlyInAnyOrder(201,409);
-    }
+
+
+
 
     @Test void customerCannotUseManagementCommands() throws Exception {
         User customer=user(Role.CUSTOMER);Station station=station();

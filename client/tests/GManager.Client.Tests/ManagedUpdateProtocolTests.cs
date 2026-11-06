@@ -13,7 +13,7 @@ public sealed class ManagedUpdateProtocolTests
         using var handler=new ClaimHandler(result,id);using var http=new HttpClient(handler){BaseAddress=new Uri("https://isolated.example.test/")};
         var client=new MachineProtocolClient(http);
         if(result==HttpStatusCode.NoContent)await client.ClaimUpdateAsync("isolated-machine-bearer",id,TestContext.Current.CancellationToken);
-        else await Assert.ThrowsAsync<HttpRequestException>(()=>client.ClaimUpdateAsync("isolated-machine-bearer",id,TestContext.Current.CancellationToken));
+        else await Assert.ThrowsAsync<MachineApiException>(()=>client.ClaimUpdateAsync("isolated-machine-bearer",id,TestContext.Current.CancellationToken));
         Assert.True(handler.Observed);
     }
     sealed class ClaimHandler(HttpStatusCode result,Guid id):HttpMessageHandler

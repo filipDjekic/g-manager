@@ -1,5 +1,5 @@
 export type StationOperationalStatus = 'AVAILABLE' | 'MAINTENANCE' | 'RETIRED'
-export type StationEffectiveStatus = StationOperationalStatus | 'PREPARATION_REQUIRED' | 'IN_SESSION' | 'OFFLINE'
+export type StationEffectiveStatus = 'WAITING_FOR_LOGIN'|StationOperationalStatus | 'PREPARATION_REQUIRED' | 'IN_SESSION' | 'OFFLINE'
 export type ApplicationType = 'LAUNCHER' | 'GAME' | 'HELPER'
 
 export interface ApplicationDefinition {

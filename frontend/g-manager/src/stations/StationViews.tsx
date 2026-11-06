@@ -11,7 +11,7 @@ import { StationIcon, StationIllustration } from './stationPresentation'
 import { connectionStatus, stationStatus, stationWarnings, isNewerClientVersion, type StationView } from './stationPresentation.model'
 export function StationOperationLinks({ station, user, disabled, compact = false }: { station: StationView; user: AuthUser | null; disabled: boolean; compact?: boolean }) {
   if (!hasCapability(user, 'GAMING_SESSION_READ') || !station.live) return null
-  const actions = ([['START', 'Pokreni sesiju'], ['TERMINATE', 'Završi sesiju'], ['EXTEND', 'Produži sesiju'],
+  const actions = ([['START', 'Dodeli računar'], ['TERMINATE', 'Završi sesiju'], ['EXTEND', 'Dodaj vreme'],
     ['FORCE_LOCK', 'Pošalji force-lock'], ['CONFIRM_LOCKED', 'Potvrdi zaključavanje']] as const)
     .filter(([action]) => permitsStationAction(user, station.live!, action))
   const visible = compact ? actions.slice(0, 1) : actions

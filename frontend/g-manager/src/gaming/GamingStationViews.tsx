@@ -1,3 +1,5 @@
+import { gamingTimeApi } from '../api/gamingTimeApi'
+import { useFinancialCommand } from './useFinancialCommand'
 import { StationFinanceActions } from './StationFinanceActions'
 import { memo } from 'react'
 import { useAuthStore } from '../auth/authStore'
@@ -34,21 +36,24 @@ function StationActions({ station, disabled, handlers, variant = 'panel' }: {
   station: GamingStationCard; disabled: boolean; handlers: StationActionHandlers; variant?: 'card' | 'table' | 'panel'
 }) {
   const actor = useAuthStore((state) => state.user)
+  const assignmentCommand = useFinancialCommand()
   const permit = (action: Parameters<typeof permitsStationAction>[2]) => permitsStationAction(actor, station, action)
   const compact = variant !== 'panel'
   const additional = <>
     {permit('EXTEND') && <>
       <Button type="button" variant="secondary" disabled={disabled} onClick={() => handlers.onExtend(station, 60)}>+60 min</Button>
-      <Button type="button" variant="secondary" disabled={disabled} onClick={() => handlers.onCustom(station)}>Prilagođeno produženje</Button>
+      <Button type="button" variant="secondary" disabled={disabled} onClick={() => handlers.onCustom(station)}>Dodaj vreme</Button>
     </>}
     {hasCapability(actor, 'GAMING_SESSION_READ') && <Button type="button" variant="secondary" onClick={() => handlers.onHistory(station)}>Detalji i istorija</Button>}
   </>
-  if (variant === 'card' && !permit('START') && !permit('EXTEND') && !permit('TERMINATE')) return null
+  if (variant === 'card' && !permit('START') && !permit('EXTEND') && !permit('TERMINATE') && !permit('CANCEL_ASSIGNMENT')) return null
   return <div className={`ops-station-actions${compact ? ' ops-station-actions--compact' : ''}`}
     onClick={event => event.stopPropagation()}>
-    {permit('START') && <Button variant="primary" type="button" disabled={disabled} onClick={() => handlers.onStart(station)}>Pokreni sesiju</Button>}
+    {assignmentCommand.feedback}
+    {permit('CANCEL_ASSIGNMENT') && station.assignmentId && <Button variant="secondary" disabled={disabled || assignmentCommand.locked} onClick={() => { const id=station.assignmentId!; void assignmentCommand.run(key => gamingTimeApi.cancel(id,key)) }}>Otkaži dodelu</Button>}
+    {permit('START') && <Button variant="primary" type="button" disabled={disabled} onClick={() => handlers.onStart(station)}>Dodeli računar</Button>}
     {permit('EXTEND') && <Button type="button" variant="secondary" disabled={disabled} onClick={() => handlers.onExtend(station, 30)}>+30 min</Button>}
-    {permit('TERMINATE') && <Button type="button" variant="danger" disabled={disabled} onClick={() => handlers.onEnd(station)}>Završi</Button>}
+    {permit('TERMINATE') && <Button type="button" variant="danger" disabled={disabled} onClick={() => handlers.onEnd(station)}>Završi sesiju</Button>}
     {variant !== 'card' && <>
       {permit('FORCE_LOCK') && <Button type="button" variant="danger" disabled={disabled} onClick={() => handlers.onRecovery(station, false)}>Ponovo pošalji force-lock</Button>}
       {permit('CONFIRM_LOCKED') && <Button type="button" variant="secondary" disabled={disabled} onClick={() => handlers.onRecovery(station, true)}>Potvrdi fizički lock</Button>}
@@ -62,6 +67,8 @@ function StationWarnings({ station, compact = false }: { station: GamingStationC
   const recoveryWarning = (compact || !!station.sessionId) && (station.status === 'LOCK_PENDING' || station.status === 'EXPIRED')
   return <>
     {station.clientMode === 'DEVELOPMENT' && <p className="ops-station-warning">DEVELOPMENT ? simulirana Windows za?tita. Fizi?ko zaklju?avanje nije provereno.</p>}
+    {station.billingMode === 'TIME_BALANCE' && <p>Potrošeno: {remaining(station.billedSeconds ?? 0)}. Nepotrošeno vreme ostaje na nalogu.</p>}
+    {station.status === 'WAITING_FOR_LOGIN' && <p>{station.customerDisplayName} · Čeka prijavu do {station.assignmentExpiresAt ? formatBusinessDateTime(station.assignmentExpiresAt) : 'isteka dodele'}. Tajmer ne radi.</p>}
     {station.billingMode === 'PREPAID_METERED' && <p>Prepaid ? {station.billedSeconds ?? 0} s ? {station.chargedAmount ?? 0} RSD ? Kredit: {station.walletBalance ?? 0} RSD</p>}
     {station.clientErrorCode && <p role="alert" className="ops-station-warning ops-station-warning--danger">{station.staleHeartbeat ? 'Poslednja prijavljena greška' : 'Client zahteva proveru'}: {station.clientErrorCode}</p>}
     {station.updateStatus === 'FAILED' && <p className="ops-station-warning ops-station-warning--danger">Poslednje ažuriranje nije uspelo. Proverite Client dijagnostiku.</p>}
@@ -103,7 +110,7 @@ export const StationTile = memo(function StationTile({ station, seconds, selecte
       <strong className="ops-station-customer">{station.customerDisplayName ?? (station.sessionId ? 'Klijent' : 'Bez sesije')}</strong>
       <strong className="ops-timer" aria-label={`Preostalo vreme ${remaining(seconds)}`}>{stationTimer(seconds)}</strong>
     </div>}
-    {station.sessionId && <p className="ops-station-warning">{station.paymentDue === undefined ? '' : (/^0(?:\.0+)?$/.test(String(station.paymentDue)) ? 'Placeno' : `Neplaceno: ${station.paymentDue} RSD`)}{station.moveTargetId && ' - Premestanje ceka potvrdu'}</p>}
+    {station.sessionId && station.billingMode !== 'TIME_BALANCE' && <p className="ops-station-warning">{station.paymentDue === undefined ? '' : (/^0(?:\.0+)?$/.test(String(station.paymentDue)) ? 'Placeno' : `Neplaceno: ${station.paymentDue} RSD`)}{station.moveTargetId && ' - Premestanje ceka potvrdu'}</p>}
     {!station.sessionId && station.privacyReady === false && <p className="ops-station-warning">Obavezna priprema privatnosti</p>}
     <StationWarnings station={station} compact />
     <StationActions station={station} disabled={disabled} handlers={handlers} variant="card" />

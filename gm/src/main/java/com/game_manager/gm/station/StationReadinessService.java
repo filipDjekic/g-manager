@@ -21,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class StationReadinessService {
     private final StationPreparationService preparation;
-    @org.springframework.beans.factory.annotation.Autowired private com.game_manager.gm.machine.DevelopmentStations development;
+    @org.springframework.beans.factory.annotation.Autowired private com.game_manager.gm.common.config.DevelopmentStationPolicy development;
     private final PhysicalResourceRepository resources;
     private final AreaRepository areas;
     private final LocationRepository locationRepository;
@@ -52,6 +52,7 @@ public class StationReadinessService {
                         .map(GamingStationProfile::getApplicationProfileId).filter(Objects::nonNull).toList())
                 .stream().collect(Collectors.toMap(ApplicationProfile::getId, Function.identity()));
         Map<UUID, UUID> activeSessions = runtimeProjection.activeSessionIdsByResource();
+        var waiting=runtimeProjection.waitingAssignmentsByResource();
         var privacyReady=preparation.readiness(pcs.stream().map(PhysicalResource::getId).toList());
         Instant now = clock.instant();
         return pcs.stream().map(resource -> {
@@ -63,7 +64,7 @@ public class StationReadinessService {
                     ? StationOperationalStatus.AVAILABLE : station.getOperationalStatus();
             return new StationOverview(station == null ? null : station.getId(), resource.getId(),
                     resource.getCode(), resource.getName(), resource.getAreaId(), area.getLocationId(),
-                    operational, effectiveStatus(station, operational, activeSessionId, now,privacyReady.getOrDefault(resource.getId(),true)),
+                    operational, effectiveStatus(station, operational, activeSessionId, now,privacyReady.getOrDefault(resource.getId(),true),waiting.containsKey(resource.getId())),
                     profile == null ? null : profile.getId(), profile == null ? null : profile.getName(),
                     profile == null ? 0 : profile.getConfigurationVersion(), station != null && station.isClientEnabled(),
                     station == null ? 10 : station.getHeartbeatIntervalSeconds(),
@@ -289,19 +290,20 @@ public class StationReadinessService {
         Area area = areas.findById(resource.getAreaId()).orElseThrow();
         UUID activeSessionId = runtimeProjection.activeSessionIdsByResource().get(resource.getId());
         return new StationOverview(station.getId(), resource.getId(), resource.getCode(), resource.getName(), resource.getAreaId(),
-                area.getLocationId(), station.getOperationalStatus(), effectiveStatus(station, station.getOperationalStatus(), activeSessionId, clock.instant(),preparation.ready(resource.getId())),
+                area.getLocationId(), station.getOperationalStatus(), effectiveStatus(station, station.getOperationalStatus(), activeSessionId, clock.instant(),preparation.ready(resource.getId()),runtimeProjection.waitingAssignmentsByResource().containsKey(resource.getId())),
                 profile == null ? null : profile.getId(), profile == null ? null : profile.getName(), profile == null ? 0 : profile.getConfigurationVersion(),
                 station.isClientEnabled(), station.getHeartbeatIntervalSeconds(), station.getOfflineGraceSeconds(), station.getLastHeartbeatAt(),
                 station.getClientVersion(), activeSessionId, station.getVersion(), null, area.getName(), development.mode(resource.getId()));
     }
 
     private static StationEffectiveStatus effectiveStatus(GamingStationProfile station, StationOperationalStatus operational,
-            UUID activeSessionId, Instant now,boolean privacyReady) {
+            UUID activeSessionId, Instant now,boolean privacyReady,boolean waiting) {
         if (operational != StationOperationalStatus.AVAILABLE) return StationEffectiveStatus.valueOf(operational.name());
         if (activeSessionId != null) return StationEffectiveStatus.IN_SESSION;
         if (station != null && station.isClientEnabled() && (station.getLastHeartbeatAt() == null
                 || !station.getLastHeartbeatAt().plusSeconds(station.getOfflineGraceSeconds()).isAfter(now)))
             return StationEffectiveStatus.OFFLINE;
+        if(waiting)return StationEffectiveStatus.WAITING_FOR_LOGIN;
         return privacyReady ? StationEffectiveStatus.AVAILABLE : StationEffectiveStatus.PREPARATION_REQUIRED;
     }
 

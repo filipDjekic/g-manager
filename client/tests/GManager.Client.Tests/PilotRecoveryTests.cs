@@ -118,6 +118,55 @@ public sealed class PilotRecoveryTests
         Assert.Equal(f.Station,f.Store.Load()!.StationId);
     }
 
+    [Fact] public async Task OfflineLogoutLocksLocallyAndCannotResumeTheOldSession() {
+        using var f=new Fixture();Waiting(f);f.Protocol.ActivateTimeOnLogin=true;
+        await f.Runtime.Refresh(TestContext.Current.CancellationToken);
+        var login=await f.Runtime.Handle(new("login","start","customer@test","password"),false,TestContext.Current.CancellationToken);
+        Assert.True(login.Success);Assert.Equal(GamingClientState.ACTIVE,f.Runtime.State.SessionState);
+        f.Protocol.FailLogout=true;
+        var finish=await f.Runtime.Handle(new("logout","finish",SessionId:f.Session),false,TestContext.Current.CancellationToken);
+        Assert.False(finish.Success);Assert.Equal(ClientMode.Locked,f.Runtime.State.Mode);
+        Assert.True(f.Store.LoadSnapshot<ClientRecoveryState>()!.LocallyLocked);
+        Assert.Equal(f.Session,f.Store.LoadSnapshot<ClientRecoveryState>()!.BlockedSessionId);
+        f.Protocol.FailLogout=false;await f.Runtime.Refresh(TestContext.Current.CancellationToken);
+        Assert.Equal(1,f.Protocol.RecoveryCalls);Assert.Equal(GamingClientState.LOCKED_FREE,f.Runtime.State.SessionState);
+        Assert.Null(f.Protocol.CurrentLease.SessionId);
+    }
+
+    static void Waiting(Fixture f) {
+        var now=f.Clock.GetUtcNow();f.Protocol.CurrentLease=f.Protocol.CurrentLease with { Directive="LOCK",SessionId=null,CustomerId=null,SessionEndsAt=null,CommandCursor=0,AssignmentId=Guid.NewGuid(),AssignmentExpiresAt=now.AddMinutes(5),ExpiresAt=now.AddSeconds(30),GraceEndsAt=now.AddSeconds(30) };
+        f.Protocol.Command=f.Protocol.Command with { Sequence=0 };
+    }
+    [Fact] public async Task WaitingAssignmentShowsLoginWithoutAnActiveTimerOrUnlock() {
+        using var f=new Fixture();Waiting(f);await f.Runtime.Refresh(TestContext.Current.CancellationToken);
+        Assert.Equal(ClientMode.Login,f.Runtime.State.Mode);Assert.Equal(GamingClientState.ASSIGNED,f.Runtime.State.SessionState);Assert.Null(f.Runtime.State.EndsAt);
+        f.Clock.Advance(TimeSpan.FromSeconds(5));f.Runtime.Tick();Assert.Equal(ClientMode.Login,f.Runtime.State.Mode);
+        Assert.True(f.Store.LoadSnapshot<ClientRecoveryState>()!.LocallyLocked);
+    }
+    [Fact] public async Task PasswordSuccessWithoutSignedActivationCannotUnlock() {
+        using var f=new Fixture();Waiting(f);await f.Runtime.Refresh(TestContext.Current.CancellationToken);
+        var result=await f.Runtime.Handle(new("login","password-only","customer@test","password"),false,TestContext.Current.CancellationToken);
+        Assert.False(result.Success);Assert.NotEqual(ClientMode.Active,f.Runtime.State.Mode);
+    }
+    [Fact] public async Task LoginRequiresTheNewSignedSessionAndRetainsItsDeadlineAfterRestart() {
+        using var f=new Fixture();Waiting(f);f.Protocol.ActivateTimeOnLogin=true;await f.Runtime.Refresh(TestContext.Current.CancellationToken);
+        var result=await f.Runtime.Handle(new("login","activate-time","customer@test","password"),false,TestContext.Current.CancellationToken);
+        Assert.True(result.Success);Assert.Equal(ClientMode.Active,result.State.Mode);Assert.Equal(4500,result.State.BalanceSeconds);
+        var restarted=f.CreateRuntime();await restarted.Recover(TestContext.Current.CancellationToken);Assert.NotEqual(ClientMode.Active,restarted.State.Mode);
+        f.Clock.Advance(TimeSpan.FromSeconds(31));restarted.Tick();Assert.Equal(ClientMode.Locked,restarted.State.Mode);
+    }
+    [Fact] public async Task RestartedServiceSettlesOldTimeInsteadOfRenewingItWhileLocked() {
+        using var f=new Fixture();Waiting(f);f.Protocol.ActivateTimeOnLogin=true;await f.Runtime.Refresh(TestContext.Current.CancellationToken);
+        Assert.True((await f.Runtime.Handle(new("login","before-restart","customer@test","password"),false,TestContext.Current.CancellationToken)).Success);
+        f.Clock.Advance(TimeSpan.FromSeconds(5));var restarted=f.CreateRuntime();await restarted.Recover(TestContext.Current.CancellationToken);await restarted.Refresh(TestContext.Current.CancellationToken);
+        Assert.Equal(1,f.Protocol.RecoveryCalls);Assert.Equal(ClientMode.Locked,restarted.State.Mode);Assert.Equal("LOCK",f.Protocol.CurrentLease.Directive);
+    }
+    [Fact] public async Task FailedFinishIsReportedAsFailureAndRemainsLocallyLocked() {
+        using var f=new Fixture();await f.Login();f.Protocol.FailLogout=true;
+        var result=await f.Runtime.Handle(new("logout","failed-finish",SessionId:f.Session),false,TestContext.Current.CancellationToken);
+        Assert.False(result.Success);Assert.Equal(ClientMode.Locked,result.State.Mode);
+    }
+
     sealed class ManualClock:TimeProvider
     {
         readonly DateTimeOffset start=DateTimeOffset.UtcNow; long ticks;
@@ -153,7 +202,7 @@ public sealed class PilotRecoveryTests
     {
         public Task ClaimUpdateAsync(string bearer,Guid? requestId,CancellationToken ct)=>Task.CompletedTask;
         readonly Fixture f; public SessionLease CurrentLease; public MachineCommand Command;
-        public string? Failure; public bool FailAck,PrunedAck; public int AckAttempts,Authentications;
+        public string? Failure; public bool FailAck,PrunedAck,ActivateTimeOnLogin,FailLogout; public int AckAttempts,Authentications,RecoveryCalls;
         public FakeProtocol(Fixture fixture) { f=fixture; var now=f.Clock.GetUtcNow();
             CurrentLease=new(Guid.NewGuid(),f.Station,f.Session,null,now.AddMinutes(10),1,now,now.AddSeconds(30),now.AddSeconds(60),1,"ACTIVE");
             Command=new(1,"SESSION_STARTED",1,JsonSerializer.Serialize(new {stationId=f.Station,sessionId=f.Session}),now); }
@@ -171,7 +220,20 @@ public sealed class PilotRecoveryTests
         public Task LockAckAsync(string b,Guid s,long q,Guid? l,string r,CancellationToken ct)=>throw new InvalidOperationException("Physical ACK must never be sent by development enforcement");
         public Task<EnrollmentResult> EnrollAsync(string t,IChallengeSigner s,string v,CancellationToken ct)=>throw new NotSupportedException();
         public Task<SessionSnapshot> SnapshotAsync(string b,CancellationToken ct)=>throw new NotSupportedException();
-        public Task<CustomerSession> LoginAsync(string b,string e,string p,CancellationToken ct)=>throw new NotSupportedException();
-        public Task LogoutAsync(string b,Guid s,CancellationToken ct)=>Task.CompletedTask;
+        public Task<CustomerSession> LoginAsync(string b,string e,string p,CancellationToken ct) {
+            var now=f.Clock.GetUtcNow();var customer=Guid.NewGuid();
+            if(ActivateTimeOnLogin) {
+                CurrentLease=CurrentLease with { Directive="ACTIVE",SessionId=f.Session,CustomerId=customer,SessionEndsAt=now.AddMinutes(75),StartedAt=now,BillingMode="TIME_BALANCE",BalanceSeconds=4500,AssignmentId=null,AssignmentExpiresAt=null,CommandCursor=1,ExpiresAt=now.AddSeconds(30),GraceEndsAt=now.AddSeconds(30) };
+                Command=Command with { Sequence=1 };
+            }
+            return Task.FromResult(new CustomerSession(f.Session,f.Station,customer,"Customer",now,now.AddMinutes(75),now));
+        }
+        public Task RecoverSessionAsync(string b,Guid s,CancellationToken ct) {
+            RecoveryCalls++;var now=f.Clock.GetUtcNow();long sequence=CurrentLease.CommandCursor+1;
+            CurrentLease=CurrentLease with { Directive="LOCK",SessionId=null,SessionEndsAt=null,CustomerId=null,BillingMode=null,BalanceSeconds=null,CommandCursor=sequence,IssuedAt=now,ExpiresAt=now.AddSeconds(30),GraceEndsAt=now.AddSeconds(30) };
+            Command=new(sequence,"SESSION_TERMINATED",1,JsonSerializer.Serialize(new {stationId=f.Station,sessionId=s}),now);
+            return Task.CompletedTask;
+        }
+        public Task LogoutAsync(string b,Guid s,CancellationToken ct)=>FailLogout?Task.FromException(new HttpRequestException("Finish unavailable")):Task.CompletedTask;
     }
 }

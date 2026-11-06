@@ -21,8 +21,15 @@ public class AuditWriter {
                       Map<String, ?> before, Map<String, ?> after, String reason,
                       AuditVisibility visibility) {
         AuthenticatedUser actor = currentUserProvider.requireCurrentUser();
+        writeAttributed(actor.id(), actor.role(), action, resourceType, resourceId, before, after, reason, visibility);
+    }
+
+    /** Server lifecycle events retain the initiating employee even without a web-user security context. */
+    public void writeAttributed(UUID actorId, com.game_manager.gm.common.security.Role actorRole,
+                      String action, String resourceType, UUID resourceId,
+                      Map<String, ?> before, Map<String, ?> after, String reason, AuditVisibility visibility) {
         try {
-            repository.saveAndFlush(new AuditEvent(actor.id(), actor.role(), action, resourceType,
+            repository.saveAndFlush(new AuditEvent(actorId, actorRole, action, resourceType,
                     resourceId, json(before), json(after), normalize(reason), visibility));
             meterRegistry.counter("audit.writes", "result", "success").increment();
         } catch (RuntimeException exception) {

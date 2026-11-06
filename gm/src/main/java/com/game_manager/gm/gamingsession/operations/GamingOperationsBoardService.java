@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class GamingOperationsBoardService {
+    @org.springframework.beans.factory.annotation.Autowired private com.game_manager.gm.gamingsession.billing.GamingTimeService time;
     private final com.game_manager.gm.station.StationPreparationService preparation;
     private final com.game_manager.gm.gamingsession.billing.GamingBillingService billing;
     private final StationReadinessService stationReadiness;
@@ -86,6 +87,8 @@ public class GamingOperationsBoardService {
         if(!stale && station.clientEnabled() && health!=null && Boolean.TRUE.equals(health.maintenanceActive()))status=GamingStationBoardStatus.MAINTENANCE;
         if(!stale && station.clientEnabled() && health!=null && health.clientErrorCode()!=null && status==GamingStationBoardStatus.AVAILABLE)status=GamingStationBoardStatus.CLIENT_ERROR;
         if(!stale && station.clientEnabled() && (enforcementState==null || !("LOCKED".equals(enforcementState.status()) || "DEVELOPMENT".equals(station.clientMode()) && "DEV_READY".equals(enforcementState.status()))) && status==GamingStationBoardStatus.AVAILABLE)status=GamingStationBoardStatus.CLIENT_ERROR;
+        var waiting=time.waiting(station.resourceId());
+        if(waiting!=null && (status==GamingStationBoardStatus.AVAILABLE || status==GamingStationBoardStatus.EXPIRED))status=GamingStationBoardStatus.WAITING_FOR_LOGIN;
         EnumSet<GamingStationAction> allowed = EnumSet.noneOf(GamingStationAction.class);
         if ((status == GamingStationBoardStatus.AVAILABLE || status == GamingStationBoardStatus.EXPIRED)
                 && (latest == null || latest.getStatus() != GamingSessionStatus.ACTIVE)
@@ -99,13 +102,14 @@ public class GamingOperationsBoardService {
             allowed.add(GamingStationAction.TERMINATE);
         if ((status==GamingStationBoardStatus.LOCK_PENDING||status==GamingStationBoardStatus.OFFLINE&&(enforcementState==null||!("LOCKED".equals(enforcementState.status()) || "DEVELOPMENT".equals(station.clientMode()) && "DEV_READY".equals(enforcementState.status()))))&&latest!=null&&latest.getStatus()!=GamingSessionStatus.ACTIVE&&RolePermissions.has(actor.role(),Permission.GAMING_SESSION_TERMINATE)){allowed.add(GamingStationAction.FORCE_LOCK);allowed.add(GamingStationAction.CONFIRM_LOCKED);}
         if("DEVELOPMENT".equals(station.clientMode()))allowed.remove(GamingStationAction.CONFIRM_LOCKED);
-        if(active!=null && active.getBillingMode()==GamingBillingMode.PREPAID_METERED)allowed.remove(GamingStationAction.EXTEND);
+        if(active!=null && active.getBillingMode()==GamingBillingMode.TIME_BALANCE && RolePermissions.has(actor.role(),Permission.GAMING_PAYMENT_RECORD))allowed.add(GamingStationAction.EXTEND);
+        if(waiting!=null && RolePermissions.has(actor.role(),Permission.GAMING_SESSION_START))allowed.add(GamingStationAction.CANCEL_ASSIGNMENT);
         if(health!=null && health.clientErrorCode()!=null)allowed.remove(GamingStationAction.START);
-        User customer = active == null ? null : customers.get(active.getCustomerId());
+        User customer = active == null ? waiting==null?null:users.findById(UUID.fromString(waiting.get("customer_id").toString())).orElse(null) : customers.get(active.getCustomerId());
         return new GamingOperationsBoardResponse.StationCard(station.resourceId(), station.resourceCode(),
                 station.resourceName(), station.locationId(), status, station.clientEnabled(),
                 station.lastHeartbeatAt(),stale,stale?"OFFLINE":enforcementState==null?"UNKNOWN":enforcementState.status(),enforcementState==null || "DEVELOPMENT".equals(station.clientMode())?null:enforcementState.lastLockAckAt(), active == null ? null : active.getId(),
-                active == null ? null : active.getCustomerId(), active!=null && active.getCustomerId()==null ? "Gost - "+active.getGuestName() : customer == null ? null : customer.getName(),
+                active == null ? customer==null?null:customer.getId() : active.getCustomerId(), active!=null && active.getCustomerId()==null ? "Gost - "+active.getGuestName() : customer == null ? null : customer.getName(),
                 active == null ? null : active.getStartedAt(), active == null ? null : active.getEndsAt(),
                 active == null ? 0 : active.getMoveRemainingSeconds()!=null ? active.getMoveRemainingSeconds() : Math.max(0, Duration.between(now, active.getEndsAt()).toSeconds()),
                 active == null ? null : active.getVersion(), Set.copyOf(allowed),
@@ -114,7 +118,7 @@ public class GamingOperationsBoardService {
                 latestCommand == null ? null : latestCommand.sequence(),
                 latestCommand == null ? null : latestCommand.commandType().name(),
                 latestCommand == null ? null : latestCommand.availableAt(),
-                latestCommand == null ? null : latestCommand.acknowledgedAt(), station.locationName(), station.areaName(), latest==null?null:latest.getId(), active==null?null:due.getOrDefault(active.getId(),java.math.BigDecimal.ZERO), privacyReady, active==null?null:active.getMoveTargetId(),health==null?null:health.clientErrorCode(),health==null?null:health.updateStatus(),health==null?null:health.maintenanceActive(),active==null?null:active.getBillingMode(),active==null?null:active.getBilledSeconds(),active==null?null:active.getChargedAmount(),active==null || active.getCustomerId()==null?null:balances.get(active.getCustomerId()),station.clientMode());
+                latestCommand == null ? null : latestCommand.acknowledgedAt(), station.locationName(), station.areaName(), latest==null?null:latest.getId(), active==null?null:due.getOrDefault(active.getId(),java.math.BigDecimal.ZERO), privacyReady, active==null?null:active.getMoveTargetId(),health==null?null:health.clientErrorCode(),health==null?null:health.updateStatus(),health==null?null:health.maintenanceActive(),active==null?null:active.getBillingMode(),active==null?null:active.getBilledSeconds(),active==null?null:active.getChargedAmount(),active==null || active.getCustomerId()==null?null:balances.get(active.getCustomerId()),station.clientMode(),waiting==null?null:UUID.fromString(waiting.get("id").toString()),waiting==null?null:((java.sql.Timestamp)waiting.get("expires_at")).toInstant());
     }
 
     private GamingStationBoardStatus status(StationOverview station, GamingSession latest,

@@ -20,7 +20,8 @@ export async function installApi(page: Page, role: Role, aiEnabled = false, rese
   let reservationStatus = 'PENDING'
   let reservationConflictReturned = false
   let orderTransitioned = false
-  let gamingSessionActive = false
+  let gamingAssigned = false
+  let gamingBalanceSeconds = 7200
   const savedViews: Array<{ id: string; resourceType: string; name: string; query: Record<string, string>; version: number }> = []
 
   await page.route('**/api/v1/**', async (route: Route) => {
@@ -29,12 +30,23 @@ export async function installApi(page: Page, role: Role, aiEnabled = false, rese
     const path = url.pathname.replace('/api/v1', '')
     const json = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
 
-    // Match the billing contracts used by the real UI; the backend pilot proves the financial rules.
-    if (path === '/gaming-billing/tariffs') return json([{ id: 'tariff-1', name: 'Pilot 30 min', minutes: 30, price: '100.00', currency: 'RSD', active: true, packageValidityDays: 0, version: 0 }])
-    if (path === '/gaming-billing/policy') return json({ allowPartialPayment: false, allowDebt: false, allowRefunds: false, minimumMinutes: 15, maximumMinutes: 480, employeeDiscountLimit: '0', version: 0 })
-    if (path === '/gaming-billing/quote') { const minutes = Number(url.searchParams.get('minutes')); return json({ tariffId: 'tariff-1', tariffVersion: 0, tariffName: 'Pilot 30 min', minutes, gross: String(minutes / 30 * 100), discount: '0', total: String(minutes / 30 * 100), currency: 'RSD', rule: 'Whole tariff blocks' }) }
-    if (path.startsWith('/gaming-billing/customers/')) return json({ customerId: path.split('/')[3], balance: '0.00', packages: [], ledger: [], transactions: [], serverTime: '2028-03-16T10:00:00Z' })
-    if (path === '/gaming-billing/report') return json({ outstandingDebt: '0', prepaidLiability: '0', activePackageLiability: '0', totals: {}, recorded: [], byStation: [], byLocation: [], byEmployee: [], sessions: [], packages: [], productOrders: [] })
+    if (path === '/gaming-billing/time-price') return json({ pricePerMinute: '2.50', version: 1 })
+    if (/^\/gaming-billing\/customers\/[^/]+\/time$/.test(path)) return json({ balanceSeconds: gamingBalanceSeconds, assignments: [] })
+    if (/^\/gaming-billing\/customers\/[^/]+\/time\//.test(path)) return json(emptyPage)
+    if (path.endsWith('/time-grants') && request.method() === 'POST') {
+      const input = request.postDataJSON() as { minutes: number; priceVersion: number }
+      if (!request.headers()['idempotency-key'] || !Number.isInteger(input.minutes) || input.minutes < 30 || input.priceVersion !== 1) return json({ message: 'Invalid time purchase' }, 400)
+      gamingBalanceSeconds += input.minutes * 60
+      return json({ balanceSeconds: gamingBalanceSeconds, assignments: [] })
+    }
+    if (path === '/gaming-billing/assignments' && request.method() === 'POST') {
+      if (!request.headers()['idempotency-key'] || request.postDataJSON().customerId !== 'customer-1') return json({}, 400)
+      gamingAssigned = true
+      return json({ id: 'assignment-1', customer_id: 'customer-1', resource_id: 'station-1', status: 'WAITING_FOR_LOGIN', expires_at: '2030-01-01T00:00:00Z' })
+    }
+    if (path === '/gaming-billing/assignments/assignment-1/cancel') { gamingAssigned = false; return json({}) }
+    if (path === '/gaming-billing/report') return json({ timeBalanceSeconds: gamingBalanceSeconds, manualTime: {}, outstandingDebt: '0', prepaidLiability: '0', archivedPackageSales: '0', totals: {}, recorded: [], sessions: [], productOrders: [] })
+
     if (path === '/gaming-operations/health') return json({ checkedAt: '2028-03-16T10:00:00Z', backend: 'UP', database: 'UP', financialLedger: 'UP' })
 
     if (path === '/resources/reservation-filters' || path === '/resources/catalog-services/service-1') return json([])
@@ -216,26 +228,19 @@ export async function installApi(page: Page, role: Role, aiEnabled = false, rese
     if (path === '/gaming-sessions/stream') return route.fulfill({ status: 503, body: '' })
     if (path === '/gaming-operations/board') return json({ serverTime: '2028-03-16T10:00:00Z', stations: [{
       resourceId: 'station-1', resourceCode: 'PC-01', resourceName: 'Arena PC 01', locationId: 'location-1',
-      status: gamingSessionActive ? 'ACTIVE' : 'AVAILABLE', clientEnabled: false, staleHeartbeat: false, enforcementStatus: 'LOCKED',
+      status: gamingAssigned ? 'WAITING_FOR_LOGIN' : 'AVAILABLE', clientEnabled: true, staleHeartbeat: false, enforcementStatus: 'LOCKED',
       applicationProfileName: 'Arena Standard', locationName: 'Arena Centar', areaName: 'Gaming zona',
-      sessionId: gamingSessionActive ? 'gaming-session-1' : null, customerId: gamingSessionActive ? 'customer-1' : null,
-      customerDisplayName: gamingSessionActive ? 'CUSTOMER E2E' : null,
-      startedAt: gamingSessionActive ? '2028-03-16T10:00:00Z' : null,
-      endsAt: gamingSessionActive ? '2028-03-16T12:00:00Z' : null,
-      remainingSeconds: gamingSessionActive ? 7200 : 0, sessionVersion: gamingSessionActive ? 1 : null,
-      allowedActions: gamingSessionActive ? ['EXTEND', 'TERMINATE'] : ['START'],
+      sessionId: null, customerId: gamingAssigned ? 'customer-1' : null,
+      customerDisplayName: gamingAssigned ? 'CUSTOMER E2E' : null,
+      startedAt: null, endsAt: null, remainingSeconds: 0, sessionVersion: null,
+      assignmentId: gamingAssigned ? 'assignment-1' : null, assignmentExpiresAt: gamingAssigned ? '2030-01-01T00:00:00Z' : null,
+      allowedActions: gamingAssigned ? ['CANCEL_ASSIGNMENT'] : ['START'],
     }] })
     if (path === '/customers' && request.method() === 'GET') return json({ ...emptyPage, size: 8,
       totalElements: 1, totalPages: 1, content: [{ id: 'customer-1', name: 'CUSTOMER E2E',
         email: 'customer@example.test', active: true, registeredAt: '2028-01-01T10:00:00Z',
         reservationCount: 0, completedAppointmentCount: 0, orderCount: 0, completedOrderCount: 0,
         completedOrderRevenue: 0, lastActivityAt: null, version: 0 }] })
-    if (path === '/gaming-sessions' && request.method() === 'POST') {
-      const input = request.postDataJSON() as { durationMinutes:number;purchase?:{ tariffId:string;payment:{ amount:string;method:string } } }
-      if (!request.headers()['idempotency-key'] || input.purchase?.tariffId !== 'tariff-1' || input.purchase.payment.method !== 'CASH' || Number(input.purchase.payment.amount) !== input.durationMinutes / 30 * 100) return json({ message:'Expected a quoted and recorded purchase' }, 422)
-      gamingSessionActive = true
-      return json({ id: 'gaming-session-1', status: 'ACTIVE', version: 1 }, 201)
-    }
     if (path === '/working-hours') return json([])
     return json(emptyPage)
   })

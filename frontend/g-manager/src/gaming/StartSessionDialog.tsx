@@ -1,82 +1,35 @@
-import { gamingBillingApi } from '../api/gamingBillingApi'
-import { PurchaseFields } from './PurchaseFields'
-import { useGamingPurchase } from './useGamingPurchase'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRef, useState, type FormEvent } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useRef, useState } from 'react'
 import { CustomerSearch, type CustomerChoice } from '../customers/CustomerSearch'
 import { CustomerFormDialog } from '../customers/CustomerFormDialog'
-import { useDirtyGuard } from '../forms/useDirtyGuard'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
 import { gamingSessionApi } from '../api/gamingSessionApi'
-import { apiErrorMessage } from '../api/client'
-import { IdempotencyKeyManager } from '../api/idempotency'
-import { Button, EmptyState, ErrorState, Modal, Skeleton, Input, Select, Alert } from '../components/ui'
-import type { GamingStationCard, StartGamingSessionInput } from '../types/gamingSession.types'
-
+import { gamingTimeApi } from '../api/gamingTimeApi'
+import { Button, EmptyState, Modal, Select, Alert } from '../components/ui'
+import type { GamingStationCard } from '../types/gamingSession.types'
+import { useFinancialCommand } from './useFinancialCommand'
+import { remaining, stationLabels } from './presentation'
 export function StartSessionDialog({ station, customer, onClose, onStarted, reservation }: {
   station?: GamingStationCard; customer?: CustomerChoice; onClose: () => void; onStarted?: () => void; reservation?: { id: string; resourceId: string; durationMinutes?: number }
 }) {
-  const client = useQueryClient()
-  const actor = useAuthStore(state => state.user)
-  const [guest, setGuest] = useState(false), [guestName, setGuestName] = useState('Gost')
-  const [creating, setCreating] = useState(false)
-  const [selected, setSelected] = useState<CustomerChoice | null>(customer ?? null)
+  const actor = useAuthStore(s => s.user), input = useRef<HTMLInputElement>(null)
+  const [creating, setCreating] = useState(false), [selected, setSelected] = useState<CustomerChoice | null>(customer ?? null)
   const [resourceId, setResourceId] = useState(station?.resourceId ?? reservation?.resourceId ?? '')
-  const [duration, setDuration] = useState(reservation?.durationMinutes ?? 120), [busy, setBusy] = useState(false), [error, setError] = useState('')
-  const [retryRequest, setRetryRequest] = useState<StartGamingSessionInput | null>(null)
-  const inFlight = useRef(false), key = useRef(new IdempotencyKeyManager()), input = useRef<HTMLInputElement>(null), durationInput = useRef<HTMLInputElement>(null)
+  const command = useFinancialCommand(() => { onStarted?.(); onClose() })
   const stations = useQuery({ queryKey: ['gaming-operations', 'board'], queryFn: () => gamingSessionApi.board(), enabled: !station })
-  const options = stations.data?.stations.filter((value) => value.allowedActions.includes('START')) ?? []
-  const payment = useGamingPurchase(resourceId, duration, guest ? undefined : selected?.id)
-  const policy = useQuery({ queryKey: ['gaming-billing', 'metered-policy'], queryFn: gamingBillingApi.meteredPolicy })
-  const [chosenMode, setMode] = useState<'FIXED_DURATION' | 'PREPAID_METERED' | ''>('')
-  const mode = guest ? 'FIXED_DURATION' : chosenMode || policy.data?.defaultMode || 'FIXED_DURATION'
-  const metered = mode === 'PREPAID_METERED'
-  const valid = metered ? !!selected && !!payment.tariffId && Number(payment.wallet.data?.balance) > 0 : payment.valid
-  const locked = busy || !!retryRequest
-  useDirtyGuard(locked || !!selected, { pending: locked })
-  async function start(event: FormEvent) {
-    event.preventDefault()
-    if ((!selected && !guest) || !resourceId || (!valid && !retryRequest) || inFlight.current) return
-    inFlight.current = true; setBusy(true); setError('')
-    const request = retryRequest ?? { customerId: guest ? undefined : selected?.id, guestName: guest ? guestName : undefined, billingMode: mode, meteredTariffId: metered ? payment.tariffId : undefined, purchase: metered ? undefined : payment.purchase, resourceId, durationMinutes: metered ? undefined : duration, reservationId: reservation?.id }
-    try {
-      await gamingSessionApi.start(request, key.current.begin()); key.current.succeeded()
-      void client.invalidateQueries({ queryKey: ['gaming-operations'] })
-      void client.invalidateQueries({ queryKey: ['gaming-visits'] })
-      onStarted?.(); onClose()
-    } catch (cause) {
-      key.current.failed(cause); setRetryRequest(key.current.pendingKey() ? request : null)
-      setError(apiErrorMessage(cause, 'Sesiju nije moguće pokrenuti.'))
-      void client.invalidateQueries({ queryKey: ['gaming-operations'] })
-    } finally { inFlight.current = false; setBusy(false) }
-  }
-  if (creating) return <CustomerFormDialog onClose={() => setCreating(false)}
-    onSaved={() => { void client.invalidateQueries({ queryKey: ['customers'] }) }}
-    onContinue={value => { setSelected(value); setCreating(false) }} />
-  return <Modal open closeDisabled={locked} title={`Pokreni sesiju${station ? ` · ${station.resourceName}` : ''}`} onClose={() => { if (!locked) onClose() }} initialFocusRef={customer ? durationInput : input}>
-    <form className="ui-form-grid form-grid start-session-form" onSubmit={start}>
-      {error && <Alert tone="danger" role="alert">{error}{retryRequest && ' Ponovnim pokušajem proverava se ista komanda.'}</Alert>}
-      {!customer && !reservation && <label><Input type="checkbox" checked={guest} disabled={locked} onChange={e => setGuest(e.target.checked)} /> Gost bez registracije</label>}
-      {guest ? <label>Oznaka gosta<Input required maxLength={120} value={guestName} disabled={locked} onChange={e => setGuestName(e.target.value)} /></label> : customer ? <p className="selected-customer"><strong>{customer.name}</strong><span>{customer.email}</span></p> : <CustomerSearch selected={selected} onSelect={value=>{setSelected(value);durationInput.current?.focus()}} inputRef={input} disabled={locked}
-        onCreate={hasCapability(actor, 'CUSTOMER_CREATE') ? () => setCreating(true) : undefined} />}
-
-      {!station && <>{stations.isLoading ? <Skeleton lines={2} label="Učitavanje stanica" /> : stations.error ? <ErrorState message="Stanice nisu dostupne."
-        action={<Button variant="secondary" type="button" onClick={() => stations.refetch()}>Pokušaj ponovo</Button>} /> : !options.length ? <EmptyState title="Nema slobodnih stanica" description="Gaming operativa prikazuje zauzete stanice i potrebne recovery akcije." /> :
-        <label>Slobodna stanica<Select aria-label={"Slobodna stanica"} required disabled={locked || !!reservation} value={resourceId} onChange={(event) => setResourceId(event.target.value)}>
-          <option value="">Izaberite stanicu</option>{options.map((value) => <option key={value.resourceId} value={value.resourceId}>{value.resourceName} · {value.applicationProfileName ?? value.resourceCode}</option>)}</Select></label>}</>}
-      {policy.data && <label>Rezim naplate<Select disabled={locked} value={mode} onChange={e => setMode(e.target.value as 'FIXED_DURATION' | 'PREPAID_METERED')}>
-        {policy.data.allowFixed && <option value="FIXED_DURATION">Unapred kupljeno vreme</option>}
-        {policy.data.allowMetered && !guest && <option value="PREPAID_METERED">Prepaid - stvarno vreme</option>}
-      </Select></label>}
-      {!metered && <><fieldset className="duration-presets"><legend>Trajanje</legend><div className="ui-actions form-actions">{[30, 60, 120, 180].map((value) =>
-        <Button type="button" key={value} disabled={locked} variant={duration === value ? 'primary' : 'secondary'} aria-pressed={duration === value} onClick={() => setDuration(value)}>{value} min</Button>)}</div></fieldset>
-      <label htmlFor="gaming-duration">Trajanje u minutima<Input aria-label={"Trajanje u minutima"} ref={durationInput} id="gaming-duration" type="number" required min={1} max={1440} disabled={locked} value={duration} onChange={(event) => setDuration(Number(event.target.value))} /></label>
-      <p className="search-help">{selected ? `${selected.name} · ` : ''}{station?.resourceName ?? options.find((value) => value.resourceId === resourceId)?.resourceName ?? 'Izaberite stanicu'} · {duration} min</p>
-      <PurchaseFields model={payment} disabled={locked} /></>}
-      {metered && <><label>Tarifa<Select disabled={locked} value={payment.tariffId} onChange={e => payment.setChosen(e.target.value)}>{payment.tariffs.data?.filter(t => t.active).map(t => <option key={t.id} value={t.id}>{t.name}: {t.price} RSD / {t.minutes} min</option>)}</Select></label><p>Kredit: {payment.wallet.data?.balance ?? '...'} RSD. Naplacuje se stvarno vreme; zavrsite igranje kada zelite. Zapoceta obracunska jedinica naplacuje se u celosti ({policy.data?.billingUnitSeconds ?? 1} s).</p></>}
-      <Button type="submit" loading={busy} disabled={(!selected && !guest) || !resourceId || (!valid && !retryRequest)}>{retryRequest ? 'Pokušaj ponovo' : metered ? 'Pokreni prepaid igranje' : `Potvrdi naplatu i pokreni za ${guest ? guestName : selected?.name ?? 'klijenta'}`}</Button>
+  const options = stations.data?.stations.filter(s => s.allowedActions.includes('START')) ?? []
+  const wallet = useQuery({ queryKey: ['gaming-time', selected?.id], queryFn: () => gamingTimeApi.account(selected!.id), enabled: !!selected, refetchInterval: 5000 })
+  if (creating) return <CustomerFormDialog onClose={() => setCreating(false)} onSaved={() => {}} onContinue={value => { setSelected(value); setCreating(false) }} />
+  return <Modal open closeDisabled={command.locked} title="Dodeli računar" onClose={onClose} initialFocusRef={input}>
+    <form className="ui-form-grid" onSubmit={e => { e.preventDefault(); if (!selected || !resourceId) return; const body = { customerId: selected.id, resourceId, reservationId: reservation?.id }; void command.run(key => gamingTimeApi.assign(body, key)) }}>
+      {command.feedback}{customer ? <p><strong>{customer.name}</strong> {customer.email}</p> : <CustomerSearch selected={selected} onSelect={setSelected} inputRef={input} disabled={command.locked} onCreate={hasCapability(actor, 'CUSTOMER_CREATE') ? () => setCreating(true) : undefined} />}
+      {wallet.error && <Alert tone="danger">Saldo nije dostupan.</Alert>}
+      {wallet.data && <p>Raspoloživo vreme: <strong>{remaining(wallet.data.balanceSeconds)}</strong></p>}
+      {station ? <p>{station.resourceName} — {stationLabels[station.status]}</p> : <label>Slobodna stanica<Select required disabled={command.locked || !!reservation} value={resourceId} onChange={e => setResourceId(e.target.value)}><option value="">Izaberite stanicu</option>{options.map(s => <option key={s.resourceId} value={s.resourceId}>{s.resourceName} — {stationLabels[s.status]}</option>)}</Select></label>}
+      {!station && !stations.isLoading && !options.length && <EmptyState title="Nema slobodnih stanica" />}
+      <p>Računar čeka prijavu najviše 5 minuta. Odbrojavanje počinje tek posle uspešne prijave na Windows Client. Dodela ne troši saldo.</p>
+      <Button type="submit" loading={command.busy} disabled={command.locked || !selected || !resourceId || !wallet.data || wallet.data.balanceSeconds <= 0}>Dodeli računar</Button>
     </form>
   </Modal>
 }

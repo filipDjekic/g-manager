@@ -37,7 +37,7 @@ class ProductionOperationsIntegrationTest {
     }
     String path(int pc){return "/api/v1/stations/"+PilotGamingCenterIT.id("pc-"+pc)+"/client-updates";}
     @Test void managedUpdateIsScopedAuditedSignedAndNeverChangesPaidTime() throws Exception {
-        var started=f.command("/api/v1/gaming-sessions",f.staff(2),f.start(0,0,0,"CASH",200),201);
+        var started=f.startVisit(0,0,200,60);
         var requested=f.call(post(path(0)),f.staff(0),Map.of("reason","One-station canary","notBefore",Instant.now().plusSeconds(60)),200);
         assertThat(requested.get("targetVersion").asText()).isEqualTo("4.0.0");
         var replay=f.call(post(path(0)),f.staff(1),Map.of("reason","Same pending target"),200);
@@ -48,19 +48,19 @@ class ProductionOperationsIntegrationTest {
         f.call(get(path(0)),f.customer(0),null,403);
         var updates=context.getBean(com.game_manager.gm.common.scheduling.ClientUpdatePort.class);
         updates.observe(PilotGamingCenterIT.id("pc-0"),"3.0.0","FAILED",UUID.randomUUID());
-        assertThat(f.call(get(path(0)),f.staff(0),null,200).get(0).get("status").asText()).isEqualTo("REQUESTED");
+        assertThat(f.call(get(path(0)),f.staff(0),null,200).get("content").get(0).get("status").asText()).isEqualTo("REQUESTED");
         updates.observe(PilotGamingCenterIT.id("pc-0"),"3.0.0","DEFERRED",UUID.fromString(requested.get("id").asText()));
-        assertThat(f.call(get(path(0)),f.staff(0),null,200).get(0).get("status").asText()).isEqualTo("DEFERRED");
+        assertThat(f.call(get(path(0)),f.staff(0),null,200).get("content").get(0).get("status").asText()).isEqualTo("DEFERRED");
         updates.observe(PilotGamingCenterIT.id("pc-0"),"4.0.0","CURRENT",UUID.fromString(requested.get("id").asText()));
-        assertThat(f.call(get(path(0)),f.staff(0),null,200).get(0).get("status").asText()).isEqualTo("APPLIED");
+        assertThat(f.call(get(path(0)),f.staff(0),null,200).get("content").get(0).get("status").asText()).isEqualTo("APPLIED");
         assertThat(f.lease(0).hasNonNull("clientUpdate")).isFalse();f.assertLedger();
         assertThat(f.jdbc.queryForObject("SELECT COUNT(*) FROM audit_events WHERE action='CLIENT_UPDATE_REQUESTED'",Integer.class)).isEqualTo(1);
     }
     @Test void backupGateRejectsBadTokensAndFinancialRetryCommitsExactlyOnceWhileMachineLeaseWorks() throws Exception {
         f.call(post("/internal/backup"),null,null,401);
         var lease=f.call(post("/internal/backup").header("X-GManager-Backup-Key",KEY),null,null,200);
-        String key="backup-retry-topup",path="/api/v1/gaming-billing/customers/"+PilotGamingCenterIT.id("customer-0")+"/topups";
-        var body=Map.of("resourceId",PilotGamingCenterIT.id("pc-0"),"payment",f.payment("CASH",120),"reason","Received test cash");
+        String key="backup-retry-topup",path="/api/v1/gaming-billing/customers/"+PilotGamingCenterIT.id("customer-0")+"/time-grants";
+        var body=Map.of("minutes",60,"priceVersion",1);
         try{
             f.call(get("/internal/backup/"+lease.get("id").asText()+"/metadata"),null,null,401);
             var metadata=f.call(get("/internal/backup/"+lease.get("id").asText()+"/metadata").header("X-GManager-Backup-Key",KEY),null,null,200);
@@ -91,7 +91,7 @@ class ProductionOperationsIntegrationTest {
         f.call(get("/api/v1/stations/"+PilotGamingCenterIT.id("pc-0")+"/client-status"),f.staff(2),null,200);
     }
     @Test void updateClaimCannotInterruptPaidTimeAndBlocksTheNextCustomerUntilCompletion() throws Exception {
-        var started=f.command("/api/v1/gaming-sessions",f.staff(2),f.start(0,0,0,"CASH",200),201);
+        var started=f.startVisit(0,0,200,60);
         var requested=f.call(post(path(0)),f.staff(0),Map.of("reason","Managed update after visit"),200);
         var claim=Map.of("requestId",requested.get("id").asText());
         f.call(post("/api/v1/machine/client-update/claim"),f.machines.get(0),claim,409);
@@ -100,18 +100,20 @@ class ProductionOperationsIntegrationTest {
         f.pollAndAck(0,true);
         f.command("/api/v1/gaming-operations/stations/"+PilotGamingCenterIT.id("pc-0")+"/prepare",f.staff(2),Map.of("sessionId",started.get("id").asText(),"isolatedProfileVerified",true,"reason","Synthetic privacy fixture"),200);
         f.call(post("/api/v1/machine/client-update/claim"),f.machines.get(0),claim,204);
-        f.command("/api/v1/gaming-sessions",f.staff(2),f.start(0,1,0,"CASH",200),409);
-        assertThat(f.jdbc.queryForObject("SELECT COUNT(*) FROM gaming_financial_operations",Integer.class)).isEqualTo(1);
-        assertThat(f.call(get(path(0)),f.staff(0),null,200).get(0).get("status").asText()).isEqualTo("INSTALLING");
+        f.command("/api/v1/gaming-billing/customers/"+PilotGamingCenterIT.id("customer-1")+"/time-grants",f.staff(2),Map.of("minutes",60,"priceVersion",1),200);
+        f.command("/api/v1/gaming-billing/assignments",f.staff(2),Map.of("customerId",PilotGamingCenterIT.id("customer-1"),"resourceId",PilotGamingCenterIT.id("pc-0")),409);
+        assertThat(f.jdbc.queryForObject("SELECT COUNT(*) FROM gaming_financial_operations",Integer.class)).isEqualTo(2);
+        assertThat(f.call(get(path(0)),f.staff(0),null,200).get("content").get(0).get("status").asText()).isEqualTo("INSTALLING");
         context.getBean(com.game_manager.gm.common.scheduling.ClientUpdatePort.class).observe(PilotGamingCenterIT.id("pc-0"),"4.0.0","CURRENT",UUID.fromString(requested.get("id").asText()));
-        f.command("/api/v1/gaming-sessions",f.staff(2),f.start(0,1,0,"CASH",200),201);f.assertLedger();
+        f.command("/api/v1/gaming-billing/assignments",f.staff(2),Map.of("customerId",PilotGamingCenterIT.id("customer-1"),"resourceId",PilotGamingCenterIT.id("pc-0")),200);f.assertLedger();
     }
-    @Test void simultaneousPaidStartAndUpdateClaimHaveExactlyOneWinner() throws Exception {
+    @Test void simultaneousAssignmentAndUpdateClaimHaveExactlyOneWinner() throws Exception {
+        f.command("/api/v1/gaming-billing/customers/"+PilotGamingCenterIT.id("customer-0")+"/time-grants",f.staff(2),Map.of("minutes",60,"priceVersion",1),200);
         var requested=f.call(post(path(0)),f.staff(0),Map.of("reason","Concurrent claim test"),200);
         var outcomes=f.parallel(List.of(
-            ()->f.rawCommand("/api/v1/gaming-sessions",f.staff(2),f.start(0,0,0,"CASH",200)),
+            ()->f.rawCommand("/api/v1/gaming-billing/assignments",f.staff(2),Map.of("customerId",PilotGamingCenterIT.id("customer-0"),"resourceId",PilotGamingCenterIT.id("pc-0"))),
             ()->f.rawCommand("/api/v1/machine/client-update/claim",f.machines.get(0),Map.of("requestId",requested.get("id").asText()))));
         var codes=outcomes.stream().map(value->value.get("status").asInt()).toList();
-        assertThat(codes).contains(409);assertThat(codes.stream().filter(value->value==201||value==204).count()).isEqualTo(1);f.assertLedger();
+        assertThat(codes).contains(409);assertThat(codes.stream().filter(value->value==200||value==204).count()).isEqualTo(1);f.assertLedger();
     }
 }

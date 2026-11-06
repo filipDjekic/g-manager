@@ -277,11 +277,11 @@ public partial class MainWindow : Window
         };
         Subtitle.Text = mode switch
         {
-            ClientMode.Login => "Pristupi svojoj gaming sesiji.",
+            ClientMode.Login => "Računar je dodeljen. Odbrojavanje počinje tek nakon uspešne prijave.",
             ClientMode.Active => "Uživaj u svom gaming prostoru.",
             ClientMode.Offline => "Sačekaj da se veza ponovo uspostavi.",
             ClientMode.Maintenance => "Stanica je privremeno van upotrebe.",
-            _ => "Za početak je potrebna aktivna sesija."
+            _ => "Za početak zatraži dodelu računara od osoblja."
         };
         StateIcon.Data = (Geometry)FindResource(mode switch
         {

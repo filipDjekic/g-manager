@@ -15,11 +15,12 @@ export function useFinancialCommand(onDone?: () => void) {
     const request = previous.current ?? operation
     try {
       await request(key.current.begin()); key.current.succeeded(); previous.current = null; setPending(false)
-      await Promise.allSettled([client.invalidateQueries({ queryKey: ['gaming-operations'] }), client.invalidateQueries({ queryKey: ['gaming-wallet'] }), client.invalidateQueries({ queryKey: ['gaming-billing'] })])
+      await Promise.allSettled([client.invalidateQueries({ queryKey: ['gaming-time'] }), client.invalidateQueries({ queryKey: ['gaming-visits'] }), client.invalidateQueries({ queryKey: ['gaming-operations'] }), client.invalidateQueries({ queryKey: ['gaming-wallet'] }), client.invalidateQueries({ queryKey: ['gaming-billing'] })])
       onDone?.()
     } catch (cause) {
       key.current.failed(cause); previous.current = key.current.pendingKey() ? request : null; setPending(!!previous.current)
       setError(apiErrorMessage(cause, 'Operacija nije uspela.'))
+      void client.invalidateQueries({ queryKey: ['gaming-time', 'price'] })
     } finally { gate.current = false; setBusy(false) }
   }
   return { run, busy, locked: busy || pending, feedback: error && <Alert tone="danger">{error}{pending && <><p>Ishod nije potvrdjen. Proverite isti zahtev pre nove operacije.</p><Button type="button" disabled={busy} onClick={() => previous.current && void run(previous.current)}>Proveri prethodni zahtev</Button></>}</Alert> }

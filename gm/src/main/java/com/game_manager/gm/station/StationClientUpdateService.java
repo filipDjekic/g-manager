@@ -78,6 +78,7 @@ public class StationClientUpdateService implements ClientUpdatePort {
     @Override @Transactional public void claim(UUID stationId,UUID identityId,UUID requestId){
         if(!"RELEASED".equals(status))throw new ApplicationException(HttpStatus.CONFLICT,"No approved release available");
         jdbc.queryForObject("SELECT id FROM physical_resources WHERE id=? FOR UPDATE",String.class,stationId.toString());
+        if(!jdbc.queryForList("SELECT id FROM gaming_station_assignments WHERE resource_id=? AND status='WAITING_FOR_LOGIN' AND expires_at>? FOR UPDATE",String.class,stationId.toString(),Timestamp.from(clock.instant())).isEmpty())throw new ApplicationException(HttpStatus.CONFLICT,"Cancel the waiting gaming assignment before installation");
         if(!jdbc.queryForList("SELECT id FROM gaming_sessions WHERE (resource_id=? OR move_target_id=?) AND status='ACTIVE' FOR UPDATE",String.class,stationId.toString(),stationId.toString()).isEmpty())throw new ApplicationException(HttpStatus.CONFLICT,"A paid session must finish before installation");
         if(installing(stationId))throw new ApplicationException(HttpStatus.CONFLICT,"An installation is already in progress");
         var latest=rows(stationId,1);Update intent=latest.isEmpty()?null:latest.getFirst();Instant now=clock.instant();

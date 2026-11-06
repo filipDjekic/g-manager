@@ -49,7 +49,7 @@ class ProductionBackupIT {
         f.jwt=context.getBean(com.game_manager.gm.security.JwtService.class);f.passwords=context.getBean(org.springframework.security.crypto.password.PasswordEncoder.class);
         f.json=context.getBean(tools.jackson.databind.ObjectMapper.class);f.fixture();
         assertThatThrownBy(()->f.jdbc.execute("CREATE TABLE forbidden_runtime_ddl (id INT)")).isInstanceOf(org.springframework.dao.DataAccessException.class);
-        var started=f.command("/api/v1/gaming-sessions",f.staff(2),f.start(0,0,0,"CASH",200),201);
+        var started=f.startVisit(0,0,200,60);
         context.getBean(com.game_manager.gm.document.DocumentService.class).storeGenerated(PilotGamingCenterIT.id("owner"),"backup.txt","text/plain","private restore fixture".getBytes(StandardCharsets.UTF_8));
         Testcontainers.exposeHostPorts(port);
         try(var backup=new GenericContainer<>(BackupTestImage.IMAGE).withNetwork(NETWORK).withAccessToHost(true).withCommand("sleep","infinity")

@@ -1,0 +1,10 @@
+{
+  "users": true,
+  "gaming_time_accounts": true,
+  "gaming_time_ledger": true,
+  "gaming_financial_operations": true,
+  "gaming_sessions": true,
+  "gaming_time_packages": true,
+  "gaming_wallet_ledger": true,
+  "gaming_station_assignments": true
+}

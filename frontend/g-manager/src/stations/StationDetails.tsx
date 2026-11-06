@@ -61,7 +61,7 @@ export function StationDetails({ station, user, now, initialTab, profiles, defin
               <div><dt>Naziv</dt><dd>{station.resourceName}</dd></div><div><dt>Kod</dt><dd>{station.resourceCode}</dd></div>
               <div><dt>Lokal</dt><dd>{station.locationName || 'Nije dostupan'}</dd></div><div><dt>Zona</dt><dd>{station.areaName || 'Nije dostupna'}</dd></div>
               <div><dt>Operativno stanje</dt><dd>{operationalLabels[station.operationalStatus]}</dd></div>
-              <div><dt>Efektivno stanje</dt><dd>{station.effectiveStatus === 'IN_SESSION' ? 'U sesiji' : operationalLabels[station.effectiveStatus as keyof typeof operationalLabels] ?? 'Bez veze'}</dd></div>
+              <div><dt>Efektivno stanje</dt><dd>{station.effectiveStatus === 'WAITING_FOR_LOGIN' ? 'Čeka prijavu' : station.effectiveStatus === 'IN_SESSION' ? 'U sesiji' : operationalLabels[station.effectiveStatus as keyof typeof operationalLabels] ?? 'Bez veze'}</dd></div>
               <div><dt>Gaming Client konekcija</dt><dd><Badge tone={connection.tone}>{connection.label}</Badge></dd></div>
               <div><dt>Poslednji heartbeat</dt><dd>{date(station.lastHeartbeatAt)}{live?.staleHeartbeat && <small>Heartbeat je zastareo</small>}</dd></div>
               <div><dt>Verzija klijenta</dt><dd>{station.clientVersion || 'Nije prijavljena'}</dd></div>

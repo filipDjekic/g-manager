@@ -1,6 +1,7 @@
 package com.game_manager.gm.machine;
 import com.game_manager.gm.auth.RateLimitService;import com.game_manager.gm.common.error.ApplicationException;import com.game_manager.gm.common.security.Role;import com.game_manager.gm.gamingsession.*;import com.game_manager.gm.gamingsession.command.*;import com.game_manager.gm.machine.dto.MachineDtos.*;import com.game_manager.gm.security.JwtService;import com.game_manager.gm.station.*;import com.game_manager.gm.user.*;import java.security.*;import java.time.*;import java.util.*;import org.springframework.http.HttpStatus;import org.springframework.security.crypto.password.PasswordEncoder;import org.springframework.stereotype.Service;import org.springframework.transaction.annotation.Transactional;
-@Service public class MachineProtocolService {@org.springframework.beans.factory.annotation.Autowired private com.game_manager.gm.common.scheduling.ClientUpdatePort clientUpdates;
+@Service public class MachineProtocolService {
+ @org.springframework.beans.factory.annotation.Autowired private com.game_manager.gm.gamingsession.billing.GamingTimeService time;@org.springframework.beans.factory.annotation.Autowired private com.game_manager.gm.common.scheduling.ClientUpdatePort clientUpdates;
  @org.springframework.beans.factory.annotation.Autowired private com.game_manager.gm.gamingsession.billing.MeteredSessionRuntime metered;
  private final StationCommandWriter commandWriter;
  private final StationEnrollmentTokenRepository tokens;private final StationMachineIdentityRepository identities;private final StationAuthChallengeRepository challenges;private final StationHeartbeatRepository heartbeats;private final GamingStationProfileRepository stations;private final GamingSessionRepository sessions;private final StationCommandRepository commands;private final MachinePrincipalProvider principal;private final JwtService jwt;private final RateLimitService limits;private final Clock clock;private final UserRepository users;private final PasswordEncoder passwords;private final MachineLoginAttemptWriter loginAttempts;private final SecureRandom random=new SecureRandom();
@@ -31,10 +32,25 @@ import com.game_manager.gm.auth.RateLimitService;import com.game_manager.gm.comm
 
  @Transactional public CommandAckResponse acknowledge(long sequence){MachinePrincipal machine=machine("ack");StationCommand command=commands.findByStationIdAndSequence(machine.stationId(),sequence).orElseThrow(()->new ApplicationException(HttpStatus.NOT_FOUND,"Station command not found"));if(command.getAcknowledgedAt()==null){command.setAcknowledgedAt(clock.instant());commands.saveAndFlush(command);}heartbeats.findById(machine.stationId()).ifPresent(heartbeat->{if(sequence>heartbeat.getLastCommandSequence())heartbeat.setLastCommandSequence(sequence);});return new CommandAckResponse(sequence,command.getAcknowledgedAt());}
 
- @Transactional(readOnly=true)public SessionLoginResponse sessionLogin(SessionLoginRequest request){MachinePrincipal machine=principal.require();limits.checkMachineCustomerLogin(machine.identityId());String hash=MachineCrypto.hash(request.email().trim().toLowerCase(Locale.ROOT));if(heartbeats.findById(machine.stationId()).map(h->Boolean.TRUE.equals(h.getMaintenanceActive())).orElse(false))throw invalidCustomerLogin();GamingSession session=sessions.findByResourceIdAndStatus(machine.stationId(),GamingSessionStatus.ACTIVE).orElse(null);if(session==null || session.getCustomerId()==null || session.getMoveTargetId()!=null || !session.getEndsAt().isAfter(clock.instant())){loginAttempts.write(machine,null,null,hash,StationSessionLoginOutcome.NO_ACTIVE_SESSION);throw invalidCustomerLogin();}User customer=users.findById(session.getCustomerId()).orElse(null);boolean valid=customer!=null&&customer.getRole()==Role.CUSTOMER&&customer.isActive()&&!customer.isDeleted()&&customer.getEmail().equalsIgnoreCase(request.email().trim())&&passwords.matches(request.password(),customer.getPasswordHash());if(!valid){loginAttempts.write(machine,session.getId(),session.getCustomerId(),hash,StationSessionLoginOutcome.INVALID_CREDENTIALS);throw invalidCustomerLogin();}loginAttempts.write(machine,session.getId(),customer.getId(),hash,StationSessionLoginOutcome.SUCCESS);return new SessionLoginResponse(session.getId(),machine.stationId(),customer.getId(),customer.getName(),session.getStartedAt(),session.getEndsAt(),clock.instant());}
+ @Transactional(isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
+ public SessionLoginResponse sessionLogin(SessionLoginRequest request) {
+  MachinePrincipal machine=principal.require();limits.checkMachineCustomerLogin(machine.identityId());
+  String hash=MachineCrypto.hash(request.email().trim().toLowerCase(Locale.ROOT));
+  var waiting=time.waiting(machine.stationId());
+  var active=sessions.findByResourceIdAndStatus(machine.stationId(),GamingSessionStatus.ACTIVE).orElse(null);
+  UUID customerId=waiting==null?(active==null?null:active.getCustomerId()):UUID.fromString(waiting.get("customer_id").toString());
+  User customer=customerId==null?null:users.findById(customerId).orElse(null);
+  if(customer==null || customer.getRole()!=Role.CUSTOMER || !customer.isActive() || customer.isDeleted() || !customer.getEmail().equalsIgnoreCase(request.email().trim()) || !passwords.matches(request.password(),customer.getPasswordHash())) {
+   loginAttempts.write(machine,null,customerId,hash,StationSessionLoginOutcome.INVALID_CREDENTIALS);throw invalidCustomerLogin();
+  }
+  GamingSession session=time.activate(customerId,machine.stationId());
+  loginAttempts.writeConfirmed(machine,session.getId(),customerId,hash,StationSessionLoginOutcome.SUCCESS);
+  return new SessionLoginResponse(session.getId(),machine.stationId(),customerId,customer.getName(),session.getStartedAt(),session.getEndsAt(),clock.instant());
+ }
 
  @Transactional(isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED) public void sessionLogout(SessionLogoutRequest request){MachinePrincipal machine=principal.require();GamingSession session=sessions.findById(request.sessionId()).filter(value->value.getResourceId().equals(machine.stationId())).orElseThrow(this::invalidCustomerLogin);
-  if(session.getBillingMode()==GamingBillingMode.PREPAID_METERED) { metered.finish(session.getId()); return; }
+  if(session.getBillingMode()==GamingBillingMode.TIME_BALANCE && "CLIENT_RECOVERY".equals(request.reason())) { time.recover(session.getId()); return; }
+  if(session.getBillingMode()!=GamingBillingMode.FIXED_DURATION) { metered.finish(session.getId()); return; }
   session=sessions.findByIdForUpdate(request.sessionId()).orElseThrow(this::invalidCustomerLogin);
   if(session.getStatus()!=GamingSessionStatus.ACTIVE) return;
   session.setStatus(GamingSessionStatus.TERMINATED);session.setEndedAt(clock.instant());session.setTerminationReason("Customer ended session from the Client");sessions.saveAndFlush(session);

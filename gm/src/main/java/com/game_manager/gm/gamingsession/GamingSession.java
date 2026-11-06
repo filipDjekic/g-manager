@@ -13,6 +13,7 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "gaming_sessions")
 @Getter @Setter
 public class GamingSession extends BaseEntity {
+    @Column(name="access_until") private Instant accessUntil;
     @JdbcTypeCode(SqlTypes.CHAR) @Column(name = "customer_id", length = 36) private UUID customerId;
     @JdbcTypeCode(SqlTypes.CHAR) @Column(name = "resource_id", nullable = false, length = 36) private UUID resourceId;
     @JdbcTypeCode(SqlTypes.CHAR) @Column(name = "location_id", nullable = false, length = 36) private UUID locationId;

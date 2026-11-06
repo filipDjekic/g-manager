@@ -11,14 +11,14 @@ import { GamingPilotHealth } from './GamingPilotHealth'
 const station: GamingStationCard = { resourceId: 'pc', resourceCode: 'PC1', resourceName: 'Pilot PC', locationId: 'loc', status: 'CLIENT_ERROR', clientEnabled: true, staleHeartbeat: false, enforcementStatus: 'UNKNOWN', remainingSeconds: 0, allowedActions: [], clientErrorCode: 'RECOVERY_FAILED', updateStatus: 'FAILED' }
 const handlers = { onStart: vi.fn(), onExtend: vi.fn(), onEnd: vi.fn(), onCustom: vi.fn(), onHistory: vi.fn(), onRecovery: vi.fn() }
 it('shows a client recovery failure and failed update without offering a new session', () => {
-  render(<StationTile station={station} seconds={0} selected={false} disabled={false} onSelect={vi.fn()} handlers={handlers} />)
+  render(<QueryClientProvider client={new QueryClient()}><StationTile station={station} seconds={0} selected={false} disabled={false} onSelect={vi.fn()} handlers={handlers} /></QueryClientProvider>)
   expect(screen.getByRole('alert')).toHaveTextContent('Client zahteva proveru: RECOVERY_FAILED')
   expect(screen.getByText(/Poslednje ažuriranje nije uspelo/)).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Pokreni sesiju' })).not.toBeInTheDocument()
   expect(needsAttention(station)).toBe(true)
 })
 it('labels cached errors as the last reported error when the heartbeat is stale', () => {
-  render(<StationTile station={{ ...station, status: 'OFFLINE', staleHeartbeat: true }} seconds={0} selected={false} disabled={false} onSelect={vi.fn()} handlers={handlers} />)
+  render(<QueryClientProvider client={new QueryClient()}><StationTile station={{ ...station, status: 'OFFLINE', staleHeartbeat: true }} seconds={0} selected={false} disabled={false} onSelect={vi.fn()} handlers={handlers} /></QueryClientProvider>)
   expect(screen.getByRole('alert')).toHaveTextContent('Poslednja prijavljena greška: RECOVERY_FAILED')
   expect(screen.queryByText('Povezan')).not.toBeInTheDocument()
 })

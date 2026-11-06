@@ -88,7 +88,7 @@ function CustomerRowActions({ customer, canEdit, canStart, canDeactivate, disabl
       {canEdit && <Button type="button" variant="secondary" role="menuitem" onClick={() => choose('EDIT')}>Izmeni podatke</Button>}
       {canStart && customer.active && canReadGaming && visits.isFetching && <span role="status">Provera gaming sesija…</span>}
       {canStart && customer.active && (!canReadGaming || visits.data && !visits.error && !activeSession) &&
-        <Button type="button" variant="primary" role="menuitem" disabled={visits.isFetching} onClick={() => choose('START')}>Pokreni gaming sesiju</Button>}
+        <Button type="button" variant="primary" role="menuitem" disabled={visits.isFetching} onClick={() => choose('START')}>Dodeli računar</Button>}
       {canStart && customer.active && activeSession && <span>Gaming sesija je već aktivna.</span>}
       {canStart && customer.active && visits.error && <span role="alert">Gaming sesije nije moguće proveriti. Otvorite profil.</span>}
       {canDeactivate && customer.active && <Button type="button" variant="danger" role="menuitem" onClick={() => choose('DEACTIVATE')}>Deaktiviraj klijenta</Button>}

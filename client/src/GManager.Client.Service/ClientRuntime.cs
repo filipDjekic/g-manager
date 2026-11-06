@@ -92,10 +92,11 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
                 policy.ReapplyLocked();
                 events.Write("MAINTENANCE_EXIT","LOCKED");
             }
-            if(recovery is null || LeaseDeadlinePolicy.MustLock(recovery.Lease,trusted.Now())) LockLocal("Lease deadline");
+            if(recovery is not null && CanUseAssignment(recovery.Lease) && locallyLocked) ShowAssignment(recovery.Lease);
+            else if(recovery is null || LeaseDeadlinePolicy.MustLock(recovery.Lease,trusted.Now())) { LockLocal("Lease deadline"); if(recovery is not null) ShowAssignment(recovery.Lease); }
         }
         ProtectedIdentityStore.AtomicWrite(Path.Combine(environment.StateDirectory,"health.json"),JsonSerializer.SerializeToUtf8Bytes(new {
-            timestamp=DateTimeOffset.UtcNow, mode=State.Mode.ToString(), version=environment.Version, initialized,
+            timestamp=DateTimeOffset.UtcNow, mode=State.Mode.ToString(), sessionState=State.SessionState.ToString(), version=environment.Version, initialized,
             development=environment.Development, enforcementVerified=policy.EnforcementVerified, errorCode=ErrorCode, serverConnected=ServerConnected,
             apiFailure=environment.Development?DevelopmentFailure:null,
             stationId=environment.Development?Identity?.StationId:null, clientMode=environment.Development?"DEVELOPMENT":"PRODUCTION",
@@ -117,8 +118,16 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
                 cryptographicPhase=CryptographicFailurePhase.ConfigurationSignature;
                 await policy.ApplyAsync(await protocol.ConfigurationAsync(token!,ct),Identity.StationId,ct);
                 cryptographicPhase=CryptographicFailurePhase.SessionLeaseVerification;
+                // A restarted/locked Service must settle old access, never renew it while awaiting login.
+                if(State.Mode!=ClientMode.Active && recovery?.Lease.BillingMode=="TIME_BALANCE" && recovery.Lease.Directive=="ACTIVE" && recovery.Lease.SessionId is Guid interrupted)
+                    await protocol.RecoverSessionAsync(token!,interrupted,ct);
                 var envelope=await protocol.LeaseAsync(token!,ct);
                 var lease=leases.Verify(envelope,Identity.StationId);
+                if(State.Mode!=ClientMode.Active && lease.BillingMode=="TIME_BALANCE" && lease.Directive=="ACTIVE" && lease.SessionId is Guid orphaned) {
+                    await protocol.RecoverSessionAsync(token!,orphaned,ct);
+                    envelope=await protocol.LeaseAsync(token!,ct);lease=leases.Verify(envelope,Identity.StationId);
+                    if(lease.Directive!="LOCK")throw new InvalidOperationException("Backend has not confirmed session recovery");
+                }
                 LeaseRecoveryPolicy.Validate(recovery,lease);
                 trusted.Observe(lease.IssuedAt);
                 cryptographicPhase=CryptographicFailurePhase.ConfigurationVersion;
@@ -231,31 +240,49 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
         {
             Tick();
             if(maintenance || trusted.Now()<preparingUntil) return new(false,"Stanica je u režimu održavanja.",State);
+            bool logoutRequested=request.Type=="logout" && request.SessionId is not null && request.SessionId==State.SessionId;
+            if(logoutRequested) { LockLocal("Customer logout"); SaveRecovery(); }
             await EnsureToken(ct);
             cryptographicPhase=CryptographicFailurePhase.LocalAction;
-            if((request.Type=="login" && request.Email is not null && request.Password is not null || request.Type=="guest-login" && request.SessionId==recovery?.Lease.SessionId && recovery?.Lease.CustomerId is null) && recovery is not null && !commandGap && recovery.AppliedSequence>=recovery.Lease.CommandCursor && recovery.BlockedSessionId!=recovery.Lease.SessionId && !LeaseDeadlinePolicy.MustLock(recovery.Lease,trusted.Now()))
+            if((request.Type=="login" && request.Email is not null && request.Password is not null || request.Type=="guest-login" && request.SessionId==recovery?.Lease.SessionId && recovery?.Lease.CustomerId is null) && recovery is not null && !commandGap && recovery.AppliedSequence>=recovery.Lease.CommandCursor &&
+               (CanUseAssignment(recovery.Lease) || recovery.Lease.Directive=="ACTIVE" && recovery.BlockedSessionId!=recovery.Lease.SessionId && !LeaseDeadlinePolicy.MustLock(recovery.Lease,trusted.Now())))
             {
                 var result=request.Type=="guest-login" ? await protocol.GuestLoginAsync(token!,request.SessionId!.Value,ct) : await protocol.LoginAsync(token!,request.Email!,request.Password!,ct);
-                ObserveServerConnection(true);
-                trusted.Observe(result.ServerTime);
+                ObserveServerConnection(true); trusted.Observe(result.ServerTime);
+                // Credentials alone never unlock Windows: fetch and verify the new signed entitlement and ordered command.
+                cryptographicPhase=CryptographicFailurePhase.SessionLeaseVerification;
+                var envelope=await protocol.LeaseAsync(token!,ct);
+                var lease=leases.Verify(envelope,Identity!.StationId);
+                LeaseRecoveryPolicy.Validate(recovery,lease);
+                if(lease.ConfigurationVersion!=policy.CurrentVersion) throw new CryptographicException("Lease/configuration version mismatch");
+                trusted.Observe(lease.IssuedAt);
+                lock(stateSync) recovery=new(envelope,lease,recovery.AppliedSequence,trusted.Now(),recovery.PendingLockSequence,recovery.PendingLockSessionId,true,recovery.BlockedSessionId,recovery.PendingCommandAckSequence);
+                await ReconcileCommands(ct); ApplyLease(lease);
                 lock(stateSync)
                 {
-                    if(result.SessionId!=recovery.Lease.SessionId || trusted.Now()>=result.EndsAt || LeaseDeadlinePolicy.MustLock(recovery.Lease,trusted.Now()) || maintenance) return new(false,"Sesija više nije aktivna.",State);
+                    if(result.SessionId!=lease.SessionId || commandGap || recovery.AppliedSequence<lease.CommandCursor || recovery.BlockedSessionId==lease.SessionId || trusted.Now()>=result.EndsAt || LeaseDeadlinePolicy.MustLock(lease,trusted.Now()) || maintenance) return new(false,"Sesija više nije aktivna.",State);
                     policy.SetSessionActive(true);
-                    if(LeaseDeadlinePolicy.MustLock(recovery.Lease,trusted.Now())) { locallyLocked=false; LockLocal("Login deadline"); return new(false,"Sesija je istekla.",State); }
-                    locallyLocked=false;
-                    recovery=recovery with { LocallyLocked=false };
-                    State=State with { SessionId=result.SessionId,EndsAt=result.EndsAt,ServerOffset=result.ServerTime-DateTimeOffset.UtcNow };
-                    State=State.Welcome(result.CustomerName);
+                    if(LeaseDeadlinePolicy.MustLock(lease,trusted.Now())) { locallyLocked=false; LockLocal("Login deadline"); return new(false,"Sesija je istekla.",State); }
+                    locallyLocked=false; recovery=recovery with { LocallyLocked=false };
+                    State=State with { SessionId=result.SessionId,EndsAt=lease.SessionEndsAt,ServerOffset=lease.IssuedAt-DateTimeOffset.UtcNow,BalanceSeconds=lease.BalanceSeconds };
+                    State=State.Welcome(result.CustomerName);SaveRecovery();
                     return new(true,null,State,policy.VisibleApplications,policy.AutoApplications());
                 }
             }
             if(request.Type=="launch" && State.Mode==ClientMode.Active && request.ApplicationCode is not null)
                 return new(true,null,State,policy.VisibleApplications,[policy.Launch(request.ApplicationCode)]);
-            if(request.Type=="logout" && request.SessionId==State.SessionId)
+            if(logoutRequested)
             {
                 LockLocal("Customer logout");
-                if(request.SessionId is Guid sessionId) { await protocol.LogoutAsync(token!,sessionId,ct); ObserveServerConnection(true); }
+                if(request.SessionId is Guid sessionId) {
+                    await protocol.LogoutAsync(token!,sessionId,ct); ObserveServerConnection(true);
+                    var envelope=await protocol.LeaseAsync(token!,ct);var lease=leases.Verify(envelope,Identity!.StationId);
+                    LeaseRecoveryPolicy.Validate(recovery,lease);
+                    if(lease.Directive!="LOCK" || lease.SessionId is not null) return new(false,"Server još nije potvrdio završetak igranja.",State);
+                    trusted.Observe(lease.IssuedAt);
+                    lock(stateSync) recovery=new(envelope,lease,recovery?.AppliedSequence??0,trusted.Now(),recovery?.PendingLockSequence,recovery?.PendingLockSessionId,true,recovery?.BlockedSessionId,recovery?.PendingCommandAckSequence);
+                    await ReconcileCommands(ct);ApplyLease(lease);await AckPendingLock(ct);
+                }
                 SaveRecovery();
                 return new(true,null,State);
             }
@@ -320,6 +347,13 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
         await protocol.LockAckAsync(token!,sessionId,sequence,recovery.Lease.LeaseId,"Client locally locked",ct);
         lock(stateSync) recovery=recovery with { PendingLockSequence=null,PendingLockSessionId=null };
     }
+    bool CanUseAssignment(SessionLease lease) => !maintenance && lease.Directive=="LOCK" && lease.AssignmentId is not null && lease.AssignmentExpiresAt is DateTimeOffset expiry && trusted.Now()<expiry && trusted.Now()<lease.ExpiresAt;
+    void ShowAssignment(SessionLease lease)
+    {
+        if(!CanUseAssignment(lease) || commandGap || recovery is null || recovery.AppliedSequence<lease.CommandCursor) return;
+        policy.SetSessionActive(false);
+        State=new(ClientMode.Login,"Online","Računar je dodeljen — prijavite se",lease.AssignmentId,null,null,lease.IssuedAt-DateTimeOffset.UtcNow,GuestSession:false,BillingMode:"TIME_BALANCE") { SessionState=GamingClientState.ASSIGNED };
+    }
     void ApplyLease(SessionLease lease)
     {
         lock(stateSync)
@@ -327,11 +361,12 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
         if(maintenance) return;
         if(recovery is not null && recovery.AppliedSequence<lease.CommandCursor) { LockLocal("Waiting for ordered commands"); return; }
         if(commandGap || recovery?.BlockedSessionId==lease.SessionId && lease.SessionId is not null) { LockLocal("Local lock command"); return; }
-        if(LeaseDeadlinePolicy.MustLock(lease,trusted.Now())) { LockLocal(State.BillingMode=="PREPAID_METERED" && State.EndsAt is DateTimeOffset fundedEnd && trusted.Now()>=fundedEnd ? State.AccessEndReason=="BOUNDARY"?"Prepaid pristup je zavrsen":"Prepaid kredit je potrosen" : "Backend lock/deadline"); return; }
+        if(CanUseAssignment(lease)) { if(!locallyLocked)LockLocal("Waiting for customer login"); ShowAssignment(lease); return; }
+        if(LeaseDeadlinePolicy.MustLock(lease,trusted.Now())) { LockLocal("Backend lock/deadline"); return; }
         if(State.Mode!=ClientMode.Active || State.SessionId!=lease.SessionId)
             State=State.Apply(new(lease.StationId,lease.SessionId,lease.SessionEndsAt,lease.IssuedAt,lease.CommandCursor,"AVAILABLE"),DateTimeOffset.UtcNow);
         else State=State with { EndsAt=lease.SessionEndsAt,ServerOffset=lease.IssuedAt-DateTimeOffset.UtcNow };
-        State=State with { GuestSession=lease.CustomerId is null, BillingMode=lease.BillingMode, StartedAt=lease.StartedAt, Balance=State.Mode==ClientMode.Active?lease.Balance:null, ChargedAmount=State.Mode==ClientMode.Active?lease.ChargedAmount:null, AccessEndReason=lease.AccessEndReason };
+        State=State with { GuestSession=lease.CustomerId is null, BillingMode=lease.BillingMode, StartedAt=lease.StartedAt, Balance=State.Mode==ClientMode.Active?lease.Balance:null, ChargedAmount=State.Mode==ClientMode.Active?lease.ChargedAmount:null, AccessEndReason=lease.AccessEndReason, BalanceSeconds=State.Mode==ClientMode.Active?lease.BalanceSeconds:null };
         }
     }
     void LockLocal(string reason)
@@ -339,6 +374,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
         lock(stateSync)
         {
         if(locallyLocked && State.Mode==ClientMode.Locked) { policy.SetSessionActive(false); return; }
+        State=State with { SessionState=GamingClientState.LOCKING };
         policy.StopCustomerProcesses();
         policy.SetSessionActive(false);
         policy.StopCustomerProcesses(); // Close a process that raced the policy transition.

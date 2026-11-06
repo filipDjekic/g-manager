@@ -1,3 +1,4 @@
+import { RecordTimeDialog } from './RecordTimeDialog'
 import { usePagedQuery } from '../query/usePagedQuery'
 import { Pagination } from '../components/ui/Pagination'
 import { GamingExtensionDialog } from './GamingExtensionDialog'
@@ -32,6 +33,7 @@ const defaults = { search: '', locationId: '', status: '', attention: '', expiri
 const allowed = Object.keys(defaults) as (keyof typeof defaults)[]
 
 export function GamingOperationsWorkspace({ workday = false }: { workday?: boolean }) {
+  const [paymentOpen, setPaymentOpen] = useState(false)
   const actor = useAuthStore((state) => state.user)
   const canRead = hasCapability(actor, 'GAMING_SESSION_READ')
   const canStart = hasCapability(actor, 'GAMING_SESSION_START')
@@ -110,9 +112,9 @@ export function GamingOperationsWorkspace({ workday = false }: { workday?: boole
   if (!canRead) return <PageLayout className="gaming-ops-page"><ErrorState title="Gaming sesije nisu dostupne" message="Nemate dozvolu za ovaj pregled." /></PageLayout>
 
   return <PageLayout ref={root} className="gaming-operations gaming-ops-page" aria-busy={board.isLoading || busy || undefined}>
-    <PageHeader title={workday ? 'Radni ekran' : 'Stanje računara sada'} description="Sesije na dodeljenim PC stanicama. Dostupnost celog trajanja proverava se pri pokretanju."
-      icon={<GamingOperationsIcon kind="gamepad" />} actions={<><Button variant="secondary" loading={board.isFetching} onClick={() => void board.refetch()}>Osveži</Button>
-      {canStart && <Button disabled={disabled || !board.data || !readyCount} onClick={() => { setError(''); setStartStation(null); setNewSessionOpen(true) }}>+ Nova sesija</Button>}</>} />
+    <PageHeader title={workday ? 'Radni ekran' : 'Stanje računara sada'} description="Dodela računara ne troši vreme. Igranje počinje posle prijave na Windows Client."
+      icon={<GamingOperationsIcon kind="gamepad" />} actions={<>{hasCapability(actor, 'GAMING_PAYMENT_RECORD') && <Button onClick={() => setPaymentOpen(true)}>Dodaj vreme</Button>}<Button variant="secondary" loading={board.isFetching} onClick={() => void board.refetch()}>Osveži</Button>
+      {canStart && <Button disabled={disabled || !board.data || !readyCount} onClick={() => { setError(''); setStartStation(null); setNewSessionOpen(true) }}>Dodeli računar</Button>}</>} />
     {hasCapability(actor,'RESOURCE_READ')&&<p className="ui-workspace-scope">{actor?.role==='EMPLOYEE'?'Moje dodeljene PC stanice':'PC stanice u dozvoljenom opsegu'} · <Link to="/resources">Mapa dostupnosti za interval →</Link></p>}
     <FreshnessStatus time={board.data?.serverTime} error={!!board.error} stale={stale} connected={connection === 'connected'} paused={!visible} />
     {hasCapability(actor, 'GAMING_FINANCE_MANAGE') && <GamingPilotHealth visible={visible} />}
@@ -176,6 +178,7 @@ export function GamingOperationsWorkspace({ workday = false }: { workday?: boole
         onSizeChange={size => setUrl({ sessionSize: String(size), sessionPage: '1' })} onChange={page => setUrl({ sessionPage: String(page + 1) })} />
     </details>
     {workday && <EmployeeWorkdaySummary />}
+    {paymentOpen && <RecordTimeDialog onClose={() => setPaymentOpen(false)} />}
     {newSessionOpen && <StartSessionDialog station={startStation ?? undefined} onClose={() => { setNewSessionOpen(false); setStartStation(null) }} />}
     {customStation && <GamingExtensionDialog station={customStation} initialMinutes={minutes} onClose={() => setCustomStation(null)} />}
     <ConfirmDialog open={!!endStation} title={`Završi sesiju · ${endStation?.resourceName ?? ''}`} variant="danger"

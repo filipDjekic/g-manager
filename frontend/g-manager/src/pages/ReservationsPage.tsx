@@ -239,7 +239,7 @@ export function ReservationsPage() {
               <td role="cell" className="reservations-status-cell"><Badge tone={reservationTones[reservation.status]}>{reservationLabels[reservation.status]}</Badge></td>
               <td role="cell" className="reservations-actions-cell">{hasCapability(actor, 'GAMING_SESSION_START') && !reservation.readOnly && reservation.customerId && reservation.resourceId
                 && ['PENDING', 'CONFIRMED'].includes(reservation.status) && resources.data?.some(resource => resource.id === reservation.resourceId && resource.type === 'GAMING_PC') &&
-                <Button variant="secondary" onClick={() => setSessionReservation(reservation)}>Pokreni sesiju</Button>}<ReservationRowActions reservation={reservation} disabled={bulk.isPending || !!result.error} onAction={openDetails} /></td>
+                <Button variant="secondary" onClick={() => setSessionReservation(reservation)}>Dodeli računar</Button>}<ReservationRowActions reservation={reservation} disabled={bulk.isPending || !!result.error} onAction={openDetails} /></td>
             </tr>
           })}</tbody>
         </table></TableShell>}

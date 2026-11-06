@@ -20,6 +20,8 @@ describe('NotificationCenter', () => {
   it('shows unread state, supports keyboard reading and has no serious accessibility violations', async () => {
     const user = userEvent.setup(); const { baseElement } = render(<MemoryRouter><NotificationCenter /></MemoryRouter>)
     const bell = await screen.findByRole('button', { name: 'Obaveštenja, 1 nepročitanih' }); await user.click(bell)
+    const initial = await notificationApi.list(0)
+    vi.mocked(notificationApi.list).mockResolvedValue({ ...initial, unreadCount: 0, notifications: initial.notifications.map(item => ({ ...item, read: true })) })
     expect(screen.getByText('Narudžbina je završena.')).toBeVisible(); await user.click(screen.getByRole('button', { name: 'Označi pročitano' }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Obaveštenja, 0 nepročitanih' })).toBeVisible())
     expect((await axe(baseElement)).violations.filter(({ impact }) => impact === 'serious' || impact === 'critical')).toHaveLength(0)

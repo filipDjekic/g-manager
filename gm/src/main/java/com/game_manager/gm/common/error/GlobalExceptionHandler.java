@@ -106,6 +106,16 @@ public class GlobalExceptionHandler {
         return response(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", request);
     }
 
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    ResponseEntity<ApiError> handleUnsupportedMethod(Exception exception, HttpServletRequest request) {
+        return response(HttpStatus.METHOD_NOT_ALLOWED, "HTTP method is not supported", request);
+    }
+
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    ResponseEntity<ApiError> handleMissingRoute(Exception exception, HttpServletRequest request) {
+        return response(HttpStatus.NOT_FOUND, "Resource not found", request);
+    }
+
     @ExceptionHandler(AuthenticationException.class)
     ResponseEntity<ApiError> handleAuthentication(AuthenticationException exception, HttpServletRequest request) {
         return response(HttpStatus.UNAUTHORIZED, ErrorCode.AUTHENTICATION_REQUIRED,

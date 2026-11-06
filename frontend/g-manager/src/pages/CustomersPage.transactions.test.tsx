@@ -42,14 +42,14 @@ describe('customer management actions', () => {
     expect(await screen.findByText('Neaktivan')).toBeVisible()
     await user.click(trigger)
     expect(screen.queryByRole('menuitem', { name: 'Deaktiviraj klijenta' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('menuitem', { name: 'Pokreni gaming sesiju' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Dodeli računar' })).not.toBeInTheDocument()
   }, 15000)
 
   it('rechecks active gaming visits when starting and handles a concurrent session instead of opening a second start', async () => {
     let reads = 0
-    server.use(http.get('/api/v1/gaming-sessions/customer/customer-1', () => HttpResponse.json(++reads === 1 ? [] : [{ id: 'session-1', status: 'ACTIVE' }])))
+    server.use(http.get('/api/v1/gaming-sessions/customer/customer-1/active', () => HttpResponse.json(++reads === 1 ? [] : [{ id: 'session-1', status: 'ACTIVE' }])))
     page(); await screen.findByText('Ada')
-    await menu('Pokreni gaming sesiju')
+    await menu('Dodeli računar')
     expect(await screen.findByRole('alert')).toHaveTextContent('Klijent već ima aktivnu gaming sesiju.')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(reads).toBe(2)

@@ -94,24 +94,26 @@ test('employee performs an order status transition', async ({ page }) => {
   await expect(page.getByRole('table').getByText('U pripremi')).toBeVisible()
 })
 
-test('employee starts a gaming session from the location-scoped station board', async ({ page }, testInfo) => {
+test('employee assigns a station without starting the gaming timer', async ({ page }, testInfo) => {
   await installApi(page, 'EMPLOYEE')
   await login(page, 'EMPLOYEE')
   await page.goto('/gaming-sessions')
   await expect(page.getByRole('heading', { name: 'Radni ekran' })).toBeVisible()
   await expect(page.locator('article.ops-station')).toHaveCount(1)
   await page.screenshot({ path:testInfo.outputPath('gaming-board.png'),fullPage:true })
-  await page.getByRole('button', { name: 'Pokreni sesiju', exact: true }).first().click()
-  await page.getByLabel('Pronađi klijenta').fill('CUSTOMER')
-  await page.getByRole('button', { name: /CUSTOMER E2E.*customer@example\.test/ }).click()
-  await expect(page.getByLabel('Evidentirani iznos (RSD)')).toHaveValue('400')
-  const submitted = page.waitForRequest(request => request.url().endsWith('/api/v1/gaming-sessions') && request.method() === 'POST')
-  await page.getByRole('button', { name: 'Potvrdi naplatu i pokreni za CUSTOMER E2E' }).click()
-  const purchase = await submitted
-  expect(purchase.headers()['idempotency-key']).toBeTruthy()
-  expect(purchase.postDataJSON()).toMatchObject({ customerId:'customer-1', durationMinutes:120, purchase:{ tariffId:'tariff-1', tariffVersion:0, payment:{ method:'CASH', amount:'400' } } })
-  await expect(page.locator('article.ops-station').getByText('Aktivna sesija')).toBeVisible()
-  await expect(page.locator('article.ops-station').getByText('CUSTOMER E2E')).toBeVisible()
+  await page.getByRole('button', { name: 'Dodeli ra\u010dunar', exact: true }).first().click()
+  await page.getByLabel('Prona\u0111i klijenta').fill('CUSTOMER')
+  const customer = page.getByRole('button', { name: /CUSTOMER E2E.*customer@example\.test/ })
+  await expect(customer).toBeEnabled(); await customer.click()
+  await page.getByLabel('Slobodna stanica').selectOption('station-1')
+  const submitted = page.waitForRequest(request => request.url().endsWith('/api/v1/gaming-billing/assignments') && request.method() === 'POST')
+  await page.getByRole('dialog', { name: 'Dodeli ra\u010dunar' }).getByRole('button', { name: 'Dodeli ra\u010dunar', exact: true }).click()
+  const assignment = await submitted
+  expect(assignment.headers()['idempotency-key']).toBeTruthy()
+  expect(assignment.postDataJSON()).toMatchObject({ customerId:'customer-1', resourceId:'station-1' })
+  expect(assignment.postDataJSON()).not.toHaveProperty('purchase')
+  await expect(page.locator('article.ops-station').getByText('\u010ceka prijavu', { exact: true })).toBeVisible()
+  await expect(page.locator('article.ops-station').getByText('Aktivna sesija')).toHaveCount(0)
 })
 
 test('employee completes daily work from the Today workspace', async ({ page }) => {

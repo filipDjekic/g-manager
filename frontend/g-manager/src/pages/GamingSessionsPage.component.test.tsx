@@ -1,3 +1,4 @@
+import { gamingTimeApi } from '../api/gamingTimeApi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -11,9 +12,10 @@ import { useAuthStore } from '../auth/authStore'
 import { authUser } from '../test/fixtures'
 
 vi.mock('../api/gamingSessionApi',()=>({gamingSessionApi:{board:vi.fn(),start:vi.fn(),extend:vi.fn(),terminate:vi.fn()},connectGamingSessionStream:vi.fn()}))
+vi.mock('../api/gamingTimeApi',()=>({gamingTimeApi:{price:vi.fn().mockResolvedValue({pricePerMinute:'2.50',version:1}),history:vi.fn().mockResolvedValue({content:[],totalElements:0,totalPages:0}),grant:vi.fn(),account:vi.fn().mockResolvedValue({balanceSeconds:7200,assignments:[],serverTime:'2026-08-15T12:00:00Z'})}}))
 vi.mock('../api/customerApi',()=>({customerApi:{list:vi.fn()}}))
 const statuses:GamingStationBoardStatus[]=['AVAILABLE','ACTIVE','MAINTENANCE','OFFLINE','EXPIRED','LOCK_PENDING','RETIRED']
-const labels=['Dostupna','Aktivna sesija','Održavanje','Bez veze','Sesija istekla','Čeka zaključavanje','Van upotrebe']
+const labels=['Slobodan','Aktivna sesija','Održavanje','Bez veze','Sesija istekla','Čeka zaključavanje','Van upotrebe']
 function response():GamingOperationsBoard{return{serverTime:'2026-08-15T12:00:00Z',stations:statuses.map((status,index)=>({
   resourceId:`station-${index}`,resourceCode:`PC-${index}`,resourceName:`Stanica ${index}`,locationId:'location-1',status,
   clientEnabled:false,staleHeartbeat:false,enforcementStatus:status==='LOCK_PENDING'?'LOCK_PENDING':'LOCKED',remainingSeconds:status==='ACTIVE'?3600:0,sessionId:status==='ACTIVE'?'session-1':undefined,
@@ -26,20 +28,20 @@ function setup(){const client=new QueryClient({defaultOptions:{queries:{retry:fa
 describe('Gaming operations board',()=>{
   beforeEach(()=>{useAuthStore.setState({user:authUser('OWNER'),accessToken:'test-token',isInitializing:false});vi.clearAllMocks();vi.mocked(gamingSessionApi.board).mockResolvedValue(response());vi.mocked(customerApi.list).mockResolvedValue({content:[],page:0,size:8,totalElements:0,totalPages:0});vi.mocked(connectGamingSessionStream).mockReturnValue(()=>{})})
   it('renders every operational station state and authoritative countdown',async()=>{setup();await screen.findByText('Stanica 6');for(const label of labels)expect(screen.getAllByText(label).some(element=>element.tagName!=='OPTION')).toBe(true);expect(screen.getAllByLabelText(/Preostalo vreme 1h 0m/)[0]).toBeVisible()})
-  it('extends the same active session and immediately refreshes its projection',async()=>{vi.mocked(gamingSessionApi.extend).mockResolvedValue({} as never);setup();const user=userEvent.setup();await user.click((await screen.findAllByRole('button',{name:'Pregled stanice Stanica 1'}))[0]);await user.click(await within(await screen.findByRole('dialog', {name:'Detalji računara'})).findByRole('button',{name:'+60 min'}));
-    await user.click(await screen.findByRole('button',{name:'Potvrdi naplatu i produzi'}));
-    await waitFor(()=>expect(gamingSessionApi.extend).toHaveBeenCalledWith('session-1',60,4,expect.any(String),expect.objectContaining({tariffId:'tariff-1'})));await waitFor(()=>expect(gamingSessionApi.board).toHaveBeenCalledTimes(2))})
+  it('extends the same active session and immediately refreshes its projection',async()=>{vi.mocked(gamingTimeApi.grant).mockResolvedValue({} as never);setup();const user=userEvent.setup();await user.click((await screen.findAllByRole('button',{name:'Pregled stanice Stanica 1'}))[0]);await user.click(await within(await screen.findByRole('dialog', {name:'Detalji računara'})).findByRole('button',{name:'+60 min'}));
+    await waitFor(()=>expect(screen.getByRole('button',{name:'Potvrdi uplatu'})).toBeEnabled()); await user.click(screen.getByRole('button',{name:'Potvrdi uplatu'}));
+    await waitFor(()=>expect(gamingTimeApi.grant).toHaveBeenCalledWith('customer-1',expect.objectContaining({minutes:60,priceVersion:1}),expect.any(String)));await waitFor(()=>expect(gamingSessionApi.board).toHaveBeenCalledTimes(2))})
   it('retries an ambiguous extension with the original version and idempotency key after the board changes',async()=>{
     const changed=response();changed.stations[1].sessionVersion=5
     vi.mocked(gamingSessionApi.board).mockResolvedValueOnce(response()).mockResolvedValue(changed)
-    vi.mocked(gamingSessionApi.extend).mockRejectedValueOnce(Object.assign(new Error('Network Error'), { isAxiosError: true, code: 'ERR_NETWORK' })).mockResolvedValue({} as never)
+    vi.mocked(gamingTimeApi.grant).mockRejectedValueOnce(Object.assign(new Error('Network Error'), { isAxiosError: true, code: 'ERR_NETWORK' })).mockResolvedValue({} as never)
     setup();const user=userEvent.setup();await user.click((await screen.findAllByRole('button',{name:'Pregled stanice Stanica 1'}))[0]);await user.click(await within(await screen.findByRole('dialog', {name:'Detalji računara'})).findByRole('button',{name:'+60 min'}))
-    const confirm=await screen.findByRole('button',{name:'Potvrdi naplatu i produzi'});await waitFor(()=>expect(confirm).toBeEnabled());await user.click(confirm)
+    await waitFor(()=>expect(screen.getByRole('button',{name:'Potvrdi uplatu'})).toBeEnabled()); const confirm=await screen.findByRole('button',{name:'Potvrdi uplatu'});await waitFor(()=>expect(confirm).toBeEnabled());await user.click(confirm)
     const retry=await screen.findByRole('button',{name:'Proveri prethodni zahtev'})
-    await waitFor(()=>expect(retry).toBeEnabled());expect(screen.getByRole('button',{name:'Potvrdi naplatu i produzi'})).toBeDisabled()
-    const original=vi.mocked(gamingSessionApi.extend).mock.calls[0]
-    await user.click(retry);await waitFor(()=>expect(gamingSessionApi.extend).toHaveBeenCalledTimes(2))
-    expect(vi.mocked(gamingSessionApi.extend).mock.calls[1]).toEqual(original)
+    await waitFor(()=>expect(retry).toBeEnabled());expect(screen.getByRole('button',{name:'Potvrdi uplatu'})).toBeDisabled()
+    const original=vi.mocked(gamingTimeApi.grant).mock.calls[0]
+    await user.click(retry);await waitFor(()=>expect(gamingTimeApi.grant).toHaveBeenCalledTimes(2))
+    expect(vi.mocked(gamingTimeApi.grant).mock.calls[1]).toEqual(original)
     await waitFor(()=>expect(screen.queryByRole('button',{name:'Proveri prethodni zahtev'})).not.toBeInTheDocument())
   })
   it('invalidates the board when a session SSE event arrives',async()=>{let emit:((event:GamingSessionEvent)=>void)|undefined;vi.mocked(connectGamingSessionStream).mockImplementation(callback=>{emit=callback;return()=>{}});setup();await screen.findByText('Stanica 0');emit?.({eventId:'e1',type:'GAMING_SESSION_STARTED',sessionId:'session-1',occurredAt:'2026-08-15T12:00:00Z'});

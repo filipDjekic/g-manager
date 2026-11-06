@@ -6,7 +6,7 @@ import org.testcontainers.junit.jupiter.*;
 /** Repeats the finance, guest and concurrency contracts using disposable MySQL/InnoDB. */
 @Testcontainers
 @org.springframework.test.annotation.DirtiesContext(classMode=org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
-class GamingBillingConcurrencyIT extends GamingBillingIntegrationTest {
+class GamingBillingConcurrencyIT extends GamingTimeIntegrationTest {
     @Container static final MySQLContainer<?> MYSQL=new MySQLContainer<>("mysql:8.4")
             .withDatabaseName("gaming_operations_it").withUsername("gaming_it").withPassword("disposable-test-password")
             .withEnv("TZ","UTC").withUrlParam("serverTimezone","UTC");
