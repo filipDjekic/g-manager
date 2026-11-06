@@ -57,9 +57,10 @@ export function SettingsPage() {
         { id: 'overview', label: 'Pregled' }, { id: 'hours', label: 'Rad igraonice' }, { id: 'exceptions', label: 'Izuzeci' },
       ]} />
       <div id="settings-tab-timeoff" className="gm-settings-employees">
-        <ActionMenu label="Zaposleni" compact={false} className={`gm-settings-employees-trigger${section === 'timeoff' ? ' is-active' : ''}`}
+        <ActionMenu label="Zaposleni" compact={false} placement="bottom-start" menuClassName="gm-settings-employees-menu"
+          className={`gm-settings-employees-trigger${section === 'timeoff' ? ' is-active' : ''}`}
           actions={[{ label: 'Odsustva zaposlenih', onClick: () => openSection('timeoff') }]}>
-          Zaposleni <SettingsIcon kind="chevron-right" />
+          Zaposleni <SettingsIcon kind="chevron-down" />
         </ActionMenu>
       </div>
     </div></div>

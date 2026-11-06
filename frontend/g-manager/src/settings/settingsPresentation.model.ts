@@ -91,7 +91,7 @@ export function useBusinessToday() {
 export function businessDayBounds(from: string, to: string) {
   return { from: from ? businessLocalToInstant(from + 'T00:00') : '', to: to ? businessLocalToInstant(addCalendarDays(to, 1) + 'T00:00') : '' }
 }
-export type SettingsIconKind = 'settings' | 'building' | 'layers' | 'monitor' | 'users' | 'clock' | 'calendar' | 'gamepad' | 'package' | 'client' | 'plus' | 'refresh' | 'chevron-left' | 'chevron-right' | 'edit' | 'trash' | 'info' | 'check' | 'close'
+export type SettingsIconKind = 'settings' | 'building' | 'layers' | 'monitor' | 'users' | 'clock' | 'calendar' | 'gamepad' | 'package' | 'client' | 'plus' | 'refresh' | 'chevron-left' | 'chevron-right' | 'chevron-down' | 'edit' | 'trash' | 'info' | 'check' | 'close'
 export function restoreSettingsFocus(target: HTMLElement | null) {
   window.requestAnimationFrame(() => {
     const available = target?.isConnected && target.getClientRects().length > 0 && !target.closest('[hidden],[inert]')

@@ -23,7 +23,7 @@ export function SettingsIcon({ kind = 'settings' }: { kind?: SettingsIconKind })
     package: <><path d="m12 3 9 5v9l-9 5-9-5V8l9-5Zm0 9v10M3 8l9 4 9-4M8 5l9 5" /></>,
     client: <><rect x="3" y="3" width="18" height="14" rx="2" /><path d="M8 21h8m-4-4v4m-5-11 3 3 6-6" /></>,
     plus: <path d="M12 5v14M5 12h14" />, refresh: <path d="M3 10a9 9 0 1 1 1 9M3 4v6h6" />,
-    'chevron-left': <path d="m15 5-7 7 7 7" />, 'chevron-right': <path d="m9 5 7 7-7 7" />,
+    'chevron-left': <path d="m15 5-7 7 7 7" />, 'chevron-right': <path d="m9 5 7 7-7 7" />, 'chevron-down': <path d="m6 9 6 6 6-6" />,
     edit: <path d="m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-4-4L5 15l-1 5Z" />,
     trash: <path d="M3 6h18M8 6V3h8v3M5 6l1 15h12l1-15M10 10v7m4-7v7" />,
     info: <><circle cx="12" cy="12" r="9" /><path d="M12 11v6m0-10h.01" /></>,
