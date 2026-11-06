@@ -12,7 +12,6 @@ public interface IMachineProtocolClient {
  Task LockAckAsync(string bearer,Guid sessionId,long sequence,Guid? leaseId,string reason,CancellationToken ct);
  Task HeartbeatAsync(string bearer,Heartbeat heartbeat,CancellationToken ct);
  Task<CustomerSession> LoginAsync(string bearer,string email,string password,CancellationToken ct);
- Task<CustomerSession> GuestLoginAsync(string bearer,Guid sessionId,CancellationToken ct) => throw new NotSupportedException("Guest login is unavailable");
  Task LogoutAsync(string bearer,Guid sessionId,CancellationToken ct);
  Task RecoverSessionAsync(string bearer,Guid sessionId,CancellationToken ct)=>LogoutAsync(bearer,sessionId,ct);
  Task ClaimUpdateAsync(string bearer,Guid? requestId,CancellationToken ct);
@@ -24,6 +23,7 @@ public sealed record SignedStationPolicy(string Payload,string Algorithm,string 
 public sealed record StationPolicy(Guid StationId,Guid ProfileId,long ConfigurationVersion,DateTimeOffset IssuedAt,IReadOnlyList<PolicyApplication> Applications);
 public sealed record PolicyApplication(string Code,string Name,string Type,string ExecutablePath,string? Publisher,string? PublisherCertificateThumbprint,string? ExecutableSha256,string? MinimumFileVersion,string? Arguments,bool RequiredProcess,bool AutoStart,int LaunchOrder,string? DependencyGroup);
 public sealed record SignedSessionLease(string Payload,string Algorithm,string KeyId,string Signature);
+// Balance and ChargedAmount are nullable v1 wire placeholders only; never used as entitlements.
 public sealed record SessionLease(Guid LeaseId,Guid StationId,Guid? SessionId,Guid? CustomerId,DateTimeOffset? SessionEndsAt,long ConfigurationVersion,DateTimeOffset IssuedAt,DateTimeOffset ExpiresAt,DateTimeOffset GraceEndsAt,long CommandCursor,string Directive,ClientUpdateDirective? ClientUpdate=null,string? BillingMode=null,DateTimeOffset? StartedAt=null,decimal? Balance=null,decimal? ChargedAmount=null,string? AccessEndReason=null,long? BalanceSeconds=null,Guid? AssignmentId=null,DateTimeOffset? AssignmentExpiresAt=null);
 public sealed record ClientUpdateDirective(Guid Id,string Version,DateTimeOffset NotBefore,DateTimeOffset ExpiresAt);
 public sealed record MachineCommand(long Sequence,string Type,int PayloadVersion,string Payload,DateTimeOffset AvailableAt,bool Expired=false);
@@ -41,7 +41,6 @@ public sealed class MachineProtocolClient(HttpClient http, IMachineProtocolDiagn
  public async Task LockAckAsync(string bearer,Guid sessionId,long sequence,Guid? leaseId,string reason,CancellationToken ct)=>_ = await Post<object>("api/v1/machine/enforcement/lock-ack",new{sessionId,commandSequence=sequence,leaseId,reason},bearer,ct);
  public async Task HeartbeatAsync(string bearer,Heartbeat heartbeat,CancellationToken ct)=>_ = await Post<object>("api/v1/machine/heartbeat",heartbeat,bearer,ct);
  public Task<CustomerSession> LoginAsync(string bearer,string email,string password,CancellationToken ct)=>Post<CustomerSession>("api/v1/machine/session-login",new{email,password},bearer,ct);
- public Task<CustomerSession> GuestLoginAsync(string bearer,Guid sessionId,CancellationToken ct)=>Post<CustomerSession>("api/v1/machine/guest-login",new{sessionId},bearer,ct);
  public async Task RecoverSessionAsync(string bearer,Guid sessionId,CancellationToken ct)=>_ = await Post<object>("api/v1/machine/session-logout",new{sessionId,reason="CLIENT_RECOVERY"},bearer,ct);
  public async Task LogoutAsync(string bearer,Guid sessionId,CancellationToken ct)=>_ = await Post<object>("api/v1/machine/session-logout",new{sessionId},bearer,ct);
  async Task<T> Get<T>(string path,string token,CancellationToken ct)=>await Send<T>(HttpMethod.Get,path,null,token,ct);

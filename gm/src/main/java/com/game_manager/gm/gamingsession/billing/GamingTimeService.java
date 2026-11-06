@@ -49,7 +49,12 @@ public class GamingTimeService {
     @Value("${app.gaming-client.lease-duration-seconds:30}") private long leaseSeconds=30;
     @Value("${app.gaming-session.login-timeout-seconds:300}") private long loginSeconds=300;
 
-    public record Grant(@NotNull @DecimalMin("30") @DecimalMax("5256000") @Digits(integer=7,fraction=0) BigDecimal minutes, @NotNull @PositiveOrZero Long priceVersion) {}
+    public enum PaymentMethod { CASH, EXTERNAL_POS }
+    public record Grant(@NotNull @DecimalMin("30") @DecimalMax("5256000") @Digits(integer=7,fraction=0) BigDecimal minutes,
+                        @NotNull @PositiveOrZero Long priceVersion, PaymentMethod method, @Size(max=160) String reference) {
+        // Requests from installed frontends that predate the method field remain cash receipts.
+        public Grant { if(method==null) method=PaymentMethod.CASH; reference=reference==null || reference.isBlank()?null:reference.trim(); }
+    }
     public record TimePrice(@DecimalMin("0.01") @Digits(integer=10,fraction=2) BigDecimal pricePerMinute,
                             @NotNull @PositiveOrZero Long version) {}
     public record Assignment(@NotNull UUID customerId,@NotNull UUID resourceId,UUID reservationId) {}
@@ -68,13 +73,13 @@ public class GamingTimeService {
         if(amount.precision()>12)throw fail(HttpStatus.BAD_REQUEST,"Gaming minute price is too large");
         var before=readPrice(true);
         if(!before.version().equals(request.version()))throw fail(HttpStatus.CONFLICT,"Gaming price changed; refresh settings");
-        jdbc.update("UPDATE gaming_business_policy SET minute_price=?,time_price_version=time_price_version+1 WHERE id=1",amount);
+        jdbc.update("UPDATE gaming_time_price SET minute_price=?,time_price_version=time_price_version+1 WHERE id=1",amount);
         audit.write("GAMING_MINUTE_PRICE_CHANGED","GAMING_POLICY",UUID.nameUUIDFromBytes("gaming-business-policy:1".getBytes(java.nio.charset.StandardCharsets.UTF_8)),null,Map.of("pricePerMinute",amount,"version",before.version()+1),null,AuditVisibility.MANAGEMENT);
         return readPrice(false);
     }
 
     private TimePrice readPrice(boolean lock) {
-        return jdbc.queryForObject("SELECT minute_price,time_price_version FROM gaming_business_policy WHERE id=1"+(lock?" FOR UPDATE":""),
+        return jdbc.queryForObject("SELECT minute_price,time_price_version FROM gaming_time_price WHERE id=1"+(lock?" FOR UPDATE":""),
                 (r,n)->new TimePrice(r.getBigDecimal(1),r.getLong(2)));
     }
 
@@ -98,15 +103,16 @@ public class GamingTimeService {
     @Transactional(readOnly=true) @PreAuthorize("isAuthenticated()")
     public com.game_manager.gm.common.dto.PageResponse<Map<String,Object>> history(UUID id,String kind,int page,int size) {
         requireAccess(id);
-        if("transactions".equals(kind))requireStaff(current.requireCurrentUser(),Permission.GAMING_PAYMENT_RECORD);
+        if(!"ledger".equals(kind))requireStaff(current.requireCurrentUser(),Permission.GAMING_PAYMENT_RECORD);
         String sql=switch(kind) {
             case "ledger" -> "SELECT * FROM gaming_time_ledger WHERE customer_id=?";
             case "transactions" -> "SELECT * FROM gaming_financial_operations WHERE customer_id=?";
+            case "historical-transactions" -> "SELECT * FROM gaming_history_financial_operations WHERE customer_id=?";
             default -> throw fail(HttpStatus.BAD_REQUEST,"Unknown time history");
         };
         List<Object> args=new ArrayList<>();args.add(str(id));
         var actor=current.requireCurrentUser();
-        if("transactions".equals(kind) && actor.role()==Role.EMPLOYEE) {
+        if(!"ledger".equals(kind) && actor.role()==Role.EMPLOYEE) {
             var assigned=scope.assignedResources(actor);
             sql+=" AND resource_id IN ("+String.join(",",Collections.nCopies(assigned.size(),"?"))+")";
             assigned.forEach(resource->args.add(str(resource)));
@@ -127,8 +133,9 @@ public class GamingTimeService {
             throw fail(HttpStatus.BAD_REQUEST,"Add at least 30 whole minutes and confirm the current price");
         long seconds=Math.multiplyExact(request.minutes().longValueExact(),60);
         if(hasEntry(source)) {
-            var original=jdbc.queryForMap("SELECT f.granted_seconds,f.price_version FROM gaming_financial_operations f JOIN gaming_time_ledger l ON l.operation_id=f.id WHERE l.source_key=?",source);
-            if(((Number)original.get("granted_seconds")).longValue()!=seconds || original.get("price_version")==null || ((Number)original.get("price_version")).longValue()!=request.priceVersion())
+            var original=jdbc.queryForMap("SELECT f.granted_seconds,f.price_version,f.method,f.reference FROM gaming_financial_operations f JOIN gaming_time_ledger l ON l.operation_id=f.id WHERE l.source_key=?",source);
+            if(((Number)original.get("granted_seconds")).longValue()!=seconds || original.get("price_version")==null || ((Number)original.get("price_version")).longValue()!=request.priceVersion()
+                    || !request.method().name().equals(original.get("method")) || !Objects.equals(request.reference(),original.get("reference")))
                 throw fail(HttpStatus.CONFLICT,"Idempotency-Key was already used with a different purchase");
             return account(customerId);
         }
@@ -140,10 +147,10 @@ public class GamingTimeService {
         GamingSession active=lockActive(customerId);
         if(active!=null) settle(active,clock.instant());
         UUID operation=UUID.randomUUID();
-        jdbc.update("INSERT INTO gaming_financial_operations(id,customer_id,resource_id,location_id,actor_id,kind,method,amount,currency,status,granted_seconds,minute_price,price_version,created_at) VALUES(?,?,?,?,?,'TIME_GRANT','CASH',?,'RSD','RECORDED',?,?,?,?)",
-                str(operation),str(customerId),str(context),resource==null?null:str(resources.locationId(resource)),str(actor.id()),amount,seconds,price.pricePerMinute(),price.version(),ts(clock.instant()));
+        jdbc.update("INSERT INTO gaming_financial_operations(id,customer_id,resource_id,location_id,actor_id,kind,method,amount,currency,status,granted_seconds,minute_price,price_version,reference,created_at) VALUES(?,?,?,?,?,'TIME_GRANT',?,?,'RSD','RECORDED',?,?,?,?,?)",
+                str(operation),str(customerId),str(context),resource==null?null:str(resources.locationId(resource)),str(actor.id()),request.method().name(),amount,seconds,price.pricePerMinute(),price.version(),request.reference(),ts(clock.instant()));
         append(customerId,null,operation,actor.id(),seconds,"GRANT",null,source);
-        audit.write("GAMING_TIME_GRANTED","GAMING_FINANCE",operation,null,Map.of("customerId",customerId,"amount",amount,"seconds",seconds,"pricePerMinute",price.pricePerMinute()),null,AuditVisibility.MANAGEMENT);
+        audit.write("GAMING_TIME_GRANTED","GAMING_FINANCE",operation,null,Map.of("customerId",customerId,"amount",amount,"seconds",seconds,"pricePerMinute",price.pricePerMinute(),"method",request.method().name()),null,AuditVisibility.MANAGEMENT);
         if(active!=null && active.getStatus()==GamingSessionStatus.ACTIVE) refreshEnd(active);
         return account(customerId);
     }

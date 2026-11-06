@@ -29,7 +29,7 @@ class GamingOperationsBoardServiceTest {
         var enforcement=mock(com.game_manager.gm.common.scheduling.ClientStatePort.class);
         when(enforcement.states(any())).thenReturn(Map.of(assigned.resourceId(),new com.game_manager.gm.common.scheduling.ClientStatePort.State(null,"LOCKED",NOW)));
         var preparation=mock(StationPreparationService.class);when(preparation.ready(any())).thenReturn(true);
-        GamingOperationsBoardService service=new GamingOperationsBoardService(preparation,mock(com.game_manager.gm.gamingsession.billing.GamingBillingService.class),readiness,sessions,commands,users,locations,current,Clock.fixed(NOW,ZoneOffset.UTC),mock(StationCommandWriter.class),enforcement);
+        GamingOperationsBoardService service=new GamingOperationsBoardService(preparation,readiness,sessions,commands,users,locations,current,Clock.fixed(NOW,ZoneOffset.UTC),mock(StationCommandWriter.class),enforcement);
 
         org.springframework.test.util.ReflectionTestUtils.setField(service,"time",timeMock());
         var response=service.board(null);
@@ -52,7 +52,7 @@ class GamingOperationsBoardServiceTest {
         var station=station(UUID.randomUUID(),UUID.randomUUID());
         var enforcement=mock(com.game_manager.gm.common.scheduling.ClientStatePort.class);
         when(current.requireCurrentUser()).thenReturn(actor);when(readiness.overview()).thenReturn(List.of(station));
-        var service=new GamingOperationsBoardService(mock(StationPreparationService.class),mock(com.game_manager.gm.gamingsession.billing.GamingBillingService.class),
+        var service=new GamingOperationsBoardService(mock(StationPreparationService.class),
                 readiness,sessions,commands,users,locations,current,Clock.fixed(NOW,ZoneOffset.UTC),mock(StationCommandWriter.class),enforcement);
         org.springframework.test.util.ReflectionTestUtils.setField(service,"time",timeMock());
         var missing=service.board(null).stations().getFirst();
@@ -87,7 +87,7 @@ class GamingOperationsBoardServiceTest {
         when(users.findAllById(List.of(customer.getId()))).thenReturn(List.of(customer));
         var enforcement=mock(com.game_manager.gm.common.scheduling.ClientStatePort.class);when(enforcement.states(any())).thenReturn(Map.of());
         var preparation=mock(StationPreparationService.class);when(preparation.ready(any())).thenReturn(true);
-        GamingOperationsBoardService service=new GamingOperationsBoardService(preparation,mock(com.game_manager.gm.gamingsession.billing.GamingBillingService.class),readiness,sessions,commands,users,locations,current,Clock.fixed(NOW,ZoneOffset.UTC),mock(StationCommandWriter.class),enforcement);
+        GamingOperationsBoardService service=new GamingOperationsBoardService(preparation,readiness,sessions,commands,users,locations,current,Clock.fixed(NOW,ZoneOffset.UTC),mock(StationCommandWriter.class),enforcement);
 
         org.springframework.test.util.ReflectionTestUtils.setField(service,"time",timeMock());
         var card=service.board(null).stations().getFirst();

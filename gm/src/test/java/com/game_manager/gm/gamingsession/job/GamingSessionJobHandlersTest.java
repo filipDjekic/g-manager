@@ -3,7 +3,6 @@ package com.game_manager.gm.gamingsession.job;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-import com.game_manager.gm.events.OutboxWriter;
 import com.game_manager.gm.gamingsession.*;
 import com.game_manager.gm.gamingsession.command.*;
 import com.game_manager.gm.jobs.*;
@@ -16,27 +15,19 @@ class GamingSessionJobHandlersTest {
     private static final Instant NOW = Instant.parse("2026-08-15T12:00:00Z");
 
     @Test
-    void duplicateExpirationExecutionProducesOneTerminalTransitionAndOneCommand() {
+    void expirationDelegatesToAuthoritativeTimeAccountingWithoutTakingSessionLocksFirst() {
         GamingSessionRepository sessions = mock(GamingSessionRepository.class);
-        StationCommandWriter commands = mock(StationCommandWriter.class);
-        OutboxWriter outbox = mock(OutboxWriter.class);
+        var time = mock(com.game_manager.gm.gamingsession.billing.GamingTimeService.class);
         JobContext context = mock(JobContext.class);
         GamingSession session = activeSession();
-        when(sessions.findDueForUpdate(eq(GamingSessionStatus.ACTIVE), eq(NOW), any()))
+        when(sessions.findByStatusOrderByStartedAtDesc(GamingSessionStatus.ACTIVE))
                 .thenReturn(List.of(session), List.of());
-        when(sessions.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        when(commands.write(session, StationCommandType.SESSION_TERMINATED)).thenReturn(2L);
-        GamingSessionExpirationJobHandler handler = new GamingSessionExpirationJobHandler(
-                sessions, commands, outbox, Clock.fixed(NOW, ZoneOffset.UTC), new SimpleMeterRegistry());
-
+        var handler = new GamingSessionExpirationJobHandler(sessions, time, new SimpleMeterRegistry());
         handler.handle(mock(JobRecord.class), context);
         handler.handle(mock(JobRecord.class), context);
-
-        verify(commands, times(1)).write(session, StationCommandType.SESSION_TERMINATED);
-        verify(outbox, times(1)).write(eq(com.game_manager.gm.events.DomainEventType.GAMING_SESSION_EXPIRED),
-                eq("GAMING_SESSION"), eq(session.getId()), anyMap());
-        org.assertj.core.api.Assertions.assertThat(session.getStatus()).isEqualTo(GamingSessionStatus.EXPIRED);
-        org.assertj.core.api.Assertions.assertThat(session.getEndedAt()).isEqualTo(NOW);
+        verify(time).tick(session.getId(), false, false);
+        verify(sessions, never()).findByIdForUpdate(any());
+        verifyNoMoreInteractions(time);
     }
 
     @Test

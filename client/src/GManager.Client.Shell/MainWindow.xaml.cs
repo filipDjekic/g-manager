@@ -125,8 +125,6 @@ public partial class MainWindow : Window
             serviceResponded = true;
             if (request.Type == "login" && response.Success && response.State.Mode == ClientMode.Active && request.Email is not null)
                 Dashboard.PrepareAccount(request.Email);
-            if(request.Type=="guest-login" && response.Success && response.State.Mode==ClientMode.Active)
-                Dashboard.PrepareGuest(response.State.SessionId!.Value);
             apps = response.Applications ?? apps;
             Render(response.State);
             Error.Text = response.Error ?? "";
@@ -151,12 +149,6 @@ public partial class MainWindow : Window
             Password.Clear();
             UpdateControls();
         }
-    }
-
-    async void GuestLogin_Click(object sender,RoutedEventArgs e)
-    {
-        if(currentState.GuestSession && currentState.Mode==ClientMode.Login && sessionId is Guid id)
-            await Act(new("guest-login",Guid.NewGuid().ToString("N"),SessionId:id));
     }
 
     async void Login_Click(object sender, RoutedEventArgs e)
@@ -242,8 +234,7 @@ public partial class MainWindow : Window
         Dashboard.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
         if (!active) Dashboard.CloseLogout();
         LayoutRoot.Visibility = active ? Visibility.Collapsed : Visibility.Visible;
-        LoginForm.Visibility = login && !currentState.GuestSession ? Visibility.Visible : Visibility.Collapsed;
-        GuestLogin.Visibility = login && currentState.GuestSession ? Visibility.Visible : Visibility.Collapsed;
+        LoginForm.Visibility = login ? Visibility.Visible : Visibility.Collapsed;
         StationNotice.Visibility = login || active ? Visibility.Collapsed : Visibility.Visible;
         HelpText.Visibility = active ? Visibility.Collapsed : Visibility.Visible;
 
@@ -261,7 +252,7 @@ public partial class MainWindow : Window
 
         Heading.Text = mode switch
         {
-            ClientMode.Login => currentState.GuestSession ? "Gost sesija" : "Prijavi se",
+            ClientMode.Login => "Prijavi se",
             ClientMode.Active => string.IsNullOrWhiteSpace(currentState.CustomerName) ? "Tvoja sesija" : $"Zdravo, {currentState.CustomerName}",
             ClientMode.Offline => "Veza je prekinuta",
             ClientMode.Maintenance => "Održavanje stanice",
@@ -311,7 +302,6 @@ public partial class MainWindow : Window
         bool available = serviceAvailable && !acting && !sessionExpired;
         bool login = available && currentState.Mode == ClientMode.Login && currentState.SessionId is not null;
         Email.IsEnabled = Password.IsEnabled = RevealedPassword.IsEnabled = RevealPassword.IsEnabled = Login.IsEnabled = login;
-        GuestLogin.IsEnabled=login && currentState.GuestSession;
         Dashboard.SetBusy(acting, serviceAvailable && !sessionExpired && sessionId is not null && currentState.Mode == ClientMode.Active);
         LoginLabel.Text = loggingIn ? "PRIJAVA U TOKU…" : "PRIJAVI SE";
         LoginArrow.Visibility = loggingIn ? Visibility.Collapsed : Visibility.Visible;

@@ -1,47 +1,62 @@
 package com.game_manager.gm.gamingsession.billing;
+
+import com.game_manager.gm.common.dto.PageResponse;
+import com.game_manager.gm.common.dto.SqlPages;
 import com.game_manager.gm.common.error.ApplicationException;
-import java.time.*;
 import java.sql.Timestamp;
-import java.util.*;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 @Service @RequiredArgsConstructor
 public class GamingFinanceReportService {
     private final JdbcTemplate jdbc;
+
     @Transactional(readOnly=true) @PreAuthorize("hasAuthority('GAMING_FINANCE_MANAGE')")
     public Map<String,Object> report(Instant from,Instant until) {
-        if(!until.isAfter(from) || Duration.between(from,until).toDays()>366) throw new ApplicationException(HttpStatus.BAD_REQUEST,"Choose a report interval of at most 366 days");
-        var a=Timestamp.from(from);var b=Timestamp.from(until);
+        interval(from,until);
+        var a=Timestamp.from(from); var b=Timestamp.from(until);
         return Map.ofEntries(
             Map.entry("currency","RSD"),Map.entry("from",from),Map.entry("until",until),Map.entry("receiptType","INTERNAL_NON_FISCAL"),
-            Map.entry("totals",jdbc.queryForMap("SELECT COALESCE(SUM(CASE WHEN kind IN ('PAYMENT','CREDIT_TOPUP','PACKAGE_SALE','TIME_GRANT') AND method IN ('CASH','EXTERNAL_POS') THEN amount ELSE 0 END),0) AS external_receipts,COALESCE(SUM(CASE WHEN kind IN ('REFUND','TIME_REFUND') AND method IN ('CASH','EXTERNAL_POS') THEN amount ELSE 0 END),0) AS external_refunds,COALESCE(SUM(CASE WHEN kind='PAYMENT' THEN amount ELSE 0 END),0) AS gaming_collected,COALESCE(SUM(CASE WHEN kind='REFUND' AND session_id IS NOT NULL THEN amount ELSE 0 END),0) AS gaming_refunds FROM gaming_financial_operations WHERE created_at>=? AND created_at<?",a,b)),
+            Map.entry("totals",jdbc.queryForMap("SELECT COALESCE(SUM(CASE WHEN kind='TIME_GRANT' THEN amount ELSE 0 END),0) AS external_receipts,COALESCE(SUM(CASE WHEN kind='TIME_REFUND' THEN amount ELSE 0 END),0) AS external_refunds FROM gaming_financial_operations WHERE created_at>=? AND created_at<?",a,b)),
             Map.entry("timeBalanceSeconds",jdbc.queryForObject("SELECT COALESCE(SUM(balance_seconds),0) FROM gaming_time_accounts",Long.class)),
             Map.entry("manualTime",jdbc.queryForMap("SELECT COUNT(*) AS transactions,COALESCE(SUM(amount),0) AS recorded_RSD,COALESCE(SUM(granted_seconds),0) AS granted_seconds FROM gaming_financial_operations WHERE kind='TIME_GRANT' AND created_at>=? AND created_at<?",a,b)),
-            Map.entry("archivedPackageSales",jdbc.queryForObject("SELECT COALESCE(SUM(price),0) FROM gaming_time_packages",java.math.BigDecimal.class)),
             Map.entry("recorded",jdbc.queryForList("SELECT kind,method,COUNT(*) AS transactions,SUM(amount) AS amount FROM gaming_financial_operations WHERE created_at>=? AND created_at<? GROUP BY kind,method",a,b)),
-            Map.entry("outstandingDebt",jdbc.queryForObject("SELECT COALESCE(SUM(c.amount),0)-(SELECT COALESCE(SUM(p.amount),0) FROM gaming_financial_operations p WHERE p.kind='PAYMENT') FROM gaming_charges c",java.math.BigDecimal.class)),
-            Map.entry("prepaidLiability",jdbc.queryForObject("SELECT COALESCE(SUM(amount),0) FROM gaming_wallet_ledger",java.math.BigDecimal.class)),
-            Map.entry("sessions",jdbc.queryForList("SELECT billing_mode,status,COUNT(*) AS sessions,SUM(CASE WHEN billing_mode IN ('PREPAID_METERED','TIME_BALANCE') THEN billed_seconds ELSE TIMESTAMPDIFF(SECOND,started_at,COALESCE(ended_at,LEAST(ends_at,CURRENT_TIMESTAMP))) END) AS duration_seconds FROM gaming_sessions WHERE started_at>=? AND started_at<? GROUP BY billing_mode,status",a,b)),
+            Map.entry("historical",jdbc.queryForMap("SELECT COUNT(*) AS transactions,COALESCE(SUM(CASE WHEN kind IN ('PAYMENT','CREDIT_TOPUP','PACKAGE_SALE') AND method IN ('CASH','EXTERNAL_POS') THEN amount ELSE 0 END),0) AS external_receipts,COALESCE(SUM(CASE WHEN kind='REFUND' AND method IN ('CASH','EXTERNAL_POS') THEN amount ELSE 0 END),0) AS external_refunds FROM gaming_history_financial_operations WHERE created_at>=? AND created_at<?",a,b)),
+            Map.entry("historicalMoneyBalance",jdbc.queryForObject("SELECT COALESCE(SUM(amount),0) FROM gaming_history_wallet_entries",java.math.BigDecimal.class)),
+            Map.entry("sessions",jdbc.queryForList("SELECT status,COUNT(*) AS sessions,SUM(billed_seconds) AS duration_seconds FROM gaming_sessions WHERE billing_mode='TIME_BALANCE' AND started_at>=? AND started_at<? GROUP BY status",a,b)),
             Map.entry("productOrders",jdbc.queryForList("SELECT status,COUNT(*) AS orders_count,SUM(total_price) AS order_value FROM orders WHERE created_at>=? AND created_at<? GROUP BY status",a,b)));
     }
+
     @Transactional(readOnly=true) @PreAuthorize("hasAuthority('GAMING_FINANCE_MANAGE')")
-    public com.game_manager.gm.common.dto.PageResponse<Map<String,Object>> details(String table,Instant from,Instant until,int page,int size) {
-        if(!until.isAfter(from)||Duration.between(from,until).toDays()>366)throw new ApplicationException(HttpStatus.BAD_REQUEST,"Choose a report interval of at most 366 days");
-        String select=switch(table){
-            case "manualPayments" -> "SELECT f.id,f.customer_id,u.name AS customer_name,f.actor_id,f.kind,f.method,f.amount,f.granted_seconds,f.reason,f.reference,f.created_at FROM gaming_financial_operations f JOIN users u ON u.id=f.customer_id WHERE f.kind IN ('TIME_GRANT','TIME_REFUND') AND f.created_at>=? AND f.created_at<?";
-            case "byStation" -> "SELECT r.id AS resource_id,r.name,COALESCE(c.allocated,0) AS allocated_gaming_revenue,COALESCE(c.minutes,0) AS purchased_minutes,COALESCE(f.collected,0) AS gaming_collected,COALESCE(f.refunded,0) AS gaming_refunds,COALESCE(f.collected,0)-COALESCE(f.refunded,0) AS net_gaming_collected FROM physical_resources r LEFT JOIN (SELECT resource_id,SUM(recognized_amount) AS allocated,SUM(CASE WHEN billed_seconds IS NULL THEN minutes ELSE 0 END) AS minutes FROM gaming_charges WHERE created_at>=? AND created_at<? GROUP BY resource_id) c ON c.resource_id=r.id LEFT JOIN (SELECT resource_id,SUM(CASE WHEN kind='PAYMENT' THEN amount ELSE 0 END) AS collected,SUM(CASE WHEN kind='REFUND' THEN amount ELSE 0 END) AS refunded FROM gaming_financial_operations WHERE session_id IS NOT NULL AND kind IN ('PAYMENT','REFUND') AND created_at>=? AND created_at<? GROUP BY resource_id) f ON f.resource_id=r.id WHERE c.resource_id IS NOT NULL OR f.resource_id IS NOT NULL";
+    public PageResponse<Map<String,Object>> details(String table,Instant from,Instant until,int page,int size) {
+        interval(from,until);
+        String select=switch(table) {
+            case "manualPayments" -> "SELECT f.id,f.customer_id,u.name AS customer_name,f.actor_id,f.kind,f.method,f.amount,f.granted_seconds,f.reason,f.reference,f.created_at FROM gaming_financial_operations f JOIN users u ON u.id=f.customer_id WHERE f.created_at>=? AND f.created_at<?";
+            // These are payment recording locations, not an allocation of consumed minutes to revenue.
+            case "byStation" -> "SELECT f.resource_id,COALESCE(r.name,'Bez računara') AS name,f.kind,f.method,COUNT(*) AS transactions,SUM(f.amount) AS amount FROM gaming_financial_operations f LEFT JOIN physical_resources r ON r.id=f.resource_id WHERE f.created_at>=? AND f.created_at<? GROUP BY f.resource_id,r.name,f.kind,f.method";
             case "byLocation" -> "SELECT f.location_id,COALESCE(l.name,'Bez lokacije') AS name,f.kind,f.method,SUM(f.amount) AS amount FROM gaming_financial_operations f LEFT JOIN locations l ON l.id=f.location_id WHERE f.created_at>=? AND f.created_at<? GROUP BY f.location_id,l.name,f.kind,f.method";
             case "byEmployee" -> "SELECT f.actor_id,u.name,f.kind,f.method,COUNT(*) AS transactions,SUM(f.amount) AS amount FROM gaming_financial_operations f JOIN users u ON u.id=f.actor_id WHERE f.created_at>=? AND f.created_at<? GROUP BY f.actor_id,u.name,f.kind,f.method";
-            case "packages" -> "SELECT p.id,p.customer_id,u.name AS customer_name,p.expires_at,p.price,p.minutes,COALESCE(SUM(l.minutes),0) AS remaining_minutes FROM gaming_time_packages p JOIN users u ON u.id=p.customer_id LEFT JOIN gaming_wallet_ledger l ON l.package_id=p.id GROUP BY p.id,p.customer_id,u.name,p.expires_at,p.price,p.minutes";
+            case "history" -> "SELECT f.id,f.customer_id,u.name AS customer_name,f.kind,f.method,f.amount,f.reference,f.reason,f.created_at FROM gaming_history_financial_operations f LEFT JOIN users u ON u.id=f.customer_id WHERE f.created_at>=? AND f.created_at<?";
             default -> throw new ApplicationException(HttpStatus.BAD_REQUEST,"Unknown finance detail table");
         };
-        String order=switch(table){case "byStation" -> "resource_id";case "byLocation" -> "location_id,kind,method";case "byEmployee" -> "actor_id,kind,method";case "manualPayments" -> "created_at DESC,id DESC";default -> "id";};
-        var a=Timestamp.from(from);var b=Timestamp.from(until);
-        Object[] args=switch(table){case "byStation" -> new Object[]{a,b,a,b};case "packages" -> new Object[]{};default -> new Object[]{a,b};};
-        return com.game_manager.gm.common.dto.SqlPages.maps(jdbc,select,order,page,size,args);
+        String order=switch(table) {
+            case "byStation" -> "resource_id,kind,method";
+            case "byLocation" -> "location_id,kind,method";
+            case "byEmployee" -> "actor_id,kind,method";
+            default -> "created_at DESC,id DESC";
+        };
+        return SqlPages.maps(jdbc,select,order,page,size,Timestamp.from(from),Timestamp.from(until));
+    }
+
+    private static void interval(Instant from,Instant until) {
+        if(!until.isAfter(from) || Duration.between(from,until).toDays()>366)
+            throw new ApplicationException(HttpStatus.BAD_REQUEST,"Choose a report interval of at most 366 days");
     }
 }

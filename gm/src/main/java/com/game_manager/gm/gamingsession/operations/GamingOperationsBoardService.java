@@ -20,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class GamingOperationsBoardService {
     @org.springframework.beans.factory.annotation.Autowired private com.game_manager.gm.gamingsession.billing.GamingTimeService time;
     private final com.game_manager.gm.station.StationPreparationService preparation;
-    private final com.game_manager.gm.gamingsession.billing.GamingBillingService billing;
     private final StationReadinessService stationReadiness;
     private final GamingSessionRepository sessions;
     private final StationCommandRepository commands;
@@ -55,14 +54,12 @@ public class GamingOperationsBoardService {
         var clientHealth=enforcement.heartbeats(resourceIds);
         var ready=preparation.readiness(resourceIds);
         Set<UUID> incoming=sessions.findByMoveTargetIdInAndStatus(resourceIds,GamingSessionStatus.ACTIVE).stream().map(GamingSession::getMoveTargetId).collect(Collectors.toSet());
-        var balances=billing.balances(latest.values().stream().filter(v->v.getBillingMode()==GamingBillingMode.PREPAID_METERED).map(GamingSession::getCustomerId).filter(Objects::nonNull).distinct().toList());
-        var due=billing.dues(latest.values().stream().map(GamingSession::getId).toList());
         Map<UUID,User> customers = users.findAllById(latest.values().stream()
                         .map(GamingSession::getCustomerId).filter(Objects::nonNull).distinct().toList()).stream()
                 .collect(Collectors.toMap(User::getId, Function.identity()));
         List<GamingOperationsBoardResponse.StationCard> cards = visible.stream()
                 .map(station -> card(station, latest.get(station.resourceId()),
-                        latestCommand.get(station.resourceId()),enforcementByStation.get(station.resourceId()), customers, actor, now,ready.getOrDefault(station.resourceId(),true),incoming.contains(station.resourceId()),due,clientHealth.get(station.resourceId()),balances))
+                        latestCommand.get(station.resourceId()),enforcementByStation.get(station.resourceId()), customers, actor, now,ready.getOrDefault(station.resourceId(),true),incoming.contains(station.resourceId()),clientHealth.get(station.resourceId())))
                 .toList();
         return new GamingOperationsBoardResponse(now, cards);
     }
@@ -80,7 +77,7 @@ public class GamingOperationsBoardService {
     }
 
     private GamingOperationsBoardResponse.StationCard card(StationOverview station, GamingSession latest,
-            StationCommandSummary latestCommand,com.game_manager.gm.common.scheduling.ClientStatePort.State enforcementState, Map<UUID,User> customers, AuthenticatedUser actor, Instant now,boolean privacyReady,boolean incoming,Map<UUID,java.math.BigDecimal> due,com.game_manager.gm.common.scheduling.ClientStatePort.Heartbeat health,Map<UUID,java.math.BigDecimal> balances) {
+            StationCommandSummary latestCommand,com.game_manager.gm.common.scheduling.ClientStatePort.State enforcementState, Map<UUID,User> customers, AuthenticatedUser actor, Instant now,boolean privacyReady,boolean incoming,com.game_manager.gm.common.scheduling.ClientStatePort.Heartbeat health) {
         GamingSession active = latest != null && latest.getStatus() == GamingSessionStatus.ACTIVE ? latest : null;
         boolean stale=station.clientEnabled()&&(station.lastHeartbeatAt()==null||!station.lastHeartbeatAt().plusSeconds(station.offlineGraceSeconds()).isAfter(now));
         GamingStationBoardStatus status = status(station, latest, enforcementState, stale,now,privacyReady,incoming);
@@ -109,7 +106,7 @@ public class GamingOperationsBoardService {
         return new GamingOperationsBoardResponse.StationCard(station.resourceId(), station.resourceCode(),
                 station.resourceName(), station.locationId(), status, station.clientEnabled(),
                 station.lastHeartbeatAt(),stale,stale?"OFFLINE":enforcementState==null?"UNKNOWN":enforcementState.status(),enforcementState==null || "DEVELOPMENT".equals(station.clientMode())?null:enforcementState.lastLockAckAt(), active == null ? null : active.getId(),
-                active == null ? customer==null?null:customer.getId() : active.getCustomerId(), active!=null && active.getCustomerId()==null ? "Gost - "+active.getGuestName() : customer == null ? null : customer.getName(),
+                active == null ? customer==null?null:customer.getId() : active.getCustomerId(), customer == null ? null : customer.getName(),
                 active == null ? null : active.getStartedAt(), active == null ? null : active.getEndsAt(),
                 active == null ? 0 : active.getMoveRemainingSeconds()!=null ? active.getMoveRemainingSeconds() : Math.max(0, Duration.between(now, active.getEndsAt()).toSeconds()),
                 active == null ? null : active.getVersion(), Set.copyOf(allowed),
@@ -118,7 +115,7 @@ public class GamingOperationsBoardService {
                 latestCommand == null ? null : latestCommand.sequence(),
                 latestCommand == null ? null : latestCommand.commandType().name(),
                 latestCommand == null ? null : latestCommand.availableAt(),
-                latestCommand == null ? null : latestCommand.acknowledgedAt(), station.locationName(), station.areaName(), latest==null?null:latest.getId(), active==null?null:due.getOrDefault(active.getId(),java.math.BigDecimal.ZERO), privacyReady, active==null?null:active.getMoveTargetId(),health==null?null:health.clientErrorCode(),health==null?null:health.updateStatus(),health==null?null:health.maintenanceActive(),active==null?null:active.getBillingMode(),active==null?null:active.getBilledSeconds(),active==null?null:active.getChargedAmount(),active==null || active.getCustomerId()==null?null:balances.get(active.getCustomerId()),station.clientMode(),waiting==null?null:UUID.fromString(waiting.get("id").toString()),waiting==null?null:((java.sql.Timestamp)waiting.get("expires_at")).toInstant());
+                latestCommand == null ? null : latestCommand.acknowledgedAt(), station.locationName(), station.areaName(), latest==null?null:latest.getId(), privacyReady, active==null?null:active.getMoveTargetId(),health==null?null:health.clientErrorCode(),health==null?null:health.updateStatus(),health==null?null:health.maintenanceActive(),active==null?null:active.getBillingMode(),active==null?null:active.getBilledSeconds(),station.clientMode(),waiting==null?null:UUID.fromString(waiting.get("id").toString()),waiting==null?null:((java.sql.Timestamp)waiting.get("expires_at")).toInstant());
     }
 
     private GamingStationBoardStatus status(StationOverview station, GamingSession latest,

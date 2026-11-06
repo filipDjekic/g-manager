@@ -1,56 +1,36 @@
-# Životni ciklus gaming sesije
+﻿# Životni ciklus gaming sesije
 
-Implementiran je autoritativni `GamingSession` agregat za rad osoblja. Vreme servera
-je jedini izvor istine; frontend ne menja status na osnovu lokalnog tajmera.
+Jedini aktivni režim je `TIME_BALANCE`. Server vodi raspoloživo vreme u sekundama, a Client sprovodi potpisani rok pristupa. Nepotrošeno vreme ostaje na nalogu bez isteka.
 
 ## Stanja i prelazi
 
-| Trenutno stanje | Komanda | Novo stanje | Efekat |
-| --- | --- | --- | --- |
-| nema sesije | start | `ACTIVE` | Postavlja `startedAt` i `endsAt` iz backend `Clock`-a. |
-| `ACTIVE` | extend | `ACTIVE` | Menja `endsAt` istog agregata; ne kreira novu sesiju. |
-| `ACTIVE` | terminate | `TERMINATED` | Zahteva razlog i postavlja `endedAt` iz backend `Clock`-a. |
+| Događaj | Rezultat |
+| --- | --- |
+| Ručno evidentirana uplata | Dodaje trajno vreme; ne pokreće sesiju. |
+| Dodela računara | `WAITING_FOR_LOGIN`; ne troši vreme. |
+| Potvrđena prijava dodeljenog korisnika na Client-u | Kreira `ACTIVE` sesiju i potpisani lease. |
+| Dopuna dok sesija traje | Dodaje saldo i osvežava dozvoljeni kraj postojeće sesije. |
+| Odjava ili završetak od strane osoblja | Obračunava potvrđene sekunde, prelazi u `TERMINATED` i šalje komandu zaključavanja. |
+| Potrošen saldo ili granica pristupa | `EXPIRED`; nepotrošeno vreme, ako ga ima zbog granice radnog vremena/rezervacije, ostaje na nalogu. |
+| Istek lease-a ili restart Client-a | Zatvara prethodni pristup i zahteva usaglašavanje/nove uslove prijave. |
 
-`EXPIRED` je terminalno stanje koje background worker postavlja kada `endsAt` više nije
-u budućnosti. Worker zaključava dospele redove u batch-u i ponovljeno izvršenje je
-bez efekta. Terminalna sesija se ne može produžiti niti ponovo završiti.
+Zajednički obračun `GamingTimeService` koriste lease obnova, periodični obračun i expiration job. Redosled zaključavanja je korisnik → stanica → sesija → račun. Jedinstvene aktivne sesije i ledger izvori sprečavaju duplu potrošnju. Client tajmer služi samo prikazu.
 
-Start transakcija zaključava customer red pre resource reda. Nakon zaključavanja
-ponovo proverava customer, station readiness, resource grant i postojeću aktivnu
-sesiju za customer i station. Ovaj redosled je obavezan za sve buduće start tokove.
-Extension i termination zaključavaju session red i zahtevaju aktuelnu `version`.
+## API
 
-## Employee API
+- `POST /api/v1/gaming-billing/customers/{id}/time-grants`: najmanje 30 celih minuta, verzija cene, `CASH`/`EXTERNAL_POS`, opciona referenca; zahteva `GAMING_PAYMENT_RECORD` i `Idempotency-Key`.
+- `POST /api/v1/gaming-billing/assignments` i `/assignments/{id}/cancel`: dodela i otkazivanje uz postojeća prava i resource scope.
+- `POST /api/v1/machine/session-login`: station-bound machine autentikacija i lozinka dodeljenog registrovanog korisnika. Jedino ovo aktivira sesiju.
+- `POST /api/v1/machine/session-logout`: završetak ili `CLIENT_RECOVERY`.
+- `POST /api/v1/gaming-sessions/{id}/finish`: korisnik završava sopstvenu sesiju.
+- `POST /api/v1/gaming-sessions/{id}/terminate`: osoblje sa `GAMING_SESSION_TERMINATE` završava sesiju uz razlog.
+- `GET /api/v1/gaming-sessions`, `/{id}`, `/me/active`, `/customer/{id}/active`, `/me/history`, `/customer/{id}/history`: postojeći operativni i paginirani prikazi uz permission/resource scope provere.
+- `/api/v1/gaming-sessions/stream`: postojeći SSE događaji.
 
-Osnovna putanja je `/api/v1/gaming-sessions`.
+Nema neposrednog web starta, tarifnog produženja, guest prijave ili kupovine paketa. V51 arhivira stare zapise; `HISTORICAL` je dozvoljen samo za terminalne stare sesije. Njihovi ID-jevi ostaju zbog istorije, audit-a i komandi.
 
-- `POST /` - start; telo: `customerId`, `resourceId`, opciono `reservationId` i
-  `durationMinutes`; zahteva `GAMING_SESSION_START`.
-- `POST /{id}/extend` - telo: `minutes`, `version`; zahteva
-  `GAMING_SESSION_EXTEND`.
-- `POST /{id}/terminate` - telo: `reason`, `version`; zahteva
-  `GAMING_SESSION_TERMINATE`.
-- `GET /{id}` i `GET /` - detalj i aktivne sesije dostupne actor-ovom location
-scope-u dozvoljenih resursa; zahtevaju `GAMING_SESSION_READ`.
+## Audit i Client
 
-Sve POST komande zahtevaju `Idempotency-Key`. Ponovljen identičan zahtev vraća
-sačuvan odgovor; ponovna upotreba ključa za drugačiji zahtev se odbija. Customer
-uloga nema nijednu management permission.
+Postojeći audit i outbox beleže dodelu, uplatu, aktivaciju, produženje i završetak. Pozitivni saldo ne zamenjuje machine identitet, lozinku, konfiguraciju ili potpisani lease. Zaključavanje zahteva stvarni Client protokol i potvrdu; migracija ne izmišlja lock ACK.
 
-Svaki response sadrži apsolutni `endsAt`, `serverTime` i izvedeni
-`remainingSeconds`. UI može lokalno interpolirati prikaz od primljenog
-`serverTime`, ali pri osvežavanju uvek prihvata backend vrednost.
-
-## Audit i događaji
-
-Uspešne promene pišu management audit zapise i outbox događaje:
-
-- `GAMING_SESSION_STARTED`
-- `GAMING_SESSION_EXTENDED`
-- `GAMING_SESSION_TERMINATED`
-- `GAMING_SESSION_EXPIRED`
-
-Payload ne sadrži tajne. Start beleži customer, resource, location i kraj;
-extension prethodni i novi kraj; termination vreme završetka i razlog.
-
-`GET /me` daje CUSTOMER own pregled; `/customer/{customerId}` istoriju uz staff scope, a `/stream` SSE događaje. Default trajanje je 120 minuta, minimum 15, maksimum 480; pojedinačno produženje najviše 120 minuta uz ukupni maksimum od početka. Videti [konfiguraciju](../reference/CONFIGURATION.md).
+Detalji: [gaming vreme](../GAMING_TIME.md), [V51 i kompatibilnost](../operations/GAMING_BILLING_RETIREMENT.md).

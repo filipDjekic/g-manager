@@ -30,7 +30,7 @@ public class ReportService {
             definition("orders","Orders","Orders created in [from,to), with status and total"),
             definition("reservations","Reservations","Reservations starting in [from,to), with employee and duration"),
             definition("revenue","Revenue","Order count and gross total grouped by status"),
-            definition("workload","Workload","Reservation count and booked minutes grouped by employee")));if(RolePermissions.has(actor.role(),Permission.GAMING_FINANCE_MANAGE))result.add(definition("gaming-finance","Gaming finance","Recorded gaming payments, refunds, top-ups and packages; internal non-fiscal ledger"));return result;}
+            definition("workload","Workload","Reservation count and booked minutes grouped by employee")));if(RolePermissions.has(actor.role(),Permission.GAMING_FINANCE_MANAGE))result.add(definition("gaming-finance","Gaming finance","Manual gaming time payments and refunds; internal non-fiscal ledger"));return result;}
 
     @Transactional public ReportResponse generate(GenerateReportRequest input){AuthenticatedUser actor=requireRead();validate(input.definitionKey(),input.from(),input.to(),input.timezone());
         ReportRequest request=create(actor.id(),actor.role(),input.definitionKey(),input.format(),input.from(),input.to(),input.timezone(),input.locale());

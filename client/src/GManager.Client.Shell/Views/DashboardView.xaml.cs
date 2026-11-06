@@ -96,7 +96,6 @@ public partial class DashboardView : UserControl, INotifyPropertyChanged
         UpdateLocalClock(DateTimeOffset.Now);
     }
 
-    public void PrepareGuest(Guid sessionId) => pendingAccountKey="guest:"+sessionId.ToString("N");
 
     public void PrepareAccount(string email) => pendingAccountKey = UserPreferencesStore.AccountKey(email);
 
@@ -245,7 +244,7 @@ public partial class DashboardView : UserControl, INotifyPropertyChanged
         ProfileReady = false;
         SettingsPage.IsEnabled = false;
         ReplacePreferences(new());
-        var loaded = key.StartsWith("guest:",StringComparison.Ordinal) ? new UserPreferences() : await store.LoadAsync(key);
+        var loaded = await store.LoadAsync(key);
         if (generation != profileGeneration || profileKey != key) return;
         ReplacePreferences(loaded);
         PreferencesStatus = key.StartsWith("session:", StringComparison.Ordinal)
@@ -275,7 +274,7 @@ public partial class DashboardView : UserControl, INotifyPropertyChanged
 
     async Task SavePreferencesAsync()
     {
-        if (profileKey is null || !ProfileReady || profileKey.StartsWith("guest:",StringComparison.Ordinal)) return;
+        if (profileKey is null || !ProfileReady) return;
         string key = profileKey;
         try { await store.SaveAsync(key, Preferences); }
         catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)

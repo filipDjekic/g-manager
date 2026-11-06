@@ -69,7 +69,6 @@ function StationWarnings({ station, compact = false }: { station: GamingStationC
     {station.clientMode === 'DEVELOPMENT' && <p className="ops-station-warning">DEVELOPMENT ? simulirana Windows za?tita. Fizi?ko zaklju?avanje nije provereno.</p>}
     {station.billingMode === 'TIME_BALANCE' && <p>Potrošeno: {remaining(station.billedSeconds ?? 0)}. Nepotrošeno vreme ostaje na nalogu.</p>}
     {station.status === 'WAITING_FOR_LOGIN' && <p>{station.customerDisplayName} · Čeka prijavu do {station.assignmentExpiresAt ? formatBusinessDateTime(station.assignmentExpiresAt) : 'isteka dodele'}. Tajmer ne radi.</p>}
-    {station.billingMode === 'PREPAID_METERED' && <p>Prepaid ? {station.billedSeconds ?? 0} s ? {station.chargedAmount ?? 0} RSD ? Kredit: {station.walletBalance ?? 0} RSD</p>}
     {station.clientErrorCode && <p role="alert" className="ops-station-warning ops-station-warning--danger">{station.staleHeartbeat ? 'Poslednja prijavljena greška' : 'Client zahteva proveru'}: {station.clientErrorCode}</p>}
     {station.updateStatus === 'FAILED' && <p className="ops-station-warning ops-station-warning--danger">Poslednje ažuriranje nije uspelo. Proverite Client dijagnostiku.</p>}
     {station.staleHeartbeat && <p className="ops-station-warning ops-station-warning--danger">
@@ -110,7 +109,6 @@ export const StationTile = memo(function StationTile({ station, seconds, selecte
       <strong className="ops-station-customer">{station.customerDisplayName ?? (station.sessionId ? 'Klijent' : 'Bez sesije')}</strong>
       <strong className="ops-timer" aria-label={`Preostalo vreme ${remaining(seconds)}`}>{stationTimer(seconds)}</strong>
     </div>}
-    {station.sessionId && station.billingMode !== 'TIME_BALANCE' && <p className="ops-station-warning">{station.paymentDue === undefined ? '' : (/^0(?:\.0+)?$/.test(String(station.paymentDue)) ? 'Placeno' : `Neplaceno: ${station.paymentDue} RSD`)}{station.moveTargetId && ' - Premestanje ceka potvrdu'}</p>}
     {!station.sessionId && station.privacyReady === false && <p className="ops-station-warning">Obavezna priprema privatnosti</p>}
     <StationWarnings station={station} compact />
     <StationActions station={station} disabled={disabled} handlers={handlers} variant="card" />

@@ -8,13 +8,15 @@ README i [tehnička dokumentacija](docs/README.md) opisuju statički pregled imp
 
 Gaming naplata koristi trajno vreme u sekundama i cenu po minutu koju podešava OWNER/ADMIN: [tok rada, API i migracija](docs/GAMING_TIME.md).
 
+`TIME_BALANCE` je jedini aktivni gaming režim. Dopune se ručno evidentiraju kao gotovina ili spoljni POS; tarife, novčani wallet i paketi nisu dostupni. V51 izdvaja stare podatke u istorijsku arhivu: [opis izmene i postupak nadogradnje](docs/operations/GAMING_BILLING_RETIREMENT.md). Izmena je pripremljena bez izvršavanja migracije, testova ili build-a.
+
 - Uloge `OWNER`, `ADMIN`, `EMPLOYEE` i `CUSTOMER`, permission i resource scope provere, profil, upravljanje web sesijama, rotacija refresh tokena i audit.
 - Kreiranje kupaca od strane osoblja i jednokratna aktivacija. Javna registracija je isključena.
 - Katalog proizvoda i usluga sa slikama, cenama i trajanjem; radno vreme, izuzeci, odsustva zaposlenih i dostupni termini.
 - Rezervacije, kalendar, ponavljajuće rezervacije, waitlist i provera preklapanja; lokacije, zone, fizički resursi, mapa i dodele zaposlenih.
 - Korpa i pickup narudžbine, dashboard, pretraga, saved views, notifikacije i CRM beleške/tagovi.
 - Asinhroni CSV/XLSX/PDF izveštaji, rasporedi i šabloni; document infrastruktura sa lokalnim ili S3 skladištem.
-- Gaming operativa: start, produženje, ručni završetak i istek sesije; heartbeat, durable komande, machine enrollment, potpisani policy/lease i lock reconciliation.
+- Gaming operativa: ručna dopuna trajnog vremena, dodela računara, potvrđena prijava, završetak i istek sesije; heartbeat, durable komande, machine enrollment, potpisani policy/lease i lock reconciliation.
 - Windows Service i WPF Shell, development režim, potpisani instalacioni paket, maintenance, update/rollback i recovery alati.
 - Ograničen PWA offline pregled i lokalni draftovi; feature flags i opcion, podrazumevano isključen AI sažetak metapodataka izveštaja.
 

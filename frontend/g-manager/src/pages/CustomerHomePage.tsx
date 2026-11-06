@@ -1,4 +1,4 @@
-import { GamingWalletPanel } from '../gaming/GamingWalletPanel'
+import { GamingTimePanel } from '../gaming/GamingTimePanel'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
@@ -178,6 +178,6 @@ export function CustomerHomePage() {
     <CustomerSessionDialog open={Boolean(selectedSessionId)} visit={currentSession} now={now} synchronized={synchronized} loading={visits.isLoading || recentVisits.isLoading}
       error={visits.isError ? apiErrorMessage(visits.error, 'Detalji gaming sesije nisu dostupni.') : undefined} returnFocusRef={sessionTrigger}
       onClose={closeSession} onRefresh={() => void refreshVisits()} />
-    {user && <GamingWalletPanel customerId={user.id} />}
+    {user && <GamingTimePanel customerId={user.id} />}
   </PageLayout>
 }

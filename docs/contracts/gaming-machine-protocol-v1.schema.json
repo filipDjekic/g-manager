@@ -239,8 +239,6 @@
         "billingMode": {
           "enum": [
             "TIME_BALANCE",
-            "FIXED_DURATION",
-            "PREPAID_METERED",
             null
           ]
         },
@@ -271,9 +269,54 @@
             "null"
           ],
           "format": "date-time"
+        },
+        "balance": {
+          "type": "null",
+          "description": "Reserved v1 compatibility field; never a monetary entitlement."
+        },
+        "chargedAmount": {
+          "type": "null",
+          "description": "Reserved v1 compatibility field; no tariff billing."
         }
       },
-      "description": "A waiting assignment is a LOCK directive with assignmentId and no active session or countdown. TIME_BALANCE active leases have no offline grace beyond expiresAt. Balance is telemetry; the server ledger is authoritative."
+      "description": "A waiting assignment is a LOCK directive with assignmentId and no active session or countdown. TIME_BALANCE active leases have no offline grace beyond expiresAt. Balance is telemetry; the server ledger is authoritative.",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "directive": {
+                "const": "ACTIVE"
+              }
+            },
+            "required": [
+              "directive"
+            ]
+          },
+          "then": {
+            "required": [
+              "billingMode",
+              "customerId",
+              "startedAt",
+              "balanceSeconds"
+            ],
+            "properties": {
+              "billingMode": {
+                "const": "TIME_BALANCE"
+              },
+              "customerId": {
+                "$ref": "#/$defs/uuid"
+              },
+              "startedAt": {
+                "$ref": "#/$defs/instant"
+              },
+              "balanceSeconds": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      ]
     },
     "sessionLogoutRequest": {
       "type": "object",

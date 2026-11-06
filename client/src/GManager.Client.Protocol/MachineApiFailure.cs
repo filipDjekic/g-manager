@@ -38,7 +38,6 @@ internal static class MachineApiErrors
             "/api/v1/machine/enroll" => (clean, "enrollment"),
             "/api/v1/machine/enforcement/lock-ack" => (clean, "enforcement.lock-ack"),
             "/api/v1/machine/session-login" => (clean, "session.login"),
-            "/api/v1/machine/guest-login" => (clean, "session.guest-login"),
             "/api/v1/machine/session-logout" => (clean, "session.logout"),
             "/api/v1/machine/client-update/claim" => (clean, "update.claim"),
             _ when clean.StartsWith("/api/v1/machine/commands/", StringComparison.Ordinal) => ("/api/v1/machine/commands/{sequence}/ack", "commands.ack"),

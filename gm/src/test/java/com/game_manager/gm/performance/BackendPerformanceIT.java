@@ -108,6 +108,7 @@ class BackendPerformanceIT {
         GamingSession session = new GamingSession(); session.setResourceId(first.getId());
         session.setLocationId(location.getId()); session.setCustomerId(customer.getId());
         session.setStartedBy(owner.getId()); session.setStartedAt(from); session.setEndsAt(to);
+        session.setAccessUntil(to);session.setLastBilledAt(from);session.setMeteredLeaseUntil(to);
         session.setStatus(GamingSessionStatus.ACTIVE); session = sessions.saveAndFlush(session);
         StationMachineIdentity identity = new StationMachineIdentity(); identity.setStationId(first.getId());
         identity.setPublicKeyBase64("unused-in-bearer-read"); identity.setPublicKeyFingerprint("a".repeat(64));

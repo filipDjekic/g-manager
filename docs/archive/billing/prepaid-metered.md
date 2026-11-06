@@ -1,5 +1,7 @@
 # Prepaid metered gaming
 
+> Historical design only. Retired by V51; none of the enablement, purchase or tariff operations below are supported. See [the current time-account system](../../GAMING_TIME.md).
+
 Apply Flyway V46; existing sessions remain FIXED_DURATION and metered mode is initially disabled. Enable modes and select a default in Gaming tariff settings. Metered starts require a managed Client with fresh protocol readiness and acknowledged safe lock, a registered customer, a currently valid category-compatible tariff and credit covering at least one complete billing unit. No initial debit is made. The existing wallet ledger remains the money source of truth.
 
 The tariff price, tariff ID, tariff duration and billing unit are frozen on each session. The total is price ? started units ? unit seconds / tariff seconds, HALF_UP to two decimal places. Every tick posts only the difference from the previously charged cumulative total in the same transaction as the billing cursor. Customer ? resource ? session locking serializes starts, ticks and finishes. A unique (session, cumulative seconds) charge index provides a second duplicate guard. Financial PAYMENT/WALLET rows settle matching charges; cashflow reports count only CASH/EXTERNAL_POS receipts, so topups and consumption do not double count cash inflow.

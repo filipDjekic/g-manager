@@ -12,6 +12,8 @@ Aktuelni vodiči su usklađeni sa statički pregledanim kodom i konfiguracijom *
 
 Za gaming stanice pročitajte [Windows Client vodič](operations/WINDOWS_CLIENT.md) i [uslove pilot rollout-a](operations/GAMING_CLIENT_PRODUCTION_ROLLOUT.md). Demo podaci su u [seed vodiču](DEVELOPMENT_SEED.md), a postojeći CI gate u [CodeQL vodiču](operations/CODEQL_SETUP.md).
 
+Aktuelni gaming billing ugovor je [trajno gaming vreme](GAMING_TIME.md). [Izmena V51](operations/GAMING_BILLING_RETIREMENT.md) opisuje uklanjanje starog operativnog sistema, očuvanje arhive i naknadne provere. Raniji rezultati merenja i arhivirani ugovori ne potvrđuju ovu izmenu.
+
 ## Korisnička uputstva
 
 - [Centralni indeks i zajednički postupci](user-guides/README.md)

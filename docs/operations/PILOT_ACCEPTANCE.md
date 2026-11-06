@@ -24,8 +24,8 @@ Merenja su u `gm/target/backend-performance-pilot.json`: realni HTTP zahtevi pre
 
 | Oblast | Automatizovani dokaz |
 | --- | --- |
-| Pilot smena | `PilotGamingCenterIT`: OWNER, ADMIN, dva EMPLOYEE, deset CUSTOMER, deset guest poseta, pet stvarno autentifikovanih protokolskih klijenata, četiri paralelna talasa, dve redovne tarife i paket; cena, naplata, prijava, produženje, kraj, sintetički lock ACK i priprema |
-| Konkurentnost i novac | Postojeći `GamingBillingConcurrencyIT`, `GamingSessionConcurrencyIT`, `ResourceConcurrencyIT`; novi terminate/extend i rezervacije dva zaposlena; nepromenljiv kupljeni cenovnik; ledger i restore iznosi |
+| Pilot smena | `PilotGamingCenterIT`: OWNER, ADMIN, dva EMPLOYEE, deset CUSTOMER, deset registrovanih poseta, pet stvarno autentifikovanih protokolskih klijenata, četiri paralelna talasa, jedna cena minuta i trajno vreme; cena, naplata, prijava, produženje, kraj, sintetički lock ACK i priprema |
+| Konkurentnost i novac | Postojeći `GamingTimeIntegrationTest`, `GamingTimeMySqlIT`, `GamingSessionConcurrencyIT`, `ResourceConcurrencyIT`; dopuna trajnog vremena i završetak i rezervacije dva zaposlena; verzionisana cena minuta; ledger i restore iznosi |
 | Premeštanje | Novi test proverava da su oba lease-a LOCK dok izvor ne potvrdi lock, potom samo odredište ACTIVE; nema dodatne naplate |
 | Restart baze/servera | Stvarni restart isključivo test MySQL kontejnera; ponovno slanje sa istim ključem; `PilotBackendRestartIT` zatvara i ponovo pokreće ceo Spring kontekst sa HTTP serverom nad istom test bazom |
 | Backup | Stvarne `backup-set.sh` / `restore-drill.sh`: šifrovanje, checksum, izdvojena šema, finansijski invarianti, obnovljen test dokument; `test-safety.sh` proverava odbijanje opasnih parametara i neispravnog backup-a bez pristupa bazi |
@@ -39,7 +39,7 @@ Test podaci imaju determinističke identifikatore/nazive i relativne vremenske i
 
 Zabeležiti release commit, potpis paketa, Windows izdanje/build, hardver, verzije igara i anti-cheat komponenti za PC1–PC5. Obezbediti poseban administratorski nalog, standardni Player nalog, backup i lokalni recovery paket. Nova izmena skripte zahteva novo potpisivanje kroz `client/packaging/publish.ps1`; izvorne skripte nisu gotov potpisani release.
 
-Koristiti izdvojenu pilot lokaciju/bazu, interne evidencije CASH/EXTERNAL_POS i test kupce. EXTERNAL_POS je evidencija potvrđene spoljne naplate, ne procesor kartica. Dokument nije fiskalni račun. Uključiti tarife i dodele zaposlenih pre sesija. Ne otvarati igraonicu ako je početni enforcement UNKNOWN, postoji Client greška ili zastareo heartbeat.
+Koristiti izdvojenu pilot lokaciju/bazu, interne evidencije CASH/EXTERNAL_POS i test kupce. EXTERNAL_POS je evidencija potvrđene spoljne naplate, ne procesor kartica. Dokument nije fiskalni račun. Podesiti cenu minuta i dodele zaposlenih pre sesija. Ne otvarati igraonicu ako je početni enforcement UNKNOWN, postoji Client greška ili zastareo heartbeat.
 
 ## Ručna checklista — obavezno za svaki PC
 
@@ -47,9 +47,9 @@ Upisati PASS/FAIL, UTC vreme i referencu na dokaz za svaku stavku; prazno znači
 
 - [ ] Instalacija novog potpisanog paketa, provereni service startup/recovery i Shell zadatak; zasebno Home i Pro ako su oba u pilotu.
 - [ ] Jednokratni enrollment, pravi machine identitet, ispravna konfiguracija i verzija; ponovna upotreba tokena i pogrešan ključ odbijeni.
-- [ ] OWNER/ADMIN uređuju lokaciju, PC, tarifu, dodele i maintenance; EMPLOYEE ima pristup samo dodeljenim resursima; CUSTOMER/GUEST ne otvara management funkcije.
+- [ ] OWNER/ADMIN uređuju lokaciju, PC, cenu minuta, dodele i maintenance; EMPLOYEE ima pristup samo dodeljenim resursima; CUSTOMER ne otvara management funkcije.
 - [ ] CASH i potvrđeni spoljni POS, kredit i paket; stvarno primljeni iznos odgovara serverovoj ceni. Dva zaposlena istovremeno koriste različite PC-jeve.
-- [ ] Registrovana prijava i guest pristup; deset gostiju u više talasa; prethodni identitet se ne prikazuje novom gostu.
+- [ ] Registrovana prijava dodeljenog korisnika; deset poseta u više talasa; preostalo vreme ostaje na nalogu i prethodni identitet nije dostupan sledećem korisniku.
 - [ ] Odobrena igra radi; neodobren EXE, preimenovan command host, neodobren helper i nov child proces ostaju blokirani.
 - [ ] Produženje menja cenu, ledger i prikaz vremena tačno jednom; gubitak odgovora se rešava istim zahtevom/ključem.
 - [ ] Istek, ručni kraj i force-lock fizički onemogućavaju igranje i prebacivanje na desktop/drugu sesiju. Proveriti Task Manager, hotkeys, preostale procese i logoff Player naloga.
@@ -94,3 +94,7 @@ Skripta čita stanje, potpise/hash-eve i putanje procesa; ne menja politike i ne
 - **Prihvati ograničeni pilot** tek kada sve automatizovane grupe prolaze i sve obavezne fizičke stavke imaju dokaz na 3–5 PC-jeva, sa potvrđenim igrama, privatnošću, backup/restore postupkom i dostupnim operatorom za oporavak.
 - **Odbij / zaustavi pilot** pri bilo kom fizičkom bypass-u, duploj naplati/potrošnji, neobjašnjenom saldu, nebezbednom premeštanju, curenju naloga, neuspešnom recovery-u ili nedokazanoj privatnosti. Stanicu staviti u maintenance i sačuvati dokaze.
 - Potpis odluke: release / datum / operator / PC-jevi / izuzeci / PASS ili FAIL. Automatizovani prolaz bez fizičke provere znači **spremno za laboratorijsko prihvatanje, pilot još nije odobren**.
+
+## Posle V51
+
+Raniji rezultati u ovom dokumentu ne potvrđuju izmenu V51. Za aktuelni postupak i naknadne provere koristiti [uklanjanje starog billing sistema](GAMING_BILLING_RETIREMENT.md). Tok je ručna dopuna → dodela → prijava; tarife, guest sesije i paketi nisu dostupni.

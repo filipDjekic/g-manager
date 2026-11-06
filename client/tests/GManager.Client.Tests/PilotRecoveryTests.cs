@@ -45,17 +45,17 @@ public sealed class PilotRecoveryTests
     }
 
     [Theory] [InlineData("dns")] [InlineData("tls")] [InlineData("timeout")] [InlineData("disconnect")]
-    public async Task TransportFailuresRespectOfflineGraceAndNeverResumeAfterDeadline(string failure)
+    public async Task TransportFailuresRespectTimeDeadlineAndRequireNewAssignment(string failure)
     {
         using var f=new Fixture(); await f.Login(); f.Protocol.Failure=failure;
         await f.Runtime.Refresh(TestContext.Current.CancellationToken); Assert.Equal(ClientMode.Active,f.Runtime.State.Mode);
-        f.Clock.Advance(TimeSpan.FromSeconds(61)); f.Runtime.Tick();
+        f.Clock.Advance(TimeSpan.FromSeconds(31)); f.Runtime.Tick();
         Assert.Equal(ClientMode.Locked,f.Runtime.State.Mode);
         f.Protocol.Failure=null; f.Protocol.CurrentLease=f.Protocol.CurrentLease with {
-            IssuedAt=f.Clock.GetUtcNow(),ExpiresAt=f.Clock.GetUtcNow().AddSeconds(30),GraceEndsAt=f.Clock.GetUtcNow().AddSeconds(60) };
+            IssuedAt=f.Clock.GetUtcNow(),ExpiresAt=f.Clock.GetUtcNow().AddSeconds(30),GraceEndsAt=f.Clock.GetUtcNow().AddSeconds(30) };
         await f.Runtime.Refresh(TestContext.Current.CancellationToken);
         Assert.Equal(ClientMode.Locked,f.Runtime.State.Mode);
-        Assert.Equal("SESSION_RECONCILIATION_REQUIRED",f.Runtime.ErrorCode);
+        Assert.Null(f.Runtime.ErrorCode);Assert.Equal(1,f.Protocol.RecoveryCalls);
     }
 
     [Fact] public async Task PrunedOrdinaryAckDoesNotBlockANewerLockCommandOrPretendToConfirmPhysicalLock()
@@ -192,7 +192,7 @@ public sealed class PilotRecoveryTests
             Protocol=new(this); Runtime=CreateRuntime();
         }
         public ClientRuntime CreateRuntime()=>new(Store,Protocol,new(config,Store,environment),new(config),new(environment),environment,Clock);
-        public async Task Login() { await Runtime.Refresh(TestContext.Current.CancellationToken); var response=await Runtime.Handle(new("guest-login","pilot",SessionId:Session),false,TestContext.Current.CancellationToken); Assert.True(response.Success); Assert.Equal(ClientMode.Active,Runtime.State.Mode); }
+        public async Task Login() { Waiting(this); Protocol.ActivateTimeOnLogin=true; await Runtime.Refresh(TestContext.Current.CancellationToken); var response=await Runtime.Handle(new("login","pilot","customer@test","password"),false,TestContext.Current.CancellationToken); Assert.True(response.Success); Assert.Equal(ClientMode.Active,Runtime.State.Mode); }
         public string Signed<T>(T value)=>Url(JsonSerializer.SerializeToUtf8Bytes(value,new JsonSerializerOptions(JsonSerializerDefaults.Web)));
         public string Signature(string payload)=>Url(SignatureAlgorithm.Ed25519.Sign(key,Convert.FromBase64String(payload.Replace('-','+').Replace('_','/')+new string('=',(4-payload.Length%4)%4))));
         static string Url(byte[] bytes)=>Convert.ToBase64String(bytes).TrimEnd('=').Replace('+','-').Replace('/','_');
@@ -204,7 +204,7 @@ public sealed class PilotRecoveryTests
         readonly Fixture f; public SessionLease CurrentLease; public MachineCommand Command;
         public string? Failure; public bool FailAck,PrunedAck,ActivateTimeOnLogin,FailLogout; public int AckAttempts,Authentications,RecoveryCalls;
         public FakeProtocol(Fixture fixture) { f=fixture; var now=f.Clock.GetUtcNow();
-            CurrentLease=new(Guid.NewGuid(),f.Station,f.Session,null,now.AddMinutes(10),1,now,now.AddSeconds(30),now.AddSeconds(60),1,"ACTIVE");
+            CurrentLease=new(Guid.NewGuid(),f.Station,null,null,null,1,now,now.AddSeconds(30),now.AddSeconds(30),1,"LOCK");
             Command=new(1,"SESSION_STARTED",1,JsonSerializer.Serialize(new {stationId=f.Station,sessionId=f.Session}),now); }
         public Task<MachineToken> AuthenticateAsync(Guid id,IChallengeSigner signer,CancellationToken ct) { Authentications++; return Task.FromResult(new MachineToken("test-token",DateTimeOffset.UtcNow.AddHours(1),"Bearer")); }
         public Task<SignedStationPolicy> ConfigurationAsync(string bearer,CancellationToken ct) { var p=f.Signed(new StationPolicy(f.Station,Guid.NewGuid(),1,f.Clock.GetUtcNow(),[]));return Task.FromResult(new SignedStationPolicy(p,"Ed25519","pilot",f.Signature(p))); }
@@ -216,7 +216,6 @@ public sealed class PilotRecoveryTests
         public Task<IReadOnlyList<MachineCommand>> CommandsAsync(string bearer,long after,CancellationToken ct)=>Task.FromResult<IReadOnlyList<MachineCommand>>(Command.Sequence>after?[Command]:[]);
         public Task AckAsync(string bearer,long sequence,CancellationToken ct) { AckAttempts++;if(FailAck)throw new HttpRequestException("ACK response lost");if(PrunedAck&&sequence==1)throw new HttpRequestException("Retired command",null,HttpStatusCode.NotFound);return Task.CompletedTask; }
         public Task HeartbeatAsync(string bearer,Heartbeat value,CancellationToken ct)=>Task.CompletedTask;
-        public Task<CustomerSession> GuestLoginAsync(string bearer,Guid session,CancellationToken ct)=>Task.FromResult(new CustomerSession(f.Session,f.Station,null,"Pilot Guest",f.Clock.GetUtcNow(),CurrentLease.SessionEndsAt!.Value,f.Clock.GetUtcNow()));
         public Task LockAckAsync(string b,Guid s,long q,Guid? l,string r,CancellationToken ct)=>throw new InvalidOperationException("Physical ACK must never be sent by development enforcement");
         public Task<EnrollmentResult> EnrollAsync(string t,IChallengeSigner s,string v,CancellationToken ct)=>throw new NotSupportedException();
         public Task<SessionSnapshot> SnapshotAsync(string b,CancellationToken ct)=>throw new NotSupportedException();

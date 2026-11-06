@@ -244,10 +244,10 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
             if(logoutRequested) { LockLocal("Customer logout"); SaveRecovery(); }
             await EnsureToken(ct);
             cryptographicPhase=CryptographicFailurePhase.LocalAction;
-            if((request.Type=="login" && request.Email is not null && request.Password is not null || request.Type=="guest-login" && request.SessionId==recovery?.Lease.SessionId && recovery?.Lease.CustomerId is null) && recovery is not null && !commandGap && recovery.AppliedSequence>=recovery.Lease.CommandCursor &&
+            if((request.Type=="login" && request.Email is not null && request.Password is not null) && recovery is not null && !commandGap && recovery.AppliedSequence>=recovery.Lease.CommandCursor &&
                (CanUseAssignment(recovery.Lease) || recovery.Lease.Directive=="ACTIVE" && recovery.BlockedSessionId!=recovery.Lease.SessionId && !LeaseDeadlinePolicy.MustLock(recovery.Lease,trusted.Now())))
             {
-                var result=request.Type=="guest-login" ? await protocol.GuestLoginAsync(token!,request.SessionId!.Value,ct) : await protocol.LoginAsync(token!,request.Email!,request.Password!,ct);
+                var result=await protocol.LoginAsync(token!,request.Email!,request.Password!,ct);
                 ObserveServerConnection(true); trusted.Observe(result.ServerTime);
                 // Credentials alone never unlock Windows: fetch and verify the new signed entitlement and ordered command.
                 cryptographicPhase=CryptographicFailurePhase.SessionLeaseVerification;
@@ -352,7 +352,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
     {
         if(!CanUseAssignment(lease) || commandGap || recovery is null || recovery.AppliedSequence<lease.CommandCursor) return;
         policy.SetSessionActive(false);
-        State=new(ClientMode.Login,"Online","Računar je dodeljen — prijavite se",lease.AssignmentId,null,null,lease.IssuedAt-DateTimeOffset.UtcNow,GuestSession:false,BillingMode:"TIME_BALANCE") { SessionState=GamingClientState.ASSIGNED };
+        State=new(ClientMode.Login,"Online","Računar je dodeljen — prijavite se",lease.AssignmentId,null,null,lease.IssuedAt-DateTimeOffset.UtcNow,BillingMode:"TIME_BALANCE") { SessionState=GamingClientState.ASSIGNED };
     }
     void ApplyLease(SessionLease lease)
     {
@@ -366,7 +366,7 @@ public sealed class ClientRuntime(ProtectedIdentityStore store, IMachineProtocol
         if(State.Mode!=ClientMode.Active || State.SessionId!=lease.SessionId)
             State=State.Apply(new(lease.StationId,lease.SessionId,lease.SessionEndsAt,lease.IssuedAt,lease.CommandCursor,"AVAILABLE"),DateTimeOffset.UtcNow);
         else State=State with { EndsAt=lease.SessionEndsAt,ServerOffset=lease.IssuedAt-DateTimeOffset.UtcNow };
-        State=State with { GuestSession=lease.CustomerId is null, BillingMode=lease.BillingMode, StartedAt=lease.StartedAt, Balance=State.Mode==ClientMode.Active?lease.Balance:null, ChargedAmount=State.Mode==ClientMode.Active?lease.ChargedAmount:null, AccessEndReason=lease.AccessEndReason, BalanceSeconds=State.Mode==ClientMode.Active?lease.BalanceSeconds:null };
+        State=State with { BillingMode=lease.BillingMode, StartedAt=lease.StartedAt, AccessEndReason=lease.AccessEndReason, BalanceSeconds=State.Mode==ClientMode.Active?lease.BalanceSeconds:null };
         }
     }
     void LockLocal(string reason)

@@ -34,8 +34,8 @@ export async function installApi(page: Page, role: Role, aiEnabled = false, rese
     if (/^\/gaming-billing\/customers\/[^/]+\/time$/.test(path)) return json({ balanceSeconds: gamingBalanceSeconds, assignments: [] })
     if (/^\/gaming-billing\/customers\/[^/]+\/time\//.test(path)) return json(emptyPage)
     if (path.endsWith('/time-grants') && request.method() === 'POST') {
-      const input = request.postDataJSON() as { minutes: number; priceVersion: number }
-      if (!request.headers()['idempotency-key'] || !Number.isInteger(input.minutes) || input.minutes < 30 || input.priceVersion !== 1) return json({ message: 'Invalid time purchase' }, 400)
+      const input = request.postDataJSON() as { minutes: number; priceVersion: number; method?: string; reference?: string }
+      if (!request.headers()['idempotency-key'] || !Number.isInteger(input.minutes) || input.minutes < 30 || input.priceVersion !== 1 || !['CASH', 'EXTERNAL_POS'].includes(input.method ?? 'CASH')) return json({ message: 'Invalid time purchase' }, 400)
       gamingBalanceSeconds += input.minutes * 60
       return json({ balanceSeconds: gamingBalanceSeconds, assignments: [] })
     }
@@ -45,7 +45,7 @@ export async function installApi(page: Page, role: Role, aiEnabled = false, rese
       return json({ id: 'assignment-1', customer_id: 'customer-1', resource_id: 'station-1', status: 'WAITING_FOR_LOGIN', expires_at: '2030-01-01T00:00:00Z' })
     }
     if (path === '/gaming-billing/assignments/assignment-1/cancel') { gamingAssigned = false; return json({}) }
-    if (path === '/gaming-billing/report') return json({ timeBalanceSeconds: gamingBalanceSeconds, manualTime: {}, outstandingDebt: '0', prepaidLiability: '0', archivedPackageSales: '0', totals: {}, recorded: [], sessions: [], productOrders: [] })
+    if (path === '/gaming-billing/report') return json({ timeBalanceSeconds: gamingBalanceSeconds, manualTime: {}, historical: {}, historicalMoneyBalance: '0', totals: {}, recorded: [], sessions: [], productOrders: [] })
 
     if (path === '/gaming-operations/health') return json({ checkedAt: '2028-03-16T10:00:00Z', backend: 'UP', database: 'UP', financialLedger: 'UP' })
 

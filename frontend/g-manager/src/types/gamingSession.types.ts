@@ -3,14 +3,14 @@ export interface GamingSession {
   id:string;customerId?:string;resourceId:string;locationId:string;reservationId?:string
   startedBy:string;startedAt:string;endsAt:string;endedAt?:string;status:GamingSessionStatus
   terminationReason?:string;remainingSeconds:number;serverTime:string;version:number
-  billingMode?: 'FIXED_DURATION' | 'PREPAID_METERED' | 'TIME_BALANCE'; billedSeconds?:number; chargedAmount?:string|number
+  billingMode?: 'TIME_BALANCE' | 'HISTORICAL'; billedSeconds?:number
   lastCommandSequence?:number
 }
 export interface GamingSessionEvent { eventId:string;type:string;sessionId:string;occurredAt:string }
 export type GamingStationBoardStatus = 'WAITING_FOR_LOGIN'|'CLIENT_ERROR'|'PREPARATION_REQUIRED'|'TRANSFER_PENDING'|'AVAILABLE'|'ACTIVE'|'MAINTENANCE'|'RETIRED'|'OFFLINE'|'EXPIRED'|'LOCK_PENDING'
 export type GamingStationAction = 'CANCEL_ASSIGNMENT'|'START'|'EXTEND'|'TERMINATE'|'FORCE_LOCK'|'CONFIRM_LOCKED'
 export interface GamingStationCard {
-  billingMode?: 'FIXED_DURATION' | 'PREPAID_METERED' | 'TIME_BALANCE'; billedSeconds?:number; chargedAmount?:string|number; walletBalance?:string|number
+  billingMode?: 'TIME_BALANCE' | 'HISTORICAL'; billedSeconds?:number
   assignmentId?: string; assignmentExpiresAt?: string
   resourceId:string;resourceCode:string;resourceName:string;locationId:string
   status:GamingStationBoardStatus;clientEnabled:boolean;lastHeartbeatAt?:string;staleHeartbeat:boolean
@@ -20,7 +20,7 @@ export interface GamingStationCard {
   areaId?:string;operationalStatus?:string;effectiveStatus?:string;applicationProfileName?:string
   configurationVersion?:number;clientVersion?:string;commandSequence?:number;commandType?:string
   commandAvailableAt?:string;commandAcknowledgedAt?:string
-  latestSessionId?:string;paymentDue?:string|number;privacyReady?:boolean;moveTargetId?:string
+  latestSessionId?:string;privacyReady?:boolean;moveTargetId?:string
   locationName?:string;areaName?:string
   clientMode?:'DEVELOPMENT'|'PRODUCTION'
   clientErrorCode?:string;updateStatus?:string;maintenanceActive?:boolean
@@ -29,7 +29,7 @@ export interface GamingOperationsBoard { serverTime:string;stations:GamingStatio
 export interface StationHistoryEntry { occurredAt:string;category:'COMMAND'|'ENFORCEMENT';action:string;status:string;commandSequence?:number;correlationId?:string;details?:string }
 export interface StationHistory { serverTime:string;stationId:string;entries:StationHistoryEntry[] }
 export interface GamingSessionVisit {
-  billingMode?: 'FIXED_DURATION' | 'PREPAID_METERED' | 'TIME_BALANCE'; billedSeconds?:number; chargedAmount?:string|number
+  billingMode?: 'TIME_BALANCE' | 'HISTORICAL'; billedSeconds?:number
   id:string;resourceId:string;resourceName:string;locationId:string;startedAt:string;endsAt:string
   endedAt?:string;status:GamingSessionStatus;serverTime:string;remainingSeconds:number
 }

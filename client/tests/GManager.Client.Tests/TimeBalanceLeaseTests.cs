@@ -26,6 +26,9 @@ public class TimeBalanceLeaseTests {
   Assert.Equal(4500,verifier.Verify(Sign(lease),lease.StationId).BalanceSeconds);
   Assert.ThrowsAny<Exception>(()=>verifier.Verify(Sign(lease),Guid.NewGuid()));
   Assert.ThrowsAny<Exception>(()=>verifier.Verify(Sign(lease with { GraceEndsAt=now.AddSeconds(60) }),lease.StationId));
+  foreach(var legacyMode in new string?[]{"PREPAID_METERED","FIXED_DURATION",null})
+   Assert.ThrowsAny<Exception>(()=>verifier.Verify(Sign(lease with { BillingMode=legacyMode }),lease.StationId));
+  Assert.ThrowsAny<Exception>(()=>verifier.Verify(Sign(lease with { CustomerId=null }),lease.StationId));
  }
  static string Url(byte[] value)=>Convert.ToBase64String(value).TrimEnd('=').Replace('+','-').Replace('/','_');
 }

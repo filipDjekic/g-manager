@@ -1,6 +1,6 @@
 import { usePagedQuery } from '../query/usePagedQuery'
 import { Pagination } from '../components/ui/Pagination'
-import { GamingWalletPanel } from '../gaming/GamingWalletPanel'
+import { GamingTimePanel } from '../gaming/GamingTimePanel'
 import { GamingPaymentHistory } from '../gaming/GamingPaymentHistory'
 import { Tabs } from '../components/ui/Tabs'
 import { useQuery } from '@tanstack/react-query'
@@ -24,7 +24,7 @@ import { CustomerCrmPanel } from './CustomerCrmPanel'
 import { CustomerAvatar } from './CustomerTable'
 import { customerDate, customerMoney } from './CustomerTable.model'
 
-type ProfileTab = 'overview' | 'reservations' | 'gaming' | 'orders' | 'crm' | 'wallet'
+type ProfileTab = 'overview' | 'reservations' | 'gaming' | 'orders' | 'crm' | 'time'
 
 export function CustomerProfile({ customerId, open, onClose, onEdit, onDeactivate, onStart, startBusy, actionError, returnFocusRef }: {
   customerId: string; open: boolean; onClose: () => void
@@ -50,7 +50,7 @@ export function CustomerProfile({ customerId, open, onClose, onEdit, onDeactivat
   const tabs: { key: ProfileTab; label: string }[] = [
     { key: 'overview', label: 'Pregled' }, { key: 'reservations', label: 'Rezervacije' },
     ...(canReadGaming ? [{ key: 'gaming' as const, label: 'Gaming sesije' }] : []),
-    ...(canReadGaming ? [{ key: 'wallet' as const, label: 'Plaćanje' }] : []),
+    ...(canReadGaming ? [{ key: 'time' as const, label: 'Plaćanje' }] : []),
     { key: 'orders', label: 'Narudžbine' }, ...(canManageCrm ? [{ key: 'crm' as const, label: 'CRM' }] : []),
   ]
   const activeTab = tabs.some(item => item.key === tab) ? tab : 'overview'
@@ -99,7 +99,7 @@ export function CustomerProfile({ customerId, open, onClose, onEdit, onDeactivat
               {visits.error && <Button type="button" variant="secondary" onClick={() => void visits.refetch()}>Ponovi proveru gaming sesija</Button>}
             </div>}
           </>}
-          {activeTab === 'wallet' && <><GamingWalletPanel customerId={customerId} /><GamingPaymentHistory customerId={customerId} /></>}
+          {activeTab === 'time' && <><GamingTimePanel customerId={customerId} /><GamingPaymentHistory customerId={customerId} /></>}
           {activeTab === 'reservations' && <section className="customers-profile-section">
             <h3>Istorija rezervacija</h3>
             {reservations.isLoading && <Skeleton lines={3} />}

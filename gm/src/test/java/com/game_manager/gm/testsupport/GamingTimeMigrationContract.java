@@ -37,7 +37,7 @@ public abstract class GamingTimeMigrationContract {
             var payments=db.queryForList("SELECT * FROM gaming_financial_operations ORDER BY id");
             var ledger=db.queryForList("SELECT * FROM gaming_time_ledger ORDER BY id");
             var packages=db.queryForList("SELECT * FROM gaming_time_packages ORDER BY id");
-            assertThat(flyway(source,null).migrate().migrationsExecuted).isEqualTo(1);
+            assertThat(flyway(source,"50").migrate().migrationsExecuted).isEqualTo(1);
             assertThat(balance(db,fixture.customer())).isEqualTo(before+1500);
             assertThat(db.queryForMap("SELECT * FROM flyway_schema_history WHERE version='48'")).isEqualTo(history);
             assertThat(db.queryForList("SELECT * FROM users ORDER BY id")).isEqualTo(users);
@@ -56,8 +56,8 @@ public abstract class GamingTimeMigrationContract {
             ScriptUtils.executeSqlScript(source.getConnection(),new EncodedResource(new ByteArrayResource(sql.getBytes(StandardCharsets.UTF_8)),StandardCharsets.UTF_8),false,false,"--",";","/*","*/");
             assertThat(balance(db,fixture.customer())).isEqualTo(after);
             assertThat(db.queryForList("SELECT * FROM gaming_time_ledger ORDER BY id")).containsAll(entries).hasSize(entries.size()+1);
-            assertThat(flyway(source,null).migrate().migrationsExecuted).isZero();
-            flyway(source,null).validate();
+            assertThat(flyway(source,"50").migrate().migrationsExecuted).isZero();
+            flyway(source,"50").validate();
             assertLedger(db);
         } finally { source.destroy(); }
     }
@@ -72,11 +72,11 @@ public abstract class GamingTimeMigrationContract {
             db.update("UPDATE gaming_time_packages SET expires_at=? WHERE id=?",Timestamp.from(Instant.now().minusSeconds(86400)),fixture.expiringPackage());
             long before=balance(db,fixture.customer());
             var entries=db.queryForList("SELECT * FROM gaming_time_ledger ORDER BY id");
-            flyway(source,null).migrate();
+            flyway(source,"50").migrate();
             assertThat(balance(db,fixture.customer())).isEqualTo(before);
             assertThat(db.queryForList("SELECT * FROM gaming_time_ledger ORDER BY id")).isEqualTo(entries);
-            assertThat(flyway(source,null).migrate().migrationsExecuted).isZero();
-            flyway(source,null).validate();assertLedger(db);
+            assertThat(flyway(source,"50").migrate().migrationsExecuted).isZero();
+            flyway(source,"50").validate();assertLedger(db);
         } finally { source.destroy(); }
     }
 
@@ -85,11 +85,93 @@ public abstract class GamingTimeMigrationContract {
         var source=database();
         try {
             var db=new JdbcTemplate(source);
-            assertThat(flyway(source,null).migrate().migrationsExecuted).isEqualTo(50);
+            assertThat(flyway(source,null).migrate().migrationsExecuted).isEqualTo(51);
             assertThat(db.queryForObject("SELECT COUNT(*) FROM gaming_time_accounts",Integer.class)).isZero();
-            assertThat(db.queryForObject("SELECT minute_price FROM gaming_business_policy WHERE id=1",BigDecimal.class)).isNull();
+            assertThat(db.queryForObject("SELECT minute_price FROM gaming_time_price WHERE id=1",BigDecimal.class)).isNull();
             assertThat(flyway(source,null).migrate().migrationsExecuted).isZero();
             flyway(source,null).validate();
+        } finally { source.destroy(); }
+    }
+
+    @Test
+    void retirementArchivesHistoryWithoutRegrantingTimeOrMixingCurrentPayments() {
+        var source=database();
+        try {
+            var db=new JdbcTemplate(source);flyway(source,"47").migrate();var fixture=seed(db,true);
+            flyway(source,"50").migrate();consume(db,fixture,97);buyModernTime(db,fixture,1800);
+            db.update("UPDATE gaming_business_policy SET minute_price=2.50,time_price_version=4 WHERE id=1");
+            long before=balance(db,fixture.customer());
+            var ledger=db.queryForList("SELECT * FROM gaming_time_ledger ORDER BY id");
+            var oldMoney=db.queryForList("SELECT * FROM gaming_financial_operations WHERE kind='CREDIT_TOPUP' ORDER BY id");
+            var packages=db.queryForList("SELECT * FROM gaming_time_packages ORDER BY id");
+            var audit=db.queryForList("SELECT * FROM audit_events ORDER BY id");
+            var applied=db.queryForList("SELECT version,checksum FROM flyway_schema_history ORDER BY installed_rank");
+            assertThat(flyway(source,null).migrate().migrationsExecuted).isEqualTo(1);
+            assertThat(balance(db,fixture.customer())).isEqualTo(before);
+            assertThat(db.queryForList("SELECT * FROM gaming_time_ledger ORDER BY id")).isEqualTo(ledger);
+            assertThat(db.queryForList("SELECT * FROM gaming_history_financial_operations ORDER BY id")).isEqualTo(oldMoney);
+            assertThat(db.queryForList("SELECT * FROM gaming_history_packages ORDER BY id")).isEqualTo(packages);
+            assertThat(db.queryForList("SELECT * FROM audit_events ORDER BY id")).isEqualTo(audit);
+            assertThat(db.queryForList("SELECT version,checksum FROM flyway_schema_history ORDER BY installed_rank")).containsAll(applied);
+            assertThat(db.queryForObject("SELECT SUM(amount) FROM gaming_history_wallet_entries",BigDecimal.class)).isEqualByComparingTo("500");
+            assertThat(db.queryForObject("SELECT COUNT(*) FROM gaming_financial_operations WHERE kind<>'TIME_GRANT'",Integer.class)).isZero();
+            assertThat(db.queryForObject("SELECT minute_price FROM gaming_time_price WHERE id=1",BigDecimal.class)).isEqualByComparingTo("2.50");
+            assertThat(db.queryForObject("SELECT time_price_version FROM gaming_time_price WHERE id=1",Long.class)).isEqualTo(4L);
+            assertThat(db.queryForObject("SELECT COUNT(*) FROM gaming_sessions WHERE billing_mode<>'HISTORICAL'",Integer.class)).isZero();
+            org.assertj.core.api.Assertions.assertThatThrownBy(()->db.queryForList("SELECT * FROM gaming_tariffs"))
+                    .isInstanceOf(org.springframework.dao.DataAccessException.class);
+            consume(db,fixture,11);
+            assertThat(flyway(source,null).migrate().migrationsExecuted).isZero();
+            assertThat(balance(db,fixture.customer())).isEqualTo(before-11);assertLedger(db);
+        } finally { source.destroy(); }
+    }
+
+    @Test
+    void retirementPreservesAnExistingTimeBalanceSessionAndItsSignedDeadline() {
+        var source=database();
+        try {
+            var db=new JdbcTemplate(source);flyway(source,"47").migrate();var f=seed(db,false);flyway(source,"50").migrate();
+            String session=id();var start=Instant.now();
+            db.update("INSERT INTO gaming_sessions(id,customer_id,resource_id,location_id,started_by,started_at,ends_at,access_until,last_billed_at,metered_lease_until,billing_mode,status,created_at,updated_at,version) VALUES(?,?,?,?,?,?,?,?,?,?,'TIME_BALANCE','ACTIVE',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,0)",
+                    session,f.customer(),f.pc(),f.location(),f.owner(),Timestamp.from(start),Timestamp.from(start.plusSeconds(600)),Timestamp.from(start.plusSeconds(3600)),Timestamp.from(start),Timestamp.from(start.plusSeconds(30)));
+            var before=db.queryForMap("SELECT billing_mode,status,billed_seconds,started_at,ends_at,access_until,last_billed_at,metered_lease_until FROM gaming_sessions WHERE id=?",session);
+            long seconds=balance(db,f.customer());
+            flyway(source,null).migrate();
+            assertThat(db.queryForMap("SELECT billing_mode,status,billed_seconds,started_at,ends_at,access_until,last_billed_at,metered_lease_until FROM gaming_sessions WHERE id=?",session)).isEqualTo(before);
+            assertThat(balance(db,f.customer())).isEqualTo(seconds);
+            org.assertj.core.api.Assertions.assertThatThrownBy(()->db.update("UPDATE gaming_sessions SET billing_mode='HISTORICAL' WHERE id=?",session))
+                    .isInstanceOf(org.springframework.dao.DataAccessException.class);
+            assertLedger(db);
+        } finally { source.destroy(); }
+    }
+
+    @Test
+    void retirementRefusesToHideAnInconsistentTimeAccount() {
+        var source=database();
+        try {
+            var db=new JdbcTemplate(source);flyway(source,"47").migrate();var f=seed(db,true);flyway(source,"50").migrate();
+            db.update("UPDATE gaming_time_accounts SET balance_seconds=balance_seconds+1 WHERE customer_id=?",f.customer());
+            long before=balance(db,f.customer());
+            org.assertj.core.api.Assertions.assertThatThrownBy(()->flyway(source,null).migrate())
+                    .hasStackTraceContaining("Time account and ledger disagree");
+            assertThat(balance(db,f.customer())).isEqualTo(before);
+            assertThat(db.queryForObject("SELECT COUNT(*) FROM gaming_time_packages",Integer.class)).isEqualTo(2);
+        } finally { source.destroy(); }
+    }
+
+    @Test
+    void retirementRefusesAnUnreconciledLegacySessionBeforeRemovingAnySourceData() {
+        var source=database();
+        try {
+            var db=new JdbcTemplate(source);flyway(source,"47").migrate();var fixture=seed(db,true);
+            flyway(source,"50").migrate();
+            db.update("UPDATE gaming_sessions SET status='ACTIVE' WHERE customer_id=?",fixture.customer());
+            long before=balance(db,fixture.customer());
+            org.assertj.core.api.Assertions.assertThatThrownBy(()->flyway(source,null).migrate())
+                    .hasStackTraceContaining("Close and reconcile active legacy sessions");
+            assertThat(db.queryForObject("SELECT COUNT(*) FROM gaming_tariffs",Integer.class)).isEqualTo(1);
+            assertThat(db.queryForObject("SELECT COUNT(*) FROM gaming_financial_operations",Integer.class)).isEqualTo(1);
+            assertThat(balance(db,fixture.customer())).isEqualTo(before);
         } finally { source.destroy(); }
     }
 

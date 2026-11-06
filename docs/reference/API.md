@@ -74,3 +74,5 @@ Browser stream rute su `/notifications/stream` i `/gaming-sessions/stream`, sa B
 U lokalnom profilu su dostupni `/v3/api-docs` i `/swagger-ui/index.html` na backend portu. Produkcioni profil ih isključuje. Generisana specifikacija zavisi od pokrenute verzije, a ne od arhivske specifikacije. Endpoint/DTO promenu proveriti zajedno sa frontend `src/api`, `src/types` i protocol artefaktima.
 
 Detalji cene, minimalne dopune, dodele i migracije: [Gaming vreme](../GAMING_TIME.md).
+
+Gaming sesija počinje isključivo potvrđenom prijavom na dodeljenom Windows Client-u. Ne postoje javne operacije neposrednog starta, tarifnog produženja, guest prijave, wallet dopune ili prodaje paketa. `GET /gaming-billing/sessions/{id}` i stari `report/packages` više nisu dostupni. Aktuelna istorija je `/gaming-billing/customers/{id}/time/transactions`; arhivska istorija je `/gaming-billing/customers/{id}/time/historical-transactions`, uz iste finansijske i resource scope provere. Finansijski izveštaj odvaja `report/history` od novih uplata.

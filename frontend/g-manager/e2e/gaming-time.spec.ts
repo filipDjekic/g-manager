@@ -5,13 +5,13 @@ for (const role of ['OWNER', 'ADMIN', 'EMPLOYEE'] as const) {
   test(`${role} records a priced time purchase on desktop and mobile`, async ({ page }, testInfo) => {
     await installApi(page, role)
     let balanceSeconds = 7200
-    const payments: { minutes: number; priceVersion: number }[] = []
+    const payments: { minutes: number; priceVersion: number; method: 'CASH' | 'EXTERNAL_POS'; reference?: string }[] = []
     await page.route('**/api/v1/gaming-billing/time-price', route => route.fulfill({ json: { pricePerMinute: '2.50', version: 1 } }))
     await page.route('**/api/v1/gaming-billing/customers/*/time', route => route.fulfill({ json: { balanceSeconds, assignments: [] } }))
     await page.route('**/api/v1/customers?*', route => route.fulfill({ json: { content: [{ id: 'customer-time', name: 'Ada Gaming', email: 'ada@example.test', active: true }], page: 0, size: 8, totalElements: 1, totalPages: 1 } }))
     await page.route('**/api/v1/gaming-billing/customers/*/time-grants', async route => {
       const body = route.request().postDataJSON()
-      expect(body).toEqual({ minutes: 31, priceVersion: 1 })
+      expect(body).toEqual({ minutes: 31, priceVersion: 1, method: 'CASH' })
       expect(route.request().headers()['idempotency-key']).toBeTruthy()
       payments.push(body); balanceSeconds += body.minutes * 60
       await route.fulfill({ json: { balanceSeconds, assignments: [] } })

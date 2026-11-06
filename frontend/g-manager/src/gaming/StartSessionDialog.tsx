@@ -19,17 +19,17 @@ export function StartSessionDialog({ station, customer, onClose, onStarted, rese
   const command = useFinancialCommand(() => { onStarted?.(); onClose() })
   const stations = useQuery({ queryKey: ['gaming-operations', 'board'], queryFn: () => gamingSessionApi.board(), enabled: !station })
   const options = stations.data?.stations.filter(s => s.allowedActions.includes('START')) ?? []
-  const wallet = useQuery({ queryKey: ['gaming-time', selected?.id], queryFn: () => gamingTimeApi.account(selected!.id), enabled: !!selected, refetchInterval: 5000 })
+  const account = useQuery({ queryKey: ['gaming-time', selected?.id], queryFn: () => gamingTimeApi.account(selected!.id), enabled: !!selected, refetchInterval: 5000 })
   if (creating) return <CustomerFormDialog onClose={() => setCreating(false)} onSaved={() => {}} onContinue={value => { setSelected(value); setCreating(false) }} />
   return <Modal open closeDisabled={command.locked} title="Dodeli računar" onClose={onClose} initialFocusRef={input}>
     <form className="ui-form-grid" onSubmit={e => { e.preventDefault(); if (!selected || !resourceId) return; const body = { customerId: selected.id, resourceId, reservationId: reservation?.id }; void command.run(key => gamingTimeApi.assign(body, key)) }}>
       {command.feedback}{customer ? <p><strong>{customer.name}</strong> {customer.email}</p> : <CustomerSearch selected={selected} onSelect={setSelected} inputRef={input} disabled={command.locked} onCreate={hasCapability(actor, 'CUSTOMER_CREATE') ? () => setCreating(true) : undefined} />}
-      {wallet.error && <Alert tone="danger">Saldo nije dostupan.</Alert>}
-      {wallet.data && <p>Raspoloživo vreme: <strong>{remaining(wallet.data.balanceSeconds)}</strong></p>}
+      {account.error && <Alert tone="danger">Saldo nije dostupan.</Alert>}
+      {account.data && <p>Raspoloživo vreme: <strong>{remaining(account.data.balanceSeconds)}</strong></p>}
       {station ? <p>{station.resourceName} — {stationLabels[station.status]}</p> : <label>Slobodna stanica<Select required disabled={command.locked || !!reservation} value={resourceId} onChange={e => setResourceId(e.target.value)}><option value="">Izaberite stanicu</option>{options.map(s => <option key={s.resourceId} value={s.resourceId}>{s.resourceName} — {stationLabels[s.status]}</option>)}</Select></label>}
       {!station && !stations.isLoading && !options.length && <EmptyState title="Nema slobodnih stanica" />}
       <p>Računar čeka prijavu najviše 5 minuta. Odbrojavanje počinje tek posle uspešne prijave na Windows Client. Dodela ne troši saldo.</p>
-      <Button type="submit" loading={command.busy} disabled={command.locked || !selected || !resourceId || !wallet.data || wallet.data.balanceSeconds <= 0}>Dodeli računar</Button>
+      <Button type="submit" loading={command.busy} disabled={command.locked || !selected || !resourceId || !account.data || account.data.balanceSeconds <= 0}>Dodeli računar</Button>
     </form>
   </Modal>
 }

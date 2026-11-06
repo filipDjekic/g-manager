@@ -10,7 +10,6 @@ import com.game_manager.gm.machine.dto.MachineDtos.*;import jakarta.validation.V
  @GetMapping("/commands")public List<MachineCommandResponse> commands(@RequestParam(defaultValue="0")long afterSequence){return service.poll(afterSequence);}
  @PostMapping("/commands/{sequence}/ack")public CommandAckResponse ack(@PathVariable long sequence){return service.acknowledge(sequence);}
  @PostMapping("/session-login")public SessionLoginResponse sessionLogin(@Valid@RequestBody SessionLoginRequest r){return service.sessionLogin(r);}
- @PostMapping("/guest-login") public SessionLoginResponse guest(@Valid @RequestBody SessionLogoutRequest r){return service.guestLogin(r);}
  @PostMapping("/session-logout")@ResponseStatus(HttpStatus.NO_CONTENT)public void sessionLogout(@Valid@RequestBody SessionLogoutRequest r){service.sessionLogout(r);}
  @GetMapping("/configuration")public com.game_manager.gm.machine.dto.StationPolicyDtos.SignedStationPolicy configuration(){return configuration.current();}
  @GetMapping("/lease")public SignedSessionLease lease(){return leases.lease();}

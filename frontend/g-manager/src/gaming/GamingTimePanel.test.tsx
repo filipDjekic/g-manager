@@ -6,7 +6,7 @@ import { http, HttpResponse } from 'msw'
 import { useAuthStore } from '../auth/authStore'
 import { authUser, pageResponse } from '../test/fixtures'
 import { server } from '../test/server'
-import { GamingWalletPanel } from './GamingWalletPanel'
+import { GamingTimePanel } from './GamingTimePanel'
 import { GamingPaymentHistory } from './GamingPaymentHistory'
 import { GamingExtensionDialog } from './GamingExtensionDialog'
 import { RecordTimeDialog } from './RecordTimeDialog'
@@ -15,7 +15,7 @@ import type { GamingStationCard } from '../types/gamingSession.types'
 
 const station: GamingStationCard = { resourceId: 'pc-1', resourceCode: 'PC1', resourceName: 'Gaming PC', locationId: 'loc-1', status: 'ACTIVE', sessionId: 's1', customerId: 'customer-1', billingMode: 'TIME_BALANCE', clientEnabled: true, staleHeartbeat: false, enforcementStatus: 'UNLOCKED', remainingSeconds: 7200, allowedActions: ['EXTEND'] }
 const wrapper = (element: React.ReactNode) => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{element}</QueryClientProvider>)
-const renderPanel = () => wrapper(<GamingWalletPanel customerId="customer-1" />)
+const renderPanel = () => wrapper(<GamingTimePanel customerId="customer-1" />)
 beforeEach(() => useAuthStore.setState({ user: authUser('OWNER'), accessToken: 'token', isInitializing: false }))
 
 it.each(['OWNER', 'ADMIN', 'EMPLOYEE'] as const)('calculates the price and adds whole minutes as %s', async role => {
@@ -32,8 +32,19 @@ it.each(['OWNER', 'ADMIN', 'EMPLOYEE'] as const)('calculates the price and adds 
   expect(screen.queryByText('Autorizovana korekcija ili poništavanje')).not.toBeInTheDocument()
   expect(screen.queryByText('Arhivirana istorija kredita i paketa')).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Potvrdi uplatu' }))
-  await waitFor(() => expect(body).toEqual({ minutes: 31, priceVersion: 1 }))
+  await waitFor(() => expect(body).toEqual({ minutes: 31, priceVersion: 1, method: 'CASH' }))
   await waitFor(() => expect(screen.getByText(/Raspoloživo vreme/)).toHaveTextContent('2h 31m 00s'))
+})
+it('records an external POS receipt without contacting a payment processor', async () => {
+  let body: unknown
+  server.use(http.post('/api/v1/gaming-billing/customers/:id/time-grants', async ({ request }) => { body = await request.json(); return HttpResponse.json({}) }))
+  renderPanel()
+  const user = userEvent.setup()
+  await user.selectOptions(screen.getByLabelText('Način evidentiranja uplate'), 'EXTERNAL_POS')
+  await user.type(screen.getByLabelText('POS referenca'), 'POS-42')
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Potvrdi uplatu' })).toBeEnabled())
+  await user.click(screen.getByRole('button', { name: 'Potvrdi uplatu' }))
+  await waitFor(() => expect(body).toEqual({ minutes: 30, priceVersion: 1, method: 'EXTERNAL_POS', reference: 'POS-42' }))
 })
 it('accepts thirty minutes and rejects shorter or fractional additions', async () => {
   renderPanel()
@@ -59,7 +70,7 @@ it('shows customer time without payment controls or financial history', async ()
   expect(screen.queryByLabelText('Dodaj minute')).not.toBeInTheDocument()
 })
 it('keeps payment history in a separate authorized view', async () => {
-  server.use(http.get('/api/v1/gaming-billing/customers/:id/time/transactions', () => HttpResponse.json(pageResponse([{ id: 'old', kind: 'CREDIT_TOPUP', amount: '450.00', created_at: '2026-01-01T10:00:00Z', reason: 'Sačuvana evidencija' }]))))
+  server.use(http.get('/api/v1/gaming-billing/customers/:id/time/transactions', () => HttpResponse.json(pageResponse([{ id: 'old', kind: 'TIME_GRANT', amount: '450.00', created_at: '2026-01-01T10:00:00Z', reason: 'Sačuvana evidencija' }]))))
   wrapper(<GamingPaymentHistory customerId="customer-1" />)
   expect(screen.queryByText(/Sačuvana evidencija/)).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Istorija uplata' }))
@@ -84,7 +95,7 @@ it('adds time to an active account through the same payment form', async () => {
   wrapper(<GamingExtensionDialog station={station} initialMinutes={30} onClose={() => {}} />)
   const submit = screen.getByRole('button', { name: 'Potvrdi uplatu' })
   await waitFor(() => expect(submit).toBeEnabled()); await userEvent.click(submit)
-  await waitFor(() => expect(body).toEqual({ minutes: 30, priceVersion: 1 }))
+  await waitFor(() => expect(body).toEqual({ minutes: 30, priceVersion: 1, method: 'CASH' }))
 })
 it('selects a customer before confirming payment at the desk', async () => {
   let body: unknown
@@ -97,7 +108,7 @@ it('selects a customer before confirming payment at the desk', async () => {
   await user.click(screen.getByRole('button', { name: /Ada.*ada@example.test/ }))
   const submit = screen.getByRole('button', { name: 'Potvrdi uplatu' })
   await waitFor(() => expect(submit).toBeEnabled()); await user.click(submit)
-  await waitFor(() => expect(body).toEqual({ minutes: 30, priceVersion: 1 }))
+  await waitFor(() => expect(body).toEqual({ minutes: 30, priceVersion: 1, method: 'CASH' }))
 })
 it('opens a compact payment dialog with one title', async () => {
   wrapper(<StationFinanceActions station={station} />)

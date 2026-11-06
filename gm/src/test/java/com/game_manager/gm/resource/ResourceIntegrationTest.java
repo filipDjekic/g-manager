@@ -80,10 +80,13 @@ class ResourceIntegrationTest {
             assertAvailability(setup, start, end, token, expected);
         }
         reservation.setStatus(ReservationStatus.COMPLETED); reservations.saveAndFlush(reservation);
+        jdbc.update("INSERT INTO gaming_time_accounts(customer_id,balance_seconds) VALUES(?,7200)",customer.getId().toString());
+        jdbc.update("INSERT INTO gaming_time_ledger(id,customer_id,actor_id,delta_seconds,balance_after,kind,reason,source_key,created_at) VALUES(?,?,?,7200,7200,'CORRECTION','Isolated active time fixture',?,CURRENT_TIMESTAMP)",
+                UUID.randomUUID().toString(),customer.getId().toString(),employee.getId().toString(),"resource-fixture:"+customer.getId());
         var session = new com.game_manager.gm.gamingsession.GamingSession();
         session.setCustomerId(customer.getId()); session.setResourceId(setup.resource().getId());
         session.setLocationId(setup.location().getId()); session.setStartedBy(employee.getId());
-        session.setStartedAt(start); session.setEndsAt(end);
+        session.setStartedAt(start); session.setEndsAt(end);session.setAccessUntil(end);session.setLastBilledAt(start);session.setMeteredLeaseUntil(end);
         session.setStatus(com.game_manager.gm.gamingsession.GamingSessionStatus.ACTIVE); gamingSessions.saveAndFlush(session);
         assertAvailability(setup, start, end, token, "OCCUPIED");
         assertAvailability(setup, end, end.plusSeconds(1800), token, "AVAILABLE");

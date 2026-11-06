@@ -19,16 +19,10 @@ public class GamingSession extends BaseEntity {
     @JdbcTypeCode(SqlTypes.CHAR) @Column(name = "location_id", nullable = false, length = 36) private UUID locationId;
     @JdbcTypeCode(SqlTypes.CHAR) @Column(name = "reservation_id", length = 36) private UUID reservationId;
     @JdbcTypeCode(SqlTypes.CHAR) @Column(name = "started_by", nullable = false, length = 36) private UUID startedBy;
-    @Enumerated(EnumType.STRING) @Column(name="billing_mode",nullable=false) private GamingBillingMode billingMode = GamingBillingMode.FIXED_DURATION;
-    @JdbcTypeCode(SqlTypes.CHAR) @Column(name="metered_tariff_id",length=36) private UUID meteredTariffId;
-    @Column(name="metered_price",precision=14,scale=2) private java.math.BigDecimal meteredPrice;
-    @Column(name="metered_tariff_seconds") private Long meteredTariffSeconds;
-    @Column(name="billing_unit_seconds") private Integer billingUnitSeconds;
+    @Enumerated(EnumType.STRING) @Column(name="billing_mode",nullable=false) private GamingBillingMode billingMode = GamingBillingMode.TIME_BALANCE;
     @Column(name="billed_seconds",nullable=false) private long billedSeconds;
-    @Column(name="charged_amount",nullable=false,precision=14,scale=2) private java.math.BigDecimal chargedAmount = new java.math.BigDecimal("0.00");
     @Column(name="last_billed_at") private Instant lastBilledAt;
     @Column(name="metered_lease_until") private Instant meteredLeaseUntil;
-    @Column(name="legacy_minutes",nullable=false) private int legacyMinutes;
     @Column(name="guest_name",length=120) private String guestName;
     @JdbcTypeCode(SqlTypes.CHAR) @Column(name="move_target_id",length=36) private UUID moveTargetId;
     @Column(name="move_remaining_seconds") private Long moveRemainingSeconds;

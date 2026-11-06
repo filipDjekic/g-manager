@@ -1,6 +1,6 @@
 # Implementacija paginacije
 
-Implementirano direktno u kodu. Svih 14 modula ima povezanu frontend i backend paginaciju. Status oznacava implementaciju, a ne potvrdu izvrsavanjem aplikacije.
+Implementirano direktno u kodu. Moduli imaju povezanu frontend i backend paginaciju. Status oznacava implementaciju, a ne potvrdu izvrsavanjem aplikacije.
 Po zahtevu nisu pokretani build, lint, testovi ni Docker. Migracija nije primenjena na bazu. Postojeci fixture-i prilagodjeni su novim API ugovorima; nisu izvrsavani.
 
 | Modul | Frontend | Backend | Paginacija |
@@ -8,7 +8,6 @@ Po zahtevu nisu pokretani build, lint, testovi ni Docker. Migracija nije primenj
 | Istorija generisanih izvestaja | Implementirano: ReportsPage | Implementirano: GET `/reports` | Server-side, 10 |
 | Odsustva zaposlenih | Implementirano: EmployeeTimeOffSettings; EmployeeProfile | Implementirano: GET `/time-off; /users/employees/{id}/time-off` | Server-side, 10 |
 | Bezbednosna istorija | Implementirano: SecurityHistory | Implementirano: GET `/auth/security-events` | Server-side, 20 |
-| Gaming novcanik | Implementirano: GamingWalletPanel: ledger, transakcije, paketi | Implementirano: GET `/gaming-billing/customers/{id}/history/{kind}` | Server-side, 10 po listi |
 | CRM beleske | Implementirano: CustomerCrmPanel | Implementirano: GET `/customers/{id}/crm/notes` | Server-side, 10 |
 | Gaming istorija kupca i zaposlenog | Implementirano: GamingVisitHistory: CustomerHomePage i CustomerProfile | Implementirano: GET `/gaming-sessions/me/history; /gaming-sessions/customer/{id}/history` | Server-side, 10 |
 | Istorija gaming stanice | Implementirano: StationDetails; GamingOperationsWorkspace | Implementirano: GET `/gaming-operations/stations/{id}/history` | Server-side, 20 |
@@ -42,10 +41,10 @@ Postojece paginacije korisnika, zaposlenih, klijenata, rezervacija, mojih rezerv
 - Aktivne sesije koriste `/gaming-sessions/me/active` i `/gaming-sessions/customer/{id}/active`. Istorija prikazuje zavrsene sesije; provera aktivne sesije ne zavisi od istorijske stranice.
 - Kalendar izuzetaka koristi `/working-hours/exceptions/calendar?from=...&to=...`, sa kompletnim podacima za ograniceni period. Obracun dostupnosti i provere konflikata ostali su nezavisni od paginacije.
 - Pregled konfiguracije koristi `/working-hours/exceptions/summary` i `/time-off/summary`, bez preuzimanja istorije radi brojanja.
-- Saldo novcanika racuna se iz kompletnog ledger-a. Operativni izbor vraca sve neistekle pakete sa preostalim minutima, prema poslovnom satu; kompletna istorija paketa je zasebna.
-- Izbor originalne uplate za refundaciju koristi `/gaming-billing/customers/{id}/refundable-payments`, nezavisno od stranice transakcija. Postojece provere finansijskih komandi ostale su autoritativne.
-- Finansijski KPI i male kategorijske tabele dolaze iz `/gaming-billing/report`; detalji byStation, byLocation, byEmployee i packages koriste zasebne paginirane upite.
-- Kompletni izbori tarifa, aplikacija, profila i stavki jednog profila ostali su dostupni konfiguracionim i naplatnim dijalozima.
+- Gaming saldo je autoritativni `gaming_time_accounts.balance_seconds`; ne zavisi od paginacije. Kupljeno vreme nema rok isteka.
+- Aktuelne uplate i istorijska arhiva koriste zasebne paginirane upite `time/transactions` i `time/historical-transactions`, uz ista ovlašćenja.
+- Finansijski KPI dolaze iz `/gaming-billing/report`; detalji `manualPayments`, `byStation`, `byLocation`, `byEmployee` i zasebni `history` koriste paginirane upite. Arhiva ne ulazi u tekući obračun.
+- Izbori aplikacija, profila i stavki jednog profila ostaju dostupni konfiguracionim dijalozima.
 - Aktivni uredjaji i postojeci nedavni bezbednosni indikatori koriste nezavisan ograniceni snapshot `/auth/security-events/recent`; paginirana istorija i filteri obuhvataju kompletan skup korisnikovih dogadjaja.
 
 ## Promene API-ja i pristup podacima
@@ -53,7 +52,7 @@ Postojece paginacije korisnika, zaposlenih, klijenata, rezervacija, mojih rezerv
 Istorijski endpoint-i koji su vracali nizove sada vracaju PageResponse; njihovi potrosaci su prilagodjeni.
 Profil klijenta sadrzi zbirne podatke, a rezervacije i narudzbine imaju zasebne endpoint-e.
 CRM metadata sadrzi verziju i tagove; beleske su zaseban paginirani resurs.
-Novcanik vise ne ugradjuje transakcije i ledger u zbirni odgovor. Finansijski zbirni odgovor vise ne ugradjuje detaljne tabele.
+Pregled gaming vremena ne ugrađuje finansijsku istoriju u zbirni odgovor. Finansijski zbirni odgovor ne ugrađuje detaljne tabele.
 Endpoint-i prihvataju page i size; /page i /history aliasi koriste isti ugovor tamo gde postoje.
 
 Zadrzane su postojece provere dozvola i obuhvata podataka. Self-service proverava trenutnog korisnika; page i size ne menjaju korisnicki ili lokacijski obuhvat.
@@ -87,7 +86,7 @@ Nove biblioteke nisu dodavane.
 - Izmenjen: [frontend/g-manager/src/gaming/GamingOperationsWorkspace.tsx](../frontend/g-manager/src/gaming/GamingOperationsWorkspace.tsx)
 - Dodat: [frontend/g-manager/src/gaming/GamingVisitHistory.tsx](../frontend/g-manager/src/gaming/GamingVisitHistory.tsx)
 - Izmenjen: [frontend/g-manager/src/gaming/GamingVisitList.tsx](../frontend/g-manager/src/gaming/GamingVisitList.tsx)
-- Izmenjen: [frontend/g-manager/src/gaming/GamingWalletPanel.tsx](../frontend/g-manager/src/gaming/GamingWalletPanel.tsx)
+- Izmenjen: [frontend/g-manager/src/gaming/GamingTimePanel.tsx](../frontend/g-manager/src/gaming/GamingTimePanel.tsx)
 - Izmenjen: [frontend/g-manager/src/pages/CustomerHomePage.tsx](../frontend/g-manager/src/pages/CustomerHomePage.tsx)
 - Izmenjen: [frontend/g-manager/src/pages/CustomersPage.component.test.tsx](../frontend/g-manager/src/pages/CustomersPage.component.test.tsx)
 - Izmenjen: [frontend/g-manager/src/pages/ReportsAi.test.tsx](../frontend/g-manager/src/pages/ReportsAi.test.tsx)
@@ -101,7 +100,6 @@ Nove biblioteke nisu dodavane.
 - Izmenjen: [frontend/g-manager/src/sessions/SessionDashboardViews.tsx](../frontend/g-manager/src/sessions/SessionDashboardViews.tsx)
 - Izmenjen: [frontend/g-manager/src/sessions/useSessionDashboard.ts](../frontend/g-manager/src/sessions/useSessionDashboard.ts)
 - Izmenjen: [frontend/g-manager/src/settings/EmployeeTimeOffSettings.tsx](../frontend/g-manager/src/settings/EmployeeTimeOffSettings.tsx)
-- Izmenjen: [frontend/g-manager/src/settings/GamingTariffSettings.tsx](../frontend/g-manager/src/settings/GamingTariffSettings.tsx)
 - Izmenjen: [frontend/g-manager/src/settings/SetupOverview.tsx](../frontend/g-manager/src/settings/SetupOverview.tsx)
 - Izmenjen: [frontend/g-manager/src/settings/WorkingHoursExceptions.tsx](../frontend/g-manager/src/settings/WorkingHoursExceptions.tsx)
 - Izmenjen: [frontend/g-manager/src/stations/StationAdministration.tsx](../frontend/g-manager/src/stations/StationAdministration.tsx)

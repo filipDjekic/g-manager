@@ -33,7 +33,7 @@ import tools.jackson.databind.*;
 class GamingTimeIntegrationTest {
  @TestConfiguration static class TimeConfiguration { @Bean @Primary TestClock gamingTimeClock(){return new TestClock();} }
  static class TestClock extends Clock { volatile Instant now=Instant.parse("2026-11-05T12:00:00Z");public ZoneId getZone(){return ZoneOffset.UTC;}public Clock withZone(ZoneId z){return this;}public Instant instant(){return now;} }
- @Autowired TestClock clock; @Autowired GamingTimeService time; @Autowired MeteredSessionRuntime runtime;
+ @Autowired TestClock clock; @Autowired GamingTimeService time;
  @Autowired org.springframework.test.web.servlet.MockMvc mvc; @Autowired JdbcTemplate jdbc;
  @Autowired UserRepository users; @Autowired PasswordEncoder encoder; @Autowired CatalogRepository catalog;
  @Autowired LocationRepository locations; @Autowired AreaRepository areas; @Autowired PhysicalResourceRepository resources;
@@ -43,7 +43,7 @@ class GamingTimeIntegrationTest {
  @Autowired jakarta.persistence.EntityManagerFactory emf;
  @MockitoBean MachinePrincipalProvider principal;
  final ObjectMapper json=new ObjectMapper();
- @BeforeEach void reset(){scheduler.getScheduledTasks().forEach(t->t.cancel());testsupport.DatabaseCleaner.clean(jdbc);clock.now=Instant.parse("2026-11-05T12:00:00Z");org.mockito.Mockito.reset(principal);jdbc.update("UPDATE gaming_business_policy SET minute_price=2.50,time_price_version=1 WHERE id=1");}
+ @BeforeEach void reset(){scheduler.getScheduledTasks().forEach(t->t.cancel());testsupport.DatabaseCleaner.clean(jdbc);clock.now=Instant.parse("2026-11-05T12:00:00Z");org.mockito.Mockito.reset(principal);jdbc.update("UPDATE gaming_time_price SET minute_price=2.50,time_price_version=1 WHERE id=1");}
  String bearer(User user){return "Bearer "+jwt.issue(user.getId()).value();}
  JsonNode command(String path,User actor,Object body,String key,int status) throws Exception {
   var result=mvc.perform(post(path).header("Authorization",bearer(actor)).header("Idempotency-Key",key).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body))).andExpect(status().is(status)).andReturn().getResponse();
@@ -59,7 +59,7 @@ class GamingTimeIntegrationTest {
  }
  void bind(Station station){when(principal.require()).thenReturn(new MachinePrincipal(UUID.randomUUID(),station.resource().getId(),1));when(principal.requireStationId()).thenReturn(station.resource().getId());}
  GamingSession activate(User c,Station station){bind(station);return time.activate(c.getId(),station.resource().getId());}
- void play(UUID id,int seconds){for(int elapsed=0;elapsed<seconds;elapsed+=10){clock.now=clock.now.plusSeconds(Math.min(10,seconds-elapsed));runtime.tick(id,true);}}
+ void play(UUID id,int seconds){for(int elapsed=0;elapsed<seconds;elapsed+=10){clock.now=clock.now.plusSeconds(Math.min(10,seconds-elapsed));time.tick(id,true,false);}}
  @Test void paymentsUseConfiguredPriceAndAreDurableAndIdempotent()throws Exception{
   var owner=user(Role.OWNER);var c=user(Role.CUSTOMER);station();
   grant(owner,c,120,"payment-one",200);grant(owner,c,120,"payment-one",200);
@@ -67,6 +67,40 @@ class GamingTimeIntegrationTest {
   grant(owner,c,180,"payment-two",200);assertThat(time.balance(c.getId())).isEqualTo(18000);
   grant(owner,c,121,"payment-one",409);emf.getCache().evictAll();assertThat(time.balance(c.getId())).isEqualTo(18000);
   assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM audit_events WHERE action='GAMING_TIME_GRANTED'",Integer.class)).isEqualTo(2);
+ }
+ @Test void externalPosReceiptsAreManualAndIdempotencyIncludesMethodAndReference()throws Exception{
+  var owner=user(Role.OWNER);var c=user(Role.CUSTOMER);
+  String path="/api/v1/gaming-billing/customers/"+c.getId()+"/time-grants";
+  var body=Map.of("minutes",31,"priceVersion",1,"method","EXTERNAL_POS","reference","POS-42");
+  command(path,owner,body,"pos-receipt",200);command(path,owner,body,"pos-receipt",200);
+  command(path,owner,Map.of("minutes",31,"priceVersion",1,"method","CASH","reference","POS-42"),"pos-receipt",409);
+  command(path,owner,Map.of("minutes",31,"priceVersion",1,"method","EXTERNAL_POS","reference","POS-43"),"pos-receipt",409);
+  command(path,owner,Map.of("minutes",31,"priceVersion",1,"method","WALLET"),"unsupported",400);
+  assertThat(time.balance(c.getId())).isEqualTo(1860);
+  assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM gaming_financial_operations",Integer.class)).isEqualTo(1);
+  var payment=jdbc.queryForMap("SELECT method,amount,reference FROM gaming_financial_operations");
+  assertThat(payment.get("method")).isEqualTo("EXTERNAL_POS");assertThat(payment.get("reference")).isEqualTo("POS-42");
+  assertThat((BigDecimal)payment.get("amount")).isEqualByComparingTo("77.50");
+ }
+ @Test void archivedReceiptsAreReadableButNeverAddedToCurrentFinanceTotals()throws Exception{
+  var owner=user(Role.OWNER);var c=user(Role.CUSTOMER);grant(owner,c,30,"new-payment",200);
+  jdbc.update("INSERT INTO gaming_history_financial_operations(id,customer_id,actor_id,kind,method,amount,currency,status,created_at) VALUES(?,?,?,'CREDIT_TOPUP','CASH',500,'RSD','RECORDED',?)",
+      UUID.randomUUID().toString(),c.getId().toString(),owner.getId().toString(),Timestamp.from(clock.now));
+  var response=mvc.perform(get("/api/v1/gaming-billing/report").header("Authorization",bearer(owner))
+      .param("from",clock.now.minusSeconds(1).toString()).param("until",clock.now.plusSeconds(1).toString())).andExpect(status().isOk()).andReturn();
+  var report=json.readTree(response.getResponse().getContentAsByteArray());
+  var totals=report.get("totals");var historical=report.get("historical");
+  assertThat((totals.has("external_receipts")?totals.get("external_receipts"):totals.get("EXTERNAL_RECEIPTS")).asText()).isIn("75.00","75.0","75");
+  assertThat((historical.has("external_receipts")?historical.get("external_receipts"):historical.get("EXTERNAL_RECEIPTS")).asText()).isIn("500.00","500.0","500");
+  mvc.perform(get("/api/v1/gaming-billing/customers/"+c.getId()+"/time/historical-transactions").header("Authorization",bearer(c))).andExpect(status().isForbidden());
+  assertThat(time.balance(c.getId())).isEqualTo(1800);
+ }
+ @Test void legacyPurchasesAndDirectSessionStartsAreUnavailable()throws Exception{
+  var owner=user(Role.OWNER);var c=user(Role.CUSTOMER);
+  for(String path:List.of("/api/v1/gaming-billing/tariffs","/api/v1/gaming-billing/customers/"+c.getId()+"/topups",
+      "/api/v1/gaming-billing/customers/"+c.getId()+"/packages","/api/v1/gaming-sessions"))
+   mvc.perform(post(path).header("Authorization",bearer(owner)).header("Idempotency-Key",UUID.randomUUID().toString()).contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(status().is4xxClientError());
+  assertThat(time.balance(c.getId())).isZero();assertThat(sessions.count()).isZero();
  }
  @Test void onlyAuthorizedStaffCanAddAtLeastThirtyWholeMinutes()throws Exception{
   var owner=user(Role.OWNER);var c=user(Role.CUSTOMER);var employee=user(Role.EMPLOYEE);var s=station();assign(employee,s.resource().getId());
@@ -105,7 +139,7 @@ class GamingTimeIntegrationTest {
  }
  @Test void activationEarlyFinishAndNextVisitOnAnotherStationPreserveSeconds()throws Exception{
   var owner=user(Role.OWNER);var c=user(Role.CUSTOMER);var a=station();var b=station();managed(a);managed(b);grant(owner,c,180,"credit",200);allocate(owner,c,a,200);
-  clock.now=clock.now.plusSeconds(15);var s=activate(c,a);assertThat(s.getStartedAt()).isEqualTo(clock.now);play(s.getId(),4200);runtime.finish(s.getId());runtime.finish(s.getId());
+  clock.now=clock.now.plusSeconds(15);var s=activate(c,a);assertThat(s.getStartedAt()).isEqualTo(clock.now);play(s.getId(),4200);time.tick(s.getId(),false,true);time.tick(s.getId(),false,true);
   assertThat(time.balance(c.getId())).isEqualTo(6600);assertThat(sessions.findById(s.getId()).orElseThrow().getBilledSeconds()).isEqualTo(4200);
   clock.now=clock.now.plusSeconds(600);var bp=stations.findByResourceId(b.resource().getId()).orElseThrow();bp.setLastHeartbeatAt(clock.now);stations.saveAndFlush(bp);
   allocate(owner,c,b,200);var resumed=activate(c,b);assertThat(resumed.getId()).isNotEqualTo(s.getId());assertThat(time.balance(c.getId())).isEqualTo(6600);
@@ -113,11 +147,11 @@ class GamingTimeIntegrationTest {
  @Test void addingTimeDuringPlayExtendsAccessWithoutFinancialConsumption()throws Exception{
   var owner=user(Role.OWNER);var c=user(Role.CUSTOMER);var a=station();managed(a);grant(owner,c,120,"credit",200);allocate(owner,c,a,200);var s=activate(c,a);play(s.getId(),20);
   grant(owner,c,60,"extra",200);var next=sessions.findById(s.getId()).orElseThrow();assertThat(next.getEndsAt()).isEqualTo(s.getEndsAt().plusSeconds(3600));
-  assertThat(time.balance(c.getId())).isEqualTo(10780);assertThat(next.getChargedAmount()).isZero();assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM gaming_charges",Integer.class)).isZero();
+  assertThat(time.balance(c.getId())).isEqualTo(10780);assertThat(next.getBillingMode()).isEqualTo(GamingBillingMode.TIME_BALANCE);assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM gaming_history_charges",Integer.class)).isZero();
  }
  @Test void expiredLeaseAfterBackendOrClientRestartBoundsAndDeduplicatesConsumption()throws Exception{
   var owner=user(Role.OWNER);var c=user(Role.CUSTOMER);var a=station();managed(a);grant(owner,c,120,"credit",200);allocate(owner,c,a,200);var s=activate(c,a);
-  clock.now=clock.now.plusSeconds(3600);emf.getCache().evictAll();runtime.tick(s.getId(),true);runtime.tick(s.getId(),true);runtime.finish(s.getId());
+  clock.now=clock.now.plusSeconds(3600);emf.getCache().evictAll();time.tick(s.getId(),true,false);time.tick(s.getId(),true,false);time.tick(s.getId(),false,true);
   var ended=sessions.findById(s.getId()).orElseThrow();assertThat(ended.getBilledSeconds()).isEqualTo(30);assertThat(ended.getStatus()).isEqualTo(GamingSessionStatus.TERMINATED);assertThat(ended.getTerminationReason()).contains("RECOVERY_REQUIRED");assertThat(time.balance(c.getId())).isEqualTo(7170);
  }
  @Test void exactExhaustionCannotBecomeNegative()throws Exception{
@@ -126,7 +160,7 @@ class GamingTimeIntegrationTest {
  }
  @Test void concurrentConsumptionAndFinishCommitEachSecondOnce()throws Exception{
   var owner=user(Role.OWNER);var c=user(Role.CUSTOMER);var a=station();managed(a);grant(owner,c,120,"credit",200);allocate(owner,c,a,200);var s=activate(c,a);clock.now=clock.now.plusSeconds(17);
-  try(var pool=Executors.newFixedThreadPool(3)){var x=pool.submit(()->runtime.tick(s.getId(),false));var y=pool.submit(()->runtime.finish(s.getId()));var z=pool.submit(()->runtime.finish(s.getId()));x.get();y.get();z.get();}
+  try(var pool=Executors.newFixedThreadPool(3)){var x=pool.submit(()->time.tick(s.getId(),false,false));var y=pool.submit(()->time.tick(s.getId(),false,true));var z=pool.submit(()->time.tick(s.getId(),false,true));x.get();y.get();z.get();}
   assertThat(time.balance(c.getId())).isEqualTo(7183);assertThat(jdbc.queryForObject("SELECT SUM(-delta_seconds) FROM gaming_time_ledger WHERE kind='CONSUMPTION'",Long.class)).isEqualTo(17);
  }
  @Test void concurrentAssignmentsRejectSharedCustomerOrStation()throws Exception{
@@ -146,7 +180,7 @@ class GamingTimeIntegrationTest {
  }
  @Test void configuredPriceIsRequiredAndOnlyOwnerOrAdminCanChangeIt()throws Exception{
   var owner=user(Role.OWNER);var admin=user(Role.ADMIN);var employee=user(Role.EMPLOYEE);var c=user(Role.CUSTOMER);
-  jdbc.update("UPDATE gaming_business_policy SET minute_price=NULL,time_price_version=0");
+  jdbc.update("UPDATE gaming_time_price SET minute_price=NULL,time_price_version=0");
   command("/api/v1/gaming-billing/customers/"+c.getId()+"/time-grants",owner,Map.of("minutes",30,"priceVersion",0),"unconfigured",409);
   for(var actor:List.of(employee,c))mvc.perform(put("/api/v1/gaming-billing/time-price").header("Authorization",bearer(actor)).contentType(MediaType.APPLICATION_JSON).content("{\"pricePerMinute\":2.50,\"version\":0}")).andExpect(status().isForbidden());
   mvc.perform(put("/api/v1/gaming-billing/time-price").header("Authorization",bearer(owner)).contentType(MediaType.APPLICATION_JSON).content("{\"pricePerMinute\":2.50,\"version\":0}")).andExpect(status().isOk());
@@ -158,7 +192,7 @@ class GamingTimeIntegrationTest {
  }
  @Test void clientRestartBeforeLeaseExpiryClosesOldAccessAndRetainsUnusedTime()throws Exception{
   var owner=user(Role.OWNER);var c=user(Role.CUSTOMER);var a=station();managed(a);grant(owner,c,120,"restart",200);allocate(owner,c,a,200);var session=activate(c,a);
-  clock.now=clock.now.plusSeconds(13);time.recover(session.getId());runtime.tick(session.getId(),true);time.recover(session.getId());
+  clock.now=clock.now.plusSeconds(13);time.recover(session.getId());time.tick(session.getId(),true,false);time.recover(session.getId());
   assertThat(time.balance(c.getId())).isEqualTo(7187);assertThat(sessions.findById(session.getId()).orElseThrow().getTerminationReason()).contains("RECOVERY_REQUIRED");
  }
  @Test void recordingPaymentDoesNotRequireAComputerAssignment()throws Exception{
@@ -175,8 +209,8 @@ class GamingTimeIntegrationTest {
  }
  @Test void repeatedSubsecondTicksUseCumulativeWholeSeconds()throws Exception{
   var owner=user(Role.OWNER);var c=user(Role.CUSTOMER);var a=station();managed(a);grant(owner,c,120,"fractional",200);allocate(owner,c,a,200);var session=activate(c,a);
-  for(int i=0;i<3;i++){clock.now=clock.now.plusMillis(900);runtime.tick(session.getId(),true);}
-  runtime.finish(session.getId());assertThat(time.balance(c.getId())).isEqualTo(7198);assertThat(sessions.findById(session.getId()).orElseThrow().getBilledSeconds()).isEqualTo(2);
+  for(int i=0;i<3;i++){clock.now=clock.now.plusMillis(900);time.tick(session.getId(),true,false);}
+  time.tick(session.getId(),false,true);assertThat(time.balance(c.getId())).isEqualTo(7198);assertThat(sessions.findById(session.getId()).orElseThrow().getBilledSeconds()).isEqualTo(2);
  }
  @Test void concurrentPaymentsAndConsumptionKeepEveryPurchasedAndUsedSecond()throws Exception{
   var owner=user(Role.OWNER);var c=user(Role.CUSTOMER);var pc=station();managed(pc);grant(owner,c,30,"initial",200);allocate(owner,c,pc,200);var session=activate(c,pc);
@@ -184,9 +218,9 @@ class GamingTimeIntegrationTest {
   try(var pool=Executors.newFixedThreadPool(3)) {
    var a=pool.submit(()->{grant(owner,c,31,"parallel-a",200);return true;});
    var b=pool.submit(()->{grant(owner,c,45,"parallel-b",200);return true;});
-   var usage=pool.submit(()->runtime.tick(session.getId(),false));a.get();b.get();usage.get();
+   var usage=pool.submit(()->time.tick(session.getId(),false,false));a.get();b.get();usage.get();
   }
-  runtime.finish(session.getId());
+  time.tick(session.getId(),false,true);
   assertThat(time.balance(c.getId())).isEqualTo(106*60-17);
   assertThat(jdbc.queryForObject("SELECT SUM(-delta_seconds) FROM gaming_time_ledger WHERE kind='CONSUMPTION'",Long.class)).isEqualTo(17);
   assertThat(jdbc.queryForObject("SELECT SUM(amount) FROM gaming_financial_operations",BigDecimal.class)).isEqualByComparingTo("265.00");

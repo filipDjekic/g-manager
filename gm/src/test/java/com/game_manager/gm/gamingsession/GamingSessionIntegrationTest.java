@@ -57,13 +57,6 @@ class GamingSessionIntegrationTest {
 
 
 
-    @Test void customerCannotUseManagementCommands() throws Exception {
-        User customer=user(Role.CUSTOMER);Station station=station();
-        mvc.perform(post("/api/v1/gaming-sessions").header("Authorization",bearer(login(customer)))
-                .header("Idempotency-Key",UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON)
-                .content(startBody(customer,station.resource(),60))).andExpect(status().isForbidden());
-    }
-
     // Inherited by GamingSessionConcurrencyIT so this regression runs on H2 and MySQL.
     @Test void latestCommandSummariesAreBoundedScopedAndIndependentOfTheDurableCursor() throws Exception {
         User employee=user(Role.EMPLOYEE), owner=user(Role.OWNER), customer=user(Role.CUSTOMER);
@@ -73,6 +66,7 @@ class GamingSessionIntegrationTest {
         GamingSession session=new GamingSession();session.setResourceId(busy.resource().getId());
         session.setLocationId(busy.locationId());session.setCustomerId(customer.getId());session.setStartedBy(owner.getId());
         session.setStartedAt(now.minusSeconds(60));session.setEndsAt(now.plusSeconds(3600));
+        session.setAccessUntil(now.plusSeconds(7200));session.setLastBilledAt(session.getStartedAt());session.setMeteredLeaseUntil(now.plusSeconds(30));
         session.setStatus(GamingSessionStatus.ACTIVE);session=sessions.saveAndFlush(session);
         UUID sessionId=session.getId();
         jdbc.batchUpdate("""
@@ -144,12 +138,5 @@ class GamingSessionIntegrationTest {
     User user(Role role){User value=new User();value.setName(role.name());value.setEmail(role+"-gaming-"+UUID.randomUUID()+"@example.test");value.setPasswordHash(encoder.encode("StrongPass1!"));value.setRole(role);value.setActive(true);return users.saveAndFlush(value);}
     private String login(User user)throws Exception{return node(mvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON).content("{\"email\":\"%s\",\"password\":\"StrongPass1!\"}".formatted(user.getEmail()))).andExpect(status().isOk()).andReturn()).get("token").asText();}
     private JsonNode node(MvcResult result){return json.readTree(result.getResponse().getContentAsByteArray());}
-    private String startBody(User customer,PhysicalResource resource,int minutes){return "{\"customerId\":\"%s\",\"resourceId\":\"%s\",\"durationMinutes\":%d}".formatted(customer.getId(),resource.getId(),minutes).replace("}",",\"purchase\":"+purchase(minutes)+"}");}
-    String purchase(int minutes) {
-        String id="00000000-0000-0000-0000-000000000043";
-        if(jdbc.queryForObject("SELECT COUNT(*) FROM gaming_tariffs WHERE id=?",Integer.class,id)==0)
-            jdbc.update("INSERT INTO gaming_tariffs (id,name,minutes,price,currency,active,package_validity_days,version) VALUES (?,'Test tariff',30,100,'RSD',TRUE,0,0)",id);
-        return "{\"tariffId\":\""+id+"\",\"tariffVersion\":0,\"payment\":{\"method\":\"CASH\",\"amount\":"+(minutes/30*100)+"}}";
-    }
     private static String bearer(String token){return "Bearer "+token;}private static String shortId(){return UUID.randomUUID().toString().substring(0,8);}record Station(PhysicalResource resource,UUID locationId){}
 }

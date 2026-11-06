@@ -126,13 +126,12 @@ app:
   reservations:
     cancellation-cutoff-minutes: ${CANCELLATION_CUTOFF_MINUTES:60}
   gaming-session:
+    time-accounting-millis: ${GAMING_TIME_ACCOUNTING_MILLIS:10000}
+    login-timeout-seconds: ${GAMING_LOGIN_TIMEOUT_SECONDS:300}
     minimum-duration-minutes: ${GAMING_SESSION_MINIMUM_DURATION_MINUTES:15}
-    default-duration-minutes: ${GAMING_SESSION_DEFAULT_DURATION_MINUTES:120}
     maximum-duration-minutes: ${GAMING_SESSION_MAXIMUM_DURATION_MINUTES:480}
-    maximum-extension-minutes: ${GAMING_SESSION_MAXIMUM_EXTENSION_MINUTES:120}
     heartbeat-interval-seconds: ${GAMING_SESSION_HEARTBEAT_INTERVAL_SECONDS:10}
     offline-grace-seconds: ${GAMING_SESSION_OFFLINE_GRACE_SECONDS:60}
-    warning-threshold-minutes: ${GAMING_SESSION_WARNING_THRESHOLD_MINUTES:15,5,1}
     expiration-schedule-millis: ${GAMING_SESSION_EXPIRATION_SCHEDULE_MILLIS:10000}
     reconciliation-initial-delay-millis: ${GAMING_SESSION_RECONCILIATION_INITIAL_DELAY_MILLIS:30000}
     reconciliation-schedule-millis: ${GAMING_SESSION_RECONCILIATION_SCHEDULE_MILLIS:300000}

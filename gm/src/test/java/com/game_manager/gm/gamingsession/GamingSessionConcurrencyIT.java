@@ -75,7 +75,7 @@ class GamingSessionConcurrencyIT extends GamingSessionIntegrationTest {
         GamingSession terminal = new GamingSession(); terminal.setCustomerId(customer.getId()); terminal.setStartedBy(owner.getId());
         terminal.setResourceId(stationId); terminal.setLocationId(station.locationId()); Instant now = Instant.now();
         terminal.setStartedAt(now.minusSeconds(3600)); terminal.setEndsAt(now.plusSeconds(3600)); terminal.setEndedAt(now);
-        terminal.setStatus(GamingSessionStatus.TERMINATED); terminal.setTerminationReason("Protocol fixture");
+        terminal.setBillingMode(GamingBillingMode.HISTORICAL);terminal.setStatus(GamingSessionStatus.TERMINATED); terminal.setTerminationReason("Protocol fixture");
         terminal = sessions.saveAndFlush(terminal); GamingSession value = terminal;
         long sequence = new org.springframework.transaction.support.TransactionTemplate(transactionManager).execute(status -> {
             long result = commandWriter.write(value, com.game_manager.gm.gamingsession.command.StationCommandType.SESSION_TERMINATED);
@@ -125,7 +125,7 @@ class GamingSessionConcurrencyIT extends GamingSessionIntegrationTest {
         Instant now=Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         var session=new GamingSession();session.setResourceId(stationId);session.setLocationId(station.locationId());
         session.setCustomerId(customer.getId());session.setStartedBy(owner.getId());session.setStartedAt(now.minusSeconds(60));
-        session.setEndsAt(now.plusSeconds(3600));session.setStatus(GamingSessionStatus.ACTIVE);
+        session.setEndsAt(now.plusSeconds(3600));session.setAccessUntil(session.getEndsAt());session.setLastBilledAt(session.getStartedAt());session.setMeteredLeaseUntil(now.plusSeconds(30));session.setStatus(GamingSessionStatus.ACTIVE);
         UUID sessionId=sessions.saveAndFlush(session).getId();
         var transaction=new org.springframework.transaction.support.TransactionTemplate(transactionManager);
         java.util.function.Supplier<Long> write=()->transaction.execute(status->{
@@ -183,7 +183,7 @@ class GamingSessionConcurrencyIT extends GamingSessionIntegrationTest {
             value.setResourceId(station.resource().getId()); value.setLocationId(station.locationId());
             java.time.Instant end = now.minusSeconds((i == 110 ? 90L * 24 : i + 1) * 3600);
             value.setStartedAt(end.minusSeconds(3600)); value.setEndsAt(end); value.setEndedAt(end);
-            value.setStatus(GamingSessionStatus.EXPIRED); value = sessions.saveAndFlush(value);
+            value.setBillingMode(GamingBillingMode.HISTORICAL);value.setStatus(GamingSessionStatus.EXPIRED); value = sessions.saveAndFlush(value);
             if (i < 110) expected.add(value.getId());
         }
         var first = sessions.findReconciliationIds(now.minus(java.time.Duration.ofDays(30)), null,

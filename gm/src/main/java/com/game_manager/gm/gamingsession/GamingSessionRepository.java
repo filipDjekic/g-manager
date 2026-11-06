@@ -19,7 +19,7 @@ public interface GamingSessionRepository extends JpaRepository<GamingSession, UU
 
     @Query("""
             select new com.game_manager.gm.gamingsession.dto.GamingSessionVisitResponse(
-                s.id, s.resourceId, r.name, s.locationId, s.startedAt, s.endsAt, s.endedAt, s.status, :now, s.billingMode, s.billedSeconds, s.chargedAmount)
+                s.id, s.resourceId, r.name, s.locationId, s.startedAt, s.endsAt, s.endedAt, s.status, :now, s.billingMode, s.billedSeconds)
             from GamingSession s join com.game_manager.gm.resource.PhysicalResource r on r.id = s.resourceId
             where s.status = com.game_manager.gm.gamingsession.GamingSessionStatus.ACTIVE and s.customerId = :customerId and (:allLocations = true or s.resourceId in :locationIds)
             order by s.startedAt desc, s.id desc
@@ -30,7 +30,7 @@ public interface GamingSessionRepository extends JpaRepository<GamingSession, UU
 
     @Query("""
             select new com.game_manager.gm.gamingsession.dto.GamingSessionVisitResponse(
-                s.id, s.resourceId, r.name, s.locationId, s.startedAt, s.endsAt, s.endedAt, s.status, :now, s.billingMode, s.billedSeconds, s.chargedAmount)
+                s.id, s.resourceId, r.name, s.locationId, s.startedAt, s.endsAt, s.endedAt, s.status, :now, s.billingMode, s.billedSeconds)
             from GamingSession s join com.game_manager.gm.resource.PhysicalResource r on r.id = s.resourceId
             where s.status <> com.game_manager.gm.gamingsession.GamingSessionStatus.ACTIVE and s.customerId = :customerId and (:allLocations = true or s.resourceId in :locationIds)
             order by s.startedAt desc, s.id desc
@@ -50,11 +50,6 @@ public interface GamingSessionRepository extends JpaRepository<GamingSession, UU
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select s from GamingSession s where s.id = :id")
     Optional<GamingSession> findByIdForUpdate(@Param("id") UUID id);
-
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select s from GamingSession s where s.status = :status and s.billingMode = com.game_manager.gm.gamingsession.GamingBillingMode.FIXED_DURATION and s.moveTargetId is null and s.endsAt <= :now order by s.endsAt")
-    List<GamingSession> findDueForUpdate(@Param("status") GamingSessionStatus status,
-            @Param("now") Instant now, Pageable pageable);
 
     @Query("select s from GamingSession s order by s.updatedAt")
     List<GamingSession> findForReconciliation(Pageable pageable);

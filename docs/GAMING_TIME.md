@@ -1,6 +1,6 @@
 # Gaming vreme, naplata i sesije
 
-Osnovni tok je **Dodaj vreme → Dodeli računar → Završi sesiju**.
+Osnovni tok je **Dodaj vreme → Dodeli računar → Prijava korisnika → Trošenje vremena → Završetak sesije → Čuvanje preostalog vremena**. `TIME_BALANCE` je jedini aktivni režim.
 
 ## Podešavanje i naplata
 
@@ -8,7 +8,7 @@ OWNER/ADMIN prvo u Podešavanja → Gaming vreme postavlja cenu po minutu u RSD.
 
 Osoblje u profilu klijenta, ili preko dugmeta „Dodaj vreme“, unosi najmanje 30 celih minuta. Dozvoljeni su i 31, 45, 90 i drugi celi brojevi minuta. Prozor prikazuje raspoloživo vreme, cenu i novo stanje. Posle prijema novca na kasi radnik bira „Potvrdi uplatu“.
 
-Backend računa cenu kao `minuti × cena po minutu` koristeći decimalnu aritmetiku. Zahtev sadrži samo minute i verziju cene. Promenjena cena zahteva pregled novog iznosa pre potvrde. Jedna transakcija upisuje uplatu, audit, stavku vremena i saldo. `Idempotency-Key` i trajno jedinstven izvor u evidenciji sprečavaju duplu dopunu, uključujući ponavljanje nakon isteka keša odgovora.
+Backend računa cenu kao `minuti × cena po minutu` koristeći decimalnu aritmetiku. Zahtev sadrži minute, verziju cene, način evidentiranja `CASH` ili `EXTERNAL_POS` i opcionu referencu. To je evidencija već primljene uplate; nema online naplate. Izostavljen način u starijem zahtevu znači gotovinu. Promenjena cena zahteva pregled novog iznosa pre potvrde. Jedna transakcija upisuje uplatu, audit, stavku vremena i saldo. `Idempotency-Key` i trajno jedinstven izvor sprečavaju duplu dopunu; ponovljeni zahtev mora imati iste minute, verziju cene, način i referencu.
 
 Istorija uplata je zaseban pregled za ovlašćeno osoblje. Zaposleni vidi finansijske stavke svojih dodeljenih resursa. Stare finansijske operacije i audit ostaju sačuvani. Stari API-ji za tarife, pakete, novčane dopune, korekcije i neposredno pokretanje sesije uklonjeni su iz aktivnog API-ja.
 
@@ -36,11 +36,15 @@ Originalni `V48` prenosi tada raspoložive minute i zatvara stari pristup. Njego
 
 Stari novčani saldi ostaju finansijska istorija; ne pretvaraju se proizvoljno u vreme. Aktuelni postupak, ograničenja nadogradnje i kontrola checksum-a opisani su u [Flyway oporavku](operations/FLYWAY_RECOVERY.md). Pri rollout-u koristite postojeće procedure za backup i usaglašeno zaustavljanje starih backend/Client verzija.
 
+`V51__retire_legacy_gaming_billing` izdvaja istoriju u `gaming_history_*`, uklanja stare operativne tabele i tarifne kolone, a cenu prenosi u `gaming_time_price`. Završene stare sesije ostaju povezane sa audit-om i komandama kao neaktivni `HISTORICAL` zapisi. V51 ne menja saldo ili ledger i ne ponavlja prethodnu konverziju. Aktivne stare sesije i neusaglašene zavisnosti zaustavljaju nadogradnju. [Detalji arhive, kompatibilnosti i primene](operations/GAMING_BILLING_RETIREMENT.md).
+
+Aktuelni finansijski zbir i izvoz čitaju samo ručne uplate/refundacije vremena. Istorijska arhiva ima zaseban prikaz i nije uključena u tekuće prihode. Novčana polja v1 lease poruke ostaju prazna radi kompatibilnosti; novi Client prihvata samo `TIME_BALANCE` aktivaciju registrovanog korisnika.
+
 ## Provere
 
 `GamingTimeIntegrationTest` pokriva dopune, cene, uloge, idempotentnost, konkurentne operacije, dodelu, prijavu, preciznu potrošnju, dopunu tokom igranja, završetak, istek, granice rezervacija i restart. `GamingTimeMigrationTest` proverava nadogradnju postojeće baze na H2; `GamingTimeMigrationIT` i `GamingTimeMySqlIT` proveravaju MySQL preko Testcontainers. Client testovi proveravaju potpisanu aktivaciju, lokalno zaključavanje, prekid veze i oporavak. Fizičku AppLocker/Windows logoff proveru izvršite na instaliranoj gaming stanici.
 
-Rezultat provere 6. novembra 2026:
+Istorijski rezultati ranijih provera, pre izmene V51:
 
 | Provera | Rezultat |
 | --- | --- |
@@ -53,3 +57,5 @@ Rezultat provere 6. novembra 2026:
 | Nadogradnja V47/V48/V49 → V50, saldi i ponovljena migracija | Pokrivena zajedničkim H2/MySQL testovima, uključujući minute sa starim rokom |
 
 Rezultati naknadne MySQL/Flyway provere i oporavka postojeće baze nalaze se u [Flyway izveštaju](operations/FLYWAY_RECOVERY.md). Fizičko zaključavanje na instaliranoj gaming stanici nije provereno ovim automatizovanim testovima. Logovi provera nalaze se u lokalnom direktorijumu `artifacts/gaming-*`.
+
+Ti rezultati ne potvrđuju ovu izmenu. V51 i pripadajući backend/frontend/Client kod nisu izvršno provereni; konkretan spisak naknadnih provera nalazi se u [izveštaju izmene](operations/GAMING_BILLING_RETIREMENT.md).

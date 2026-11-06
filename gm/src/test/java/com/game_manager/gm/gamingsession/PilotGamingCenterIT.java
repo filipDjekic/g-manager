@@ -52,7 +52,7 @@ class PilotGamingCenterIT {
 
     @BeforeEach void fixture() throws Exception {
         testsupport.DatabaseCleaner.clean(jdbc);jdbc.update("DELETE FROM catalog_items WHERE id=?",id("service").toString());machines.clear();Arrays.fill(cursors,0);
-        jdbc.update("UPDATE gaming_business_policy SET minute_price=2.50,time_price_version=1 WHERE id=1");
+        jdbc.update("UPDATE gaming_time_price SET minute_price=2.50,time_price_version=1 WHERE id=1");
         String hash=passwords.encode("PilotPass1!");
         for(int i=0;i<14;i++) {
             String key=i==0?"owner":i==1?"admin":i<4?"employee-"+(i-2):"customer-"+(i-4);
@@ -148,7 +148,7 @@ class PilotGamingCenterIT {
             command("/api/v1/gaming-operations/stations/"+id("pc-"+pc)+"/prepare",staff(2),Map.of("sessionId",session.get("id").asText(),"isolatedProfileVerified",true,"reason","Synthetic isolated test fixture"),200);
             assertThat(jdbc.queryForObject("SELECT balance_seconds FROM gaming_time_accounts WHERE customer_id=?",Long.class,id("customer-"+c).toString())).isBetween(7100L,7200L);
         }
-        assertLedger();assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM gaming_charges",Integer.class)).isZero();
+        assertLedger();assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM gaming_history_charges",Integer.class)).isZero();
     }
     @Test void assignmentAndCredentialsAreRequiredBeforeASignedActiveLease()throws Exception {
         command("/api/v1/gaming-billing/customers/"+id("customer-0")+"/time-grants",staff(2),Map.of("minutes",180,"priceVersion",1),200);
@@ -170,10 +170,8 @@ class PilotGamingCenterIT {
     }
     void assertLedger() {
         assertThat(new com.game_manager.gm.gamingsession.billing.GamingLedgerHealth(jdbc,new io.micrometer.core.instrument.simple.SimpleMeterRegistry()).check()).isZero();
-        assertThat(jdbc.queryForList("SELECT customer_id FROM gaming_wallet_ledger WHERE package_id IS NULL GROUP BY customer_id HAVING SUM(amount)<0")).isEmpty();
         assertThat(jdbc.queryForList("SELECT resource_id FROM gaming_sessions WHERE status='ACTIVE' GROUP BY resource_id HAVING COUNT(*)>1")).isEmpty();
         assertThat(jdbc.queryForList("SELECT customer_id FROM gaming_sessions WHERE status='ACTIVE' AND customer_id IS NOT NULL GROUP BY customer_id HAVING COUNT(*)>1")).isEmpty();
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM gaming_wallet_ledger WHERE amount<>0 AND operation_id IS NULL",Integer.class)).isZero();
     }
     static KeyPair keyPair(){try{return KeyPairGenerator.getInstance("Ed25519").generateKeyPair();}catch(GeneralSecurityException e){throw new ExceptionInInitializerError(e);}}
     static int freePort(){try(var socket=new java.net.ServerSocket(0)){return socket.getLocalPort();}catch(java.io.IOException e){throw new ExceptionInInitializerError(e);}}

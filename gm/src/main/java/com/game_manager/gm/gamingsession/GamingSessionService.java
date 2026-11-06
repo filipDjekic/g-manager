@@ -27,7 +27,6 @@ public class GamingSessionService {
         var session=sessions.findById(id).orElseThrow(()->new ApplicationException(HttpStatus.NOT_FOUND,"Session not found"));
         locations.requireResourceManagement(actor,session.getResourceId(),Permission.GAMING_SESSION_TERMINATE);
         if(session.getBillingMode()==GamingBillingMode.TIME_BALANCE)time.finishByOperator(id,request.reason());
-        else if(session.getStatus()==GamingSessionStatus.ACTIVE)throw new ApplicationException(HttpStatus.CONFLICT,"Legacy session must be reconciled before continuing");
         return GamingSessionResponse.from(session,clock.instant());
     }
 
