@@ -24,7 +24,7 @@ export function WorkspaceNavigation() {
     }
     items = [['Raspored', '/calendar'], ['Lista', '/reservations'], ['Čekanje', '/waitlist']].map(([name, path]) => ({ label: name, to: target(path), active: path === pathname }))
   } else if (['/employees', '/users'].includes(pathname) && hasCapability(user, 'USER_LIST')) {
-    label = 'Tim i pristup'; items = [{ label: 'Zaposleni', to: '/employees', active: pathname === '/employees' }, { label: 'Nalozi i obrisani', to: '/users', active: pathname === '/users' }]
+    label = 'Tim i pristup'; items = [{ label: 'Zaposleni', to: '/employees', active: pathname === '/employees' }, { label: 'Svi nalozi', to: '/users', active: pathname === '/users' }]
   } else if (['/profile', '/sessions', '/notification-preferences'].includes(pathname)) {
     label = 'Moj nalog'; items = [{ label: 'Lični podaci', to: '/profile' }, { label: 'Bezbednost i uređaji', to: '/sessions' }, { label: 'Podešavanja obaveštenja', to: '/notification-preferences' }].map(value => ({ ...value, active: value.to.split('?')[0] === pathname }))
   } else if (['/resources', '/stations'].includes(pathname) && user.role !== 'CUSTOMER') {

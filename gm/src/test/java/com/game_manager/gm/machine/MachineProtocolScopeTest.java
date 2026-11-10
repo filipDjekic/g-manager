@@ -1,17 +1,23 @@
 package com.game_manager.gm.machine;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.UUID;
+
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.*;
+import org.junit.jupiter.api.Test;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import org.springframework.data.domain.PageRequest;
 
 import com.game_manager.gm.auth.RateLimitService;
-import com.game_manager.gm.gamingsession.*;
-import com.game_manager.gm.gamingsession.command.*;
+import com.game_manager.gm.gamingsession.GamingSessionRepository;
+import com.game_manager.gm.gamingsession.command.StationCommandRepository;
 import com.game_manager.gm.security.JwtService;
-import com.game_manager.gm.station.*;
-import java.time.*;
-import java.util.*;
-import org.junit.jupiter.api.Test;
-import org.springframework.data.domain.PageRequest;
+import com.game_manager.gm.station.GamingStationProfileRepository;
 
 class MachineProtocolScopeTest {
     @Test
@@ -29,7 +35,7 @@ class MachineProtocolScopeTest {
                 mock(StationHeartbeatRepository.class), mock(GamingStationProfileRepository.class),
                 mock(GamingSessionRepository.class), commands, principal, mock(JwtService.class), limits,
                 Clock.fixed(now, ZoneOffset.UTC), mock(com.game_manager.gm.user.UserRepository.class),
-                mock(org.springframework.security.crypto.password.PasswordEncoder.class), mock(MachineLoginAttemptWriter.class),mock(com.game_manager.gm.gamingsession.command.StationCommandWriter.class));
+                mock(org.springframework.security.crypto.password.PasswordEncoder.class), mock(MachineLoginAttemptWriter.class));
         assertThat(service.poll(4)).isEmpty();
         verify(commands).findByStationIdAndSequenceGreaterThanAndAvailableAtLessThanEqualOrderBySequence(
                 station, 4L, now, PageRequest.of(0, 100));
