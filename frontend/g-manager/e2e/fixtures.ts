@@ -13,7 +13,7 @@ function user(role: Role) {
   }
 }
 
-export async function installApi(page: Page, role: Role, aiEnabled = false, reservationConflictOnce = false) {
+export async function installApi(page: Page, role: Role, aiEnabled = false, reservationConflictOnce = false, reportsEnabled = true) {
   let authenticated = false
   let orderCreated = false
   let reservationCreated = false
@@ -80,11 +80,11 @@ export async function installApi(page: Page, role: Role, aiEnabled = false, rese
       return json({ token: 'synthetic-e2e-token', expiresAt: '2030-01-01T00:00:00Z', user: user(role) })
     }
     if (path === '/features/bootstrap') return json([
-      { key: 'REPORTS', enabled: true, rolloutPercentage: 100, owner: 'Operations', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
+      { key: 'REPORTS', enabled: reportsEnabled, rolloutPercentage: reportsEnabled ? 100 : 0, owner: 'Operations', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
       { key: 'PWA_OFFLINE', enabled: true, rolloutPercentage: 100, owner: 'Platform', reviewBy: '2027-02-01', overridden: false, overrideExpiresAt: null, version: null },
       { key: 'AI_ASSISTANT', enabled: aiEnabled, rolloutPercentage: aiEnabled ? 100 : 0, owner: 'Security', reviewBy: '2026-12-01', overridden: aiEnabled, overrideExpiresAt: null, version: null },
     ])
-    if (path === '/auth/sessions' || path === '/auth/security-events') return json([])
+    if (path === '/auth/sessions' || path === '/auth/security-events/recent') return json([])
     if (path === '/saved-views' && request.method() === 'GET') {
       const resourceType = url.searchParams.get('resourceType')
       return json(savedViews.filter((view) => view.resourceType === resourceType))
@@ -97,12 +97,14 @@ export async function installApi(page: Page, role: Role, aiEnabled = false, rese
     if (path === '/users/me') return json(user(role))
     if (path === '/resources/locations' || path === '/stations' || path === '/stations/applications' || path === '/stations/application-profiles') return json([])
     if (path === '/stations/client-package') return json({status:'DEVELOPMENT',version:'0.1.0-dev',downloadUrl:null,sha256:null})
-    if (path === '/gaming-sessions/me' || path.startsWith('/gaming-sessions/customer/') || path === '/waitlist/me') return json([])
+    if (path === '/gaming-sessions/me/active' || /^\/gaming-sessions\/customer\/[^/]+\/active$/.test(path) || path === '/waitlist/me') return json([])
+    if (path === '/gaming-sessions/me/history' || /^\/gaming-sessions\/customer\/[^/]+\/history$/.test(path)) return json(emptyPage)
     if (path === '/waitlist') return json(emptyPage)
     if (path === '/working-hours/exceptions' || path === '/time-off') return json([])
     if (path === '/reports/definitions') return json([{ key: 'orders', label: 'Orders', metricDefinition: 'Created in range', formats: ['CSV'] }])
-    if (path === '/reports' && request.method() === 'GET') return json([{ id: 'report-1', definitionKey: 'orders', format: 'CSV', status: 'COMPLETED', progress: 100, rowCount: 42, documentId: 'document-1', errorMessage: null, snapshotAt: '2028-03-15T10:00:00Z', expiresAt: '2028-03-16T10:00:00Z', version: 1 }])
-    if (path === '/reports/schedules' || path === '/reports/templates') return json([])
+    if (path === '/reports' && request.method() === 'GET') return json({ ...emptyPage, size: 10, totalElements: 1, totalPages: 1, content: [{ id: 'report-1', definitionKey: 'orders', format: 'CSV', status: 'COMPLETED', progress: 100, rowCount: 42, documentId: 'document-1', errorMessage: null, snapshotAt: '2028-03-15T10:00:00Z', expiresAt: '2028-03-16T10:00:00Z', version: 1 }] })
+    if (path === '/reports/schedules') return json({ ...emptyPage, size: 10 })
+    if (path === '/reports/templates') return json([])
     if (path === '/ai/report-summaries/report-1') return json({ usageId: 'usage-1', aiGenerated: false, summary: 'Deterministic report metadata summary.', limitations: 'Provider unavailable; source report remains authoritative.', sources: [{ reportId: 'report-1', definition: 'orders', rowCount: 42, snapshotAt: '2028-03-15T10:00:00Z' }], promptVersion: 'report-summary-v1', outputVersion: 'report-summary-response-v1' })
     if (path === '/ai/usage/usage-1/feedback') return json(null, 204)
     if (path === '/dashboard/summary') return json({

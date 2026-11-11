@@ -1,6 +1,6 @@
 # Uklanjanje starog gaming billing sistema — V51
 
-Izmene su pripremljene u izvornom kodu. Testovi, build, lint, typecheck, Docker i migracija baze nisu izvršavani tokom ove izmene.
+Aktuelne ispravke i izvršne provere za CI #146 opisane su u [izveštaju provere](CI_146_REMEDIATION.md). Raniji rezultati pre V51 nisu dokaz ispravnosti ove migracije.
 
 ## Aktivni sistem
 
@@ -50,7 +50,7 @@ Pre prvog uklanjanja proverava aktivne stare sesije, usaglašenost vremenskog ra
 | Stari redovi `gaming_sessions` | `gaming_history_sessions` |
 | Stare finansijske operacije | `gaming_history_financial_operations` |
 
-Kopije zadržavaju originalne identifikatore, iznose, snimke pravila i datume. Nemaju operativne strane ključeve ka korisnicima ili katalogu, pa kasnije poslovne promene ne brišu arhivu. Backend ne izlaže operacije pisanja u arhivske tabele.
+Kopije zadržavaju originalne identifikatore, tipove i nullability kolona, preciznost iznosa i mikrosekundi, snimke pravila i datume. Tabele se eksplicitno kreiraju iz JDBC metapodataka sa primarnim ključem pre unosa; CTAS nije dovoljan jer na H2 uklanja `NOT NULL` sa `id`. Generisane vrednosti sesija čuvaju se kao obične kolone. Pre uklanjanja izvora proveravaju se broj redova i null-safe jednakost svih kolona po originalnom ID-ju. Nemaju operativne strane ključeve ka korisnicima ili katalogu, pa kasnije poslovne promene ne brišu arhivu. Backend ne izlaže operacije pisanja u arhivske tabele.
 
 Tek kada su sve kopije potpune, stare wallet/package/tariff/charge/policy tabele se uklanjaju. Cena i verzija prelaze u `gaming_time_price`. Iz aktivne finansijske tabele izdvajaju se stare operacije, a ograničenja dozvoljavaju samo `TIME_GRANT`/`TIME_REFUND` i `CASH`/`EXTERNAL_POS`.
 
@@ -70,6 +70,16 @@ Reference na stare režime u nepromenjenim V1–V50 migracijama, arhiviranim ugo
 
 V51 koristi DDL koji na MySQL-u nije transakcion. Primenu raditi u održavanju: završiti stare aktivne sesije prethodnom podržanom verzijom, zaustaviti sve backend instance koje mogu pisati i imati konzistentnu rezervnu kopiju. Migracija namerno odbija aktivnu staru sesiju umesto da pretpostavi pravilo konverzije. Ako DDL prekine izvršavanje, ne pokretati slepi `repair`/ponavljanje; sačuvati arhive i utvrditi tačan korak, odnosno vratiti konzistentnu kopiju pre ponovnog pokušaja. Ne startovati stari backend na V51 šemi.
 
+### Baze na kojima je V51 već uspešna
+
+Ova Java migracija nasleđuje `BaseJavaMigration.getChecksum()` koji vraća `null`; ranija V51 takođe nije imala checksum. Ispravka ne uvodi checksum, ne menja naziv/verziju migracije i ne menja nijedan V1–V50 SQL fajl. Flyway validacija ostaje uključena. Za postojeći uspešan zapis `version=51, success=1` normalan `migrate` validira istoriju i ne izvršava V51 ponovo. Ne pokretati arhiviranje niti konverziju minuta ručno.
+
+Uspešno napravljene ranije CTAS arhive ostaju čitljive i kompatibilne: imaju originalne podatke i PK, a dodatni `NOT NULL` atributi novih arhiva nisu uslov za njihovo čitanje. Nije potrebna nova migracija niti prepisivanje takve arhive. Posle standardne nadogradnje proveriti svih sedam arhiva, saldo naspram vremenskog ledger-a i restore u izolovanoj bazi.
+
+Za bazu na V50 ili ranijoj verziji primenjuje se gore opisan offline postupak. Ako prethodni pokušaj ima neuspešan zapis V51 ili delimično napravljene arhive, to nije uspešno primenjena V51: zaustaviti nadogradnju, sačuvati stanje radi analize i vratiti proverenu konzistentnu kopiju u kontrolisanom recovery postupku. Ispravka ne briše delimične arhive, ne koristi `repair` i ne isključuje validaciju.
+
+Restore alat bira finansijsku proveru prema stvarnoj obnovljenoj Flyway verziji: pre V51 proverava izvorne legacy tabele, a od V51 proverava `gaming_history_*` i odvojene aktuelne ručne uplate. Od V48 dodatno zahteva tabele trajnog vremena i usaglašen saldo/ledger. Nijedna od tih provera ne menja finansijske podatke.
+
 Naknadno izvršiti:
 
 - `GamingTimeMigrationTest` i `GamingTimeMigrationIT`: V47/V48/V49 → V50 → V51, nepromenjeni checksum-ovi, arhiva, bez duplih minuta i prekid za nerešene stare sesije.
@@ -77,4 +87,4 @@ Naknadno izvršiti:
 - Session, resource, reconciliation, performance i report regresije zbog uklonjenih DTO polja i novih ograničenja.
 - `GamingTimePanel.test.tsx`, `e2e/gaming-time.spec.ts` i frontend regresije: dopuna, POS referenca, neizvestan odgovor, istorijska arhiva, profili i finansijski pregled.
 - Client `TimeBalanceLeaseTests`, `SessionLeaseFailureTests`, `PilotRecoveryTests` i ostatak Client regresije; fizičko zaključavanje, odjava, mrežni prekid, restart i obnova na stvarnoj Windows stanici.
-- Backend/frontend/Client build i ostale projektne kontrole tek u odvojenom koraku. Nijedna od ovih provera nije izvršena u ovoj izmeni.
+- Backend/frontend/Client build i ostale projektne kontrole: aktuelni izvršni rezultati i ograničenja su u [CI #146 izveštaju](CI_146_REMEDIATION.md).

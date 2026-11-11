@@ -45,13 +45,16 @@ class PilotGamingCenterIT {
     }
     @Autowired MockMvc mvc; @Autowired JdbcTemplate jdbc; @Autowired JwtService jwt;
     @Autowired PasswordEncoder passwords; @Autowired ObjectMapper json;
-    final List<String> machines=new ArrayList<>(); final long[] cursors=new long[20];
+    final List<String> machines=Collections.synchronizedList(new ArrayList<>()); final long[] cursors=new long[20];
+    final List<String> identityIds=new ArrayList<>();
+    final List<KeyPair> identityKeys=new ArrayList<>();
+    final List<Instant> tokenExpiries=new ArrayList<>();
     static UUID id(String key){return UUID.nameUUIDFromBytes(("gmanager-pilot:"+key).getBytes(StandardCharsets.UTF_8));}
     String staff(int number){return jwt.issue(id(number==0?"owner":number==1?"admin":"employee-"+(number-2))).value();}
     String customer(int number){return jwt.issue(id("customer-"+number)).value();}
 
     @BeforeEach void fixture() throws Exception {
-        testsupport.DatabaseCleaner.clean(jdbc);jdbc.update("DELETE FROM catalog_items WHERE id=?",id("service").toString());machines.clear();Arrays.fill(cursors,0);
+        testsupport.DatabaseCleaner.clean(jdbc);jdbc.update("DELETE FROM catalog_items WHERE id=?",id("service").toString());machines.clear();identityIds.clear();identityKeys.clear();tokenExpiries.clear();Arrays.fill(cursors,0);
         jdbc.update("UPDATE gaming_time_price SET minute_price=2.50,time_price_version=1 WHERE id=1");
         String hash=passwords.encode("PilotPass1!");
         for(int i=0;i<14;i++) {
@@ -63,8 +66,6 @@ class PilotGamingCenterIT {
         insert("areas","id,location_id,code,name,active",id("area"),id("location"),"PILOT","Pilot",true);
         insert("application_profiles","id,code,name,active,configuration_version",id("profile"),"PILOT","Pilot signed empty profile",true,1);
         jdbc.update("UPDATE working_hours SET active=TRUE,open_time='00:00:00',close_time='23:59:59'");
-        for(int i=0;i<3;i++) jdbc.update("INSERT INTO gaming_tariffs (id,name,minutes,price,currency,active,package_validity_days,version) VALUES (?,?,?,?,'RSD',TRUE,7,0)",
-                id("tariff-"+i).toString(),"Pilot tariff "+i,i==2?90:30,i==2?300:i==1?150:100);
         addStations(0,5);
     }
     void insert(String table,String columns,Object... values) {
@@ -79,10 +80,44 @@ class PilotGamingCenterIT {
             for(int e=0;e<2;e++)insert("user_resource_assignments","id,user_id,resource_id,active",id("assignment-"+e+"-"+i),id("employee-"+e),id("pc-"+i),true);
             var enrollment=call(post("/api/v1/stations/"+id("pc-"+i)+"/machine-identity/enrollment-token"),staff(0),null,201);
             KeyPair key=keyPair();var identity=call(post("/api/v1/machine/enroll"),null,Map.of("enrollmentToken",enrollment.get("enrollmentToken").asText(),"publicKeyBase64",Base64.getEncoder().encodeToString(key.getPublic().getEncoded()),"clientVersion","pilot-protocol-test"),201);
-            String identityId=identity.get("identityId").asText();var challenge=call(post("/api/v1/machine/auth/challenge"),null,Map.of("identityId",identityId),200);
-            Signature signer=Signature.getInstance("Ed25519");signer.initSign(key.getPrivate());signer.update((challenge.get("challengeId").asText()+":"+identityId+":"+challenge.get("nonce").asText()).getBytes(StandardCharsets.UTF_8));
-            var auth=call(post("/api/v1/machine/auth/token"),null,Map.of("identityId",identityId,"challengeId",challenge.get("challengeId").asText(),"nonce",challenge.get("nonce").asText(),"signature",Base64.getUrlEncoder().withoutPadding().encodeToString(signer.sign())),200);
-            machines.add(auth.get("token").asText());heartbeat(i,null);
+            identityIds.add(identity.get("identityId").asText());identityKeys.add(key);
+            machines.add("");tokenExpiries.add(Instant.EPOCH);authenticateMachine(i);heartbeat(i,null);
+        }
+    }
+    void authenticateMachine(int pc) throws Exception {
+        String identityId=identityIds.get(pc);
+        var challenge=call(post("/api/v1/machine/auth/challenge"),null,Map.of("identityId",identityId),200);
+        Signature signer=Signature.getInstance("Ed25519");signer.initSign(identityKeys.get(pc).getPrivate());
+        signer.update((challenge.get("challengeId").asText()+":"+identityId+":"+challenge.get("nonce").asText()).getBytes(StandardCharsets.UTF_8));
+        var auth=call(post("/api/v1/machine/auth/token"),null,Map.of("identityId",identityId,"challengeId",challenge.get("challengeId").asText(),"nonce",challenge.get("nonce").asText(),"signature",Base64.getUrlEncoder().withoutPadding().encodeToString(signer.sign())),200);
+        machines.set(pc,auth.get("token").asText());tokenExpiries.set(pc,Instant.parse(auth.get("expiresAt").asText()));
+    }
+    /** Simulate the live client's real authentication, signed lease renewal and active heartbeat. */
+    ActiveMachine keepMachineActive(int pc,String sessionId) throws Exception {return new ActiveMachine(pc,sessionId);}
+    final class ActiveMachine implements AutoCloseable {
+        private final ScheduledExecutorService executor=Executors.newSingleThreadScheduledExecutor();
+        private final java.util.concurrent.atomic.AtomicReference<Throwable> failure=new java.util.concurrent.atomic.AtomicReference<>();
+        private final ScheduledFuture<?> renewal;
+        ActiveMachine(int pc,String sessionId) throws Exception {
+            try {renew(pc,sessionId);}catch(Exception|AssertionError error){executor.shutdownNow();throw error;}
+            renewal=executor.scheduleWithFixedDelay(()->{
+                try{renew(pc,sessionId);}catch(Exception|AssertionError error){failure.compareAndSet(null,error);}
+            },5,5,TimeUnit.SECONDS);
+        }
+        private void renew(int pc,String sessionId) throws Exception {
+            if(!tokenExpiries.get(pc).isAfter(Instant.now().plusSeconds(30)))authenticateMachine(pc);
+            var signed=lease(pc);
+            assertThat(signed.get("directive").asText()).isEqualTo("ACTIVE");
+            assertThat(signed.get("sessionId").asText()).isEqualTo(sessionId);
+            call(post("/api/v1/machine/heartbeat"),machines.get(pc),Map.of("clientVersion","pilot-protocol-test",
+                    "status","SESSION_ACTIVE","lastCommandSequence",cursors[pc],"enforcementStatus","UNLOCKED",
+                    "sessionId",sessionId,"leaseId",signed.get("leaseId").asText(),
+                    "configurationVersion",signed.get("configurationVersion").asLong()),204);
+        }
+        @Override public void close() throws Exception {
+            renewal.cancel(false);executor.shutdown();
+            assertThat(executor.awaitTermination(30,TimeUnit.SECONDS)).as("Machine renewal stops before fixture cleanup").isTrue();
+            assertThat(failure.get()).as("Every simulated client renewal must succeed").isNull();
         }
     }
     JsonNode call(MockHttpServletRequestBuilder r,String token,Object body,int expected) throws Exception {

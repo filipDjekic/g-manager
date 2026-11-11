@@ -15,7 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Configuration(proxyBeanMethods=false) @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 public class BackupWriteBarrier {
     @Bean @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-    public Advisor backupWriteAdvisor(org.springframework.beans.factory.ObjectProvider<BackupQuiescence> barrier) {
+    public Advisor backupWriteAdvisor(org.springframework.beans.factory.ObjectProvider<BackupQuiescence> barrier,
+            org.springframework.beans.factory.ObjectProvider<com.game_manager.gm.common.security.MachineStationIdentity> machines) {
         var pointcut=new StaticMethodMatcherPointcut(){
             @Override public boolean matches(Method method,Class<?> type){
                 if(!type.getName().startsWith("com.game_manager.gm.")||type.getName().startsWith("com.game_manager.gm.machine."))return false;
@@ -24,7 +25,14 @@ public class BackupWriteBarrier {
                 return transaction!=null&&!transaction.readOnly();
             }
         };
-        var advisor=new DefaultPointcutAdvisor(pointcut,(MethodInterceptor)call->{try(var ignored=barrier.getObject().enter()){return call.proceed();}});
+        var advisor=new DefaultPointcutAdvisor(pointcut,(MethodInterceptor)call->{
+            // The protocol also settles time and writes audit/outbox rows through business services.
+            // Keep that entire authenticated call chain alive during the transactional DB snapshot.
+            // Staff payments/documents remain subject to the admission filter and this barrier.
+            var identity=machines.getIfAvailable();
+            if(identity!=null&&identity.isAuthenticatedMachine())return call.proceed();
+            try(var ignored=barrier.getObject().enter()){return call.proceed();}
+        });
         advisor.setOrder(Ordered.HIGHEST_PRECEDENCE+50);return advisor;
     }
 }

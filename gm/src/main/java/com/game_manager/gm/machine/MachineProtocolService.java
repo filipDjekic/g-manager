@@ -49,7 +49,9 @@ import com.game_manager.gm.auth.RateLimitService;import com.game_manager.gm.comm
  @Transactional(isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED) public void sessionLogout(SessionLogoutRequest request){MachinePrincipal machine=principal.require();GamingSession session=sessions.findById(request.sessionId()).filter(value->value.getResourceId().equals(machine.stationId())).orElseThrow(this::invalidCustomerLogin);
   if("CLIENT_RECOVERY".equals(request.reason())) time.recover(session.getId());
   else time.tick(session.getId(),false,true);
-  loginAttempts.write(machine,session.getId(),session.getCustomerId(),MachineCrypto.hash("logout:"+session.getId()),StationSessionLoginOutcome.LOGOUT);
+  // The session is locked by settlement. A separate audit transaction would wait
+  // for its FK lock on that same session; commit the successful logout atomically.
+  loginAttempts.writeConfirmed(machine,session.getId(),session.getCustomerId(),MachineCrypto.hash("logout:"+session.getId()),StationSessionLoginOutcome.LOGOUT);
  }
 
 

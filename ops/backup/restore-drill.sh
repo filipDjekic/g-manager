@@ -25,7 +25,13 @@ tables=$(MYSQL_PWD="$admin_password" mysql -N -h "$DB_HOST" -u"$admin" "$target"
 flyway=$(MYSQL_PWD="$admin_password" mysql -N -h "$DB_HOST" -u"$admin" "$target" -e "SELECT version FROM flyway_schema_history WHERE success=1 ORDER BY installed_rank DESC LIMIT 1")
 machine_tables=$(MYSQL_PWD="$admin_password" mysql -N -h "$DB_HOST" -u"$admin" "$target" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$target' AND table_name IN ('gaming_sessions','station_commands','station_enrollment_tokens','station_machine_identities','station_auth_challenges','station_heartbeats','station_session_login_attempts','station_client_enforcement','station_reconciliation_audit')")
 [ "$tables" -gt 20 ] && [ -n "$flyway" ] && [ "$machine_tables" -eq 9 ] || { echo "Restore data smoke failed" >&2; exit 1; }
-violations=$(MYSQL_PWD="$admin_password" mysql -N -h "$DB_HOST" -u"$admin" "$target" < "$(dirname "$0")/ledger-check.sql")
+financial_check=ledger-check.sql
+if [ "${flyway%%.*}" -ge 51 ]; then
+ history_tables=$(MYSQL_PWD="$admin_password" mysql -N -h "$DB_HOST" -u"$admin" "$target" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$target' AND table_name IN ('gaming_history_wallet_entries','gaming_history_packages','gaming_history_tariffs','gaming_history_charges','gaming_history_policy','gaming_history_sessions','gaming_history_financial_operations','gaming_time_price')")
+ [ "$history_tables" -eq 8 ] || { echo 'Gaming billing history or minute price tables are missing' >&2; exit 1; }
+ financial_check=history-ledger-check.sql
+fi
+violations=$(MYSQL_PWD="$admin_password" mysql -N -h "$DB_HOST" -u"$admin" "$target" < "$(dirname "$0")/$financial_check")
 [ "$violations" = 0 ] || { echo 'Restored financial ledger invariants failed' >&2; exit 1; }
 if [ "${flyway%%.*}" -ge 48 ]; then
  time_tables=$(MYSQL_PWD="$admin_password" mysql -N -h "$DB_HOST" -u"$admin" "$target" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$target' AND table_name IN ('gaming_time_accounts','gaming_time_ledger','gaming_station_assignments')")

@@ -99,7 +99,20 @@ public abstract class GamingTimeMigrationContract {
         try {
             var db=new JdbcTemplate(source);flyway(source,"47").migrate();var fixture=seed(db,true);
             flyway(source,"50").migrate();consume(db,fixture,97);buyModernTime(db,fixture,1800);
+            String session=db.queryForObject("SELECT id FROM gaming_sessions WHERE customer_id=?",String.class,fixture.customer());
+            db.update("INSERT INTO gaming_charges(id,session_id,resource_id,location_id,actor_id,minutes,amount,recognized_amount,currency,snapshot,created_at) VALUES(?,?,?,?,?,60,1234.56,789.12,'RSD',?,?)",
+                    id(),session,fixture.pc(),fixture.location(),fixture.owner(),"Arhiva: čćžšđ — original snapshot",Timestamp.from(Instant.parse("2026-08-08T10:15:30.123456Z")));
             db.update("UPDATE gaming_business_policy SET minute_price=2.50,time_price_version=4 WHERE id=1");
+            var archives=Map.of("gaming_wallet_ledger","gaming_history_wallet_entries","gaming_time_packages","gaming_history_packages",
+                    "gaming_tariffs","gaming_history_tariffs","gaming_charges","gaming_history_charges","gaming_business_policy","gaming_history_policy",
+                    "gaming_sessions","gaming_history_sessions","gaming_financial_operations","gaming_history_financial_operations");
+            Map<String,List<Map<String,Object>>> archiveRows=new HashMap<>();
+            Map<String,List<String>> archiveTypes=new HashMap<>();
+            for(var archive:archives.entrySet()) {
+                String filter=archive.getKey().equals("gaming_financial_operations")?" WHERE kind NOT IN ('TIME_GRANT','TIME_REFUND')":"";
+                archiveRows.put(archive.getValue(),db.queryForList("SELECT * FROM "+archive.getKey()+filter+" ORDER BY id"));
+                archiveTypes.put(archive.getValue(),columnTypes(source,archive.getKey()));
+            }
             long before=balance(db,fixture.customer());
             var ledger=db.queryForList("SELECT * FROM gaming_time_ledger ORDER BY id");
             var oldMoney=db.queryForList("SELECT * FROM gaming_financial_operations WHERE kind='CREDIT_TOPUP' ORDER BY id");
@@ -107,6 +120,17 @@ public abstract class GamingTimeMigrationContract {
             var audit=db.queryForList("SELECT * FROM audit_events ORDER BY id");
             var applied=db.queryForList("SELECT version,checksum FROM flyway_schema_history ORDER BY installed_rank");
             assertThat(flyway(source,null).migrate().migrationsExecuted).isEqualTo(1);
+            for(String archive:archives.values()) {
+                assertThat(db.queryForList("SELECT * FROM "+archive+" ORDER BY id")).as(archive).isEqualTo(archiveRows.get(archive));
+                assertThat(columnTypes(source,archive)).as(archive+" column types and nullability").isEqualTo(archiveTypes.get(archive));
+                try(var keys=source.getConnection().getMetaData().getPrimaryKeys(source.getConnection().getCatalog(),null,archive)) {
+                    assertThat(keys.next()).as(archive+" primary key").isTrue();assertThat(keys.getString("COLUMN_NAME")).isEqualToIgnoringCase("id");
+                    assertThat(keys.next()).isFalse();
+                }
+                try(var keys=source.getConnection().getMetaData().getImportedKeys(source.getConnection().getCatalog(),null,archive)) {
+                    assertThat(keys.next()).as(archive+" has no live business dependencies").isFalse();
+                }
+            }
             assertThat(balance(db,fixture.customer())).isEqualTo(before);
             assertThat(db.queryForList("SELECT * FROM gaming_time_ledger ORDER BY id")).isEqualTo(ledger);
             assertThat(db.queryForList("SELECT * FROM gaming_history_financial_operations ORDER BY id")).isEqualTo(oldMoney);
@@ -123,7 +147,8 @@ public abstract class GamingTimeMigrationContract {
             consume(db,fixture,11);
             assertThat(flyway(source,null).migrate().migrationsExecuted).isZero();
             assertThat(balance(db,fixture.customer())).isEqualTo(before-11);assertLedger(db);
-        } finally { source.destroy(); }
+        } catch(java.sql.SQLException exception) { throw new IllegalStateException(exception); }
+        finally { source.destroy(); }
     }
 
     @Test
@@ -165,7 +190,7 @@ public abstract class GamingTimeMigrationContract {
         try {
             var db=new JdbcTemplate(source);flyway(source,"47").migrate();var fixture=seed(db,true);
             flyway(source,"50").migrate();
-            db.update("UPDATE gaming_sessions SET status='ACTIVE' WHERE customer_id=?",fixture.customer());
+            db.update("UPDATE gaming_sessions SET status='ACTIVE',ended_at=NULL,termination_reason=NULL WHERE customer_id=?",fixture.customer());
             long before=balance(db,fixture.customer());
             org.assertj.core.api.Assertions.assertThatThrownBy(()->flyway(source,null).migrate())
                     .hasStackTraceContaining("Close and reconcile active legacy sessions");
@@ -180,6 +205,14 @@ public abstract class GamingTimeMigrationContract {
         new H2MigrationConfiguration().h2MigrationSyntax().customize(config);
         if(target!=null)config.target(target);
         return config.load();
+    }
+    private static List<String> columnTypes(SingleConnectionDataSource source,String table) throws java.sql.SQLException {
+        try(var statement=source.getConnection().createStatement();var rows=statement.executeQuery("SELECT * FROM "+table+" WHERE 1=0")) {
+            var metadata=rows.getMetaData();List<String> columns=new ArrayList<>();
+            for(int column=1;column<=metadata.getColumnCount();column++) columns.add(metadata.getColumnName(column)+":"+metadata.getColumnType(column)
+                    +":"+metadata.getPrecision(column)+":"+metadata.getScale(column)+":"+metadata.isNullable(column));
+            return columns;
+        }
     }
     private record Fixture(String customer,String owner,String pc,String location,String expiringPackage) {}
     private Fixture seed(JdbcTemplate db,boolean expired) {

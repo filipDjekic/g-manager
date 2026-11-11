@@ -5,7 +5,7 @@ FROM mysql:8.4@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea7
 RUN microdnf install -y python3 util-linux && microdnf clean all && groupadd -g 10001 gmanagerbackup && useradd -u 10001 -g gmanagerbackup -M -s /sbin/nologin gmanagerbackup
 COPY --from=restic /usr/bin/restic /usr/local/bin/restic
 WORKDIR /backup
-COPY backup.sh restore-drill.sh backup-loop.sh backup-set.sh scheduled-backup.sh ledger-check.sql time-ledger-check.sql ./
+COPY backup.sh restore-drill.sh backup-loop.sh backup-set.sh scheduled-backup.sh ledger-check.sql time-ledger-check.sql history-ledger-check.sql ./
 RUN chmod 0555 backup.sh restore-drill.sh backup-loop.sh backup-set.sh scheduled-backup.sh && mkdir -p /backup/output /documents && chown gmanagerbackup:gmanagerbackup /backup/output /documents
 USER 10001:10001
 ENTRYPOINT []

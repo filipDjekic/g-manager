@@ -116,4 +116,19 @@ class ProductionOperationsIntegrationTest {
         var codes=outcomes.stream().map(value->value.get("status").asInt()).toList();
         assertThat(codes).contains(409);assertThat(codes.stream().filter(value->value==200||value==204).count()).isEqualTo(1);f.assertLedger();
     }
+    @Test void activeMachineLeaseContinuesDuringBackupWhileNewPaymentsRemainBlocked() throws Exception {
+        var started=f.startVisit(0,0,200,60);
+        var pause=f.call(post("/internal/backup").header("X-GManager-Backup-Key",KEY),null,null,200);
+        try {
+            var lease=f.lease(0);
+            assertThat(lease.get("directive").asText()).isEqualTo("ACTIVE");
+            assertThat(lease.get("sessionId").asText()).isEqualTo(started.get("id").asText());
+            f.call(post("/api/v1/gaming-billing/customers/"+PilotGamingCenterIT.id("customer-0")+"/time-grants")
+                    .header("Idempotency-Key","paused-active-payment"),f.staff(2),Map.of("minutes",60,"priceVersion",1),503);
+            assertThat(f.jdbc.queryForObject("SELECT COUNT(*) FROM gaming_financial_operations",Integer.class)).isEqualTo(1);
+            f.assertLedger();
+        } finally {
+            f.call(delete("/internal/backup/"+pause.get("id").asText()).header("X-GManager-Backup-Key",KEY),null,null,200);
+        }
+    }
 }

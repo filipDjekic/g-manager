@@ -52,7 +52,8 @@ class ProductionBackupIT {
         var started=f.startVisit(0,0,200,60);
         context.getBean(com.game_manager.gm.document.DocumentService.class).storeGenerated(PilotGamingCenterIT.id("owner"),"backup.txt","text/plain","private restore fixture".getBytes(StandardCharsets.UTF_8));
         Testcontainers.exposeHostPorts(port);
-        try(var backup=new GenericContainer<>(BackupTestImage.IMAGE).withNetwork(NETWORK).withAccessToHost(true).withCommand("sleep","infinity")
+        try(var active=f.keepMachineActive(0,started.get("id").asText());
+                var backup=new GenericContainer<>(BackupTestImage.IMAGE).withNetwork(NETWORK).withAccessToHost(true).withCommand("sleep","infinity")
                 .withCreateContainerCmdModifier(command->command.getHostConfig().withPublishAllPorts(false))
                 .withEnv("DB_HOST","mysql").withEnv("DB_NAME","gmanager").withEnv("DB_USER","gmanager_backup")
                 .withEnv("DB_PASSWORD_FILE","/tmp/db-password").withEnv("RESTORE_PASSWORD_FILE","/tmp/restore-password")
