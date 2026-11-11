@@ -108,7 +108,7 @@ Frontend je na portu 5173, backend na 8080, MySQL na 3307. Lokalni Compose koris
 
 ## Konfiguracija i struktura
 
-Root `.env` koristi lokalni Spring profil i Compose interpolacija. Frontend ima zaseban [`.env.example`](frontend/g-manager/.env.example) sa `VITE_API_URL=/api/v1`; Vite vrednosti ulaze u frontend pri build-u i nisu mesto za tajne. Produkcioni profil ne uvozi `.env`, zahteva HTTPS origin i release metadata, koristi secure cookies i odvojene migracije. Pogledajte [konfiguraciju](docs/reference/CONFIGURATION.md) i [deployment](docs/operations/DEPLOYMENT.md).
+Root `.env` koristi lokalni Spring profil i Compose interpolacija. Frontend aplikacije ima zaseban [`.env.example`](frontend/g-manager/.env.example) sa `VITE_API_URL=/api/v1`; Vite vrednosti ulaze u frontend pri build-u i nisu mesto za tajne. Produkcioni profil ne uvozi `.env`, zahteva HTTPS origin i release metadata, koristi secure cookies i odvojene migracije. Pogledajte [konfiguraciju](docs/reference/CONFIGURATION.md) i [deployment](docs/operations/DEPLOYMENT.md).
 
 | Putanja | Sadržaj |
 | --- | --- |
