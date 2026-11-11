@@ -58,4 +58,4 @@ Istorijski rezultati ranijih provera, pre izmene V51:
 
 Rezultati naknadne MySQL/Flyway provere i oporavka postojeće baze nalaze se u [Flyway izveštaju](operations/FLYWAY_RECOVERY.md). Fizičko zaključavanje na instaliranoj gaming stanici nije provereno ovim automatizovanim testovima. Logovi provera nalaze se u lokalnom direktorijumu `artifacts/gaming-*`.
 
-Ti rezultati ne potvrđuju ovu izmenu. V51 i pripadajući backend/frontend/Client kod nisu izvršno provereni; konkretan spisak naknadnih provera nalazi se u [izveštaju izmene](operations/GAMING_BILLING_RETIREMENT.md).
+Ti istorijski rezultati ne potvrđuju V51. Aktuelne ispravke i izvršne rezultate backend, MySQL, frontend, browser i infrastrukturnih provera pratite u [CI #146 izveštaju](operations/CI_146_REMEDIATION.md). Postupak nadogradnje i kompatibilnost već uspešne V51 opisani su u [operativnom uputstvu](operations/GAMING_BILLING_RETIREMENT.md).

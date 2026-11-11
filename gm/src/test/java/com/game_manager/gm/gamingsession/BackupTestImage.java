@@ -13,7 +13,7 @@ final class BackupTestImage {
     private static ImageFromDockerfile image() {
         var image = new ImageFromDockerfile();
         for (String file : List.of("Dockerfile", "backup.sh", "restore-drill.sh", "backup-loop.sh",
-                "backup-set.sh", "scheduled-backup.sh", "ledger-check.sql")) {
+                "backup-set.sh", "scheduled-backup.sh", "ledger-check.sql", "time-ledger-check.sql", "history-ledger-check.sql")) {
             image.withFileFromPath(file, Path.of("..", "ops", "backup", file).toAbsolutePath());
         }
         return image;

@@ -9,12 +9,29 @@ for (const role of ['OWNER', 'ADMIN', 'EMPLOYEE', 'CUSTOMER'] as const) {
     await page.locator('main h1').first().waitFor()
     await page.screenshot({ path:testInfo.outputPath(`${role.toLowerCase()}-workspace.png`),fullPage:true })
     await revealResponsiveNavigation(page)
-    await expect(page.getByRole('navigation', { name: 'Glavna navigacija' })).toBeVisible()
-    if ((page.viewportSize()?.width ?? 1280) <= 800) await page.keyboard.press('Escape')
+    const mobile = (page.viewportSize()?.width ?? 1280) <= 800
+    const navigation = (mobile ? page.getByRole('dialog', { name: 'Navigacija' }) : page.locator('.desktop-navigation'))
+      .getByRole('navigation', { name: 'Glavna navigacija', exact: true })
+    await expect(navigation).toBeVisible()
+    const labels = role === 'CUSTOMER' ? ['Početna', 'Rezerviši', 'Moji termini', 'Ponuda']
+      : role === 'EMPLOYEE' ? ['Radni ekran', 'Rezervacije', 'Narudžbine', 'Klijenti', 'Alati']
+        : ['Pregled', 'Radni ekran', 'Rezervacije', 'Narudžbine', 'Klijenti', 'Oprema', 'Upravljanje']
+    await expect(navigation.getByRole('link')).toHaveText(labels)
+    if (mobile) {
+      await page.keyboard.press('Escape')
+      await expect(page.getByRole('dialog', { name: 'Navigacija' })).toBeHidden()
+      await expect(page.getByRole('button', { name: 'Meni', exact: true })).toBeFocused()
+    }
+    if (role === 'CUSTOMER' && mobile) await expect(page.getByRole('navigation', { name: 'Brza navigacija' }).getByRole('link')).toHaveText(labels)
+    else await expect(page.getByRole('navigation', { name: 'Brza navigacija' })).toHaveCount(0)
     const account = page.getByRole('button', { name: /^Moj nalog:/ })
     await account.click()
-    await expect(page.getByRole('dialog', { name: 'Moj nalog' }).getByRole('link', { name: 'Lični podaci →' })).toBeVisible()
+    await expect(page.getByRole('dialog', { name: 'Moj nalog' }).getByRole('link', { name: 'Lični podaci', exact: true })).toBeVisible()
     await page.keyboard.press('Escape')
+    await expect(account).toBeFocused()
+    await account.click()
+    await page.getByRole('dialog', { name: 'Moj nalog' }).getByRole('button', { name: 'Zatvori', exact: true }).click()
+    await expect(page.getByRole('dialog', { name: 'Moj nalog' })).toBeHidden()
     await expect(account).toBeFocused()
     const results = await new AxeBuilder({ page }).analyze()
     expect(results.violations.filter(({ impact }) => impact === 'serious' || impact === 'critical')).toEqual([])
@@ -151,6 +168,38 @@ test('AI report pilot requires consent and exposes an accessible sourced fallbac
   await expect(page.getByText(/Izveštaj orders, 42 redova/)).toBeVisible()
   const results = await new AxeBuilder({ page }).analyze()
   expect(results.violations.filter(({ impact }) => impact === 'serious' || impact === 'critical')).toEqual([])
+})
+
+for (const role of ['OWNER', 'ADMIN', 'EMPLOYEE'] as const) {
+  test(`${role} reports keep AI disabled by default`, async ({ page }) => {
+    await installApi(page, role)
+    await login(page, role)
+    await page.goto('/reports')
+    await expect(page.getByRole('heading', { name: 'Izveštaji', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Preuzmi', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'AI sažetak', exact: true })).toHaveCount(0)
+  })
+}
+
+test('disabled reports expose recovery without requesting report data', async ({ page }) => {
+  const requests: string[] = []
+  page.on('request', request => { if (new URL(request.url()).pathname.startsWith('/api/v1/reports')) requests.push(request.url()) })
+  await installApi(page, 'OWNER', false, false, false)
+  await login(page, 'OWNER')
+  await page.goto('/management')
+  await expect(page.getByRole('link', { name: /Izveštaji/ })).toHaveCount(0)
+  await page.goto('/reports')
+  await expect(page.getByRole('heading', { name: 'Funkcija trenutno nije dostupna' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Početna stranica', exact: true })).toBeVisible()
+  expect(requests).toEqual([])
+})
+
+test('customer cannot enter staff reports even with both flags enabled', async ({ page }) => {
+  await installApi(page, 'CUSTOMER', true)
+  await login(page, 'CUSTOMER')
+  await page.goto('/reports')
+  await expect(page.getByRole('heading', { name: 'Pristup nije dozvoljen' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'AI sažetak', exact: true })).toHaveCount(0)
 })
 
 test('theme density and responsive navigation remain usable at configured viewport', async ({ page }) => {

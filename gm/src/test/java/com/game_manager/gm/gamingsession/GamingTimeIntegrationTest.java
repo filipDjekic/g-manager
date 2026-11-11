@@ -133,6 +133,7 @@ class GamingTimeIntegrationTest {
   var owner=user(Role.OWNER);var c=user(Role.CUSTOMER);var s=station();managed(s);grant(owner,c,120,"credit",200);allocate(owner,c,s,200);loginMachine(s,owner);
   assertThatThrownBy(()->protocol.sessionLogin(new com.game_manager.gm.machine.dto.MachineDtos.SessionLoginRequest(c.getEmail(),"WrongPassword"))).isInstanceOf(com.game_manager.gm.common.error.ApplicationException.class);
   assertThat(sessions.count()).isZero();assertThat(time.balance(c.getId())).isEqualTo(7200);
+  assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM station_session_login_attempts WHERE outcome='INVALID_CREDENTIALS'",Integer.class)).isEqualTo(1);
   clock.now=clock.now.plusSeconds(12);var result=protocol.sessionLogin(new com.game_manager.gm.machine.dto.MachineDtos.SessionLoginRequest(c.getEmail(),"StrongPass1!"));
   assertThat(result.startedAt()).isEqualTo(clock.now);assertThat(sessions.findById(result.sessionId()).orElseThrow().getStatus()).isEqualTo(GamingSessionStatus.ACTIVE);
   assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM station_session_login_attempts WHERE outcome='SUCCESS'",Integer.class)).isEqualTo(1);
@@ -239,10 +240,12 @@ class GamingTimeIntegrationTest {
   assertThatThrownBy(()->activate(c,pc)).isInstanceOf(com.game_manager.gm.common.error.ApplicationException.class);
  }
  @Test void machineLogoutSettlesTimeAndFinancialHistoryRequiresStaffAuthorization()throws Exception{
-  var owner=user(Role.OWNER);var c=user(Role.CUSTOMER);var pc=station();managed(pc);grant(owner,c,30,"initial",200);allocate(owner,c,pc,200);var session=activate(c,pc);
+  var owner=user(Role.OWNER);var c=user(Role.CUSTOMER);var pc=station();managed(pc);grant(owner,c,30,"initial",200);allocate(owner,c,pc,200);
+  loginMachine(pc,owner);var session=time.activate(c.getId(),pc.resource().getId());
   clock.now=clock.now.plusSeconds(11);protocol.sessionLogout(new com.game_manager.gm.machine.dto.MachineDtos.SessionLogoutRequest(session.getId()));
   protocol.sessionLogout(new com.game_manager.gm.machine.dto.MachineDtos.SessionLogoutRequest(session.getId()));
   assertThat(time.balance(c.getId())).isEqualTo(1789);assertThat(sessions.findById(session.getId()).orElseThrow().getStatus()).isEqualTo(GamingSessionStatus.TERMINATED);
+  assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM station_session_login_attempts WHERE session_id=? AND outcome='LOGOUT'",Integer.class,session.getId().toString())).isEqualTo(2);
   mvc.perform(get("/api/v1/gaming-billing/customers/"+c.getId()+"/time/transactions").header("Authorization",bearer(c))).andExpect(status().isForbidden());
   mvc.perform(get("/api/v1/gaming-billing/customers/"+c.getId()+"/time/transactions").header("Authorization",bearer(owner))).andExpect(status().isOk());
  }

@@ -1,7 +1,10 @@
 package db.migration;
 
 import java.sql.Connection;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Types;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -40,10 +43,16 @@ public class V51__retire_legacy_gaming_billing extends BaseJavaMigration {
                 "Current time payments must use CASH or EXTERNAL_POS");
         requireZero(db, "SELECT CASE WHEN COUNT(*)=1 THEN 0 ELSE 1 END FROM gaming_business_policy WHERE id=1",
                 "The gaming minute price configuration is missing");
+        requireZero(db, "SELECT COUNT(*) FROM gaming_business_policy WHERE id=1 AND time_price_version<0",
+                "The gaming minute price version is invalid");
+        requireZero(db, "SELECT COUNT(*) FROM gaming_sessions WHERE billing_mode='TIME_BALANCE' AND (customer_id IS NULL "
+                + "OR guest_name IS NOT NULL OR move_target_id IS NOT NULL OR metered_lease_until IS NULL OR last_billed_at IS NULL "
+                + "OR access_until IS NULL OR ends_at>access_until OR last_billed_at<started_at OR billed_seconds<0)",
+                "A time-balance session violates the current session contract; reconcile before upgrading");
         requireKnownDependencies(db);
 
-        // CTAS intentionally creates independent archives without business foreign keys or
-        // generated columns. Original identifiers, decimals, timestamps and snapshots survive.
+        // Materialize generated values, but retain source types and nullability. CTAS loses
+        // NOT NULL on H2 (and can infer different types on MySQL). No business FKs survive.
         archive(db, "gaming_wallet_ledger", "gaming_history_wallet_entries", "1=1");
         archive(db, "gaming_time_packages", "gaming_history_packages", "1=1");
         archive(db, "gaming_tariffs", "gaming_history_tariffs", "1=1");
@@ -98,10 +107,63 @@ public class V51__retire_legacy_gaming_billing extends BaseJavaMigration {
     }
 
     private static void archive(Connection db, String source, String target, String filter) throws SQLException {
-        execute(db, "CREATE TABLE " + target + " AS SELECT * FROM " + source + " WHERE " + filter);
-        execute(db, "ALTER TABLE " + target + " ADD PRIMARY KEY(id)");
+        requireZero(db, "SELECT COUNT(*) FROM " + source + " WHERE (" + filter + ") AND id IS NULL",
+                "Null archive identifier in " + source);
+        requireZero(db, "SELECT COUNT(*) FROM (SELECT id FROM " + source + " WHERE " + filter
+                + " GROUP BY id HAVING COUNT(*)>1) duplicates", "Duplicate archive identifier in " + source);
+        List<String> columns = new ArrayList<>();
+        List<String> definitions = new ArrayList<>();
+        List<String> comparisons = new ArrayList<>();
+        boolean mysql = "MySQL".equals(db.getMetaData().getDatabaseProductName());
+        try (var statement = db.createStatement(); var rows = statement.executeQuery("SELECT * FROM " + source + " WHERE 1=0")) {
+            var metadata = rows.getMetaData();
+            for (int column = 1; column <= metadata.getColumnCount(); column++) {
+                String name = "`" + metadata.getColumnName(column) + "`";
+                columns.add(name);
+                definitions.add(name + " " + archiveType(db, source, metadata, column)
+                        + (metadata.isNullable(column) == ResultSetMetaData.columnNoNulls ? " NOT NULL" : " NULL"));
+                comparisons.add(mysql ? "s." + name + " <=> t." + name : "s." + name + " IS NOT DISTINCT FROM t." + name);
+            }
+        }
+        execute(db, "CREATE TABLE " + target + " (" + String.join(",", definitions) + ", PRIMARY KEY(id))");
+        String names = String.join(",", columns);
+        execute(db, "INSERT INTO " + target + " (" + names + ") SELECT " + names + " FROM " + source + " WHERE " + filter);
         if (count(db, "SELECT COUNT(*) FROM " + source + " WHERE " + filter) != count(db, "SELECT COUNT(*) FROM " + target))
             throw new SQLException("V51: incomplete archive " + target + "; source tables retained");
+        requireZero(db, "SELECT COUNT(*) FROM (SELECT * FROM " + source + " WHERE " + filter + ") s LEFT JOIN "
+                + target + " t ON s.id=t.id WHERE t.id IS NULL OR NOT (" + String.join(" AND ", comparisons) + ")",
+                "Archive content differs in " + target + "; source tables retained");
+    }
+
+    private static String archiveType(Connection db, String source, ResultSetMetaData metadata, int column) throws SQLException {
+        return switch (metadata.getColumnType(column)) {
+            case Types.CHAR -> "CHAR(" + metadata.getPrecision(column) + ")";
+            case Types.VARCHAR -> "VARCHAR(" + metadata.getPrecision(column) + ")";
+            case Types.LONGVARCHAR, Types.CLOB -> "TEXT";
+            case Types.DECIMAL, Types.NUMERIC -> "DECIMAL(" + metadata.getPrecision(column) + "," + metadata.getScale(column) + ")";
+            case Types.BOOLEAN, Types.BIT -> "BOOLEAN";
+            case Types.TINYINT -> "TINYINT";
+            case Types.SMALLINT -> "SMALLINT";
+            case Types.INTEGER -> "INT";
+            case Types.BIGINT -> "BIGINT";
+            case Types.TIMESTAMP -> "TIMESTAMP(" + timestampPrecision(db, source, metadata, column) + ")";
+            default -> throw new SQLException("V51: unsupported archive type " + metadata.getColumnTypeName(column));
+        };
+    }
+
+    private static int timestampPrecision(Connection db, String source, ResultSetMetaData metadata, int column) throws SQLException {
+        if (!"MySQL".equals(db.getMetaData().getDatabaseProductName())) return metadata.getScale(column);
+        // Connector/J getScale() describes numeric scale and returns 0 for TIMESTAMP(6).
+        // Read temporal precision from the schema, or archive values would lose microseconds.
+        try (var statement = db.prepareStatement("SELECT DATETIME_PRECISION FROM information_schema.columns "
+                + "WHERE table_schema=DATABASE() AND table_name=? AND column_name=?")) {
+            statement.setString(1, source);
+            statement.setString(2, metadata.getColumnName(column));
+            try (var rows = statement.executeQuery()) {
+                if (!rows.next() || rows.getObject(1) == null) throw new SQLException("V51: missing timestamp precision in " + source);
+                return rows.getInt(1);
+            }
+        }
     }
 
     private static void requireZero(Connection db, String sql, String message) throws SQLException {

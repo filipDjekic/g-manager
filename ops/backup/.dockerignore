@@ -6,3 +6,5 @@
 !scheduled-backup.sh
 !restore-drill.sh
 !ledger-check.sql
+!time-ledger-check.sql
+!history-ledger-check.sql
