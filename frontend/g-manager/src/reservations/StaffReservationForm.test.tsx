@@ -26,7 +26,9 @@ function form(resource = false) {
 }
 async function choose() {
   const user = userEvent.setup()
-  await user.click(await screen.findByRole('button', { name: /Ada Customer/ }))
+  await user.click(screen.getByRole('button', { name: 'Izaberi klijenta' }))
+  const picker = screen.getByRole('dialog', { name: 'Izaberi klijenta' })
+  await user.click(await within(picker).findByRole('button', { name: 'Izaberi klijenta Ada Customer' }))
   await screen.findByRole('option', { name: /Game hour/ })
   await user.selectOptions(screen.getByLabelText('Usluga'), service.id)
   return user

@@ -23,14 +23,14 @@ import { StationAdministration, StationClientPackage } from '../stations/Station
 import { ApplicationDialog, ApplicationProfileDialog, StationConfigurationDialog } from '../stations/StationConfigurationDialogs'
 import { StationDetails } from '../stations/StationDetails'
 import { StationIdentityDialog } from '../stations/StationIdentityDialog'
-import { StationCard, StationsTable } from '../stations/StationViews'
+import { StationsTable } from '../stations/StationViews'
 import { type StationViewHandlers } from '../stations/StationViews.model'
 import { StationIcon } from '../stations/stationPresentation'
 import { connectionStatus, problematicStation, stationError, stationStatus, type StationTab, type StationView } from '../stations/stationPresentation.model'
 import type { ApplicationDefinition, ApplicationProfile, StationOverview } from '../types/station.types'
 import '../stations/stations.css'
 
-const defaults = { search: '', status: '', locationId: '', areaId: '', profileId: '', connection: '', view: 'cards', page: '1', size: '10', stationId: '', section: 'stations' }
+const defaults = { search: '', status: '', locationId: '', areaId: '', profileId: '', connection: '', page: '1', size: '10', stationId: '', section: 'stations' }
 const urlKeys = Object.keys(defaults) as Array<keyof typeof defaults>
 const connections = { CONNECTED: 'Povezan', OFFLINE: 'Bez veze', WAITING: 'Čeka prvi kontakt', MANUAL: 'Ručni režim', UNKNOWN: 'Veza nije potvrđena' }
 const pageSizes = [10, 20, 50, 100]
@@ -92,7 +92,7 @@ const setUrl = url.set
       && (!state.areaId || value.areaId === state.areaId) && (!state.profileId || (state.profileId === 'none' ? !value.applicationProfileId : value.applicationProfileId === state.profileId))
       && (!state.connection || connectionStatus(value).key === state.connection))
   }, [allStations, state, user])
-  const pageSize = [...pageSizes, 9, 18, 36].includes(Number(state.size)) ? Number(state.size) : 10
+  const pageSize = pageSizes.includes(Number(state.size)) ? Number(state.size) : 10
   const page = Math.min(readGamingPage(state.page), Math.max(0, Math.ceil(filtered.length / pageSize) - 1))
   useEffect(() => { if (stations.data && state.page !== String(page + 1)) setUrl({ page: String(page + 1) }, true) }, [stations.data, state.page, page, setUrl])
   const current = filtered.slice(page * pageSize, (page + 1) * pageSize), selected = allStations.find(value => value.resourceId === state.stationId)
@@ -182,17 +182,14 @@ const setUrl = url.set
     </Card>
     <section className="gm-stations-results" aria-labelledby="station-results-title">
       <header className="gm-stations-results-heading"><div><h2 id="station-results-title">Pregled stanica <span>{filtered.length}</span></h2>
-        <div className="gm-stations-live-status">{canOperate ? <FreshnessStatus time={board.data?.serverTime} error={board.isError} stale={boardTooOld} connected={operations.connection==='connected'} paused={!operations.visible}/> : <small>Pregled konfiguracije · automatsko osvežavanje</small>}</div></div>
-        <div className="gm-stations-view-switch" role="group" aria-label="Način prikaza stanica"><Button variant="ghost" type="button" aria-pressed={state.view !== 'table'} onClick={() => setUrl({ view: 'cards' })}><StationIcon kind="grid" />Kartice</Button>
-          <Button variant="ghost" type="button" aria-pressed={state.view === 'table'} onClick={() => setUrl({ view: 'table' })}><StationIcon kind="table" />Tabela</Button></div></header>
+        <div className="gm-stations-live-status">{canOperate ? <FreshnessStatus time={board.data?.serverTime} error={board.isError} stale={boardTooOld} connected={operations.connection==='connected'} paused={!operations.visible}/> : <small>Pregled konfiguracije · automatsko osvežavanje</small>}</div></div></header>
       {canOperate && (board.isError || boardTooOld || operations.connection === 'reconnecting') && <div className="gm-stations-warning" role="status">{board.isError ? stationError(board.error, 'Operativno stanje trenutno nije dostupno.') : 'Ponovno povezivanje ili kašnjenje operativnih podataka.'} Podaci mogu biti zastareli. Automatsko osvežavanje će pokušati ponovo.</div>}
       {stations.isError && stations.data && <div className="gm-stations-warning" role="alert">{stationError(stations.error, 'Osvežavanje stanica nije uspelo.')} Prikazani podaci mogu biti zastareli.<Button type="button" variant="secondary" onClick={refresh}>Pokušaj ponovo</Button></div>}
-      {stations.isLoading ? <div className="gm-stations-grid">{[0, 1, 2].map(index => <Card as="div" className="gm-stations-card" key={index}><Skeleton lines={7} label="Učitavanje stanice" /></Card>)}</div>
+      {stations.isLoading ? <Skeleton lines={5} label="Učitavanje PC konfiguracija" />
         : stations.isError && !stations.data ? <ErrorState message={stationError(stations.error, 'Stanice nisu dostupne.')} action={<Button variant="secondary" type="button" onClick={refresh}>Pokušaj ponovo</Button>} />
           : !allStations.length ? <EmptyState title="Nema gaming stanica" description="Gaming računar dodaje se kroz postojeće upravljanje fizičkim resursima." action={resourceManage ? <Link className="ui-button ui-button--primary ui-button--medium" to={resourceUrl}>+ Nova stanica</Link> : undefined} />
             : !filtered.length ? <EmptyState title="Nema stanica za izabrane filtere" description="Promenite pretragu ili filtere da biste proširili pregled." action={<Button type="button" variant="secondary" onClick={clearFilters}>Očisti filtere</Button>} />
-              : state.view === 'table' ? <StationsTable stations={current} user={user} now={now} selectedId={state.stationId} disabled={stale} handlers={handlers} />
-                : <div className="gm-stations-grid">{current.map(value => <StationCard key={value.resourceId} station={value} user={user} now={now} selected={state.stationId === value.resourceId} disabled={stale} handlers={handlers} />)}</div>}
+              : <StationsTable stations={current} user={user} now={now} selectedId={state.stationId} disabled={stale} handlers={handlers} />}
       {Boolean(allStations.length) && <GamingBoardPagination page={page} pageSize={pageSize} total={filtered.length} label="Stranice gaming stanica" loading={stale}
         onChange={next => setUrl({ page: String(next + 1) })} onSizeChange={size => setUrl({ size: String(size), page: '1' })} />}
     </section>

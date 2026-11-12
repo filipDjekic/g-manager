@@ -6,5 +6,3 @@
   border: 0;
 }
 .gaming-time-fields > p { margin: 0; }
-.gaming-time-customer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.gaming-time-customer > strong { min-width: 0; overflow-wrap: anywhere; }

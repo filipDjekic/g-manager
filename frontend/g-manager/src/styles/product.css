@@ -25,8 +25,6 @@
 .operations-attention-list li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
 .operations-attention-list a { display: grid; text-decoration: none; }
 .operations-attention-list a span { color: var(--color-text-muted); font-size: var(--font-size-sm); }
-.selected-customer { display: grid; padding: var(--space-3); border: 1px solid var(--color-primary); border-radius: var(--radius-md); background: var(--color-primary-bg); }
-.selected-customer span { color: var(--color-text-muted); }
 .gaming-visit-list { display: grid; gap: var(--space-3); }
 .gaming-visit { padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
 .gaming-visit.current { border-color: var(--color-primary); background: var(--color-primary-bg); }

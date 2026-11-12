@@ -9,8 +9,8 @@ export const customerApi = {
   update: (id: string, request: CustomerUpdateInput) =>
     apiClient.patch(`/customers/${id}`, request).then(({ data }) => data),
   deactivate: (id: string) => apiClient.post(`/customers/${id}/deactivate`),
-  list: (params: { search?: string; active?: boolean; page: number; size: number }) =>
-    apiClient.get<CustomerPage>('/customers', { params }).then(({ data }) => data),
+  list: (params: { search?: string; active?: boolean; page: number; size: number }, signal?: AbortSignal) =>
+    apiClient.get<CustomerPage>('/customers', { params, signal }).then(({ data }) => data),
   statistics: () => apiClient.get<CustomerStatistics>('/customers/statistics').then(({ data }) => data),
   detail: (id: string) => apiClient.get<CustomerDetail>(`/customers/${id}`).then(({ data }) => data),
   reservations: (id: string, page: number, size: number) => apiClient.get<PageResponse<CustomerReservationHistory>>(`/customers/${id}/reservations`, { params: { page, size } }).then(({data}) => data),

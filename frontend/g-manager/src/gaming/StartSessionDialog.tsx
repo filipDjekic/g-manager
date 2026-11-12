@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { CustomerSearch, type CustomerChoice } from '../customers/CustomerSearch'
+import { ClientSelector } from '../customers/ClientSelector'
+import type { CustomerChoice } from '../types/customer.types'
 import { CustomerFormDialog } from '../customers/CustomerFormDialog'
 import { useAuthStore } from '../auth/authStore'
 import { hasCapability } from '../auth/capabilities'
@@ -13,7 +14,7 @@ import { remaining, stationLabels } from './presentation'
 export function StartSessionDialog({ station, customer, onClose, onStarted, reservation }: {
   station?: GamingStationCard; customer?: CustomerChoice; onClose: () => void; onStarted?: () => void; reservation?: { id: string; resourceId: string; durationMinutes?: number }
 }) {
-  const actor = useAuthStore(s => s.user), input = useRef<HTMLInputElement>(null)
+  const actor = useAuthStore(s => s.user), trigger = useRef<HTMLButtonElement>(null)
   const [creating, setCreating] = useState(false), [selected, setSelected] = useState<CustomerChoice | null>(customer ?? null)
   const [resourceId, setResourceId] = useState(station?.resourceId ?? reservation?.resourceId ?? '')
   const command = useFinancialCommand(() => { onStarted?.(); onClose() })
@@ -21,9 +22,9 @@ export function StartSessionDialog({ station, customer, onClose, onStarted, rese
   const options = stations.data?.stations.filter(s => s.allowedActions.includes('START')) ?? []
   const account = useQuery({ queryKey: ['gaming-time', selected?.id], queryFn: () => gamingTimeApi.account(selected!.id), enabled: !!selected, refetchInterval: 5000 })
   if (creating) return <CustomerFormDialog onClose={() => setCreating(false)} onSaved={() => {}} onContinue={value => { setSelected(value); setCreating(false) }} />
-  return <Modal open closeDisabled={command.locked} title="Dodeli računar" onClose={onClose} initialFocusRef={input}>
+  return <Modal open closeDisabled={command.locked} title="Dodeli računar" onClose={onClose} initialFocusRef={trigger}>
     <form className="ui-form-grid" onSubmit={e => { e.preventDefault(); if (!selected || !resourceId) return; const body = { customerId: selected.id, resourceId, reservationId: reservation?.id }; void command.run(key => gamingTimeApi.assign(body, key)) }}>
-      {command.feedback}{customer ? <p><strong>{customer.name}</strong> {customer.email}</p> : <CustomerSearch selected={selected} onSelect={setSelected} inputRef={input} disabled={command.locked} onCreate={hasCapability(actor, 'CUSTOMER_CREATE') ? () => setCreating(true) : undefined} />}
+      {command.feedback}{customer ? <p><strong>{customer.name}</strong> {customer.email}</p> : <ClientSelector selected={selected} onSelect={setSelected} triggerRef={trigger} disabled={command.locked} onCreate={hasCapability(actor, 'CUSTOMER_CREATE') ? () => setCreating(true) : undefined} />}
       {account.error && <Alert tone="danger">Saldo nije dostupan.</Alert>}
       {account.data && <p>Raspoloživo vreme: <strong>{remaining(account.data.balanceSeconds)}</strong></p>}
       {station ? <p>{station.resourceName} — {stationLabels[station.status]}</p> : <label>Slobodna stanica<Select required disabled={command.locked || !!reservation} value={resourceId} onChange={e => setResourceId(e.target.value)}><option value="">Izaberite stanicu</option>{options.map(s => <option key={s.resourceId} value={s.resourceId}>{s.resourceName} — {stationLabels[s.status]}</option>)}</Select></label>}

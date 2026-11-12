@@ -8,7 +8,7 @@ import { useId, type RefObject } from 'react'
 import { hasCapability } from '../auth/capabilities'
 import { gamingSessionApi } from '../api/gamingSessionApi'
 import { stationApi } from '../api/stationApi'
-import { Badge, Button, Drawer, EmptyState, ErrorState, Skeleton } from '../components/ui'
+import { Badge, Button, Modal, EmptyState, ErrorState, Skeleton } from '../components/ui'
 import { enforcementLabels } from '../gaming/presentation'
 import { stationSeconds, stationTimer } from '../gaming/operationsPresentation'
 import { formatBusinessDateTime } from '../reservations/dateTime'
@@ -40,7 +40,7 @@ export function StationDetails({ station, user, now, initialTab, profiles, defin
   const profile = profiles.find(value => value.id === station.applicationProfileId), live = station.live
   const status = stationStatus(station), connection = connectionStatus(station), warnings = stationWarnings(station)
   const date = (value?: string) => value ? formatBusinessDateTime(value, false, 'sr-Latn-RS') : 'Nije zabeleženo'
-  return <Drawer open size="wide" title={station.resourceName} className="gm-stations-drawer" onClose={onClose} returnFocusRef={returnFocusRef}>
+  return <Modal open size="wide" title={station.resourceName} className="gm-stations-detail-modal" onClose={onClose} returnFocusRef={returnFocusRef}>
     <div className="gm-stations-details">
       <div className="gm-stations-details-scroll">
         <div className="gm-stations-details-hero"><Badge tone={status.tone}>{status.label}</Badge><span>{station.resourceCode}</span>
@@ -126,5 +126,5 @@ export function StationDetails({ station, user, now, initialTab, profiles, defin
           {hasCapability(user, 'RESOURCE_MANAGE') && <Button type="button" variant="secondary" disabled={handlers.administrationDisabled} onClick={() => handlers.employees(station)}>Zaposleni</Button>}</div>}
       </footer>
     </div>
-  </Drawer>
+  </Modal>
 }
