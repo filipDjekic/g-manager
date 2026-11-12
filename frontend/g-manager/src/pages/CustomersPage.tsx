@@ -1,4 +1,4 @@
-import type { CustomerChoice } from '../customers/CustomerSearch'
+import type { CustomerChoice } from '../types/customer.types'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { apiErrorMessage } from '../api/client'

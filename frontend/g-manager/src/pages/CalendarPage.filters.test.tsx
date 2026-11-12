@@ -46,7 +46,7 @@ describe('calendar scope and filter transitions', () => {
     await user.selectOptions(screen.getByLabelText('Status'), 'CONFIRMED')
     await user.click(screen.getByRole('button', { name: 'Više filtera' }))
     await user.click(screen.getByRole('button', { name: 'Izaberi klijenta' }))
-    const picker = screen.getByRole('dialog', { name: 'Izbor klijenta' })
+    const picker = screen.getByRole('dialog', { name: 'Izaberi klijenta' })
     await user.click(await within(picker).findByRole('button', { name: 'Izaberi klijenta Ada' }))
     await waitFor(() => expect(queries.at(-1)?.get('customerId')).toBe('customer-1'))
     for (const [key, value] of Object.entries({ scope: 'MANAGEABLE', locationId: 'loc-1', areaId: 'area-1', resourceId: 'pc-1', employeeId: 'employee-1', status: 'CONFIRMED' })) expect(queries.at(-1)?.get(key)).toBe(value)

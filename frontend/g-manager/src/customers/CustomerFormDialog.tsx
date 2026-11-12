@@ -8,7 +8,7 @@ import type { CustomerListItem } from '../types/customer.types'
 import { ActivationResult } from './ActivationResult'
 import { useDirtyGuard } from '../forms/useDirtyGuard'
 import { useConfirmDialog } from '../components/ui/useConfirmDialog'
-import type { CustomerChoice } from './CustomerSearch'
+import type { CustomerChoice } from '../types/customer.types'
 
 export function CustomerFormDialog({ customer, onClose, onSaved, returnFocusRef, onContinue }: {
   customer?: CustomerListItem; onClose: () => void; onSaved: () => void

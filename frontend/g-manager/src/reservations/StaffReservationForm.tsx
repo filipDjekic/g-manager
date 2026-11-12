@@ -45,7 +45,7 @@ export function StaffReservationForm(props: StaffBookingProps) {
         if (canSubmit || frozen) {if (!repeat || review) {submittingRef.current = true; create.mutate()} else setReview(true)}
       }}>
         {!review ? <>
-          <CustomerPicker value={customerId} required inline disabled={blocked} onChange={(id,name) => {setCustomerId(id);setCustomerName(name ?? '')}} />
+          <CustomerPicker value={customerId} required disabled={blocked} onChange={(id,name) => {setCustomerId(id);setCustomerName(name ?? '')}} />
           <label>Usluga<Select aria-label={"Usluga"} required disabled={blocked || services.isLoading || !!services.error} value={serviceId} onChange={event => {
             initializedServiceRef.current = ''; setServiceId(event.target.value);setResourceId('')
           }}><option value="">Izaberite uslugu</option>{services.data?.map(item => <option key={item.id} value={item.id}>{item.name}{item.durationMinutes ? ` · ${item.durationMinutes} min` : ''}</option>)}</Select></label>

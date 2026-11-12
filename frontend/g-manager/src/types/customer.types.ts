@@ -1,5 +1,7 @@
 import type { PageResponse } from './api.types'
 
+export interface CustomerChoice { id: string; name: string; email?: string }
+
 export interface CustomerListItem {
   id: string
   name: string

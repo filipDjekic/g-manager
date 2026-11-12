@@ -8,7 +8,7 @@ for (const role of ['OWNER', 'ADMIN', 'EMPLOYEE'] as const) {
     const payments: { minutes: number; priceVersion: number; method: 'CASH' | 'EXTERNAL_POS'; reference?: string }[] = []
     await page.route('**/api/v1/gaming-billing/time-price', route => route.fulfill({ json: { pricePerMinute: '2.50', version: 1 } }))
     await page.route('**/api/v1/gaming-billing/customers/*/time', route => route.fulfill({ json: { balanceSeconds, assignments: [] } }))
-    await page.route('**/api/v1/customers?*', route => route.fulfill({ json: { content: [{ id: 'customer-time', name: 'Ada Gaming', email: 'ada@example.test', active: true }], page: 0, size: 8, totalElements: 1, totalPages: 1 } }))
+    await page.route('**/api/v1/customers?*', route => route.fulfill({ json: { content: [{ id: 'customer-time', name: 'Ada Gaming', email: 'ada@example.test', active: true }], page: 0, size: 5, totalElements: 1, totalPages: 1 } }))
     await page.route('**/api/v1/gaming-billing/customers/*/time-grants', async route => {
       const body = route.request().postDataJSON()
       expect(body).toEqual({ minutes: 31, priceVersion: 1, method: 'CASH' })
@@ -20,8 +20,10 @@ for (const role of ['OWNER', 'ADMIN', 'EMPLOYEE'] as const) {
     await page.goto('/gaming-sessions')
     await page.getByRole('button', { name: 'Dodaj vreme', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: 'Plaćanje', exact: true })
-    await dialog.getByRole('searchbox', { name: 'Pronađi klijenta' }).fill('Ada')
-    const customer = dialog.getByRole('button', { name: /Ada Gaming.*ada@example.test/ })
+    await dialog.getByRole('button', { name: 'Izaberi klijenta' }).click()
+    const picker = page.getByRole('dialog', { name: 'Izaberi klijenta', exact: true })
+    await picker.getByRole('searchbox', { name: 'Pretraga klijenata' }).fill('Ada')
+    const customer = picker.getByRole('button', { name: 'Izaberi klijenta Ada Gaming' })
     await expect(customer).toBeEnabled(); await customer.click()
     await expect(dialog.getByText('75.00 RSD')).toBeVisible()
     const minutes = dialog.getByLabel('Dodaj minute')

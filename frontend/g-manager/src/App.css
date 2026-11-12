@@ -106,10 +106,6 @@ table caption {
 .priority { width: fit-content; font-size: var(--font-size-xs); }
 .priority.high { color: var(--color-danger); }
 .notification-preferences { gap: 0; }
-.gaming-customer-results { display: grid; max-height: 16rem; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
-.gaming-customer-results button { display: grid; text-align: start; }
-.gaming-customer-results button:hover { outline: 2px solid var(--color-primary); outline-offset: -2px; }
-.gaming-customer-results button.selected { background: var(--color-surface-raised); outline: 2px solid var(--color-primary); outline-offset: -2px; }
 .command-palette mark { color: inherit; background: var(--color-success-bg); }
 
 @media (max-width: 620px) {

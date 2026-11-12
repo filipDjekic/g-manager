@@ -261,11 +261,6 @@ button.ui-stat:hover, a.ui-stat:hover { border-color: var(--color-primary); back
 .ui-task-list > li { display:grid; gap:var(--space-2); padding-block:var(--space-3); border-bottom:1px solid var(--color-border); }
 .ui-task-list > li > div:first-child { display:grid; gap:var(--space-1); }
 .ui-task-list small, .ui-workspace-scope { font-size:var(--font-size-sm); color:var(--color-text-muted); }
-.ui-customer-search { display:grid; gap:var(--space-3); }
-.gaming-customer-results { display:grid; gap:var(--space-2); max-height:18rem; overflow:auto; }
-.gaming-customer-results > .ui-button { height:auto; min-height:2.75rem; justify-content:space-between; flex-wrap:wrap; text-align:start; white-space:normal; }
-.gaming-customer-results > .ui-button[aria-pressed='true'] { box-shadow:inset 0 0 0 1px var(--color-primary); }
-.gaming-customer-results small { color:var(--color-text-muted); }
 
 :is(.ui-form-grid, .form-grid) fieldset { min-width:0; margin:0; padding:var(--space-3); border:1px solid var(--color-border); border-radius:var(--radius-md); }
 
