@@ -6,6 +6,8 @@ import com.game_manager.gm.catalog.CatalogItem;
 import com.game_manager.gm.catalog.CatalogRepository;
 import com.game_manager.gm.catalog.ItemType;
 import com.game_manager.gm.common.security.Role;
+import com.game_manager.gm.gamingsession.GamingSessionRepository;
+import com.game_manager.gm.gamingsession.GamingSessionStatus;
 import com.game_manager.gm.order.Order;
 import com.game_manager.gm.order.OrderItem;
 import com.game_manager.gm.order.OrderRepository;
@@ -16,10 +18,12 @@ import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
-import org.hibernate.SessionFactory;
-import org.hibernate.stat.Statistics;
+import java.util.concurrent.CompletableFuture;
+import org.hibernate.Session;
+import org.hibernate.SessionEventListener;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.PageRequest;
@@ -29,7 +33,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 import testsupport.DatabaseCleaner;
 
-@SpringBootTest(properties = "spring.jpa.properties.hibernate.generate_statistics=true")
+@SpringBootTest(properties =
+        "spring.jpa.properties.hibernate.query.fail_on_pagination_over_collection_fetch=true")
 @ActiveProfiles("test")
 class OrderQueryCountIntegrationTest {
     @Autowired private OrderRepository orderRepository;
@@ -37,15 +42,17 @@ class OrderQueryCountIntegrationTest {
     @Autowired private CatalogRepository catalogRepository;
     @Autowired private EntityManager entityManager;
     @Autowired private JdbcTemplate jdbc;
+    @Autowired private GamingSessionRepository gamingSessions;
 
     @BeforeEach
     void cleanDatabase() {
         DatabaseCleaner.clean(jdbc);
     }
 
-    @Test
+    @ParameterizedTest
+    @CsvSource({"0,60", "1,60", "0,100"})
     @Transactional
-    void pagedOrderItemsUseBoundedBatchQueriesOnLargeDataset() {
+    void pagedOrderItemsUseBoundedBatchQueriesOnLargeDataset(int pageNumber, int pageSize) {
         assertThat(entityManager.getEntityManagerFactory().getProperties()
                 .get("jakarta.persistence.query.timeout").toString()).isEqualTo("5000");
         User customer = userRepository.save(new User(
@@ -59,7 +66,8 @@ class OrderQueryCountIntegrationTest {
         product = catalogRepository.save(product);
 
         List<Order> orders = new ArrayList<>();
-        for (int index = 0; index < 60; index++) {
+        int totalOrders = pageSize * 2 + 1;
+        for (int index = 0; index < totalOrders; index++) {
             Order order = new Order();
             order.setCustomerId(customer.getId());
             order.setStatus(OrderStatus.CREATED);
@@ -75,16 +83,38 @@ class OrderQueryCountIntegrationTest {
         orderRepository.saveAllAndFlush(orders);
         entityManager.clear();
 
-        Statistics statistics = entityManager.getEntityManagerFactory()
-                .unwrap(SessionFactory.class).getStatistics();
-        statistics.clear();
+        Session session = entityManager.unwrap(Session.class);
+        PreparedStatementCounter counter = new PreparedStatementCounter();
+        session.addEventListeners(counter);
+
+        // Reproduce scheduled SQL on a separate session inside the measurement window.
+        // Factory statistics include it; the order operation's session must not.
+        CompletableFuture.runAsync(() ->
+                gamingSessions.findByStatusOrderByStartedAtDesc(GamingSessionStatus.ACTIVE)).join();
+        assertThat(counter.count).isZero();
 
         var page = orderRepository.findAll(
                 (root, query, builder) -> builder.equal(root.get("customerId"), customer.getId()),
-                PageRequest.of(0, 60, Sort.by("createdAt").descending()));
-        assertThat(page.getContent()).hasSize(60);
+                PageRequest.of(pageNumber, pageSize, Sort.by("createdAt").descending().and(Sort.by("id"))));
+        assertThat(page.getContent()).hasSize(pageSize);
+        assertThat(page.getTotalElements()).isEqualTo(totalOrders);
+        assertThat(page.getTotalPages()).isEqualTo(3);
+        // Only the requested page is managed: pagination must happen in the database.
+        assertThat(session.getStatistics().getEntityCount()).isEqualTo(pageSize);
+        assertThat(counter.count).as("page SELECT plus COUNT").isEqualTo(2);
         assertThat(page.getContent()).allSatisfy(order -> assertThat(order.getItems()).hasSize(1));
 
-        assertThat(statistics.getPrepareStatementCount()).isLessThanOrEqualTo(4);
+        assertThat(counter.count)
+                .as("page SELECT, COUNT and at most two item batches")
+                .isLessThanOrEqualTo(4);
+    }
+
+    private static final class PreparedStatementCounter implements SessionEventListener {
+        private long count;
+
+        @Override
+        public void jdbcPrepareStatementStart() {
+            count++;
+        }
     }
 }
